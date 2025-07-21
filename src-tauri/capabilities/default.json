@@ -7,19 +7,15 @@
   ],
   "permissions": [
     "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
     {
-      "identifier": "dialog:default",
-      "allow": [
-        "dialog:open",
-        "dialog:save"
-      ]
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$DOWNLOAD/*" }]
     },
     {
-      "identifier": "fs:default",
-      "allow": [
-        "fs:read-text-file",
-        "fs:write-text-file"
-      ]
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "$DOWNLOAD/*" }]
     }
   ]
 }
