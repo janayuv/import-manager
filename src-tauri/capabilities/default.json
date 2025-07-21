@@ -1,0 +1,25 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for the application.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    {
+      "identifier": "dialog:default",
+      "allow": [
+        "dialog:open",
+        "dialog:save"
+      ]
+    },
+    {
+      "identifier": "fs:default",
+      "allow": [
+        "fs:read-text-file",
+        "fs:write-text-file"
+      ]
+    }
+  ]
+}

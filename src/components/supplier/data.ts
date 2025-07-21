@@ -1,0 +1,40 @@
+import type { Supplier } from '@/types/supplier';
+
+export const dummySuppliers: Supplier[] = [
+  {
+    id: 'Sup-001',
+    supplierName: 'Global Electronics Inc.',
+    shortName: 'GEI',
+    country: 'Japan',
+    email: 'contact@gei.jp',
+    phone: '+81 3-1234-5678',
+    beneficiaryName: 'Global Electronics Inc.',
+    bankName: 'Sumitomo Mitsui Banking Corporation',
+    branch: 'Tokyo Head Office',
+    bankAddress: '1-2, Marunouchi 1-chome, Chiyoda-ku, Tokyo, Japan',
+    accountNo: '987654321',
+    iban: 'JP14SMBC20000001234567',
+    swiftCode: 'SMBCJPJT',
+    isActive: true,
+  },
+  {
+    id: 'Sup-002',
+    supplierName: 'Precision Machinery Co. Ltd.',
+    country: 'Germany',
+    email: 'info@precision-machinery.de',
+    beneficiaryName: 'Precision Machinery Co. Ltd.',
+    bankName: 'Deutsche Bank AG',
+    accountNo: '123456789',
+    swiftCode: 'DEUTDEFF',
+    isActive: true,
+  },
+  {
+    id: 'Sup-003',
+    supplierName: 'American Textiles',
+    shortName: 'AmTex',
+    country: 'USA',
+    email: 'sales@amtex.com',
+    phone: '1-800-555-0199',
+    isActive: false,
+  },
+];
