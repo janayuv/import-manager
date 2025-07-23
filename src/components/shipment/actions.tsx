@@ -21,18 +21,18 @@ export const ShipmentActions = ({ shipment, onView, onEdit }: ShipmentActionsPro
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button variant="ghost" className="h-8 w-8 p-0 text-[#ff9900] hover:bg-[#8aff80]/10" >
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => navigator.clipboard.writeText(shipment.id)}>
+        <DropdownMenuItem className="hover:text-[#ffff80]" onClick={() => navigator.clipboard.writeText(shipment.id)} >
           Copy Shipment ID
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={onView}>View details</DropdownMenuItem>
+        <DropdownMenuItem className="hover:text-[#ffff80]" onClick={onView}>View details</DropdownMenuItem>
         <DropdownMenuItem onClick={onEdit}>Edit shipment</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

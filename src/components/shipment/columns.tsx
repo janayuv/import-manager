@@ -1,6 +1,6 @@
 // src/components/shipment/columns.tsx (MODIFIED)
-// Moved the SortIndicator component here to resolve the Fast Refresh warning.
-import type { ColumnDef } from '@tanstack/react-table';
+// Using the new date formatter for display in the table and adding a custom sorting function.
+import type { ColumnDef, Row } from '@tanstack/react-table';
 import type { Shipment } from '@/types/shipment';
 import type { Option } from '@/types/options';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -8,8 +8,14 @@ import { ShipmentActions } from './actions';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { SortIndicator } from './sort-indicator';
+import { formatDateForDisplay } from '@/lib/date-format';
 
-
+// Custom sorting function for "dd-mm-yyyy" dates
+const dateSort = (rowA: Row<Shipment>, rowB: Row<Shipment>, columnId: string) => {
+    const dateA = (rowA.getValue(columnId) as string).split('-').reverse().join('-');
+    const dateB = (rowB.getValue(columnId) as string).split('-').reverse().join('-');
+    return dateA.localeCompare(dateB);
+};
 
 export const getShipmentColumns = (
     suppliers: Option[],
@@ -18,41 +24,26 @@ export const getShipmentColumns = (
 ): ColumnDef<Shipment>[] => [
   {
     id: 'select',
-    header: ({ table }) => (
-      <Checkbox
-        className="accent-primary"
-        checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")}
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-        aria-label="Select all"
-      />
-    ),
-    cell: ({ row }) => (
-      <Checkbox
-        className="accent-primary"
-        checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
-        aria-label="Select row"
-      />
-    ),
-    enableSorting: false,
-    enableHiding: false,
+    header: ({ table }) => ( <Checkbox className="custom-checkbox" checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all"/>),
+    cell: ({ row }) => (<Checkbox className="custom-checkbox" checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row"/>),
+    enableSorting: false, enableHiding: false,
   },
   {
     accessorKey: 'supplierId',
     header: 'Supplier',
-    cell: ({ row }) => {
-        const supplierId = row.getValue('supplierId') as string;
-        const supplier = suppliers.find(s => s.value === supplierId);
-        return supplier ? supplier.label : 'Unknown';
-    }
+    cell: ({ row }) => { const supplierId = row.getValue('supplierId') as string; const supplier = suppliers.find(s => s.value === supplierId); return supplier ? supplier.label : 'Unknown'; }
   },
   {
     accessorKey: 'invoiceNumber',
-    header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Invoice No<SortIndicator column={column} /></Button>),
+    header: ({ column }) => (<Button variant="ghost" className="text-blue-600 hover:bg-blue-600/10" onClick={() =>column.toggleSorting(column.getIsSorted() === "asc")} >
+Invoice No<SortIndicator column={column} /> </Button>),
   },
   {
     accessorKey: 'invoiceDate',
-    header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Date<SortIndicator column={column} /></Button>),
+    header: ({ column }) => (<Button variant="ghost" className="text-blue-600 hover:bg-blue-600/10" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+> Date<SortIndicator column={column} /> </Button>),
+    cell: ({ row }) => formatDateForDisplay(row.getValue('invoiceDate')),
+    sortingFn: dateSort,
   },
   { accessorKey: 'goodsCategory', header: 'Goods Category' },
   { accessorKey: 'invoiceCurrency', header: 'Currency' },
@@ -62,11 +53,15 @@ export const getShipmentColumns = (
   { accessorKey: 'blAwbNumber', header: 'BL/AWB No' },
   {
     accessorKey: 'etd',
-    header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>ETD<SortIndicator column={column} /></Button>),
+    header: ({ column }) => (<Button variant="ghost" className="text-blue-600 hover:bg-blue-600/10" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} > ETD<SortIndicator column={column} /> </Button>),
+    cell: ({ row }) => formatDateForDisplay(row.getValue('etd')),
+    sortingFn: dateSort,
   },
   {
     accessorKey: 'eta',
-    header: ({ column }) => (<Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>ETA<SortIndicator column={column} /></Button>),
+    header: ({ column }) => (<Button variant="ghost" className="text-blue-600 hover:bg-blue-600/10" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")} > ETA<SortIndicator column={column} /> </Button>),
+    cell: ({ row }) => formatDateForDisplay(row.getValue('eta')),
+    sortingFn: dateSort,
   },
   {
     accessorKey: 'status',

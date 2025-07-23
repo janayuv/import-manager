@@ -1,4 +1,3 @@
-// Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod db;
@@ -23,9 +22,14 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Supplier commands (already exist)
             commands::get_suppliers,
             commands::add_supplier,
-            commands::update_supplier
+            commands::update_supplier,
+            // NEW: Shipment commands
+            commands::get_shipments,
+            commands::add_shipment,
+            commands::update_shipment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

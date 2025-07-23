@@ -175,6 +175,16 @@ button:focus-visible {
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+.custom-checkbox[data-state="checked"] {
+  background-color: #ef9fbc !important; /* Checked color */
+  border-color: #e7739e !important;
+}
+
+.custom-checkbox[data-state="indeterminate"] {
+  background-color: #ef9fbc !important; /* Indeterminate color */
+  border-color: #e7739e !important;
+}
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
