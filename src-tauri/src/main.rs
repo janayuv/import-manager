@@ -29,7 +29,11 @@ fn main() {
             // NEW: Shipment commands
             commands::get_shipments,
             commands::add_shipment,
-            commands::update_shipment
+            commands::update_shipment,
+            // Item Master commands
+            commands::get_items,
+            commands::add_item,
+            commands::update_item
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
