@@ -6,6 +6,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import SupplierPage from '@/pages/supplier';
 import ShipmentPage from '@/pages/shipment';
 import ItemMasterPage from '@/pages/item';
+import  InvoicePage  from '@/pages/invoice';
 import { Toaster } from '@/components/ui/sonner';
 
 const Placeholder = ({ title }: { title: string }) => (
@@ -23,7 +24,7 @@ function App() {
             <Route path="/" element={<ShipmentPage />} />
             <Route path="/supplier" element={<SupplierPage />} />
             <Route path="/shipment" element={<ShipmentPage />} />
-            <Route path="/invoice" element={<Placeholder title="Invoice" />} />
+            <Route path="/invoice" element={<InvoicePage />} />
             <Route path="/item-master" element={<ItemMasterPage />} />
             <Route path="/boe" element={<Placeholder title="BOE" />} />
             <Route path="/expenses" element={<Placeholder title="Expenses" />} />

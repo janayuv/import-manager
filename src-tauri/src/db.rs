@@ -72,6 +72,46 @@ pub struct Item {
     pub gross_weight_per_uom_kg: Option<f64>,
     pub photo_path: Option<String>,
 }
+#[derive(Debug, serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct InvoiceLineItem {
+    pub id: String,
+    pub item_id: String,
+    pub quantity: f64,
+    pub unit_price: f64,
+}
+
+#[derive(Debug, serde::Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Invoice {
+    pub id: String,
+    pub shipment_id: String,
+    pub invoice_number: String,
+    pub invoice_date: String,
+    pub status: String,
+    pub calculated_total: f64,
+    pub shipment_total: f64,
+    pub line_items: Vec<InvoiceLineItem>,
+}
+
+// Structs for receiving data from the frontend
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewInvoicePayload {
+    pub shipment_id: String,
+    pub status: String,
+    pub line_items: Vec<NewInvoiceLineItemPayload>,
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewInvoiceLineItemPayload {
+    pub item_id: String,
+    pub quantity: f64,
+    pub unit_price: f64,
+}
+
+
 // A struct to hold our database connection state
 pub struct DbState {
     pub db: Mutex<Connection>,
@@ -139,6 +179,26 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
-
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS invoices (
+            id TEXT PRIMARY KEY NOT NULL,
+            shipment_id TEXT NOT NULL,
+            status TEXT NOT NULL,
+            FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS invoice_line_items (
+            id TEXT PRIMARY KEY NOT NULL,
+            invoice_id TEXT NOT NULL,
+            item_id TEXT NOT NULL,
+            quantity REAL NOT NULL,
+            unit_price REAL NOT NULL,
+            FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+            FOREIGN KEY (item_id) REFERENCES items(id)
+        )",
+        [],
+    )?;
     Ok(conn)
 }

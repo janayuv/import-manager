@@ -127,9 +127,9 @@ export function ItemForm({
         </DialogHeader>
         <Tabs defaultValue="general">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="general">General Details</TabsTrigger>
-            <TabsTrigger value="customs">Commercial & Customs</TabsTrigger>
-            <TabsTrigger value="specs">Specifications</TabsTrigger>
+            <TabsTrigger value="general" className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white">General Details</TabsTrigger>
+            <TabsTrigger value="customs" className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white">Commercial & Customs</TabsTrigger>
+            <TabsTrigger value="specs" className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white">Specifications</TabsTrigger>
           </TabsList>
           <div className="py-4">
             <TabsContent value="general">
@@ -172,7 +172,7 @@ export function ItemForm({
           </div>
         </Tabs>
         <DialogFooter>
-          <Button onClick={handleSubmit} className="bg-primary text-primary-foreground">Save Item</Button>
+          <Button onClick={handleSubmit} className="custom-alert-action-ok">Save Item</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

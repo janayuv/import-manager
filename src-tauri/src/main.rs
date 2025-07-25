@@ -33,7 +33,13 @@ fn main() {
             // Item Master commands
             commands::get_items,
             commands::add_item,
-            commands::update_item
+            commands::update_item,
+                        // --- ADD THE NEW INVOICE COMMANDS ---
+            commands::get_invoices,
+            commands::add_invoice,
+            commands::update_invoice,
+            commands::delete_invoice,
+            commands::get_unfinalized_shipments
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

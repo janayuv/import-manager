@@ -222,10 +222,10 @@ export function ItemMasterPage() {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Item Master</h1>
         <div className="flex items-center gap-2">
-           <Button onClick={handleImport} variant="outline"><Upload className="mr-2 h-4 w-4" />Import</Button>
-           <Button onClick={() => handleExport('selected')} className="bg-primary text-primary-foreground" disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
-           <Button onClick={() => handleExport('all')} className="bg-primary text-primary-foreground"><Download className="mr-2 h-4 w-4" />Export All</Button>
-           <Button onClick={handleOpenFormForAdd} className="bg-primary text-primary-foreground"><Plus className="mr-2 h-4 w-4" />Add New</Button>
+           <Button onClick={handleImport} variant="outline" className="custom-alert-action-ok"><Upload className="mr-2 h-4 w-4" />Import</Button>
+           <Button onClick={() => handleExport('selected')} className="custom-alert-action-cancel" disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
+           <Button onClick={() => handleExport('all')} className="custom-alert-action-cancel"><Download className="mr-2 h-4 w-4" />Export All</Button>
+           <Button onClick={handleOpenFormForAdd} className="custom-alert-action-ok"><Plus className="mr-2 h-4 w-4" />Add New</Button>
         </div>
       </div>
       <DataTable 
