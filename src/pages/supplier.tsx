@@ -115,7 +115,7 @@ const SupplierPage = () => {
         {
             accessorKey: 'supplierName',
             header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
+                <Button variant="ghost"  onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
                     Supplier Name
                     <SortIndicator column={column} />
                 </Button>

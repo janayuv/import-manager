@@ -152,7 +152,7 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} className="bg-red-600 hover:bg-red-700 text-white">
+          <Button onClick={handleSubmit} className="custom-alert-action-ok">
             Save Supplier
           </Button>
         </DialogFooter>

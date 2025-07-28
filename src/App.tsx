@@ -7,6 +7,7 @@ import SupplierPage from '@/pages/supplier';
 import ShipmentPage from '@/pages/shipment';
 import ItemMasterPage from '@/pages/item';
 import  InvoicePage  from '@/pages/invoice';
+import  BOEPage  from '@/pages/boe';
 import { Toaster } from '@/components/ui/sonner';
 
 const Placeholder = ({ title }: { title: string }) => (
@@ -26,13 +27,13 @@ function App() {
             <Route path="/shipment" element={<ShipmentPage />} />
             <Route path="/invoice" element={<InvoicePage />} />
             <Route path="/item-master" element={<ItemMasterPage />} />
-            <Route path="/boe" element={<Placeholder title="BOE" />} />
+            <Route path="/boe" element={<BOEPage />} />
             <Route path="/expenses" element={<Placeholder title="Expenses" />} />
             <Route path="/report" element={<Placeholder title="Report" />} />
           </Route>
         </Routes>
       </Router>
-      <Toaster />
+      <Toaster position="top-right" richColors />
     </ThemeProvider>
   )
 }

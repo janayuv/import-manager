@@ -18,6 +18,7 @@ serde_json = "1.0"
 serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 rusqlite = { version = "0.31.0", features = ["bundled"] }
+rand = "0.8"
 
 # Use the exact versions from your cargo tree to ensure compatibility
 tauri = { version = "2.0.0-rc.17", features = [] }

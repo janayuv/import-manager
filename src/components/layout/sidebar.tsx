@@ -1,72 +1,131 @@
-// src/components/layout/sidebar.tsx
+// src/components/layout/Sidebar.tsx
 import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { motion } from 'framer-motion';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { useEffect } from 'react';
+import { Button } from '@/components/ui/button';
 import {
-    Users,
-    Ship,
-    FileText,
-    Package,
-    Landmark,
-    CircleDollarSign,
-    BarChart3,
+  Users, Ship, FileText, Package,
+  Landmark, CircleDollarSign, BarChart3,
+  ChevronLeft, ChevronRight
 } from 'lucide-react';
+import { MoonIcon, SunIcon } from 'lucide-react';
+import { useTheme } from '@/components/layout/theme-context';
 
-// Updated props interface
 interface SidebarProps {
-  open: boolean;              // Changed from isOpen to open
-  onToggle: () => void;       // Added onToggle prop
+  open: boolean;
+  onToggle: () => void;
 }
 
 const navItems = [
-  { path: '/supplier', label: 'Supplier', icon: <Users size={18} /> },
-  { path: '/shipment', label: 'Shipment', icon: <Ship size={18} /> },
-  { path: '/invoice', label: 'Invoice', icon: <FileText size={18} /> },
-  { path: '/item-master', label: 'Item Master', icon: <Package size={18} /> },
-  { path: '/boe', label: 'BOE', icon: <Landmark size={18} /> },
-  { path: '/expenses', label: 'Expenses', icon: <CircleDollarSign size={18} /> },
-  { path: '/report', label: 'Report', icon: <BarChart3 size={18} /> },
+  { path: '/supplier', label: 'Supplier', icon: Users },
+  { path: '/shipment', label: 'Shipment', icon: Ship },
+  { path: '/invoice',  label: 'Invoice',  icon: FileText },
+  { path: '/item-master', label: 'Item Master', icon: Package },
+  { path: '/boe',      label: 'BOE',      icon: Landmark },
+  { path: '/expenses', label: 'Expenses', icon: CircleDollarSign },
+  { path: '/report',   label: 'Report',   icon: BarChart3 },
 ];
 
 export const Sidebar = ({ open, onToggle }: SidebarProps) => {
+  const { theme, setTheme } = useTheme();
+
+  // persist open state
+  useEffect(() => {
+    localStorage.setItem('sidebarOpen', JSON.stringify(open));
+  }, [open]);
+
   return (
     <motion.aside
       initial={false}
-      animate={{ width: open ? 256 : 80 }}
-      transition={{ duration: 0.3 }}
-      className="border-r h-screen bg-background sticky top-0 flex flex-col p-4"
+      animate={{ width: open ? 200 : 64 }}
+      transition={{ duration: 0.25 }}
+      className="border-r h-screen bg-background sticky top-0 flex flex-col"
+      aria-label="Primary"
     >
-      <div className="flex items-center mb-4">
-        {/* Add toggle button for mobile/tablet */}
-        <button 
-          onClick={onToggle}
-          className="md:hidden ml-auto p-2 rounded-lg hover:bg-muted"
-        >
-          {open ? (
-            <span className="i-lucide-panel-left-open text-xl" />
-          ) : (
-            <span className="i-lucide-panel-left-close text-xl" />
-          )}
-        </button>
-      </div>
-      <nav className="flex-1 space-y-2">
-        {navItems.map((item) => (
+      {/* Toggle */}
+      <button
+        onClick={onToggle}
+        aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
+        className="self-end m-4 p-2 rounded-full hover:bg-muted transition"
+      >
+        {open
+          ? <ChevronLeft size={20} className="transition-transform" />
+          : <ChevronRight size={20} className="transition-transform" />}
+      </button>
+
+      {/* Navigation */}
+      <nav className="flex-1 space-y-1 px-2">
+        {navItems.map(({ path, label, icon: Icon }) => (
           <NavLink
-            key={item.path}
-            to={item.path}
+            key={path}
+            to={path}
             className={({ isActive }) =>
               cn(
-                'flex items-center p-3 rounded-lg hover:bg-muted transition-colors',
+                'group flex items-center p-2 rounded-lg transition-colors relative',
                 isActive && 'bg-primary text-primary-foreground',
+                !isActive && 'hover:bg-muted',
                 !open && 'justify-center'
               )
             }
           >
-            <span className="shrink-0">{item.icon}</span>
-            {open && <span className="ml-4 font-medium">{item.label}</span>}
+            {/* Active indicator */}
+            <div
+              className={cn(
+                'absolute left-0 top-0 h-full w-1 rounded-r',
+                'bg-transparent group-[.active]:bg-primary'
+              )}
+            />
+
+            {/* Tooltip wrapper when collapsed */}
+            {!open ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Icon size={18} aria-hidden />
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {label}
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <>
+                <Icon size={18} aria-hidden />
+                <span className="ml-3 font-medium">{label}</span>
+              </>
+            )}
           </NavLink>
         ))}
       </nav>
+
+      {/* Utilities: theme toggle & profile */}
+      <div className="px-2 pb-4">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+        >
+          <SunIcon className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+          <MoonIcon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+          <span className="sr-only">Toggle theme</span>
+        </Button>
+
+        {/* Placeholder for user/avatar */}
+        <NavLink
+          to="/profile"
+          className={cn(
+            'flex items-center mt-4 p-2 rounded-lg hover:bg-muted transition',
+            !open && 'justify-center'
+          )}
+        >
+          <img
+            src="/avatar.jpg"
+            alt="Your profile"
+            className="h-6 w-6 rounded-full"
+          />
+          {open && <span className="ml-3 font-medium">Profile</span>}
+        </NavLink>
+      </div>
     </motion.aside>
   );
 };

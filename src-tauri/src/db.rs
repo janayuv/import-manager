@@ -111,6 +111,38 @@ pub struct NewInvoiceLineItemPayload {
     pub unit_price: f64,
 }
 
+// --- BOE STRUCTS ---
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BoeDetails {
+    pub id: String,
+    pub be_number: String,
+    pub be_date: String,
+    pub location: String,
+    pub total_assessment_value: f64,
+    pub duty_amount: f64,
+    pub payment_date: Option<String>,
+    pub duty_paid: Option<f64>,
+    pub challan_number: Option<String>,
+    pub ref_id: Option<String>,
+    pub transaction_id: Option<String>,
+}
+
+// NEW struct for receiving new BOE data from the frontend (without ID)
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct NewBoePayload {
+    pub be_number: String,
+    pub be_date: String,
+    pub location: String,
+    pub total_assessment_value: f64,
+    pub duty_amount: f64,
+    pub payment_date: Option<String>,
+    pub duty_paid: Option<f64>,
+    pub challan_number: Option<String>,
+    pub ref_id: Option<String>,
+    pub transaction_id: Option<String>,
+}
 
 // A struct to hold our database connection state
 pub struct DbState {
@@ -200,5 +232,24 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
+   
+        conn.execute(
+        "CREATE TABLE IF NOT EXISTS boe_details (
+            id TEXT PRIMARY KEY NOT NULL,
+            be_number TEXT NOT NULL,
+            be_date TEXT NOT NULL,
+            location TEXT NOT NULL,
+            total_assessment_value REAL NOT NULL,
+            duty_amount REAL NOT NULL,
+            payment_date TEXT,
+            duty_paid REAL,
+            challan_number TEXT,
+            ref_id TEXT,
+            transaction_id TEXT,
+            UNIQUE(be_number, be_date)
+        )",
+        [],
+    )?;
+
     Ok(conn)
 }

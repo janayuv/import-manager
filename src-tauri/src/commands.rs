@@ -1,14 +1,18 @@
 // In src-tauri/src/commands.rs
 
-use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload}; 
+use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload}; 
 use rusqlite::{params, Transaction};
 use tauri::State;
-use std::time::{SystemTime, UNIX_EPOCH};
+use rand::Rng;
+
 
 fn generate_id(prefix: &str) -> String {
-    let start = SystemTime::now();
-    let since_the_epoch = start.duration_since(UNIX_EPOCH).expect("Time went backwards");
-    format!("{}-{}", prefix, since_the_epoch.as_millis())
+    let random_part: String = rand::thread_rng()
+        .sample_iter(&rand::distributions::Alphanumeric)
+        .take(8)
+        .map(char::from)
+        .collect();
+    format!("{}-{}", prefix, random_part)
 }
 
 #[tauri::command]
@@ -365,4 +369,67 @@ pub fn get_unfinalized_shipments(state: State<DbState>) -> Result<Vec<Shipment>,
     }).map_err(|e| e.to_string())?;
 
     shipment_iter.collect::<Result<Vec<Shipment>, _>>().map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+pub fn get_boes(state: State<DbState>) -> Result<Vec<BoeDetails>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn.prepare("SELECT * FROM boe_details").map_err(|e| e.to_string())?;
+    let boe_iter = stmt.query_map([], |row| {
+        Ok(BoeDetails {
+            id: row.get(0)?,
+            be_number: row.get(1)?,
+            be_date: row.get(2)?,
+            location: row.get(3)?,
+            total_assessment_value: row.get(4)?,
+            duty_amount: row.get(5)?,
+            payment_date: row.get(6)?,
+            duty_paid: row.get(7)?,
+            challan_number: row.get(8)?,
+            ref_id: row.get(9)?,
+            transaction_id: row.get(10)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    boe_iter.map(|b| b.map_err(|e| e.to_string())).collect()
+}
+
+// MODIFIED to accept the new payload without an ID
+#[tauri::command]
+pub fn add_boe(payload: NewBoePayload, state: State<DbState>) -> Result<String, String> {
+    let conn = state.db.lock().unwrap();
+    let new_id = generate_id("BOE");
+    conn.execute(
+        "INSERT INTO boe_details (id, be_number, be_date, location, total_assessment_value, duty_amount, payment_date, duty_paid, challan_number, ref_id, transaction_id) 
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            new_id, payload.be_number, payload.be_date, payload.location, payload.total_assessment_value,
+            payload.duty_amount, payload.payment_date, payload.duty_paid, payload.challan_number,
+            payload.ref_id, payload.transaction_id
+        ],
+    ).map_err(|e| e.to_string())?;
+    Ok(new_id)
+}
+
+#[tauri::command]
+pub fn update_boe(boe: BoeDetails, state: State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    conn.execute(
+        "UPDATE boe_details SET be_number = ?2, be_date = ?3, location = ?4, total_assessment_value = ?5, duty_amount = ?6, payment_date = ?7, duty_paid = ?8, challan_number = ?9, ref_id = ?10, transaction_id = ?11
+         WHERE id = ?1",
+        params![
+            boe.id, boe.be_number, boe.be_date, boe.location, boe.total_assessment_value,
+            boe.duty_amount, boe.payment_date, boe.duty_paid, boe.challan_number,
+            boe.ref_id, boe.transaction_id
+        ],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn delete_boe(id: String, state: State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    conn.execute("DELETE FROM boe_details WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    Ok(())
 }

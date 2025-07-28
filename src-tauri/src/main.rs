@@ -39,7 +39,12 @@ fn main() {
             commands::add_invoice,
             commands::update_invoice,
             commands::delete_invoice,
-            commands::get_unfinalized_shipments
+            commands::get_unfinalized_shipments,
+
+            commands::get_boes,
+            commands::add_boe,
+            commands::update_boe,
+            commands::delete_boe
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
