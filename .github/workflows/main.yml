@@ -1,8 +1,10 @@
-name: Tauri CI
+name: Tauri CI/CD
 
 on:
   push:
     branches: [main]
+    tags:
+      - 'v*' # Triggers release on version tags like v1.0.0
   pull_request:
     branches: [main]
 
@@ -11,34 +13,66 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v3
 
       - name: Setup Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: 18
+          node-version: '18'
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
 
+      - name: Install Rust target for Tauri (Windows)
+        run: rustup target add x86_64-pc-windows-msvc
+
       - name: Install frontend dependencies
         run: npm ci
-
-      - name: Install Rust target for Tauri
-        run: rustup target add x86_64-pc-windows-msvc
 
       - name: Install Tauri CLI
         run: npm install -g @tauri-apps/cli
 
-      - name: Run linter (optional)
+      - name: Run JS/TS linter
         run: npm run lint
 
-      - name: Type check (optional)
+      - name: Type check
         run: npm run type-check || true
+
+      - name: Format check (Rust)
+        run: cargo fmt --all -- --check
+
+      - name: Lint Rust with Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Build frontend
         run: npm run build
 
       - name: Build Tauri app
         run: npm run tauri build
+
+      - name: Upload Tauri artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: tauri-build
+          path: src-tauri/target/release/bundle
+
+  release:
+    name: Create Release (on tag)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: tauri-build
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/**/*
