@@ -24,6 +24,7 @@ const navItems = [
   { path: '/invoice',  label: 'Invoice',  icon: FileText },
   { path: '/item-master', label: 'Item Master', icon: Package },
   { path: '/boe',      label: 'BOE',      icon: Landmark },
+  { path: '/boe-entry',      label: 'BOE-Entry',      icon: Landmark },
   { path: '/expenses', label: 'Expenses', icon: CircleDollarSign },
   { path: '/report',   label: 'Report',   icon: BarChart3 },
 ];
