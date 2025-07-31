@@ -1,0 +1,79 @@
+name: Tauri CI/CD
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - 'v*' # Run release job on version tags like v1.0.0
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust target for Windows
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli
+
+      - name: Run JS/TS linter
+        run: npm run lint
+
+      - name: Type check (optional)
+        run: npm run type-check || true
+
+      - name: Rust format check
+        run: cargo fmt --all -- --check
+
+      - name: Lint Rust with Clippy
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Upload Tauri artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build
+          path: src-tauri/target/release/bundle
+
+  release:
+    name: Create GitHub Release (on version tag)
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-build
+          path: release-artifacts
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-artifacts/**/*
