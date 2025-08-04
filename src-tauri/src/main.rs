@@ -44,7 +44,14 @@ fn main() {
             commands::get_boes,
             commands::add_boe,
             commands::update_boe,
-            commands::delete_boe
+            commands::delete_boe,
+
+                        // --- NEW: BOE CALCULATION COMMANDS ---
+            commands::get_boe_calculations,
+            commands::add_boe_calculation,
+            commands::update_boe_calculation,
+            commands::delete_boe_calculation,
+            commands::get_shipments_for_boe_entry
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

@@ -144,7 +144,92 @@ pub struct NewBoePayload {
     pub transaction_id: Option<String>,
 }
 
-// A struct to hold our database connection state
+// ============================================================================
+// --- BOE CALCULATION STRUCTS ---
+// These structs precisely match the TypeScript types in the frontend.
+// ============================================================================
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct FormValues {
+    pub supplier_name: String,
+    pub shipment_id: String,
+    pub exchange_rate: f64,
+    pub freight_cost: f64,
+    pub exw_cost: f64,
+    pub insurance_rate: f64,
+    pub interest: Option<f64>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BoeItemInput {
+    pub part_no: String,
+    pub calculation_method: String, // "Standard", "CEPA", "Rodtep"
+    pub boe_bcd_rate: f64,
+    pub boe_sws_rate: f64,
+    pub boe_igst_rate: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CalculatedDutyItem {
+    pub part_no: String,
+    pub description: String,
+    pub assessable_value: f64,
+    pub bcd_value: f64,
+    pub sws_value: f64,
+    pub igst_value: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct CalculationResult {
+    pub calculated_items: Vec<CalculatedDutyItem>,
+    pub bcd_total: f64,
+    pub sws_total: f64,
+    pub igst_total: f64,
+    pub interest: f64,
+    pub customs_duty_total: f64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SavedBoe {
+    pub id: String,
+    pub shipment_id: String,
+    pub invoice_number: String,
+    pub supplier_name: String,
+    pub form_values: FormValues,
+    pub item_inputs: Vec<BoeItemInput>,
+    pub calculation_result: CalculationResult,
+}
+
+// --- Structs for the specialized BOE Entry command ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BoeShipmentItem {
+    pub part_no: String,
+    pub description: String,
+    pub line_total: f64,
+    pub actual_bcd_rate: f64,
+    pub actual_sws_rate: f64,
+    pub actual_igst_rate: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BoeShipment {
+    pub id: String,
+    pub supplier_name: String,
+    pub invoice_number: String,
+    pub invoice_date: String,
+    pub invoice_value: f64,
+    pub invoice_currency: String,
+    pub incoterm: String,
+    pub status: String,
+    pub items: Vec<BoeShipmentItem>,
+}
 pub struct DbState {
     pub db: Mutex<Connection>,
 }
@@ -250,6 +335,22 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
+    // --- NEW: TABLE FOR BOE CALCULATIONS ---
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS boe_calculations (
+            id TEXT PRIMARY KEY NOT NULL,
+            shipment_id TEXT NOT NULL,
+            supplier_name TEXT NOT NULL,
+            invoice_number TEXT NOT NULL,
+            form_values_json TEXT NOT NULL,
+            item_inputs_json TEXT NOT NULL,
+            calculation_result_json TEXT NOT NULL,
+            created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')),
+            FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
+        )",
+        [],
+    )?;
+    
 
     Ok(conn)
 }

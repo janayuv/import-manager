@@ -1,10 +1,12 @@
 /*
 ================================================================================
-| FILE: src/app/dashboard/boe-entry/components/items-table.tsx                 |
-| (MODIFIED)                                                                   |
+| FILE: src/app/dashboard/boe-entry/components/items-table.tsx (FIXED)         |
 |------------------------------------------------------------------------------|
 | DESCRIPTION:                                                                 |
-| Updated to import all types from the new central `src/types` file.           |
+| 1. Updated to import all types from the new central `src/types` file.        |
+| 2. Added a default empty array to the `items` prop to prevent crashes.       |
+| 3. Ensured input values are always controlled to avoid React warnings.       |
+| 4. Disabled the IGST input, as its value is derived from the invoice.        |
 ================================================================================
 */
 "use client";
@@ -25,17 +27,17 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import type { InvoiceItem, BoeItemInput, CalculationMethod } from "@/types/boe-entry";
+import type { BoeInvoiceItem, BoeItemInput, CalculationMethod } from "@/types/boe-entry";
 import type { Dispatch, SetStateAction } from "react";
 
 interface ItemsTableProps {
-  items: InvoiceItem[];
+  items: BoeInvoiceItem[];
   itemInputs: BoeItemInput[];
   setItemInputs: Dispatch<SetStateAction<BoeItemInput[]>>;
 }
 
 export function ItemsTable({
-  items,
+  items = [], // Default to an empty array to prevent .map() from crashing
   itemInputs,
   setItemInputs,
 }: ItemsTableProps) {
@@ -45,8 +47,10 @@ export function ItemsTable({
     value: string | number
   ) => {
     const updatedInputs = [...itemInputs];
-    // @ts-expect-error - TS can't infer that 'field' is a valid key here, but the logic is sound.
-    updatedInputs[index][field] = value;
+    updatedInputs[index] = {
+      ...updatedInputs[index],
+      [field]: value,
+    };
     setItemInputs(updatedInputs);
   };
 
@@ -89,30 +93,35 @@ export function ItemsTable({
                 <Input
                   type="number"
                   className="text-right"
-                  value={itemInputs[index]?.boeBcdRate || 0}
-                  onChange={(e) =>
-                    handleInputChange(index, "boeBcdRate", parseFloat(e.target.value))
-                  }
+                  step="0.1"                           
+                  value={(itemInputs[index]?.boeBcdRate ?? 0).toFixed(1)}
+                  onChange={e => {
+                    // parse the string back into a float, defaulting to 0 if invalid
+                    const value = parseFloat(e.target.value);
+                    handleInputChange(
+                      index,
+                      "boeBcdRate",
+                      isNaN(value) ? 0 : value
+                    );
+                  }}
                 />
               </TableCell>
               <TableCell>
                 <Input
                   type="number"
                   className="text-right"
-                  value={itemInputs[index]?.boeSwsRate || 0}
+                  value={itemInputs[index]?.boeSwsRate ?? ''}
                    onChange={(e) =>
-                    handleInputChange(index, "boeSwsRate", parseFloat(e.target.value))
+                    handleInputChange(index, "boeSwsRate", parseFloat(e.target.value) || 0)
                   }
                 />
               </TableCell>
               <TableCell>
                 <Input
                   type="number"
-                  className="text-right"
-                  value={itemInputs[index]?.boeIgstRate || 0}
-                   onChange={(e) =>
-                    handleInputChange(index, "boeIgstRate", parseFloat(e.target.value))
-                  }
+                  className="text-right bg-gray-100"
+                  value={itemInputs[index]?.boeIgstRate ?? ''}
+                  readOnly // IGST should not be user-editable here
                 />
               </TableCell>
             </TableRow>

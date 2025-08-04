@@ -91,11 +91,11 @@ export function BoeEntryForm({
     defaultValues: {
       supplierName: "",
       shipmentId: "",
-      exchangeRate: 83.55,
-      freightCost: 0,
-      exwCost: 0,
-      insuranceRate: 1.125,
-      interest: 0,
+      exchangeRate: "",
+      freightCost: "",
+      exwCost: "",
+      insuranceRate: 0.015,
+      interest: "",
     },
     mode: "onChange",
   });
@@ -376,7 +376,7 @@ async function onSubmit(values: FormValues) {
               <FormControl>
                 <Input
                   type="number"
-                  placeholder="e.g., 1.125"
+                  placeholder="e.g., 0.015"
                   value={field.value as number || ""}
                   onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
                   onBlur={field.onBlur}
@@ -428,11 +428,11 @@ async function onSubmit(values: FormValues) {
         )}
 
         <div className="flex justify-end space-x-4">
-          <Button type="submit" disabled={!form.formState.isValid} className="bg-orange-500 hover:bg-orange-600">
+          <Button type="submit" disabled={!form.formState.isValid} className="custom-alert-action-orange">
             {overrideFile ? "Import & Calculate" : "Calculate Duties"}
           </Button>
           {calculationResult && (
-            <Button type="button" onClick={handleSaveOrUpdate} className="bg-green-500 hover:bg-green-600">
+            <Button type="button" onClick={handleSaveOrUpdate} className="custom-alert-action-ok">
               {isEditing ? "Update BOE" : "Save BOE"}
             </Button>
           )}
