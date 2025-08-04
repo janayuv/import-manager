@@ -1,5 +1,5 @@
-// src/components/item/view.tsx (MODIFIED)
-// Corrected the placeholder URL and added a console.log for debugging.
+// --- FILE: src/components/item/view.tsx ---
+
 import {
   Dialog,
   DialogContent,
@@ -25,7 +25,14 @@ interface ViewItemProps {
     suppliers: Option[];
 }
 
-const DetailItem = ({ label, value }: { label: string; value?: string | number | boolean | null }) => {
+// --- FIX: Added a dedicated interface for DetailItem's props ---
+interface DetailItemProps {
+    label: string;
+    value?: string | number | boolean | null;
+    isRate?: boolean;
+}
+
+const DetailItem = ({ label, value, isRate = false }: DetailItemProps) => {
     if (value === undefined || value === null || value === '') return null;
     if (typeof value === 'boolean') {
         return (
@@ -35,10 +42,11 @@ const DetailItem = ({ label, value }: { label: string; value?: string | number |
             </div>
         )
     }
+    const displayValue = (isRate && typeof value === 'number') ? `${value.toFixed(1)}%` : value;
     return (
         <div className="space-y-1">
             <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="font-medium">{value}</p>
+            <p className="font-medium">{displayValue}</p>
         </div>
     )
 }
@@ -58,9 +66,6 @@ export function ItemViewDialog({ isOpen, onOpenChange, item, suppliers }: ViewIt
       return convertFileSrc(path);
   };
   const photoSrc = getPhotoSrc(item.photoPath);
-  
-  // For debugging purposes
-  console.log('Photo Source URL:', photoSrc);
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -92,9 +97,9 @@ export function ItemViewDialog({ isOpen, onOpenChange, item, suppliers }: ViewIt
             </TabsContent>
             <TabsContent value="customs">
               <div className="grid grid-cols-3 gap-4">
-                <DetailItem label="BCD" value={item.bcd} />
-                <DetailItem label="SWS" value={item.sws} />
-                <DetailItem label="IGST" value={item.igst} />
+                <DetailItem label="BCD" value={item.bcd} isRate />
+                <DetailItem label="SWS" value={item.sws} isRate />
+                <DetailItem label="IGST" value={item.igst} isRate />
                 <DetailItem label="Country of Origin" value={item.countryOfOrigin} />
               </div>
               <div className="space-y-2 mt-4">

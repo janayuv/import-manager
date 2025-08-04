@@ -1,4 +1,3 @@
-// src/app/dashboard/boe-entry/components/boe-form.tsx
 "use client";
 
 import * as React from "react";
@@ -91,11 +90,11 @@ export function BoeEntryForm({
     defaultValues: {
       supplierName: "",
       shipmentId: "",
-      exchangeRate: "",
-      freightCost: "",
-      exwCost: "",
-      insuranceRate: 0.015,
-      interest: "",
+      exchangeRate: 0,
+      freightCost: 0,
+      exwCost: 0,
+      insuranceRate: 1.125,
+      interest: 0,
     },
     mode: "onChange",
   });
@@ -110,7 +109,15 @@ export function BoeEntryForm({
       setItemInputs(initialData.itemInputs);
       setCalculationResult(initialData.calculationResult);
     } else {
-      form.reset();
+      form.reset({
+        supplierName: "",
+        shipmentId: "",
+        exchangeRate: 0,
+        freightCost: 0,
+        exwCost: 0,
+        insuranceRate: 1.125,
+        interest: 0,
+      });
       setAvailableInvoices([]);
       setSelectedShipment(null);
       setItemInputs([]);
@@ -376,7 +383,7 @@ async function onSubmit(values: FormValues) {
               <FormControl>
                 <Input
                   type="number"
-                  placeholder="e.g., 0.015"
+                  placeholder="e.g., 1.125"
                   value={field.value as number || ""}
                   onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
                   onBlur={field.onBlur}

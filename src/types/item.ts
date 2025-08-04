@@ -11,9 +11,9 @@ export interface Item {
     supplierId?: string; // Optional as per your plan
     isActive: boolean;
     countryOfOrigin?: string;
-    bcd?: string; // Basic Customs Duty
-    sws?: string; // Social Welfare Surcharge
-    igst?: string; // Integrated Goods and Services Tax
+    bcd?: number; // Basic Customs Duty - CHANGED to number
+    sws?: number; // Social Welfare Surcharge - CHANGED to number
+    igst?: number; // Integrated Goods and Services Tax - CHANGED to number
     technicalWriteUp?: string;
     category?: string;
     endUse?: string;

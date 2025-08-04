@@ -1,14 +1,3 @@
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/items-table.tsx (FIXED)         |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| 1. Updated to import all types from the new central `src/types` file.        |
-| 2. Added a default empty array to the `items` prop to prevent crashes.       |
-| 3. Ensured input values are always controlled to avoid React warnings.       |
-| 4. Disabled the IGST input, as its value is derived from the invoice.        |
-================================================================================
-*/
 "use client";
 
 import {
@@ -37,7 +26,7 @@ interface ItemsTableProps {
 }
 
 export function ItemsTable({
-  items = [], // Default to an empty array to prevent .map() from crashing
+  items = [],
   itemInputs,
   setItemInputs,
 }: ItemsTableProps) {
@@ -58,10 +47,13 @@ export function ItemsTable({
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow>
+          <TableRow className="bg-pink-800 text-gray-100">
             <TableHead className="w-[150px]">Part No</TableHead>
             <TableHead>Description</TableHead>
-            <TableHead>Calc Method</TableHead>
+            <TableHead className="text-right">Actual BCD %</TableHead>
+            <TableHead className="text-right">Actual SWS %</TableHead>
+            <TableHead className="text-right">Actual IGST %</TableHead>
+            <TableHead className="w-[150px]">Calc Method</TableHead>
             <TableHead className="text-right w-[120px]">BOE BCD %</TableHead>
             <TableHead className="text-right w-[120px]">BOE SWS %</TableHead>
             <TableHead className="text-right w-[120px]">BOE IGST %</TableHead>
@@ -72,6 +64,10 @@ export function ItemsTable({
             <TableRow key={item.partNo}>
               <TableCell className="font-medium">{item.partNo}</TableCell>
               <TableCell>{item.description}</TableCell>
+              {/* --- NEW: Display actual rates from shipment --- */}
+              <TableCell className="text-right">{item.actualBcdRate.toFixed(2)}%</TableCell>
+              <TableCell className="text-right">{item.actualSwsRate.toFixed(2)}%</TableCell>
+              <TableCell className="text-right">{item.actualIgstRate.toFixed(2)}%</TableCell>
               <TableCell>
                 <Select
                   value={itemInputs[index]?.calculationMethod || "Standard"}
@@ -93,17 +89,10 @@ export function ItemsTable({
                 <Input
                   type="number"
                   className="text-right"
-                  step="0.1"                           
-                  value={(itemInputs[index]?.boeBcdRate ?? 0).toFixed(1)}
-                  onChange={e => {
-                    // parse the string back into a float, defaulting to 0 if invalid
-                    const value = parseFloat(e.target.value);
-                    handleInputChange(
-                      index,
-                      "boeBcdRate",
-                      isNaN(value) ? 0 : value
-                    );
-                  }}
+                  value={itemInputs[index]?.boeBcdRate ?? ''}
+                  onChange={(e) =>
+                    handleInputChange(index, "boeBcdRate", parseFloat(e.target.value) || 0)
+                  }
                 />
               </TableCell>
               <TableCell>

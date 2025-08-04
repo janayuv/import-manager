@@ -58,7 +58,7 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow>
+              <TableRow className="bg-pink-800 text-gray-100">
                 <TableHead>Invoice Number</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="text-right">Total Duty</TableHead>
@@ -77,7 +77,7 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
                     <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-yellow-400 hover:bg-yellow-500 text-black"
+                        className="custom-alert-action-ok"
                         onClick={() => onView(boe.id)}
                     >
                       View
@@ -85,14 +85,14 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
                     <Button 
                         variant="outline" 
                         size="sm" 
-                        className="bg-orange-400 hover:bg-orange-500"
+                        className="custom-alert-action-orange"
                         onClick={() => onEdit(boe.id)}
                     >
                       Edit
                     </Button>
                      <Button 
                         variant="destructive" 
-                        size="sm"
+                        size="sm" className="custom-alert-action-cancel"
                         onClick={() => onDelete(boe.id)}
                     >
                       Delete
