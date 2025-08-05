@@ -32,8 +32,8 @@ export interface FlattenedInvoiceLine {
     quantity: number;
     unitPrice: number;
     lineTotal: number;
-    bcd: string;
-    igst: string;
+    bcd: number;
+    igst: number;
     invoiceTotal: number;
     status: 'Draft' | 'Finalized' | 'Mismatch';
 }

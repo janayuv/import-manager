@@ -2,7 +2,7 @@
 
 mod db;
 mod commands;
-
+extern crate paste;
 use tauri::Manager;
 
 fn main() {
@@ -51,7 +51,27 @@ fn main() {
             commands::add_boe_calculation,
             commands::update_boe_calculation,
             commands::delete_boe_calculation,
-            commands::get_shipments_for_boe_entry
+            commands::get_shipments_for_boe_entry,
+
+                        commands::get_units,
+                        commands::get_units,
+            commands::add_unit,
+            commands::get_currencies,
+            commands::add_currency,
+            commands::get_countries,
+            commands::add_country,
+            commands::get_bcd_rates,
+            commands::add_bcd_rate,
+            commands::get_sws_rates,
+            commands::add_sws_rate,
+            commands::get_igst_rates,
+            commands::add_igst_rate,
+            commands::get_categories,
+            commands::add_category,
+            commands::get_end_uses,
+            commands::add_end_use,
+            commands::get_purchase_uoms,
+            commands::add_purchase_uom
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

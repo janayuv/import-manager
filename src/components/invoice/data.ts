@@ -1,4 +1,4 @@
-// src/components/invoice/data.ts (MODIFIED - Added missing fields to dummy data)
+// src/components/invoice/data.ts (MODIFIED - Changed bcd and igst to numbers)
 import type { Invoice } from '@/types/invoice';
 import type { Shipment } from '@/types/shipment';
 import type { Item } from '@/types/item';
@@ -48,7 +48,8 @@ export const dummyShipments: Shipment[] = [
 ];
 
 export const dummyItems: Item[] = [
-    { id: 'ITM-001', partNumber: 'WIDGET-A', itemDescription: 'A standard widget', unit: 'PCS', currency: 'USD', unitPrice: 100, hsnCode: '840001', bcd: '7.5%', igst: '18%', isActive: true },
-    { id: 'ITM-002', partNumber: 'GADGET-B', itemDescription: 'A premium gadget', unit: 'PCS', currency: 'USD', unitPrice: 250.50, hsnCode: '840002', bcd: '7.5%', igst: '18%', isActive: true },
-    { id: 'ITM-003', partNumber: 'COMP-C', itemDescription: 'A necessary component', unit: 'PCS', currency: 'USD', unitPrice: 15, hsnCode: '840003', bcd: '10%', igst: '28%', isActive: true },
+    // FIX: Changed bcd and igst from string to number
+    { id: 'ITM-001', partNumber: 'WIDGET-A', itemDescription: 'A standard widget', unit: 'PCS', currency: 'USD', unitPrice: 100, hsnCode: '840001', bcd: 7.5, igst: 18, isActive: true },
+    { id: 'ITM-002', partNumber: 'GADGET-B', itemDescription: 'A premium gadget', unit: 'PCS', currency: 'USD', unitPrice: 250.50, hsnCode: '840002', bcd: 7.5, igst: 18, isActive: true },
+    { id: 'ITM-003', partNumber: 'COMP-C', itemDescription: 'A necessary component', unit: 'PCS', currency: 'USD', unitPrice: 15, hsnCode: '840003', bcd: 10, igst: 28, isActive: true },
 ];

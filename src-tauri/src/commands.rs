@@ -1,6 +1,6 @@
 // In src-tauri/src/commands.rs
 
-use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload, SavedBoe, BoeShipment, BoeShipmentItem,}; 
+use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload, SavedBoe, BoeShipment, BoeShipmentItem, SelectOption}; 
 use rusqlite::{params, Transaction, Error as RusqliteError};
 use tauri::State;
 use rand::Rng;
@@ -70,6 +70,72 @@ pub fn add_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), Str
     ).map_err(|e| e.to_string())?;
     Ok(())
 }
+
+// ============================================================================
+// --- GENERIC OPTION COMMANDS (INTERNAL HELPERS) ---
+// ============================================================================
+
+fn get_options_from_table(table_name: &str, state: &State<DbState>) -> Result<Vec<SelectOption>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare(&format!("SELECT value, label FROM {}", table_name))
+        .map_err(|e| e.to_string())?;
+    
+    let option_iter = stmt
+        .query_map([], |row| {
+            Ok(SelectOption { // Use the correct struct name `SelectOption`
+                value: row.get(0)?,
+                label: row.get(1)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    option_iter.collect::<Result<Vec<SelectOption>, _>>().map_err(|e| e.to_string())
+}
+
+fn add_option_to_table(table_name: &str, option: SelectOption, state: &State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    conn.execute(
+        &format!("INSERT OR IGNORE INTO {} (value, label) VALUES (?1, ?2)", table_name),
+        params![option.value, option.label],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+// ============================================================================
+// --- SPECIFIC TAURI COMMANDS FOR OPTIONS ---
+// ============================================================================
+
+// FIX: This macro now defines separate get and add commands correctly.
+macro_rules! define_option_commands {
+    ($($get_name:ident, $add_name:ident, $table_name:expr),*) => {
+        $(
+            #[tauri::command]
+            pub fn $get_name(state: State<DbState>) -> Result<Vec<SelectOption>, String> {
+                get_options_from_table($table_name, &state)
+            }
+
+            #[tauri::command]
+            pub fn $add_name(option: SelectOption, state: State<DbState>) -> Result<(), String> {
+                add_option_to_table($table_name, option, &state)
+            }
+        )*
+    };
+}
+
+// Define all get and add commands for each option type
+define_option_commands!(
+    get_units, add_unit, "units",
+    get_currencies, add_currency, "currencies",
+    get_countries, add_country, "countries",
+    get_bcd_rates, add_bcd_rate, "bcd_rates",
+    get_sws_rates, add_sws_rate, "sws_rates",
+    get_igst_rates, add_igst_rate, "igst_rates",
+    get_categories, add_category, "categories",
+    get_end_uses, add_end_use, "end_uses",
+    get_purchase_uoms, add_purchase_uom, "purchase_uoms"
+);
 
 #[tauri::command]
 pub fn update_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), String> {

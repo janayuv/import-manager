@@ -1,4 +1,4 @@
-// src/components/invoice/columns.tsx (MODIFIED - Dynamic currency formatting)
+// src/components/invoice/columns.tsx (MODIFIED - Formats tax numbers as percentages)
 import type { ColumnDef } from '@tanstack/react-table';
 import type { FlattenedInvoiceLine } from '@/types/invoice';
 import { Badge } from '@/components/ui/badge';
@@ -45,8 +45,18 @@ export const getInvoiceColumns = ({ onView, onEdit, onDelete }: GetInvoiceColumn
     header: 'Line Total',
     cell: ({ row }) => formatCurrency(row.original.lineTotal, row.original.currency),
   },
-  { accessorKey: 'bcd', header: 'BCD' },
-  { accessorKey: 'igst', header: 'IGST' },
+  // FIX: Added a cell renderer to display the BCD number as a percentage
+  { 
+    accessorKey: 'bcd',
+    header: 'BCD',
+    cell: ({ row }) => `${row.original.bcd}%`,
+  },
+  // FIX: Added a cell renderer to display the IGST number as a percentage
+  {
+    accessorKey: 'igst',
+    header: 'IGST',
+    cell: ({ row }) => `${row.original.igst}%`,
+  },
   {
     accessorKey: 'invoiceTotal',
     header: 'Invoice Total',

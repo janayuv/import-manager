@@ -1,4 +1,4 @@
-// src/components/invoice/view.tsx (MODIFIED - Accessibility `Description` added)
+// src/components/invoice/view.tsx (MODIFIED - Formats tax numbers as percentages)
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -56,8 +56,10 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
                 "Qty": lineItem.quantity,
                 "Unit Price": lineItem.unitPrice,
                 "Line Total": lineItem.quantity * lineItem.unitPrice,
-                "BCD": item?.bcd || '-',
-                "IGST": item?.igst || '-',
+                // FIX: Format BCD for export
+                "BCD": item?.bcd ? `${item.bcd}%` : '-',
+                // FIX: Format IGST for export
+                "IGST": item?.igst ? `${item.igst}%` : '-',
             }
         });
 
@@ -126,8 +128,10 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
                                             <TableCell>{lineItem.quantity}</TableCell>
                                             <TableCell>{formatCurrency(lineItem.unitPrice, currency)}</TableCell>
                                             <TableCell>{formatCurrency(lineTotal, currency)}</TableCell>
-                                            <TableCell>{item.bcd || '-'}</TableCell>
-                                            <TableCell>{item.igst || '-'}</TableCell>
+                                            {/* FIX: Display the BCD number as a percentage */}
+                                            <TableCell>{item.bcd ? `${item.bcd}` : '-'}</TableCell>
+                                            {/* FIX: Display the IGST number as a percentage */}
+                                            <TableCell>{item.igst ? `${item.igst}` : '-'}</TableCell>
                                         </TableRow>
                                     )
                                 })}

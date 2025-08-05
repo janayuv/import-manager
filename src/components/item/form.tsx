@@ -1,5 +1,5 @@
-// src/components/item/form.tsx (MODIFIED)
-// Fixed initial state and added logic to handle both local and web URLs for images.
+// src/components/item/form.tsx (MODIFIED - Tax values are now handled as strings)
+
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -58,7 +58,7 @@ const defaultInitialData: Partial<Item> = {
 
 const getPhotoSrc = (path?: string) => {
     if (!path) {
-        return "[https://placehold.co/100x100/eee/ccc?text=No+Image](https://placehold.co/100x100/eee/ccc?text=No+Image)";
+        return "https://placehold.co/100x100/eee/ccc?text=No+Image";
     }
     if (path.startsWith('http')) {
         return path;
@@ -87,6 +87,7 @@ export function ItemForm({
   };
 
   const handleSelectChange = (id: keyof Item, value: string) => {
+    // FIX: Removed all special parsing. All dropdown values are now treated as strings.
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
@@ -140,15 +141,15 @@ export function ItemForm({
                 <div className="space-y-2"><Label>Currency *</Label><CreatableCombobox options={currencies} value={formData.currency || ''} onChange={(v) => handleSelectChange('currency', v)} onOptionCreate={(opt) => onOptionCreate('currency', opt)} placeholder="e.g., USD"/></div>
                 <div className="space-y-2"><Label>Unit Price *</Label><Input id="unitPrice" type="number" value={formData.unitPrice || ''} onChange={handleChange} /></div>
                 <div className="space-y-2"><Label>HSN Code *</Label><Input id="hsnCode" value={formData.hsnCode || ''} onChange={handleChange} /></div>
-                <div className="space-y-2"><Label>Supplier</Label><CreatableCombobox options={suppliers} value={formData.supplierId || ''} onChange={(v) => handleSelectChange('supplierId', v)} onOptionCreate={()=>{}} placeholder="Select Supplier"/></div>
+                <div className="space-y-2"><Label>Supplier</Label><CreatableCombobox options={suppliers} value={formData.supplierId || ''} onChange={(v) => handleSelectChange('supplierId', v)} onOptionCreate={()=>{ toast.info("New suppliers must be created from the Supplier Master page.") }} placeholder="Select Supplier" /></div>
                 <div className="flex items-center space-x-2 pt-6"><Switch id="isActive" checked={formData.isActive} onCheckedChange={handleSwitchChange} /><Label>Is Active</Label></div>
               </div>
             </TabsContent>
             <TabsContent value="customs">
               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Label>BCD</Label><CreatableCombobox options={bcdRates} value={formData.bcd ? String(formData.bcd) : ''} onChange={(v) => handleSelectChange('bcd', v)} onOptionCreate={(opt) => onOptionCreate('bcd', opt)} placeholder="e.g., 10%"/></div>
-                <div className="space-y-2"><Label>SWS</Label><CreatableCombobox options={swsRates} value={formData.sws ? String(formData.sws) : ''} onChange={(v) => handleSelectChange('sws', v)} onOptionCreate={(opt) => onOptionCreate('sws', opt)} placeholder="e.g., 10%"/></div>
-                <div className="space-y-2"><Label>IGST</Label><CreatableCombobox options={igstRates} value={formData.igst !== undefined && formData.igst !== null ? String(formData.igst) : ''} onChange={(v) => handleSelectChange('igst', v)} onOptionCreate={(opt) => onOptionCreate('igst', opt)} placeholder="e.g., 18%"/></div>
+                <div className="space-y-2"><Label>BCD</Label><CreatableCombobox options={bcdRates} value={formData.bcd || ''} onChange={(v) => handleSelectChange('bcd', v)} onOptionCreate={(opt) => onOptionCreate('bcd', opt)} placeholder="e.g., 10%"/></div>
+                <div className="space-y-2"><Label>SWS</Label><CreatableCombobox options={swsRates} value={formData.sws || ''} onChange={(v) => handleSelectChange('sws', v)} onOptionCreate={(opt) => onOptionCreate('sws', opt)} placeholder="e.g., 10%"/></div>
+                <div className="space-y-2"><Label>IGST</Label><CreatableCombobox options={igstRates} value={formData.igst || ''} onChange={(v) => handleSelectChange('igst', v)} onOptionCreate={(opt) => onOptionCreate('igst', opt)} placeholder="e.g., 18%"/></div>
                 <div className="space-y-2"><Label>Country of Origin</Label><CreatableCombobox options={countries} value={formData.countryOfOrigin || ''} onChange={(v) => handleSelectChange('countryOfOrigin', v)} onOptionCreate={(opt) => onOptionCreate('country', opt)} placeholder="Select Country"/></div>
               </div>
               <div className="space-y-2 mt-4"><Label>Technical Write-up</Label><Textarea id="technicalWriteUp" value={formData.technicalWriteUp || ''} onChange={handleChange} rows={10}/></div>
@@ -164,7 +165,7 @@ export function ItemForm({
               <div className="space-y-2 mt-4">
                 <Label>Photo</Label>
                 <div className="flex items-center gap-4">
-                  <img src={photoPreview || "[https://placehold.co/100x100/eee/ccc?text=No+Image](https://placehold.co/100x100/eee/ccc?text=No+Image)"} alt="Item Preview" className="w-24 h-24 rounded-md object-cover border"/>
+                  <img src={photoPreview || "https://placehold.co/100x100/eee/ccc?text=No+Image"} alt="Item Preview" className="w-24 h-24 rounded-md object-cover border"/>
                   <Button type="button" variant="outline" onClick={handlePhotoUpload}>Upload Photo</Button>
                 </div>
               </div>

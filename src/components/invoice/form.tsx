@@ -1,4 +1,4 @@
-// src/components/invoice/form.tsx (MODIFIED - Added all new features and tweaks)
+// src/components/invoice/form.tsx (MODIFIED - Correctly applies supplier-based part filtering)
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
@@ -32,12 +32,23 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onOpenChange, 
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const shipmentOptions = shipments.map(s => ({ value: s.id, label: `${s.invoiceNumber} (${s.invoiceCurrency})` }));
-  const itemOptions = items.map(i => ({ value: i.id, label: i.partNumber }));
   const currency = selectedShipment?.invoiceCurrency || 'USD';
-  
+
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount);
   }
+
+  // Filter available items based on the selected supplier from the shipment
+  const availableItemOptions = React.useMemo(() => {
+    const supplierId = selectedShipment?.supplierId;
+    if (!supplierId) return [];
+    
+    // NOTE: This assumes `supplierId` is added to the Item type.
+    // The `as any` assertion is used because the original type file was not provided to be modified.
+    return items
+      .filter(item => item.supplierId === supplierId)
+      .map(item => ({ value: item.id, label: item.partNumber }));
+  }, [selectedShipment, items]);
 
   React.useEffect(() => {
     if (invoiceToEdit && isOpen) {
@@ -196,7 +207,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onOpenChange, 
                                 return (
                                 <TableRow key={lineItem.id}>
                                     <TableCell>
-                                        <Combobox options={itemOptions} value={lineItem.itemId} onChange={(value) => handleLineItemChange(lineItem.id, 'itemId', value)} searchPlaceholder="Search by Part No..."/>
+                                        {/* FIX: Use the filtered list of items and disable until a supplier is chosen. */}
+                                        <Combobox
+                                            options={availableItemOptions}
+                                            value={lineItem.itemId}
+                                            onChange={(value) => handleLineItemChange(lineItem.id, 'itemId', value)}
+                                            searchPlaceholder="Search Part No..."
+                                            notFoundText="No parts for this supplier."
+                                            disabled={!selectedShipment}
+                                        />
                                     </TableCell>
                                     <TableCell>{fullItem?.itemDescription || '-'}</TableCell>
                                     <TableCell>{fullItem?.unit || '-'}</TableCell>
@@ -229,7 +248,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onOpenChange, 
                         </TableBody>
                     </Table>
                  </div>
-                <Button variant="outline" size="sm" onClick={handleAddItem}><Plus className="mr-2 h-4 w-4"/> Add Item</Button>
+                <Button variant="outline" size="sm" onClick={handleAddItem} disabled={!selectedShipment}><Plus className="mr-2 h-4 w-4"/> Add Item</Button>
             </div>
             <div className="flex justify-end items-center gap-6 pt-4 border-t">
                 <div className="text-right"><p className="text-sm text-gray-500">Shipment Value</p><p className="font-bold text-lg">{formatCurrency(selectedShipment?.invoiceValue || 0)}</p></div>
@@ -243,10 +262,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({ isOpen, onOpenChange, 
 
         <DialogFooter>
           <DialogClose asChild><Button type="button" className="custom-alert-action-cancel" variant="secondary" disabled={isSubmitting}>Cancel</Button></DialogClose>
-          <Button type="button" className="custom-alert-action-orange" variant="outline" onClick={() => handleSave('Draft')} disabled={isSubmitting}>
+          {/* FIX: Disable buttons if no shipment is selected */}
+          <Button type="button" className="custom-alert-action-orange" variant="outline" onClick={() => handleSave('Draft')} disabled={isSubmitting || !selectedShipment}>
             {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save as Draft
           </Button>
-          <Button type="submit" className="custom-alert-action-ok" onClick={() => handleSave('Finalized')} disabled={isSubmitting}>
+          <Button type="submit" className="custom-alert-action-ok" onClick={() => handleSave('Finalized')} disabled={isSubmitting || !selectedShipment}>
              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Finalize Invoice
           </Button>
         </DialogFooter>

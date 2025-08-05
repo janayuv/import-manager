@@ -94,8 +94,8 @@ const InvoicePage = () => {
               quantity: lineItem.quantity,
               unitPrice: lineItem.unitPrice,
               lineTotal: lineItem.quantity * lineItem.unitPrice,
-              bcd: item.bcd || '-',
-              igst: item.igst || '-',
+              bcd: typeof item.bcd === 'number' ? item.bcd : 0,
+              igst: typeof item.igst === 'number' ? item.igst : 0,
               invoiceTotal: invoice.calculatedTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
             });
@@ -111,7 +111,7 @@ const InvoicePage = () => {
               partNumber: 'N/A',
               itemDescription: 'No items added yet',
               hsnCode: '-', currency: shipment.invoiceCurrency, unit: '-', quantity: 0,
-              unitPrice: 0, lineTotal: 0, bcd: '-', igst: '-',
+              unitPrice: 0, lineTotal: 0, bcd: 0, igst: 0,
               invoiceTotal: invoice.calculatedTotal, status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
             });
           }

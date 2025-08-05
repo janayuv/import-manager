@@ -4,6 +4,12 @@ use serde::{Serialize, Deserialize};
 use rusqlite::{Connection, Result}; // Removed unused 'params'
 use std::sync::Mutex;
 
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct SelectOption {
+    pub value: String,
+    pub label: String,
+}
 // This struct must match the TypeScript type definition
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -335,6 +341,8 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
+
+    
     // --- NEW: TABLE FOR BOE CALCULATIONS ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS boe_calculations (
@@ -350,6 +358,24 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
+        // NEW: Create tables for all the dropdown options.
+    let option_tables = vec![
+        "units", "currencies", "countries", "bcd_rates", "sws_rates",
+        "igst_rates", "categories", "end_uses", "purchase_uoms",
+    ];
+
+    for table_name in option_tables {
+        conn.execute(
+            &format!(
+                "CREATE TABLE IF NOT EXISTS {} (
+                    value TEXT PRIMARY KEY NOT NULL,
+                    label TEXT NOT NULL UNIQUE
+                )",
+                table_name
+            ),
+            [],
+        )?;
+    }
     
 
     Ok(conn)

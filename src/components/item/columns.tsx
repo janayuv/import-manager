@@ -1,7 +1,7 @@
-// src/components/item/columns.tsx (MODIFIED)
-// Reordered columns and added supplier name lookup.
+// src/components/item/columns.tsx (MODIFIED - Changed SelectOption to Option)
 import type { ColumnDef } from '@tanstack/react-table';
 import type { Item } from '@/types/item';
+// FIX: Changed `SelectOption` to `Option` to match the actual type definition.
 import type { Option } from '@/types/options';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
