@@ -204,6 +204,7 @@ pub struct CalculationResult {
 pub struct SavedBoe {
     pub id: String,
     pub shipment_id: String,
+    pub boe_id: Option<String>,
     pub invoice_number: String,
     pub supplier_name: String,
     pub form_values: FormValues,
@@ -348,6 +349,7 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         "CREATE TABLE IF NOT EXISTS boe_calculations (
             id TEXT PRIMARY KEY NOT NULL,
             shipment_id TEXT NOT NULL,
+            boe_id TEXT, -- <-- ADDED: New column for the BOE ID link
             supplier_name TEXT NOT NULL,
             invoice_number TEXT NOT NULL,
             form_values_json TEXT NOT NULL,

@@ -1,17 +1,47 @@
-// src/components/boe/columns.tsx (MODIFIED)
-import { type ColumnDef } from "@tanstack/react-table"
-import type { BoeDetails } from "@/types/boe"
-import { MoreHorizontal } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
+// src/components/boe/columns.tsx (CORRECTED)
+import { type ColumnDef } from "@tanstack/react-table";
+import type { BoeDetails } from "@/types/boe";
+import { MoreHorizontal } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger,} from "@/components/ui/dropdown-menu";
+import { formatDateForDisplay } from '@/lib/date-format';
 
-// This type was the source of the error. It's now corrected.
+// Helper function to safely parse "DD-MM-YYYY" and format it for display
+const formatDate = (dateString: string | undefined | null): string => {
+  if (!dateString) {
+    return "N/A";
+  }
+  
+  const parts = dateString.split('-');
+  if (parts.length !== 3) {
+    return dateString; // Return original if format is not as expected
+  }
+
+  const [day, month, year] = parts;
+  // Create a date from the YYYY-MM-DD format, which is universally understood
+  const date = new Date(`${year}-${month}-${day}`);
+
+  if (isNaN(date.getTime())) {
+    return "Invalid Date";
+  }
+
+  // Format back to DD-MM-YYYY using a reliable method
+  return date.toLocaleDateString('en-GB');
+};
+
+// Helper function to format currency values for India
+const formatCurrency = (value: number | string | undefined | null): string => {
+  const amount = Number(value);
+  if (isNaN(amount)) {
+    return "-";
+  }
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+  }).format(amount);
+};
+
 interface GetBoeColumnsProps {
   onView: (boe: BoeDetails) => void;
   onEdit: (boe: BoeDetails) => void;
@@ -26,7 +56,7 @@ export const getBoeColumns = ({ onView, onEdit, onDelete }: GetBoeColumnsProps):
     {
         accessorKey: "beDate",
         header: "BE Date",
-        cell: ({ row }) => new Date(row.original.beDate).toLocaleDateString('en-GB'),
+        cell: ({ row }) => formatDateForDisplay(row.original.beDate),
     },
     {
         accessorKey: "location",
@@ -35,31 +65,26 @@ export const getBoeColumns = ({ onView, onEdit, onDelete }: GetBoeColumnsProps):
     {
         accessorKey: "totalAssessmentValue",
         header: "Total Assessment Value",
+        cell: ({ row }) => formatCurrency(row.original.totalAssessmentValue),
     },
     {
         accessorKey: "dutyAmount",
         header: "Duty Amount",
+        cell: ({ row }) => formatCurrency(row.original.dutyAmount),
     },
     {
         accessorKey: "paymentDate",
         header: "Payment Date",
-        cell: ({ row }) => row.original.paymentDate ? new Date(row.original.paymentDate).toLocaleDateString('en-GB') : '-',
+        cell: ({ row }) => formatDate(row.original.paymentDate),
     },
     {
         accessorKey: "dutyPaid",
         header: "Duty Paid",
+        cell: ({ row }) => formatCurrency(row.original.dutyPaid),
     },
     {
         accessorKey: "challanNumber",
         header: "Challan No.",
-    },
-    {
-        accessorKey: "refId",
-        header: "Ref ID",
-    },
-    {
-        accessorKey: "transactionId",
-        header: "Transaction ID",
     },
     {
         id: "actions",

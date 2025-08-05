@@ -1,3 +1,4 @@
+// src/components/boe-entry/form.tsx (FIXED)
 "use client";
 
 import * as React from "react";
@@ -19,7 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useForm } from "react-hook-form";
+import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { ItemsTable } from "./items-table";
@@ -32,9 +33,11 @@ import type {
   SavedBoe,
   CalculationMethod,
 } from "@/types/boe-entry";
+import type { BoeDetails } from "@/types/boe";
 import { toast } from "sonner";
 import Papa, { type ParseResult } from "papaparse";
-
+import { Combobox } from "@/components/ui/combobox";
+import { BoeDetailsTable } from "./boe-details-table";
 
 const formSchema = z.object({
   supplierName: z.string().min(1, { message: "Please select a supplier." }),
@@ -49,6 +52,8 @@ type FormValues = z.infer<typeof formSchema>;
 
 interface BoeEntryFormProps {
   shipments: Shipment[];
+  allBoes: BoeDetails[];
+  savedBoes: SavedBoe[];
   onSaveOrUpdate: (boeData: SavedBoe) => void;
   initialData: SavedBoe | null;
   onCancelEdit: () => void;
@@ -65,6 +70,8 @@ interface RawOverrideRow {
 
 export function BoeEntryForm({
   shipments,
+  allBoes,
+  savedBoes,
   onSaveOrUpdate,
   initialData,
   onCancelEdit,
@@ -78,28 +85,45 @@ export function BoeEntryForm({
   const [lastValidFormValues, setLastValidFormValues] = React.useState<FormValues | null>(null);
   const [overrideFile, setOverrideFile] = React.useState<File | null>(null);
 
+  const [selectedBoeId, setSelectedBoeId] = React.useState<string>("");
+  const [selectedBoeDetails, setSelectedBoeDetails] = React.useState<BoeDetails | null>(null);
+
   const isEditing = Boolean(initialData);
 
-  // initialize suppliers list
-  React.useEffect(() => {
-    setSuppliers([...new Set(shipments.map((s) => s.supplierName))]);
-  }, [shipments]);
-
-  const form = useForm({
-    resolver: zodResolver(formSchema),
+  const form = useForm<FormValues>({
+    resolver: zodResolver(formSchema) as Resolver<FormValues, any>,
     defaultValues: {
       supplierName: "",
       shipmentId: "",
       exchangeRate: 0,
       freightCost: 0,
       exwCost: 0,
-      insuranceRate: 1.125,
+      insuranceRate: 0.015,
       interest: 0,
     },
     mode: "onChange",
   });
+  
+  const boeOptions = React.useMemo(() => {
+    const usedBoeIds = new Set(
+      savedBoes
+        .map(savedBoe => savedBoe.boeId)
+        .filter((id): id is string => !!id)
+    );
 
-  // pre-fill when editing
+    return allBoes
+      .filter(boe => {
+        const isUnused = !usedBoeIds.has(boe.id);
+        const isCurrentlyEditing = initialData?.boeId === boe.id;
+        return isUnused || isCurrentlyEditing;
+      })
+      .map(boe => ({ value: boe.id, label: boe.beNumber }));
+  }, [allBoes, savedBoes, initialData]);
+
+  React.useEffect(() => {
+    setSuppliers([...new Set(shipments.map((s) => s.supplierName))]);
+  }, [shipments]);
+
   React.useEffect(() => {
     if (initialData) {
       form.reset(initialData.formValues);
@@ -108,6 +132,11 @@ export function BoeEntryForm({
       setSelectedShipment(shipments.find((s) => s.id === initialData.shipmentId) || null);
       setItemInputs(initialData.itemInputs);
       setCalculationResult(initialData.calculationResult);
+      if (initialData.boeId) {
+          const boeDetails = allBoes.find(b => b.id === initialData.boeId) || null;
+          setSelectedBoeId(initialData.boeId);
+          setSelectedBoeDetails(boeDetails);
+      }
     } else {
       form.reset({
         supplierName: "",
@@ -115,15 +144,17 @@ export function BoeEntryForm({
         exchangeRate: 0,
         freightCost: 0,
         exwCost: 0,
-        insuranceRate: 1.125,
+        insuranceRate: 0.015,
         interest: 0,
       });
       setAvailableInvoices([]);
       setSelectedShipment(null);
       setItemInputs([]);
       setCalculationResult(null);
+      setSelectedBoeId("");
+      setSelectedBoeDetails(null);
     }
-  }, [initialData, shipments, form]);
+  }, [initialData, shipments, allBoes, form]);
 
   const handleSupplierChange = (supplierName: string) => {
     form.setValue("supplierName", supplierName, { shouldValidate: true });
@@ -153,101 +184,94 @@ export function BoeEntryForm({
       );
     }
   };
+  
+  const handleBoeSelect = (boeId: string) => {
+      setSelectedBoeId(boeId);
+      const details = allBoes.find(b => b.id === boeId) || null;
+      setSelectedBoeDetails(details);
+  }
 
   const parseOverrideFile = (file: File): Promise<BoeItemInput[]> =>
-  new Promise((resolve, reject) => {
-    Papa.parse<RawOverrideRow>(file, {
-      header: true,
-      skipEmptyLines: true,
-      complete: (results: ParseResult<RawOverrideRow>) => {
-        const required = ["partNo", "calculationMethod", "boeBcdRate", "boeSwsRate", "boeIgstRate"];
-        const actual = results.meta.fields ?? [];
-        if (!required.every((h) => actual.includes(h))) {
-          return reject(new Error("CSV file is missing required headers."));
-        }
-
-        try {
-          const data: BoeItemInput[] = results.data.map((row) => ({
-            partNo: row.partNo,
-            calculationMethod: row.calculationMethod as CalculationMethod,
-            boeBcdRate: parseFloat(row.boeBcdRate),
-            boeSwsRate: parseFloat(row.boeSwsRate),
-            boeIgstRate: parseFloat(row.boeIgstRate),
-          }));
-          resolve(data);
-        } catch {
-          reject(new Error("Failed to transform CSV rows into BoeItemInput"));
-        }
-      },
-      error: (err: Error) => reject(err),
-    });
-  });
-
-async function onSubmit(values: FormValues) {
-  if (!selectedShipment) {
-    toast.error("Please select a shipment before calculating.");
-    return;
-  }
-
-  let finalInputs = itemInputs;
-
-  if (overrideFile) {
-    try {
-      // 1. parse all overrides
-      const overrides = await parseOverrideFile(overrideFile);
-
-      // 2. build a map of original items (for quick lookup)
-      const originalItems = selectedShipment.items.map(item => ({
-        partNo: item.partNo,
-        calculationMethod: "Standard" as const,
-        boeBcdRate: item.actualBcdRate,
-        boeSwsRate: item.actualSwsRate,
-        boeIgstRate: item.actualIgstRate,
-      }));
-      const originalIgstMap = new Map<string, number>(
-        originalItems.map(o => [o.partNo, o.boeIgstRate])
-      );
-
-      // 3. split overrides
-      const unmatched = overrides.filter(o => !originalIgstMap.has(o.partNo));
-      const candidates = overrides.filter(o => originalIgstMap.has(o.partNo));
-
-      const igstMismatches = candidates.filter(
-        o => o.boeIgstRate !== originalIgstMap.get(o.partNo)
-      );
-      const validOverrides = candidates.filter(
-        o => o.boeIgstRate === originalIgstMap.get(o.partNo)
-      );
-
-      // 4. warn about dropped rows
-      if (unmatched.length) {
-        toast.warning(
-          `Ignored override for unknown parts: ${unmatched
-            .map(o => o.partNo)
-            .join(", ")}`
-        );
-      }
-      if (igstMismatches.length) {
-        toast.warning(
-          `Ignored override for IGST mismatch on parts: ${igstMismatches
-            .map(o => o.partNo)
-            .join(", ")} (must match invoice IGST)`
-        );
-      }
-
-      // 5. merge only the valid ones
-      finalInputs = originalItems.map(orig => {
-        const override = validOverrides.find(o => o.partNo === orig.partNo);
-        return override ?? orig;
+    new Promise((resolve, reject) => {
+      Papa.parse<RawOverrideRow>(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (results: ParseResult<RawOverrideRow>) => {
+          const required = ["partNo", "calculationMethod", "boeBcdRate", "boeSwsRate", "boeIgstRate"];
+          const actual = results.meta.fields ?? [];
+          if (!required.every((h) => actual.includes(h))) {
+            return reject(new Error("CSV file is missing required headers."));
+          }
+          try {
+            const data: BoeItemInput[] = results.data.map((row) => ({
+              partNo: row.partNo,
+              calculationMethod: row.calculationMethod as CalculationMethod,
+              boeBcdRate: parseFloat(row.boeBcdRate),
+              boeSwsRate: parseFloat(row.boeSwsRate),
+              boeIgstRate: parseFloat(row.boeIgstRate),
+            }));
+            resolve(data);
+          } catch {
+            reject(new Error("Failed to transform CSV rows into BoeItemInput"));
+          }
+        },
+        error: (err: Error) => reject(err),
       });
+    });
 
-      setItemInputs(finalInputs);
-    } catch (err) {
-      toast.error("Import Failed", { description: (err as Error).message });
+  async function onSubmit(values: FormValues) {
+    if (!selectedShipment) {
+      toast.error("Please select a shipment before calculating.");
       return;
     }
-  }
-  
+
+    let finalInputs = itemInputs;
+
+    if (overrideFile) {
+      try {
+        const overrides = await parseOverrideFile(overrideFile);
+        const originalItems = selectedShipment.items.map(item => ({
+          partNo: item.partNo,
+          calculationMethod: "Standard" as const,
+          boeBcdRate: item.actualBcdRate,
+          boeSwsRate: item.actualSwsRate,
+          boeIgstRate: item.actualIgstRate,
+        }));
+        const originalIgstMap = new Map<string, number>(
+          originalItems.map(o => [o.partNo, o.boeIgstRate])
+        );
+        const unmatched = overrides.filter(o => !originalIgstMap.has(o.partNo));
+        const candidates = overrides.filter(o => originalIgstMap.has(o.partNo));
+        const igstMismatches = candidates.filter(
+          o => o.boeIgstRate !== originalIgstMap.get(o.partNo)
+        );
+        const validOverrides = candidates.filter(
+          o => o.boeIgstRate === originalIgstMap.get(o.partNo)
+        );
+        if (unmatched.length) {
+          toast.warning(
+            `Ignored override for unknown parts: ${unmatched
+              .map(o => o.partNo)
+              .join(", ")}`
+          );
+        }
+        if (igstMismatches.length) {
+          toast.warning(
+            `Ignored override for IGST mismatch on parts: ${igstMismatches
+              .map(o => o.partNo)
+              .join(", ")} (must match invoice IGST)`
+          );
+        }
+        finalInputs = originalItems.map(orig => {
+          const override = validOverrides.find(o => o.partNo === orig.partNo);
+          return override ?? orig;
+        });
+        setItemInputs(finalInputs);
+      } catch (err) {
+        toast.error("Import Failed", { description: (err as Error).message });
+        return;
+      }
+    }
 
     setLastValidFormValues(values);
     const results = calculateDuties({
@@ -261,9 +285,10 @@ async function onSubmit(values: FormValues) {
       setEditingBoe({
         id: `DRAFT-${Date.now()}`,
         shipmentId: selectedShipment.id,
+        boeId: selectedBoeId, // <-- FIX: Add boeId to the top level
         invoiceNumber: selectedShipment.invoiceNumber,
         supplierName: selectedShipment.supplierName,
-        formValues: values,
+        formValues: values, // <-- FIX: No longer pass boeId inside here
         itemInputs: finalInputs,
         calculationResult: results,
       });
@@ -278,12 +303,27 @@ async function onSubmit(values: FormValues) {
       toast.error("Cannot save", { description: "Please calculate duties first." });
       return;
     }
+
+    if (selectedBoeDetails && typeof selectedBoeDetails.dutyPaid === 'number') {
+      const dutyPaid = Math.round(selectedBoeDetails.dutyPaid * 100) / 100;
+      const totalPayable = Math.round(calculationResult.customsDutyTotal * 100) / 100;
+
+      if (dutyPaid !== totalPayable) {
+        toast.error("Validation Failed", {
+          description: `Duty Paid (${dutyPaid.toFixed(2)}) from the selected BOE does not match the calculated Total Duty Payable (${totalPayable.toFixed(2)}).`,
+        });
+        return;
+      }
+    }
+
+    // FIX: No need to create a separate `finalFormValues` object anymore
     onSaveOrUpdate({
       id: initialData?.id || `BOE-${Date.now()}`,
       shipmentId: selectedShipment.id,
+      boeId: selectedBoeId,
       invoiceNumber: selectedShipment.invoiceNumber,
       supplierName: selectedShipment.supplierName,
-      formValues: lastValidFormValues,
+      formValues: lastValidFormValues, // Use the form values directly
       itemInputs,
       calculationResult,
     });
@@ -295,13 +335,15 @@ async function onSubmit(values: FormValues) {
       setAvailableInvoices([]);
       setLastValidFormValues(null);
       setOverrideFile(null);
+      setSelectedBoeId("");
+      setSelectedBoeDetails(null);
     }
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-6 items-end">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 items-start">
           <FormField name="supplierName" control={form.control} render={({ field }) => (
             <FormItem>
               <FormLabel>Supplier</FormLabel>
@@ -332,99 +374,110 @@ async function onSubmit(values: FormValues) {
               <FormMessage />
             </FormItem>
           )}/>
-          <FormField name="exchangeRate" control={form.control} render={({ field }) => (
-            <FormItem>
-              <FormLabel>Exchange Rate</FormLabel>
-              <FormControl><Input
-  type="number"
-  value={field.value as number || ""}
-  onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-  onBlur={field.onBlur}
-  name={field.name}
-  ref={field.ref}
-/>
-</FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
-          <FormField name="freightCost" control={form.control} render={({ field }) => (
-            <FormItem>
-              <FormLabel>Freight Cost</FormLabel>
-              <FormControl><Input
-  type="number"
-  value={field.value as number || ""}
-  onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-  onBlur={field.onBlur}
-  name={field.name}
-  ref={field.ref}
-/>
-</FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
-          <FormField name="exwCost" control={form.control} render={({ field }) => (
-            <FormItem>
-              <FormLabel>EXW Cost</FormLabel>
-              <FormControl><Input
-  type="number"
-  value={field.value as number || ""}
-  onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-  onBlur={field.onBlur}
-  name={field.name}
-  ref={field.ref}
-/>
-</FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
-          <FormField name="insuranceRate" control={form.control} render={({ field }) => (
-            <FormItem>
-              <FormLabel>Insurance %</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  placeholder="e.g., 1.125"
-                  value={field.value as number || ""}
-                  onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-                  onBlur={field.onBlur}
-                  name={field.name}
-                  ref={field.ref}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
+          <FormItem>
+             <FormLabel>BOE No (Optional)</FormLabel>
+             <Combobox
+                options={boeOptions}
+                value={selectedBoeId}
+                onChange={handleBoeSelect}
+                placeholder="Select a BOE..."
+                searchPlaceholder="Search BOE No..."
+                emptyText="No BOE found."
+             />
+          </FormItem>
         </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-6 gap-6 items-end">
-          <FormField name="interest" control={form.control} render={({ field }) => (
-            <FormItem>
-              <FormLabel>Interest</FormLabel>
-              <FormControl><Input
-  type="number"
-  value={field.value as number || ""}
-  onChange={e => field.onChange(e.target.value === "" ? undefined : parseFloat(e.target.value))}
-  onBlur={field.onBlur}
-  name={field.name}
-  ref={field.ref}
-/>
-</FormControl>
-              <FormMessage />
-            </FormItem>
-          )}/>
-          <div className="md:col-span-2">
-            <Label htmlFor="override-file">Duty Override File (Optional)</Label>
-            <Input
-              id="override-file"
-              type="file"
-              accept=".csv"
-              onChange={(e) => setOverrideFile(e.target.files?.[0] || null)}
-            />
-          </div>
+        
+        {selectedBoeDetails && <BoeDetailsTable boe={selectedBoeDetails} />}
+        
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-6 items-end mt-8">
+            <FormField name="exchangeRate" control={form.control} render={({ field }) => (
+             <FormItem>
+               <FormLabel>Exchange Rate</FormLabel>
+               <FormControl>
+                    <Input
+                        type="number"
+                        placeholder="e.g., 83.50"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                    />
+                </FormControl>
+               <FormMessage />
+             </FormItem>
+           )}/>
+           <FormField name="freightCost" control={form.control} render={({ field }) => (
+             <FormItem>
+               <FormLabel>Freight Cost</FormLabel>
+               <FormControl>
+                    <Input
+                        type="number"
+                        placeholder="e.g., 5000"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                    />
+                </FormControl>
+               <FormMessage />
+             </FormItem>
+           )}/>
+           <FormField name="exwCost" control={form.control} render={({ field }) => (
+             <FormItem>
+               <FormLabel>EXW Cost</FormLabel>
+               <FormControl>
+                    <Input
+                        type="number"
+                        placeholder="e.g., 200"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                    />
+                </FormControl>
+               <FormMessage />
+             </FormItem>
+           )}/>
+           <FormField name="insuranceRate" control={form.control} render={({ field }) => (
+             <FormItem>
+               <FormLabel>Insurance %</FormLabel>
+               <FormControl>
+                 <Input
+                   type="number"
+                   placeholder="e.g., 1.125"
+                   {...field}
+                   value={field.value || ''}
+                   onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                 />
+               </FormControl>
+               <FormMessage />
+             </FormItem>
+           )}/>
+            <FormField name="interest" control={form.control} render={({ field }) => (
+             <FormItem>
+               <FormLabel>Interest</FormLabel>
+               <FormControl>
+                    <Input
+                        type="number"
+                        placeholder="e.g., 100"
+                        {...field}
+                        value={field.value || ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                    />
+                </FormControl>
+               <FormMessage />
+             </FormItem>
+           )}/>
+           <div className="md:col-span-2 lg:col-span-1">
+             <Label htmlFor="override-file">Duty Override File (Optional)</Label>
+             <Input
+               id="override-file"
+               type="file"
+               accept=".csv"
+               onChange={(e) => setOverrideFile(e.target.files?.[0] || null)}
+             />
+           </div>
         </div>
 
         {selectedShipment && (
-          <div>
+          <div className="mt-8">
             <h3 className="text-lg font-medium mb-4">Invoice Items</h3>
             <ItemsTable
               items={selectedShipment.items}

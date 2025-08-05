@@ -3,6 +3,7 @@ import type { ColumnDef } from '@tanstack/react-table';
 import type { FlattenedInvoiceLine } from '@/types/invoice';
 import { Badge } from '@/components/ui/badge';
 import { InvoiceLineActions } from './actions';
+import { formatDateForDisplay } from '@/lib/date-format';
 
 interface GetInvoiceColumnsProps {
   onView: (invoiceId: string) => void;
@@ -22,12 +23,10 @@ export const getInvoiceColumns = ({ onView, onEdit, onDelete }: GetInvoiceColumn
   },
   { accessorKey: 'supplierName', header: 'Supplier Name' },
   { accessorKey: 'invoiceNumber', header: 'Invoice No' },
-  { 
-    accessorKey: 'invoiceDate', 
+  {
+    accessorKey: 'invoiceDate',
     header: 'Invoice Date',
-    cell: ({ row }) => {
-        return new Date(row.original.invoiceDate).toLocaleDateString('en-GB');
-    }
+    cell: ({ row }) => formatDateForDisplay(row.original.invoiceDate),
   },
   { accessorKey: 'partNumber', header: 'Part No' },
   { accessorKey: 'itemDescription', header: 'Description' },

@@ -10,6 +10,21 @@
 
 // --- Core Data Structures ---
 
+
+export interface BoeDetails {
+  id: string;
+  beNumber: string;
+  beDate: string;
+  location: string;
+  totalAssessmentValue: number;
+  dutyAmount: number;
+  paymentDate?: string; // Changed from paymentStatus
+  dutyPaid?: number;
+  challanNumber?: string;
+  refId?: string;
+  transactionId?: string;
+}
+
 export interface InvoiceItem {
   partNo: string;
   description: string;
@@ -64,13 +79,15 @@ export interface CalculationResult {
 
 // Represents a fully saved BOE record, combining inputs and results
 export interface SavedBoe {
-    id: string; // A unique ID for the saved entry
+    id: string;
     shipmentId: string;
-    invoiceNumber: string; // For display in the list
-    supplierName: string; // For display in the list
+    boeId?: string; 
+    invoiceNumber: string;
+    supplierName: string;
     formValues: {
         supplierName: string;
         shipmentId: string;
+        // FIX: Removed redundant boeId from here
         exchangeRate: number;
         freightCost: number;
         exwCost: number;
