@@ -22,39 +22,45 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // Supplier commands (already exist)
+            // Supplier commands
             commands::get_suppliers,
             commands::add_supplier,
             commands::update_supplier,
-            // NEW: Shipment commands
+            
+            // Shipment commands
             commands::get_shipments,
             commands::add_shipment,
             commands::update_shipment,
+            
             // Item Master commands
             commands::get_items,
             commands::add_item,
             commands::update_item,
-                        // --- ADD THE NEW INVOICE COMMANDS ---
+            
+            // Invoice commands
             commands::get_invoices,
             commands::add_invoice,
             commands::update_invoice,
             commands::delete_invoice,
             commands::get_unfinalized_shipments,
 
+            // BOE Details commands
             commands::get_boes,
             commands::add_boe,
             commands::update_boe,
             commands::delete_boe,
 
-                        // --- NEW: BOE CALCULATION COMMANDS ---
+            // BOE Calculation commands
             commands::get_boe_calculations,
             commands::add_boe_calculation,
             commands::update_boe_calculation,
             commands::delete_boe_calculation,
             commands::get_shipments_for_boe_entry,
 
-                        commands::get_units,
-                        commands::get_units,
+            // --- Generic and Specific Option Commands ---
+            commands::add_option, // The new generic command for adding any option
+
+            commands::get_units,
             commands::add_unit,
             commands::get_currencies,
             commands::add_currency,
@@ -71,7 +77,17 @@ fn main() {
             commands::get_end_uses,
             commands::add_end_use,
             commands::get_purchase_uoms,
-            commands::add_purchase_uom
+            commands::add_purchase_uom,
+            
+            // New shipment-specific option commands
+            commands::get_incoterms,
+            commands::add_incoterm,
+            commands::get_shipment_modes,
+            commands::add_shipment_mode,
+            commands::get_shipment_types,
+            commands::add_shipment_type,
+            commands::get_shipment_statuses,
+            commands::add_shipment_status
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

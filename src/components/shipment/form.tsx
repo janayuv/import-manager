@@ -1,5 +1,5 @@
 // src/components/shipment/form.tsx (MODIFIED)
-// Using formatters to handle the date conversion between display and input.
+// Replaced currency input with a creatable combobox.
 import * as React from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,10 +19,13 @@ import { CreatableCombobox } from '@/components/ui/combobox-creatable';
 import { toast } from 'sonner';
 import { formatDateForInput, formatDateForDisplay } from '@/lib/date-format';
 
+// Define a type for the dynamic options
+type OptionType = 'category' | 'incoterm' | 'mode' | 'status' | 'type' | 'currency';
+
 interface ShipmentFormProps {
     isOpen: boolean;
     onOpenChange: (isOpen: boolean) => void;
-    onSubmit: (shipment: Shipment) => void;
+    onSubmit: (shipment: Omit<Shipment, 'id'>) => void;
     shipmentToEdit?: Shipment | null;
     suppliers: Option[];
     categories: Option[];
@@ -30,7 +33,8 @@ interface ShipmentFormProps {
     modes: Option[];
     types: Option[];
     statuses: Option[];
-    onOptionCreate: (type: 'category' | 'incoterm' | 'mode' | 'status' | 'type', newOption: Option) => void;
+    currencies: Option[]; // Added currencies prop
+    onOptionCreate: (type: OptionType, newOption: Option) => void;
 }
 
 export function ShipmentForm({ 
@@ -44,11 +48,13 @@ export function ShipmentForm({
     modes,
     types,
     statuses,
+    currencies, // Destructure currencies
     onOptionCreate,
 }: ShipmentFormProps) {
   const [formData, setFormData] = React.useState<Partial<Shipment>>(shipmentToEdit || {});
 
   React.useEffect(() => {
+    // When the dialog opens, reset the form data to the shipment being edited, or to an empty object for a new shipment.
     setFormData(shipmentToEdit || {});
   }, [shipmentToEdit, isOpen]);
 
@@ -57,7 +63,7 @@ export function ShipmentForm({
     if (type === 'date') {
         setFormData(prev => ({ ...prev, [id]: formatDateForDisplay(value) }));
     } else {
-        setFormData(prev => ({ ...prev, [id]: type === 'number' ? parseFloat(value) || 0 : value }));
+        setFormData(prev => ({ ...prev, [id]: type === 'number' ? parseFloat(value) || '' : value }));
     }
   };
 
@@ -74,7 +80,7 @@ export function ShipmentForm({
         return;
     }
 
-    onSubmit(formData as Shipment);
+    onSubmit(formData as Omit<Shipment, 'id'>);
   };
   
   const calculateTransitDays = () => {
@@ -104,12 +110,12 @@ export function ShipmentForm({
         <div className="grid gap-6 py-4">
           <h3 className="text-lg font-medium">Commercial Details</h3>
           <div className="grid grid-cols-4 gap-4">
-            <div className="space-y-2"><Label>Supplier *</Label><CreatableCombobox options={suppliers} value={formData.supplierId || ''} onChange={(v) => handleSelectChange('supplierId', v)} onOptionCreate={() => {}} placeholder="Select Supplier" /></div>
+            <div className="space-y-2"><Label>Supplier *</Label><CreatableCombobox options={suppliers} value={formData.supplierId || ''} onChange={(v) => handleSelectChange('supplierId', v)} onOptionCreate={() => { /* Supplier creation might be a more complex flow */ }} placeholder="Select Supplier" /></div>
             <div className="space-y-2"><Label>Invoice # *</Label><Input id="invoiceNumber" value={formData.invoiceNumber || ''} onChange={handleChange} /></div>
             <div className="space-y-2"><Label>Invoice Date *</Label><Input id="invoiceDate" type="date" value={formatDateForInput(formData.invoiceDate)} onChange={handleChange} /></div>
             <div className="space-y-2"><Label>Goods Category *</Label><CreatableCombobox options={categories} value={formData.goodsCategory || ''} onChange={(v) => handleSelectChange('goodsCategory', v)} onOptionCreate={(newOption) => onOptionCreate('category', newOption)} placeholder="Select Category" /></div>
             <div className="space-y-2"><Label>Invoice Value *</Label><Input id="invoiceValue" type="number" value={formData.invoiceValue || ''} onChange={handleChange} /></div>
-            <div className="space-y-2"><Label>Currency *</Label><Input id="invoiceCurrency" value={formData.invoiceCurrency || ''} onChange={handleChange} placeholder="e.g., USD"/></div>
+            <div className="space-y-2"><Label>Currency *</Label><CreatableCombobox options={currencies} value={formData.invoiceCurrency || ''} onChange={(v) => handleSelectChange('invoiceCurrency', v)} onOptionCreate={(newOption) => onOptionCreate('currency', newOption)} placeholder="e.g., USD" /></div>
             <div className="space-y-2"><Label>Incoterm *</Label><CreatableCombobox options={incoterms} value={formData.incoterm || ''} onChange={(v) => handleSelectChange('incoterm', v)} onOptionCreate={(newOption) => onOptionCreate('incoterm', newOption)} placeholder="Select Incoterm" /></div>
           </div>
           <Separator />
@@ -137,7 +143,6 @@ export function ShipmentForm({
         </div>
         <DialogFooter>
           <Button onClick={handleSubmit} style={{ backgroundColor: '#8aff80' }}>Save Shipment</Button>
-
         </DialogFooter>
       </DialogContent>
     </Dialog>

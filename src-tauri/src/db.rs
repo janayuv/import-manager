@@ -360,10 +360,11 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
-        // NEW: Create tables for all the dropdown options.
+    // MODIFIED: Create tables for all the dropdown options.
     let option_tables = vec![
         "units", "currencies", "countries", "bcd_rates", "sws_rates",
         "igst_rates", "categories", "end_uses", "purchase_uoms",
+        "incoterms", "shipment_modes", "shipment_types", "shipment_statuses"
     ];
 
     for table_name in option_tables {

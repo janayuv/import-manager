@@ -92,7 +92,7 @@ export const Sidebar = ({ open, onToggle }: SidebarProps) => {
             ) : (
               <>
                 <Icon size={18} aria-hidden />
-                <span className="ml-3 font-medium">{label}</span>
+                <span className="ml-3 font-sm">{label}</span>
               </>
             )}
           </NavLink>
@@ -124,7 +124,7 @@ export const Sidebar = ({ open, onToggle }: SidebarProps) => {
             alt="Your profile"
             className="h-6 w-6 rounded-full"
           />
-          {open && <span className="ml-3 font-medium">Profile</span>}
+          {open && <span className="ml-3 font-light">Profile</span>}
         </NavLink>
       </div>
     </motion.aside>

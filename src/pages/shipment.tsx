@@ -1,5 +1,5 @@
 // src/pages/shipment/index.tsx (MODIFIED)
-// Added duplicate check on import and sequential ID generation for both add and import.
+// Fetches all dropdown options from the backend on load.
 import * as React from 'react';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
@@ -22,35 +22,30 @@ import { getShipmentColumns } from '@/components/shipment/columns';
 import { Button } from '@/components/ui/button';
 import { DataTable } from '@/components/shipment/data-table';
 import { Upload, Download, Plus, FileOutput } from 'lucide-react';
-import { 
-    dummyShipments, 
-    initialGoodsCategories, 
-    initialIncoterms, 
-    initialShipmentModes,
-    initialShipmentTypes,
-    initialShipmentStatuses 
-} from '@/components/shipment/data';
 import { invoke } from '@tauri-apps/api/core';
 import type { Supplier } from '@/types/supplier';
 
-// Define a type for the parsed CSV data to avoid using 'any'
 type ImportedShipmentRow = {
     [key: string]: string;
 };
 
+type OptionType = 'category' | 'incoterm' | 'mode' | 'status' | 'type' | 'currency';
+
 const ShipmentPage = () => {
-  const [shipments, setShipments] = React.useState<Shipment[]>(dummyShipments);
+  const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [isViewOpen, setViewOpen] = React.useState(false);
   const [selectedShipment, setSelectedShipment] = React.useState<Shipment | null>(null);
   const [shipmentToEdit, setShipmentToEdit] = React.useState<Shipment | null>(null);
 
-  const [categories, setCategories] = React.useState<Option[]>(initialGoodsCategories);
-  const [incoterms, setIncoterms] = React.useState<Option[]>(initialIncoterms);
-  const [modes, setModes] = React.useState<Option[]>(initialShipmentModes);
-  const [types, setTypes] = React.useState<Option[]>(initialShipmentTypes);
-  const [statuses, setStatuses] = React.useState<Option[]>(initialShipmentStatuses);
+  // State for all dynamic dropdowns, initialized as empty
+  const [categories, setCategories] = React.useState<Option[]>([]);
+  const [incoterms, setIncoterms] = React.useState<Option[]>([]);
+  const [modes, setModes] = React.useState<Option[]>([]);
+  const [types, setTypes] = React.useState<Option[]>([]);
+  const [statuses, setStatuses] = React.useState<Option[]>([]);
+  const [currencies, setCurrencies] = React.useState<Option[]>([]);
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
@@ -85,6 +80,37 @@ const ShipmentPage = () => {
     }
   };
 
+  // Fetches all dropdown options from the backend
+  const fetchOptions = async () => {
+    try {
+        const [
+            fetchedCategories, 
+            fetchedIncoterms, 
+            fetchedModes, 
+            fetchedTypes, 
+            fetchedStatuses, 
+            fetchedCurrencies
+        ] = await Promise.all([
+            invoke('get_categories'),
+            invoke('get_incoterms'),
+            invoke('get_shipment_modes'),
+            invoke('get_shipment_types'),
+            invoke('get_shipment_statuses'),
+            invoke('get_currencies')
+        ]);
+        setCategories(fetchedCategories as Option[]);
+        setIncoterms(fetchedIncoterms as Option[]);
+        setModes(fetchedModes as Option[]);
+        setTypes(fetchedTypes as Option[]);
+        setStatuses(fetchedStatuses as Option[]);
+        setCurrencies(fetchedCurrencies as Option[]);
+    } catch (error) {
+        console.error("Failed to fetch options:", error);
+        toast.error("Could not load dropdown options from the database.");
+    }
+  };
+
+
   React.useEffect(() => {
     const fetchInitialData = async () => {
         try {
@@ -92,6 +118,7 @@ const ShipmentPage = () => {
             const supplierOptions = fetchedSuppliers.map(s => ({ value: s.id, label: s.supplierName }));
             setSuppliers(supplierOptions);
             await fetchShipments();
+            await fetchOptions(); // Fetch all dropdown options on component mount
         } catch (error) {
             console.error("Failed to load initial data:", error);
             toast.error("Could not load initial data from the database.");
@@ -116,6 +143,17 @@ const ShipmentPage = () => {
   }
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
+    const isDuplicate = shipments.some(
+      (s) => 
+        s.invoiceNumber.toLowerCase() === shipmentData.invoiceNumber.toLowerCase() && 
+        s.id !== shipmentToEdit?.id
+    );
+
+    if (isDuplicate) {
+      toast.error(`A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`);
+      return;
+    }
+
     try {
         if (shipmentToEdit) {
             const updatedShipment = { ...shipmentToEdit, ...shipmentData };
@@ -123,7 +161,7 @@ const ShipmentPage = () => {
             toast.success(`Shipment ${updatedShipment.invoiceNumber} updated.`);
         } else {
             const maxId = shipments.reduce((max, s) => {
-                const num = parseInt(s.id.split('-')[1]);
+                const num = s.id ? parseInt(s.id.split('-')[1]) : 0;
                 return num > max ? num : max;
             }, 0);
             const newId = `SHP-${(maxId + 1).toString().padStart(3, '0')}`;
@@ -132,11 +170,11 @@ const ShipmentPage = () => {
             toast.success(`Shipment ${newShipment.invoiceNumber} created.`);
         }
         fetchShipments();
+        setFormOpen(false);
     } catch (error) {
         console.error("Failed to save shipment:", error);
         toast.error("Failed to save shipment.");
     }
-    setFormOpen(false);
   }
 
   async function exportData(dataToExport: Shipment[]) {
@@ -213,24 +251,34 @@ const ShipmentPage = () => {
                 header: true,
                 skipEmptyLines: true,
                 complete: (results) => {
-                    const existingInvoiceNumbers = new Set(shipments.map(s => s.invoiceNumber));
-                    const newShipments = results.data.filter(row => !existingInvoiceNumbers.has(row.invoiceNumber));
+                    const seenInvoiceNumbers = new Set(shipments.map(s => s.invoiceNumber.toLowerCase()));
+                    const importedRows = results.data.filter(row => row.invoiceNumber);
 
-                    if (newShipments.length < results.data.length) {
-                        toast.warning(`${results.data.length - newShipments.length} duplicate shipments were skipped.`);
+                    const shipmentsToImport = [];
+                    for (const row of importedRows) {
+                        const invoiceLower = row.invoiceNumber.toLowerCase();
+                        if (!seenInvoiceNumbers.has(invoiceLower)) {
+                            shipmentsToImport.push(row);
+                            seenInvoiceNumbers.add(invoiceLower);
+                        }
                     }
 
-                    if (newShipments.length === 0) {
+                    const skippedCount = importedRows.length - shipmentsToImport.length;
+                    if (skippedCount > 0) {
+                        toast.warning(`${skippedCount} duplicate shipment(s) were skipped.`);
+                    }
+
+                    if (shipmentsToImport.length === 0) {
                         toast.info("No new shipments to import.");
                         return;
                     }
 
                     const maxId = shipments.reduce((max, s) => {
-                        const num = parseInt(s.id.split('-')[1]);
+                        const num = s.id ? parseInt(s.id.split('-')[1]) : 0;
                         return num > max ? num : max;
                     }, 0);
 
-                    const shipmentsToSave = newShipments.map((shipment, index) => {
+                    const shipmentsToSave = shipmentsToImport.map((shipment, index) => {
                         const newId = `SHP-${(maxId + index + 1).toString().padStart(3, '0')}`;
                         return {
                             ...shipment,
@@ -262,25 +310,35 @@ const ShipmentPage = () => {
     }
   }
 
-  function handleOptionCreate(type: 'category' | 'incoterm' | 'mode' | 'status' | 'type', newOption: Option) {
-    switch (type) {
-        case 'category':
-            setCategories(prev => [...prev, newOption]);
-            break;
-        case 'incoterm':
-            setIncoterms(prev => [...prev, newOption]);
-            break;
-        case 'mode':
-            setModes(prev => [...prev, newOption]);
-            break;
-        case 'type':
-            setTypes(prev => [...prev, newOption]);
-            break;
-        case 'status':
-            setStatuses(prev => [...prev, newOption]);
-            break;
+  async function handleOptionCreate(type: OptionType, newOption: Option) {
+    // The `newOption` from the combobox might have a lowercased `value`.
+    // We create a new object to ensure the casing is preserved as typed in the `label`.
+    const correctlyCasedOption = {
+        value: newOption.label, // Use the label, which preserves casing, for the value.
+        label: newOption.label,
+    };
+
+    const stateUpdater: { [key in OptionType]: React.Dispatch<React.SetStateAction<Option[]>> } = {
+        category: setCategories,
+        incoterm: setIncoterms,
+        mode: setModes,
+        type: setTypes,
+        status: setStatuses,
+        currency: setCurrencies,
+    };
+    // Update the local state with the correctly cased option
+    stateUpdater[type](prev => [...prev, correctlyCasedOption]);
+
+    try {
+        // Send the correctly cased option to the backend
+        await invoke('add_option', { optionType: type, option: correctlyCasedOption });
+        toast.success(`New ${type} "${correctlyCasedOption.label}" saved.`);
+    } catch (error) {
+        console.error(`Failed to save new ${type}:`, error);
+        toast.error(`Failed to save new ${type}.`);
+        // Revert state if the save fails
+        stateUpdater[type](prev => prev.filter(opt => opt.value !== correctlyCasedOption.value));
     }
-    toast.success(`New ${type} "${newOption.label}" created.`);
   }
 
   return (
@@ -292,7 +350,6 @@ const ShipmentPage = () => {
            <Button onClick={handleImport} style={{ backgroundColor: '#e1d460' }}>  <Upload className="mr-2 h-4 w-4" />Import</Button>
            <Button onClick={handleExportSelected} style={{ backgroundColor: '#7c725a' }} className="bg-primary text-primary-foreground" disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
            <Button onClick={handleExportAll} style={{ backgroundColor: '#7c725a' }} className="bg-primary text-primary-foreground"><Download className="mr-2 h-4 w-4" />Export All</Button>
-           
         </div>
       </div>
       <DataTable 
@@ -312,6 +369,7 @@ const ShipmentPage = () => {
         modes={modes}
         types={types}
         statuses={statuses}
+        currencies={currencies}
         onOptionCreate={handleOptionCreate}
       />
       <ShipmentViewDialog

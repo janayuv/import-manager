@@ -18,7 +18,7 @@ export const Navbar = ({ onSidebarToggle }: NavbarProps) => {
         <Button variant="ghost" size="icon" onClick={onSidebarToggle}>
           <PanelLeftOpen className="w-5 h-5" />
         </Button>
-        <h1 className="text-lg font-bold">Import Manager</h1>
+        <h1 className="text-sm font-bold">Import Manager</h1>
       </div>
 
       {/* Dark mode toggle */}

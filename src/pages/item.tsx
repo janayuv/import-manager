@@ -1,9 +1,10 @@
-// src/pages/item/index.tsx (MODIFIED - Fixed missing ID and hook dependency)
+// src/pages/item/index.tsx (FIXED)
+// The handleImport function now correctly converts tax fields to strings before sending to the backend.
 
 import * as React from 'react';
 import { toast } from 'sonner';
 import { save, open } from '@tauri-apps/plugin-dialog';
-import { readTextFile } from '@tauri-apps/plugin-fs';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import {
   useReactTable,
   getCoreRowModel,
@@ -104,29 +105,45 @@ export function ItemMasterPage() {
     fetchInitialData();
   }, [fetchInitialData]);
 
-  const handleOpenFormForEdit = (item: Item) => {
+  const handleOpenFormForEdit = React.useCallback((item: Item) => {
     setItemToEdit(item);
     setFormOpen(true);
-  };
+  }, []);
   
   const handleOpenFormForAdd = () => {
     setItemToEdit(null);
     setFormOpen(true);
   };
 
-  const handleView = (item: Item) => {
+  const handleView = React.useCallback((item: Item) => {
     setSelectedItem(item);
     setViewOpen(true);
-  };
+  }, []);
 
   const handleSubmit = async (itemData: Omit<Item, 'id'>) => {
     try {
       if (itemToEdit) {
+        // Logic for updating an item remains the same.
         await invoke('update_item', { item: { ...itemData, id: itemToEdit.id } });
         toast.success(`Item ${itemData.partNumber} updated.`);
       } else {
-        const newId = `ITM-${Date.now()}`;
-        await invoke('add_item', { item: { ...itemData, id: newId } });
+        // FIX: Generate sequential ID on the frontend for new items.
+        // 1. Find the highest existing ID number.
+        const maxId = items.reduce((max, item) => {
+            // Safely parse the number part of the ID.
+            const num = parseInt(item.id.replace('ITM-', ''), 10);
+            return !isNaN(num) && num > max ? num : max;
+        }, 0);
+        
+        // 2. Create the next ID in the sequence.
+        const nextIdNumber = maxId + 1;
+        const newId = `ITM-${nextIdNumber.toString().padStart(3, '0')}`;
+
+        // 3. Create the complete item object with the new ID.
+        const newItemWithId = { ...itemData, id: newId };
+
+        // 4. Send the new item with its ID to the backend.
+        await invoke('add_item', { item: newItemWithId });
         toast.success(`Item ${itemData.partNumber} created.`);
       }
       fetchItems();
@@ -137,7 +154,7 @@ export function ItemMasterPage() {
     setFormOpen(false);
   };
 
-  const handleExport = async (type: 'all' | 'selected') => {
+const handleExport = async (type: 'all' | 'selected') => {
     let dataToExport: Item[];
     if (type === 'selected') {
         dataToExport = table.getFilteredSelectedRowModel().rows.map(row => row.original);
@@ -154,7 +171,7 @@ export function ItemMasterPage() {
         const csv = exportItemsToCsv(dataToExport, suppliers);
         const filePath = await save({ defaultPath: `items-${type}.csv`, filters: [{ name: 'CSV', extensions: ['csv'] }] });
         if (filePath) {
-            await invoke('write_text_file', { path: filePath, contents: csv });
+            await writeTextFile(filePath, csv);
             toast.success("Items exported successfully!");
         }
     } catch (err) {
@@ -170,9 +187,20 @@ export function ItemMasterPage() {
       if (typeof selectedPath === 'string') {
         const content = await readTextFile(selectedPath);
         const { newItems, skippedCount } = importItemsFromCsv(content, items, suppliers);
+        
         if (skippedCount > 0) toast.warning(`${skippedCount} duplicate items were skipped.`);
+        
         if (newItems.length > 0) {
-            await Promise.all(newItems.map(item => invoke('add_item', { item })));
+            // FIX: Convert tax fields to strings to match the backend's expectation.
+            // The error "invalid type: integer, expected a string" confirms the backend needs strings.
+            const itemsForBackend = newItems.map(item => ({
+                ...item,
+                bcd: item.bcd !== undefined && item.bcd !== null ? String(item.bcd) : undefined,
+                sws: item.sws !== undefined && item.sws !== null ? String(item.sws) : undefined,
+                igst: item.igst !== undefined && item.igst !== null ? String(item.igst) : undefined,
+            }));
+
+            await Promise.all(itemsForBackend.map(item => invoke('add_item', { item })));
             toast.success(`${newItems.length} new items imported successfully!`);
             fetchItems();
         } else {
@@ -205,7 +233,7 @@ export function ItemMasterPage() {
     }
   };
 
-  const columns = React.useMemo(() => getItemColumns(suppliers, handleView, handleOpenFormForEdit), [suppliers]);
+  const columns = React.useMemo(() => getItemColumns(suppliers, handleView, handleOpenFormForEdit), [suppliers, handleView, handleOpenFormForEdit]);
 
   const table = useReactTable({
     data: items,
