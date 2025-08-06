@@ -16,11 +16,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import type { BoeInvoiceItem, BoeItemInput, CalculationMethod } from "@/types/boe-entry";
+import type { InvoiceItem, BoeItemInput, CalculationMethod } from "@/types/boe-entry";
 import type { Dispatch, SetStateAction } from "react";
 
 interface ItemsTableProps {
-  items: BoeInvoiceItem[];
+  items: InvoiceItem[];
   itemInputs: BoeItemInput[];
   setItemInputs: Dispatch<SetStateAction<BoeItemInput[]>>;
 }

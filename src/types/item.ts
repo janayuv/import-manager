@@ -11,9 +11,9 @@ export interface Item {
     supplierId?: string;
     isActive: boolean;
     countryOfOrigin?: string;
-    bcd?: string;
-    sws?: string;
-    igst?: string;
+    bcd?: number;
+    sws?: number;
+    igst?: number;
     technicalWriteUp?: string;
     category?: string;
     endUse?: string;

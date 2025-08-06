@@ -1,28 +1,31 @@
 // src/components/layout/index.tsx
-// This component orchestrates the layout, managing the state for the sidebar.
+
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './sidebar';
-import { Navbar } from './navbar';
+import { TooltipProvider } from '@/components/ui/tooltip';
 
-const Layout = () => {
-  const [isSidebarOpen, setSidebarOpen] = useState(true);
+export const Layout = () => {
+  // This state should already exist
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    return JSON.parse(localStorage.getItem('sidebarOpen') || 'true');
+  });
 
-  const toggleSidebar = () => {
-    setSidebarOpen(!isSidebarOpen);
+  // ---- ADD THIS FUNCTION ----
+  const handleToggleSidebar = () => {
+    setIsSidebarOpen((prev: boolean) => !prev);
   };
 
   return (
-    <div className="flex h-screen bg-background text-foreground">
-      <Sidebar isOpen={isSidebarOpen} />
-      <div className="flex flex-col flex-1">
-        <Navbar onSidebarToggle={toggleSidebar} />
-        <main className="flex-1 p-4 overflow-y-auto">
-          <Outlet /> {/* This is where the content of your pages will be rendered */}
+    <TooltipProvider>
+      <div className="flex min-h-screen">
+        {/* ---- UPDATE THIS LINE ---- */}
+        <Sidebar open={isSidebarOpen} onToggle={handleToggleSidebar} />
+
+        <main className="flex-1 p-4">
+          <Outlet />
         </main>
       </div>
-    </div>
+    </TooltipProvider>
   );
 };
-
-export default Layout;

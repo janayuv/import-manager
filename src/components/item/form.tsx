@@ -147,9 +147,9 @@ export function ItemForm({
             </TabsContent>
             <TabsContent value="customs">
               <div className="grid grid-cols-3 gap-4">
-                <div className="space-y-2"><Label>BCD</Label><CreatableCombobox options={bcdRates} value={formData.bcd || ''} onChange={(v) => handleSelectChange('bcd', v)} onOptionCreate={(opt) => onOptionCreate('bcd', opt)} placeholder="e.g., 10%"/></div>
-                <div className="space-y-2"><Label>SWS</Label><CreatableCombobox options={swsRates} value={formData.sws || ''} onChange={(v) => handleSelectChange('sws', v)} onOptionCreate={(opt) => onOptionCreate('sws', opt)} placeholder="e.g., 10%"/></div>
-                <div className="space-y-2"><Label>IGST</Label><CreatableCombobox options={igstRates} value={formData.igst || ''} onChange={(v) => handleSelectChange('igst', v)} onOptionCreate={(opt) => onOptionCreate('igst', opt)} placeholder="e.g., 18%"/></div>
+                <div className="space-y-2"><Label>BCD</Label><CreatableCombobox options={bcdRates} value={String(formData.bcd || '')} onChange={(v) => handleSelectChange('bcd', v)} onOptionCreate={(opt) => onOptionCreate('bcd', opt)} placeholder="e.g., 10%"/></div>
+                <div className="space-y-2"><Label>SWS</Label><CreatableCombobox options={swsRates} value={String(formData.sws || '')} onChange={(v) => handleSelectChange('sws', v)} onOptionCreate={(opt) => onOptionCreate('sws', opt)} placeholder="e.g., 10%"/></div>
+                <div className="space-y-2"><Label>IGST</Label><CreatableCombobox options={igstRates} value={String(formData.igst || '')} onChange={(v) => handleSelectChange('igst', v)} onOptionCreate={(opt) => onOptionCreate('igst', opt)} placeholder="e.g., 18%"/></div>
                 <div className="space-y-2"><Label>Country of Origin</Label><CreatableCombobox options={countries} value={formData.countryOfOrigin || ''} onChange={(v) => handleSelectChange('countryOfOrigin', v)} onOptionCreate={(opt) => onOptionCreate('country', opt)} placeholder="Select Country"/></div>
               </div>
               <div className="space-y-2 mt-4"><Label>Technical Write-up</Label><Textarea id="technicalWriteUp" value={formData.technicalWriteUp || ''} onChange={handleChange} rows={10}/></div>
