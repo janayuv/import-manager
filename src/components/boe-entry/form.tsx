@@ -87,6 +87,7 @@ export function BoeEntryForm({
 
   const [selectedBoeId, setSelectedBoeId] = React.useState<string>("");
   const [selectedBoeDetails, setSelectedBoeDetails] = React.useState<BoeDetails | null>(null);
+  const [isCif, setIsCif] = React.useState(false);
 
   const isEditing = Boolean(initialData);
 
@@ -103,6 +104,22 @@ export function BoeEntryForm({
     },
     mode: "onChange",
   });
+
+  React.useEffect(() => {
+    if (selectedShipment) {
+      const isCifShipment = selectedShipment.incoterm === 'CIF';
+      setIsCif(isCifShipment);
+
+      if (isCifShipment) {
+        form.setValue("freightCost", 0);
+        form.setValue("exwCost", 0);
+        form.setValue("insuranceRate", 0);
+      }
+    } else {
+      setIsCif(false);
+    }
+  }, [selectedShipment, form]);
+
   
   const boeOptions = React.useMemo(() => {
     const usedBoeIds = new Set(
@@ -420,6 +437,7 @@ export function BoeEntryForm({
                         {...field}
                         value={field.value ?? ''}
                         onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
+                        disabled={isCif}
                     />
                 </FormControl>
                <FormMessage />
@@ -436,6 +454,7 @@ export function BoeEntryForm({
                         {...field}
                         value={field.value ?? ''}
                         onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
+                        disabled={isCif}
                     />
                 </FormControl>
                <FormMessage />
@@ -452,6 +471,7 @@ export function BoeEntryForm({
                    {...field}
                    value={field.value ?? ''}
                    onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
+                   disabled={isCif}
                  />
                </FormControl>
                <FormMessage />

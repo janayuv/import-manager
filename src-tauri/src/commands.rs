@@ -185,6 +185,38 @@ pub fn update_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), 
 }
 
 #[tauri::command]
+pub fn add_suppliers_bulk(state: State<DbState>, suppliers: Vec<Supplier>) -> Result<(), String> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    for supplier in suppliers {
+        tx.execute(
+            "INSERT INTO suppliers (id, supplier_name, short_name, country, email, phone, beneficiary_name, bank_name, branch, bank_address, account_no, iban, swift_code, is_active) 
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+            params![
+                supplier.id,
+                supplier.supplier_name,
+                supplier.short_name,
+                supplier.country,
+                supplier.email,
+                supplier.phone,
+                supplier.beneficiary_name,
+                supplier.bank_name,
+                supplier.branch,
+                supplier.bank_address,
+                supplier.account_no,
+                supplier.iban,
+                supplier.swift_code,
+                supplier.is_active,
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn.prepare("SELECT * FROM shipments").map_err(|e| e.to_string())?;
@@ -242,6 +274,30 @@ pub fn update_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), 
 }
 
 #[tauri::command]
+pub fn add_shipments_bulk(state: State<DbState>, shipments: Vec<Shipment>) -> Result<(), String> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    for shipment in shipments {
+        tx.execute(
+            "INSERT INTO shipments (id, supplier_id, invoice_number, invoice_date, goods_category, invoice_value, invoice_currency, incoterm, shipment_mode, shipment_type, bl_awb_number, bl_awb_date, vessel_name, container_number, gross_weight_kg, etd, eta, status, date_of_delivery) 
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+            params![
+                shipment.id, shipment.supplier_id, shipment.invoice_number, shipment.invoice_date,
+                shipment.goods_category, shipment.invoice_value, shipment.invoice_currency,
+                shipment.incoterm, shipment.shipment_mode, shipment.shipment_type,
+                shipment.bl_awb_number, shipment.bl_awb_date, shipment.vessel_name,
+                shipment.container_number, shipment.gross_weight_kg, shipment.etd,
+                shipment.eta, shipment.status, shipment.date_of_delivery,
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
 pub fn get_items(state: State<DbState>) -> Result<Vec<Item>, String> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn.prepare("SELECT * FROM items").map_err(|e| e.to_string())?;
@@ -271,6 +327,22 @@ pub fn get_items(state: State<DbState>) -> Result<Vec<Item>, String> {
     }).map_err(|e| e.to_string())?;
 
     item_iter.map(|i| i.map_err(|e| e.to_string())).collect()
+}
+
+#[tauri::command]
+pub fn add_items_bulk(state: State<DbState>, items: Vec<Item>) -> Result<(), String> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+    
+    for item in items {
+        tx.execute(
+            "INSERT INTO items (id, part_number, item_description, unit, currency, unit_price, hsn_code, supplier_id, is_active, country_of_origin, bcd, sws, igst, technical_write_up, category, end_use, net_weight_kg, purchase_uom, gross_weight_per_uom_kg, photo_path) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
+            params![item.id, item.part_number, item.item_description, item.unit, item.currency, item.unit_price, item.hsn_code, item.supplier_id, item.is_active, item.country_of_origin, item.bcd, item.sws, item.igst, item.technical_write_up, item.category, item.end_use, item.net_weight_kg, item.purchase_uom, item.gross_weight_per_uom_kg, item.photo_path],
+        ).map_err(|e| e.to_string())?;
+    }
+    
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -390,6 +462,26 @@ pub fn add_invoice(payload: NewInvoicePayload, state: State<DbState>) -> Result<
             Err(e.to_string())
         }
     }
+}
+
+#[tauri::command]
+pub fn add_invoices_bulk(payloads: Vec<NewInvoicePayload>, state: State<DbState>) -> Result<Vec<String>, String> {
+    let mut db = state.db.lock().unwrap();
+    let tx = db.transaction().map_err(|e| e.to_string())?;
+    let mut new_ids = Vec::new();
+
+    for payload in &payloads {
+        match execute_add_invoice(&tx, payload) {
+            Ok(id) => new_ids.push(id),
+            Err(e) => {
+                tx.rollback().map_err(|e| e.to_string())?;
+                return Err(e.to_string());
+            }
+        }
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(new_ids)
 }
 
 fn execute_update_invoice(tx: &Transaction, id: &str, payload: &NewInvoicePayload) -> Result<(), rusqlite::Error> {

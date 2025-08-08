@@ -1,4 +1,5 @@
-// src/components/ui/data-table-pagination.tsx (NEW FILE)
+// src/components/ui/data-table-pagination.tsx
+import * as React from 'react';
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react"
 import type { Table } from "@tanstack/react-table"
 import { Button } from "@/components/ui/button"
@@ -6,9 +7,27 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>
+  storageKey?: string; // Optional key to persist page size
 }
 
-export function DataTablePagination<TData>({ table }: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({ table, storageKey = 'table-page-size' }: DataTablePaginationProps<TData>) {
+
+  // Effect to load the page size from localStorage on initial render
+  React.useEffect(() => {
+    const savedPageSize = localStorage.getItem(storageKey);
+    if (savedPageSize) {
+      table.setPageSize(Number(savedPageSize));
+    }
+  }, [table, storageKey]);
+
+  const pageSize = table.getState().pagination.pageSize;
+
+  // Effect to save the page size to localStorage whenever it changes
+  React.useEffect(() => {
+    localStorage.setItem(storageKey, pageSize.toString());
+  }, [pageSize, storageKey]);
+
+
   return (
     <div className="flex items-center justify-between px-2">
       <div className="flex-1 text-sm text-muted-foreground">

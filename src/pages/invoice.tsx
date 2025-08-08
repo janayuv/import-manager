@@ -1,20 +1,29 @@
-// src/pages/invoice/index.tsx (MODIFIED - Type definitions corrected)
+// src/pages/invoice/index.tsx
 
 import * as React from 'react';
 import { toast } from 'sonner';
+import Papa from 'papaparse';
 import { invoke } from '@tauri-apps/api/core';
-import type { Invoice, FlattenedInvoiceLine } from '@/types/invoice';
+import { save, open } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import type { Invoice, FlattenedInvoiceLine, NewInvoicePayload, InvoiceLineItemPayload } from '@/types/invoice';
 import type { Shipment } from '@/types/shipment';
 import type { Item } from '@/types/item';
 import type { Supplier } from '@/types/supplier';
 import { getInvoiceColumns } from '@/components/invoice/columns';
 import { DataTable } from '@/components/invoice/data-table';
 import { Button } from '@/components/ui/button';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Upload, Download } from 'lucide-react';
 import { InvoiceForm } from '@/components/invoice/form';
 import { InvoiceViewDialog } from '@/components/invoice/view';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
 
+type BulkImportRow = {
+  shipmentInvoiceNumber: string;
+  itemPartNumber: string;
+  quantity: string;
+  unitPrice: string;
+};
 
 const InvoicePage = () => {
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
@@ -33,6 +42,7 @@ const InvoicePage = () => {
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<{id: string, number: string} | null>(null);
   
   const [globalFilter, setGlobalFilter] = React.useState(''); 
+  const [statusFilter, setStatusFilter] = React.useState('All'); 
 
   const fetchData = async () => {
     setLoading(true);
@@ -73,7 +83,11 @@ const InvoicePage = () => {
 
   const flattenedData = React.useMemo(() => {
     const data: FlattenedInvoiceLine[] = [];
-    invoices.forEach(invoice => {
+    const filteredInvoices = statusFilter === 'All' 
+      ? invoices 
+      : invoices.filter(invoice => invoice.status === statusFilter);
+
+    filteredInvoices.forEach(invoice => {
       const shipment = shipments.find(s => s.id === invoice.shipmentId);
       const supplier = suppliers.find(sup => sup.id === shipment?.supplierId);
       
@@ -118,7 +132,7 @@ const InvoicePage = () => {
       }
     });
     return data;
-  }, [invoices, shipments, items, suppliers]);
+  }, [invoices, shipments, items, suppliers, statusFilter]);
 
 
   const handleOpenFormForAdd = () => {
@@ -163,7 +177,7 @@ const InvoicePage = () => {
   };
 
   const handleSubmit = async (invoiceData: Omit<Invoice, "id">, id?: string) => {
-    const payload = {
+    const payload: NewInvoicePayload = {
       shipmentId: invoiceData.shipmentId,
       status: invoiceData.status,
       lineItems: invoiceData.lineItems?.map((li) => ({
@@ -188,6 +202,79 @@ const InvoicePage = () => {
         toast.error("Failed to save invoice.");
     }
   };
+  
+  const handleDownloadTemplate = async () => {
+    const headers = "shipmentInvoiceNumber,itemPartNumber,quantity,unitPrice";
+    try {
+        const filePath = await save({ defaultPath: 'bulk_invoice_template.csv', filters: [{ name: 'CSV', extensions: ['csv'] }] });
+        if (filePath) {
+            await writeTextFile(filePath, headers);
+            toast.success("Invoice import template downloaded successfully!");
+        }
+    } catch (err) {
+        toast.error(`Failed to download template: ${(err as Error).message}`);
+    }
+  };
+
+  const handleBulkImport = async () => {
+    try {
+      const selectedPath = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+      if (!selectedPath) return;
+
+      const content = await readTextFile(selectedPath as string);
+      const results = Papa.parse<BulkImportRow>(content, { header: true, skipEmptyLines: true });
+
+      if (results.errors.length) {
+        toast.error("CSV parsing error. Please check the file format.");
+        return;
+      }
+      
+      const shipmentMap = new Map(shipments.map(s => [s.invoiceNumber, s.id]));
+      const itemMap = new Map(items.map(i => [i.partNumber, i.id]));
+      
+      const invoicesToCreate = new Map<string, InvoiceLineItemPayload[]>();
+      
+      for (const row of results.data) {
+        const shipmentId = shipmentMap.get(row.shipmentInvoiceNumber);
+        const itemId = itemMap.get(row.itemPartNumber);
+
+        if (!shipmentId) {
+            toast.warning(`Skipping row: Shipment with invoice number "${row.shipmentInvoiceNumber}" not found.`);
+            continue;
+        }
+        if (!itemId) {
+            toast.warning(`Skipping row: Item with part number "${row.itemPartNumber}" not found.`);
+            continue;
+        }
+        
+        const lineItems = invoicesToCreate.get(shipmentId) || [];
+        lineItems.push({
+            itemId,
+            quantity: parseFloat(row.quantity) || 0,
+            unitPrice: parseFloat(row.unitPrice) || 0,
+        });
+        invoicesToCreate.set(shipmentId, lineItems);
+      }
+      
+      if (invoicesToCreate.size === 0) {
+        toast.info("No new valid invoices found to import.");
+        return;
+      }
+      
+      const payloads: NewInvoicePayload[] = Array.from(invoicesToCreate.entries()).map(([shipmentId, lineItems]) => ({
+        shipmentId,
+        status: "Draft",
+        lineItems,
+      }));
+
+      await invoke('add_invoices_bulk', { payloads });
+      toast.success(`${payloads.length} invoices have been imported as drafts.`);
+      fetchData();
+
+    } catch (err) {
+      toast.error(`Failed to import invoices: ${(err as Error).message}`);
+    }
+  };
 
   const columns = getInvoiceColumns({ 
     onView: handleView, 
@@ -204,8 +291,14 @@ const InvoicePage = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Invoice Details</h1>
         <div className="flex items-center gap-2">
-          <Button onClick={handleOpenFormForAdd} className="custom-alert-action-ok">
+          <Button onClick={handleOpenFormForAdd}>
             <Plus className="mr-2 h-4 w-4" /> Add New Invoice
+          </Button>
+          <Button onClick={handleDownloadTemplate} variant="outline">
+            <Download className="mr-2 h-4 w-4" /> Template
+          </Button>
+          <Button onClick={handleBulkImport} variant="outline">
+            <Upload className="mr-2 h-4 w-4" /> Import Bulk
           </Button>
         </div>
       </div>
@@ -214,6 +307,9 @@ const InvoicePage = () => {
         data={flattenedData} 
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
+        storageKey="invoice-table-page-size"
+        statusFilter={statusFilter}
+        setStatusFilter={setStatusFilter}
       />
       
       <InvoiceForm 
@@ -241,8 +337,8 @@ const InvoicePage = () => {
                 </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-                <AlertDialogCancel className="custom-alert-action-cancel" onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction className="custom-alert-action-ok"onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+                <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
     </AlertDialog>

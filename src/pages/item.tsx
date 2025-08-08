@@ -1,5 +1,4 @@
-// src/pages/item/index.tsx (FIXED)
-// The handleImport function now correctly converts tax fields to strings before sending to the backend.
+// src/pages/item/index.tsx
 
 import * as React from 'react';
 import { toast } from 'sonner';
@@ -127,22 +126,16 @@ export function ItemMasterPage() {
         await invoke('update_item', { item: { ...itemData, id: itemToEdit.id } });
         toast.success(`Item ${itemData.partNumber} updated.`);
       } else {
-        // FIX: Generate sequential ID on the frontend for new items.
-        // 1. Find the highest existing ID number.
         const maxId = items.reduce((max, item) => {
-            // Safely parse the number part of the ID.
             const num = parseInt(item.id.replace('ITM-', ''), 10);
             return !isNaN(num) && num > max ? num : max;
         }, 0);
         
-        // 2. Create the next ID in the sequence.
         const nextIdNumber = maxId + 1;
         const newId = `ITM-${nextIdNumber.toString().padStart(3, '0')}`;
 
-        // 3. Create the complete item object with the new ID.
         const newItemWithId = { ...itemData, id: newId };
 
-        // 4. Send the new item with its ID to the backend.
         await invoke('add_item', { item: newItemWithId });
         toast.success(`Item ${itemData.partNumber} created.`);
       }
@@ -154,7 +147,7 @@ export function ItemMasterPage() {
     setFormOpen(false);
   };
 
-const handleExport = async (type: 'all' | 'selected') => {
+  const handleExport = async (type: 'all' | 'selected') => {
     let dataToExport: Item[];
     if (type === 'selected') {
         dataToExport = table.getFilteredSelectedRowModel().rows.map(row => row.original);
@@ -181,6 +174,28 @@ const handleExport = async (type: 'all' | 'selected') => {
     }
   };
 
+  const handleDownloadTemplate = async () => {
+    const headers = [
+      "partNumber", "itemDescription", "supplierName", "unit", "currency", 
+      "unitPrice", "hsnCode", "countryOfOrigin", "bcd", "sws", "igst",
+      "technicalWriteUp", "category", "endUse", "netWeightKg", "purchaseUom",
+      "grossWeightPerUomKg", "isActive"
+    ];
+    const csv = headers.join(',');
+
+    try {
+        const filePath = await save({ defaultPath: 'item_template.csv', filters: [{ name: 'CSV', extensions: ['csv'] }] });
+        if (filePath) {
+            await writeTextFile(filePath, csv);
+            toast.success("Item import template downloaded successfully!");
+        }
+    } catch (err) {
+        const error = err as Error;
+        console.error("Failed to download template:", error);
+        toast.error(`Failed to download template: ${error.message}`);
+    }
+  };
+  
   const handleImport = async () => {
     try {
       const selectedPath = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
@@ -191,8 +206,6 @@ const handleExport = async (type: 'all' | 'selected') => {
         if (skippedCount > 0) toast.warning(`${skippedCount} duplicate items were skipped.`);
         
         if (newItems.length > 0) {
-            // FIX: Convert tax fields to strings to match the backend's expectation.
-            // The error "invalid type: integer, expected a string" confirms the backend needs strings.
             const itemsForBackend = newItems.map(item => ({
                 ...item,
                 bcd: item.bcd !== undefined && item.bcd !== null ? String(item.bcd) : undefined,
@@ -200,7 +213,7 @@ const handleExport = async (type: 'all' | 'selected') => {
                 igst: item.igst !== undefined && item.igst !== null ? String(item.igst) : undefined,
             }));
 
-            await Promise.all(itemsForBackend.map(item => invoke('add_item', { item })));
+            await invoke('add_items_bulk', { items: itemsForBackend });
             toast.success(`${newItems.length} new items imported successfully!`);
             fetchItems();
         } else {
@@ -258,10 +271,11 @@ const handleExport = async (type: 'all' | 'selected') => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Item Master</h1>
         <div className="flex items-center gap-2">
-           <Button onClick={handleImport} variant="outline" className="custom-alert-action-ok"><Upload className="mr-2 h-4 w-4" />Import</Button>
-           <Button onClick={() => handleExport('selected')} className="custom-alert-action-cancel" disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
-           <Button onClick={() => handleExport('all')} className="custom-alert-action-cancel"><Download className="mr-2 h-4 w-4" />Export All</Button>
-           <Button onClick={handleOpenFormForAdd} className="custom-alert-action-ok"><Plus className="mr-2 h-4 w-4" />Add New</Button>
+           <Button onClick={handleOpenFormForAdd}><Plus className="mr-2 h-4 w-4" />Add New</Button>
+           <Button onClick={handleDownloadTemplate} variant="outline"><Download className="mr-2 h-4 w-4" />Template</Button>
+           <Button onClick={handleImport} variant="outline"><Upload className="mr-2 h-4 w-4" />Import</Button>
+           <Button onClick={() => handleExport('selected')} variant="outline" disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
+           <Button onClick={() => handleExport('all')} variant="outline"><Download className="mr-2 h-4 w-4" />Export All</Button>
         </div>
       </div>
       <DataTable 

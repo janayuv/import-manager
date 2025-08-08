@@ -26,20 +26,24 @@ fn main() {
             commands::get_suppliers,
             commands::add_supplier,
             commands::update_supplier,
+            commands::add_suppliers_bulk,
             
             // Shipment commands
             commands::get_shipments,
             commands::add_shipment,
             commands::update_shipment,
+            commands::add_shipments_bulk,
             
             // Item Master commands
             commands::get_items,
             commands::add_item,
+            commands::add_items_bulk,
             commands::update_item,
             
             // Invoice commands
             commands::get_invoices,
             commands::add_invoice,
+            commands::add_invoices_bulk,
             commands::update_invoice,
             commands::delete_invoice,
             commands::get_unfinalized_shipments,

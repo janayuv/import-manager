@@ -9,6 +9,7 @@ import BOEPage from '@/pages/boe';
 import BOEEntrypage from '@/pages/boe-entry';
 import BoeSummaryPage from '@/pages/boe-summary';
 import { Toaster } from '@/components/ui/sonner';
+import DashboardPage from '@/pages/dashboard';
 
 // A simple placeholder for pages you haven't created yet
 const Placeholder = ({ title }: { title: string }) => (
@@ -24,7 +25,7 @@ function App() {
       <Router>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Placeholder title="Dashboard" />} />
+            <Route path="/" element={<DashboardPage />} />
             <Route path="/supplier" element={<SupplierPage />} />
             <Route path="/shipment" element={<ShipmentPage />} />
             <Route path="/invoice" element={<InvoicePage />} />

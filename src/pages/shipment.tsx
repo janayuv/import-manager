@@ -1,5 +1,4 @@
-// src/pages/shipment/index.tsx (MODIFIED)
-// Fetches all dropdown options from the backend on load.
+// src/pages/shipment/index.tsx
 import * as React from 'react';
 import { toast } from 'sonner';
 import Papa from 'papaparse';
@@ -25,10 +24,6 @@ import { Upload, Download, Plus, FileOutput } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Supplier } from '@/types/supplier';
 
-type ImportedShipmentRow = {
-    [key: string]: string;
-};
-
 type OptionType = 'category' | 'incoterm' | 'mode' | 'status' | 'type' | 'currency';
 
 const ShipmentPage = () => {
@@ -38,8 +33,7 @@ const ShipmentPage = () => {
   const [isViewOpen, setViewOpen] = React.useState(false);
   const [selectedShipment, setSelectedShipment] = React.useState<Shipment | null>(null);
   const [shipmentToEdit, setShipmentToEdit] = React.useState<Shipment | null>(null);
-
-  // State for all dynamic dropdowns, initialized as empty
+  
   const [categories, setCategories] = React.useState<Option[]>([]);
   const [incoterms, setIncoterms] = React.useState<Option[]>([]);
   const [modes, setModes] = React.useState<Option[]>([]);
@@ -63,11 +57,7 @@ const ShipmentPage = () => {
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
-    state: {
-      sorting,
-      columnFilters,
-      rowSelection,
-    },
+    state: { sorting, columnFilters, rowSelection },
   });
 
   const fetchShipments = async () => {
@@ -80,23 +70,14 @@ const ShipmentPage = () => {
     }
   };
 
-  // Fetches all dropdown options from the backend
   const fetchOptions = async () => {
     try {
         const [
-            fetchedCategories, 
-            fetchedIncoterms, 
-            fetchedModes, 
-            fetchedTypes, 
-            fetchedStatuses, 
-            fetchedCurrencies
+            fetchedCategories, fetchedIncoterms, fetchedModes, 
+            fetchedTypes, fetchedStatuses, fetchedCurrencies
         ] = await Promise.all([
-            invoke('get_categories'),
-            invoke('get_incoterms'),
-            invoke('get_shipment_modes'),
-            invoke('get_shipment_types'),
-            invoke('get_shipment_statuses'),
-            invoke('get_currencies')
+            invoke('get_categories'), invoke('get_incoterms'), invoke('get_shipment_modes'),
+            invoke('get_shipment_types'), invoke('get_shipment_statuses'), invoke('get_currencies')
         ]);
         setCategories(fetchedCategories as Option[]);
         setIncoterms(fetchedIncoterms as Option[]);
@@ -110,7 +91,6 @@ const ShipmentPage = () => {
     }
   };
 
-
   React.useEffect(() => {
     const fetchInitialData = async () => {
         try {
@@ -118,7 +98,7 @@ const ShipmentPage = () => {
             const supplierOptions = fetchedSuppliers.map(s => ({ value: s.id, label: s.supplierName }));
             setSuppliers(supplierOptions);
             await fetchShipments();
-            await fetchOptions(); // Fetch all dropdown options on component mount
+            await fetchOptions();
         } catch (error) {
             console.error("Failed to load initial data:", error);
             toast.error("Could not load initial data from the database.");
@@ -160,10 +140,7 @@ const ShipmentPage = () => {
             await invoke('update_shipment', { shipment: updatedShipment });
             toast.success(`Shipment ${updatedShipment.invoiceNumber} updated.`);
         } else {
-            const maxId = shipments.reduce((max, s) => {
-                const num = s.id ? parseInt(s.id.split('-')[1]) : 0;
-                return num > max ? num : max;
-            }, 0);
+            const maxId = shipments.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')), 0);
             const newId = `SHP-${(maxId + 1).toString().padStart(3, '0')}`;
             const newShipment: Shipment = { id: newId, ...shipmentData };
             await invoke('add_shipment', { shipment: newShipment });
@@ -177,6 +154,81 @@ const ShipmentPage = () => {
     }
   }
 
+  const handleDownloadTemplate = () => {
+    const headers = [
+      "supplierId", "invoiceNumber", "invoiceDate", "goodsCategory", "invoiceValue",
+      "invoiceCurrency", "incoterm", "shipmentMode", "shipmentType", "blAwbNumber",
+      "blAwbDate", "vesselName", "containerNumber", "grossWeightKg", "etd", "eta",
+      "status", "dateOfDelivery"
+    ];
+    const csv = headers.join(',');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'shipment_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.info("Shipment template downloaded.");
+  };
+
+  async function handleImport() {
+    try {
+        const selectedPath = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
+        if (!selectedPath) {
+            toast.info("Import cancelled.");
+            return;
+        }
+
+        const content = await readTextFile(selectedPath as string);
+        const results = Papa.parse<Record<string, string>>(content, { header: true, skipEmptyLines: true });
+        
+        const seenInvoiceNumbers = new Set(shipments.map(s => s.invoiceNumber.toLowerCase()));
+        let maxId = shipments.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')), 0);
+
+        const newShipments: Shipment[] = [];
+        for (const row of results.data) {
+            if (!row.invoiceNumber || seenInvoiceNumbers.has(row.invoiceNumber.toLowerCase())) {
+                continue; // Skip duplicates or rows without an invoice number
+            }
+            maxId++;
+            newShipments.push({
+                id: `SHP-${maxId.toString().padStart(3, '0')}`,
+                supplierId: row.supplierId,
+                invoiceNumber: row.invoiceNumber,
+                invoiceDate: row.invoiceDate,
+                goodsCategory: row.goodsCategory,
+                invoiceValue: parseFloat(row.invoiceValue) || 0,
+                invoiceCurrency: row.invoiceCurrency,
+                incoterm: row.incoterm,
+                shipmentMode: row.shipmentMode,
+                shipmentType: row.shipmentType,
+                blAwbNumber: row.blAwbNumber,
+                blAwbDate: row.blAwbDate,
+                vesselName: row.vesselName,
+                containerNumber: row.containerNumber,
+                grossWeightKg: parseFloat(row.grossWeightKg) || 0,
+                etd: row.etd,
+                eta: row.eta,
+                status: row.status,
+                dateOfDelivery: row.dateOfDelivery,
+            });
+            seenInvoiceNumbers.add(row.invoiceNumber.toLowerCase());
+        }
+
+        if (newShipments.length > 0) {
+            await invoke('add_shipments_bulk', { shipments: newShipments });
+            toast.success(`${newShipments.length} new shipments imported successfully!`);
+            fetchShipments();
+        } else {
+            toast.info("No new shipments to import.");
+        }
+    } catch (error) {
+        console.error("Failed to import shipments:", error);
+        toast.error("Failed to import shipments. Please check the file format.");
+    }
+  }
+  
   async function exportData(dataToExport: Shipment[]) {
     if (dataToExport.length === 0) {
         toast.warning("No data available to export.");
@@ -242,101 +294,19 @@ const ShipmentPage = () => {
     exportData(selectedData);
   }
 
-  async function handleImport() {
-    try {
-        const selected = await open({ multiple: false, filters: [{ name: 'CSV', extensions: ['csv'] }] });
-        if (typeof selected === 'string') {
-            const content = await readTextFile(selected);
-            Papa.parse<ImportedShipmentRow>(content, {
-                header: true,
-                skipEmptyLines: true,
-                complete: (results) => {
-                    const seenInvoiceNumbers = new Set(shipments.map(s => s.invoiceNumber.toLowerCase()));
-                    const importedRows = results.data.filter(row => row.invoiceNumber);
-
-                    const shipmentsToImport = [];
-                    for (const row of importedRows) {
-                        const invoiceLower = row.invoiceNumber.toLowerCase();
-                        if (!seenInvoiceNumbers.has(invoiceLower)) {
-                            shipmentsToImport.push(row);
-                            seenInvoiceNumbers.add(invoiceLower);
-                        }
-                    }
-
-                    const skippedCount = importedRows.length - shipmentsToImport.length;
-                    if (skippedCount > 0) {
-                        toast.warning(`${skippedCount} duplicate shipment(s) were skipped.`);
-                    }
-
-                    if (shipmentsToImport.length === 0) {
-                        toast.info("No new shipments to import.");
-                        return;
-                    }
-
-                    const maxId = shipments.reduce((max, s) => {
-                        const num = s.id ? parseInt(s.id.split('-')[1]) : 0;
-                        return num > max ? num : max;
-                    }, 0);
-
-                    const shipmentsToSave = shipmentsToImport.map((shipment, index) => {
-                        const newId = `SHP-${(maxId + index + 1).toString().padStart(3, '0')}`;
-                        return {
-                            ...shipment,
-                            id: newId,
-                            invoiceValue: parseFloat(shipment.invoiceValue) || 0,
-                            grossWeightKg: parseFloat(shipment.grossWeightKg) || 0,
-                        };
-                    });
-
-                    Promise.all(shipmentsToSave.map(shipment => {
-                        return invoke('add_shipment', { shipment });
-                    })).then(() => {
-                        toast.success(`${shipmentsToSave.length} shipments imported successfully!`);
-                        fetchShipments();
-                    }).catch(err => {
-                        toast.error("Failed to save imported shipments.");
-                        console.error(err);
-                    });
-                },
-                error: (err: Error) => {
-                    toast.error("Failed to parse CSV file.");
-                    console.error("CSV parsing error:", err);
-                }
-            });
-        }
-    } catch (error) {
-        console.error("Failed to import shipments:", error);
-        toast.error("Failed to import shipments.");
-    }
-  }
-
   async function handleOptionCreate(type: OptionType, newOption: Option) {
-    // The `newOption` from the combobox might have a lowercased `value`.
-    // We create a new object to ensure the casing is preserved as typed in the `label`.
-    const correctlyCasedOption = {
-        value: newOption.label, // Use the label, which preserves casing, for the value.
-        label: newOption.label,
+    const correctlyCasedOption = { value: newOption.label, label: newOption.label };
+    const stateUpdater = {
+        category: setCategories, incoterm: setIncoterms, mode: setModes,
+        type: setTypes, status: setStatuses, currency: setCurrencies,
     };
-
-    const stateUpdater: { [key in OptionType]: React.Dispatch<React.SetStateAction<Option[]>> } = {
-        category: setCategories,
-        incoterm: setIncoterms,
-        mode: setModes,
-        type: setTypes,
-        status: setStatuses,
-        currency: setCurrencies,
-    };
-    // Update the local state with the correctly cased option
     stateUpdater[type](prev => [...prev, correctlyCasedOption]);
-
     try {
-        // Send the correctly cased option to the backend
         await invoke('add_option', { optionType: type, option: correctlyCasedOption });
         toast.success(`New ${type} "${correctlyCasedOption.label}" saved.`);
     } catch (error) {
         console.error(`Failed to save new ${type}:`, error);
         toast.error(`Failed to save new ${type}.`);
-        // Revert state if the save fails
         stateUpdater[type](prev => prev.filter(opt => opt.value !== correctlyCasedOption.value));
     }
   }
@@ -346,10 +316,11 @@ const ShipmentPage = () => {
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Shipments</h1>
         <div className="flex items-center gap-2">
-           <Button onClick={handleOpenFormForAdd} style={{ backgroundColor: '#85b79a' }} className="w-auto px-4 py-2 text-black hover:opacity-90"><Plus className="mr-2 h-4 w-4"/>Add New</Button>
-           <Button onClick={handleImport} style={{ backgroundColor: '#e1d460' }}>  <Upload className="mr-2 h-4 w-4" />Import</Button>
-           <Button onClick={handleExportSelected} style={{ backgroundColor: '#7c725a' }} className="bg-primary text-primary-foreground" disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
-           <Button onClick={handleExportAll} style={{ backgroundColor: '#7c725a' }} className="bg-primary text-primary-foreground"><Download className="mr-2 h-4 w-4" />Export All</Button>
+           <Button onClick={handleOpenFormForAdd}><Plus className="mr-2 h-4 w-4"/>Add New</Button>
+           <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2 h-4 w-4" />Template</Button>
+           <Button variant="outline" onClick={handleImport}><Upload className="mr-2 h-4 w-4" />Import</Button>
+           <Button variant="outline" onClick={handleExportSelected} disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
+           <Button variant="outline" onClick={handleExportAll}><Download className="mr-2 h-4 w-4" />Export All</Button>
         </div>
       </div>
       <DataTable 

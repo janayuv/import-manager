@@ -1,5 +1,4 @@
-// src/pages/supplier/page.tsx
-// This is the main page component that assembles everything and manages state.
+// src/pages/supplier.tsx
 import * as React from 'react';
 import type { Column, ColumnDef } from '@tanstack/react-table';
 import { SupplierDataTable } from '@/components/supplier/table';
@@ -10,9 +9,12 @@ import type { Supplier } from '@/types/supplier';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download } from 'lucide-react';
 import { SupplierActions } from '@/components/supplier/actions';  
 import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readTextFile } from '@tauri-apps/plugin-fs';
+import { toast } from 'sonner';
 
 const SupplierPage = () => {
     const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
@@ -26,11 +28,10 @@ const SupplierPage = () => {
             setSuppliers(fetchedSuppliers);
         } catch (error) {
             console.error("Failed to fetch suppliers:", error);
-            // Here you could show a toast notification to the user
+            toast.error("Failed to fetch suppliers.");
         }
     };
 
-    // Fetch suppliers when the component mounts
     React.useEffect(() => {
         fetchSuppliers();
     }, []);
@@ -51,27 +52,97 @@ const SupplierPage = () => {
             return num > max ? num : max;
         }, 0);
         const newId = `Sup-${(maxId + 1).toString().padStart(3, '0')}`;
-        
         const newSupplier: Supplier = { id: newId, ...newSupplierData };
 
         try {
             await invoke('add_supplier', { supplier: newSupplier });
-            fetchSuppliers(); // Refetch the list to show the new supplier
+            toast.success("Supplier added successfully!");
+            fetchSuppliers();
         } catch (error) {
             console.error("Failed to add supplier:", error);
+            toast.error("Failed to add supplier.");
         }
     };
 
     const handleSave = async (updatedSupplier: Supplier) => {
         try {
             await invoke('update_supplier', { supplier: updatedSupplier });
-            fetchSuppliers(); // Refetch the list to show the updated data
+            toast.success("Supplier updated successfully!");
+            fetchSuppliers();
         } catch (error) {
             console.error("Failed to update supplier:", error);
+            toast.error("Failed to update supplier.");
         }
     };
 
-    // Component to render the correct sorting icon
+    const handleDownloadTemplate = () => {
+        const headers = "supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive";
+        const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'supplier_template.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+        toast.info("Supplier template downloaded.");
+    };
+
+    const handleImport = async () => {
+        try {
+            const selectedPath = await open({
+                multiple: false,
+                filters: [{ name: 'CSV', extensions: ['csv'] }]
+            });
+
+            if (!selectedPath) {
+                toast.info("Import cancelled.");
+                return;
+            }
+
+            const content = await readTextFile(selectedPath as string);
+            const lines = content.split('\n').slice(1); // Skip header
+            const newSuppliers: Supplier[] = [];
+            let maxId = suppliers.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1])), 0);
+
+            for (const line of lines) {
+                if (line.trim() === '') continue;
+                const [supplierName, shortName, country, email, phone, beneficiaryName, bankName, branch, bankAddress, accountNo, iban, swiftCode, isActiveStr] = line.split(',');
+                
+                maxId++;
+                const newId = `Sup-${maxId.toString().padStart(3, '0')}`;
+                
+                newSuppliers.push({
+                    id: newId,
+                    supplierName,
+                    shortName,
+                    country,
+                    email,
+                    phone,
+                    beneficiaryName,
+                    bankName,
+                    branch,
+                    bankAddress,
+                    accountNo,
+                    iban,
+                    swiftCode,
+                    isActive: isActiveStr.trim().toLowerCase() === 'true',
+                });
+            }
+
+            if (newSuppliers.length > 0) {
+                await invoke('add_suppliers_bulk', { suppliers: newSuppliers });
+                toast.success(`${newSuppliers.length} suppliers imported successfully!`);
+                fetchSuppliers();
+            } else {
+                toast.warning("No new suppliers found in the file.");
+            }
+
+        } catch (error) {
+            console.error("Failed to import suppliers:", error);
+            toast.error("Failed to import suppliers. Please check the file format.");
+        }
+    };
+
     const SortIndicator = ({ column }: { column: Column<Supplier, unknown> }) => {
         const sorted = column.getIsSorted();
         if (sorted === 'asc') return <ArrowUp className="ml-2 h-4 w-4" />;
@@ -79,80 +150,40 @@ const SupplierPage = () => {
         return <ArrowUpDown className="ml-2 h-4 w-4" />;
     };
     
-    // Define columns here to give them access to the handler functions
     const columns: ColumnDef<Supplier>[] = [
         {
             id: 'select',
-            header: ({ table }) => (
-              <Checkbox
-                checked={
-                  table.getIsAllPageRowsSelected() ||
-                  (table.getIsSomePageRowsSelected() && "indeterminate")
-                }
-                onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
-                aria-label="Select all"
-              />
-            ),
-            cell: ({ row }) => (
-              <Checkbox
-                checked={row.getIsSelected()}
-                onCheckedChange={(value) => row.toggleSelected(!!value)}
-                aria-label="Select row"
-              />
-            ),
+            header: ({ table }) => <Checkbox checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />,
+            cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" />,
             enableSorting: false,
             enableHiding: false,
         },
         {
             accessorKey: 'id',
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Supplier ID
-                    <SortIndicator column={column} />
-                </Button>
-            ),
+            header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Supplier ID<SortIndicator column={column} /></Button>,
         },
         {
             accessorKey: 'supplierName',
-            header: ({ column }) => (
-                <Button variant="ghost"  onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Supplier Name
-                    <SortIndicator column={column} />
-                </Button>
-            ),
+            header: ({ column }) => <Button variant="ghost"  onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Supplier Name<SortIndicator column={column} /></Button>,
         },
         { accessorKey: 'shortName', header: 'Short Name' },
         {
             accessorKey: 'country',
-            header: ({ column }) => (
-                <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-                    Country
-                    <SortIndicator column={column} />
-                </Button>
-            ),
+            header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Country<SortIndicator column={column} /></Button>,
         },
         { accessorKey: 'phone', header: 'Phone' },
+        { accessorKey: 'email', header: 'Email' },
         {
           accessorKey: 'isActive',
           header: 'Status',
           cell: ({ row }) => {
             const isActive = row.getValue('isActive');
-            return (
-              <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
-                {isActive ? 'Active' : 'Inactive'}
-              </Badge>
-            );
+            return <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{isActive ? 'Active' : 'Inactive'}</Badge>;
           },
         },
         {
             id: 'actions',
-            cell: ({ row }) => (
-                <SupplierActions 
-                    supplier={row.original} 
-                    onView={() => handleView(row.original)}
-                    onEdit={() => handleEdit(row.original)}
-                />
-            ),
+            cell: ({ row }) => <SupplierActions supplier={row.original} onView={() => handleView(row.original)} onEdit={() => handleEdit(row.original)} />,
         },
     ];
 
@@ -160,7 +191,11 @@ const SupplierPage = () => {
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-4">
         <h1 className="text-3xl font-bold">Suppliers</h1>
-        <AddSupplierForm onAdd={handleAdd} />
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2 h-4 w-4" />Download Template</Button>
+          <Button onClick={handleImport}><Upload className="mr-2 h-4 w-4" />Import</Button>
+          <AddSupplierForm onAdd={handleAdd} />
+        </div>
       </div>
       <SupplierDataTable columns={columns} data={suppliers} />
       <ViewSupplierDialog isOpen={isViewOpen} onOpenChange={setViewOpen} supplier={selectedSupplier} />

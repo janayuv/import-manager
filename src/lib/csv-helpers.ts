@@ -92,7 +92,7 @@ export const importItemsFromCsv = (
         }
 
         // Find the supplierId by matching the name from the CSV.
-        const supplier = suppliers.find(s => s.label === row.supplierName || s.value === row.supplierId);
+        const supplier = suppliers.find(s => s.label.toLowerCase() === row.supplierName?.toLowerCase());
 
         // Manually construct the new Item object with correct data types.
         const newItem: Item = {
