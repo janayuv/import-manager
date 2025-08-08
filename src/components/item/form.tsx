@@ -25,7 +25,7 @@ import type { Option } from '@/types/options';
 import { CreatableCombobox } from '@/components/ui/combobox-creatable';
 import { toast } from 'sonner';
 import { open } from '@tauri-apps/plugin-dialog';
-import { convertFileSrc } from '@tauri-apps/api/core';
+import { invoke, convertFileSrc } from '@tauri-apps/api/core';
 
 interface ItemFormProps {
     isOpen: boolean;
@@ -96,16 +96,33 @@ export function ItemForm({
   };
 
   const handlePhotoUpload = async () => {
+    console.log("🖼️ Starting photo upload process...");
     try {
+      console.log("📂 Opening file dialog for image selection...");
       const selected = await open({ multiple: false, filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }] });
+      console.log("📁 Selected file path:", selected);
+      
       if (typeof selected === 'string') {
-        setFormData(prev => ({...prev, photoPath: selected}));
-        setPhotoPreview(convertFileSrc(selected));
-        toast.info("Photo selected. Path stored.");
+        console.log("🔄 Invoking backend command to save photo file...");
+        console.log("📤 Sending srcPath to backend:", selected);
+        
+        const savedPath = await invoke<string>('save_item_photo_file', { srcPath: selected });
+        console.log("✅ Photo saved successfully at:", savedPath);
+        
+        setFormData(prev => ({...prev, photoPath: savedPath}));
+        setPhotoPreview(convertFileSrc(savedPath));
+        toast.success(`Photo saved at: ${savedPath}`);
+        console.log("🎯 Photo preview updated and form data set");
+      } else {
+        console.log("❌ No file selected or multiple files selected");
       }
     } catch (error) {
-      console.error("Failed to open file dialog:", error);
-      toast.error("Failed to open file dialog.");
+      console.error("💥 Failed to save photo:", error);
+      console.error("Error details:", {
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
+      toast.error("Failed to save photo.");
     }
   };
 
@@ -139,7 +156,7 @@ export function ItemForm({
                 <div className="space-y-2 col-span-2"><Label>Item Description *</Label><Input id="itemDescription" value={formData.itemDescription || ''} onChange={handleChange} /></div>
                 <div className="space-y-2"><Label>Unit *</Label><CreatableCombobox options={units} value={formData.unit || ''} onChange={(v) => handleSelectChange('unit', v)} onOptionCreate={(opt) => onOptionCreate('unit', opt)} placeholder="e.g., PCS"/></div>
                 <div className="space-y-2"><Label>Currency *</Label><CreatableCombobox options={currencies} value={formData.currency || ''} onChange={(v) => handleSelectChange('currency', v)} onOptionCreate={(opt) => onOptionCreate('currency', opt)} placeholder="e.g., USD"/></div>
-                <div className="space-y-2"><Label>Unit Price *</Label><Input id="unitPrice" type="number" value={formData.unitPrice || ''} onChange={handleChange} /></div>
+                <div className="space-y-2"><Label>Unit Price *</Label><Input id="unitPrice" type="number" value={formData.unitPrice ?? ''} onChange={handleChange} step="0.01"/></div>
                 <div className="space-y-2"><Label>HSN Code *</Label><Input id="hsnCode" value={formData.hsnCode || ''} onChange={handleChange} /></div>
                 <div className="space-y-2"><Label>Supplier</Label><CreatableCombobox options={suppliers} value={formData.supplierId || ''} onChange={(v) => handleSelectChange('supplierId', v)} onOptionCreate={()=>{ toast.info("New suppliers must be created from the Supplier Master page.") }} placeholder="Select Supplier" /></div>
                 <div className="flex items-center space-x-2 pt-6"><Switch id="isActive" checked={formData.isActive} onCheckedChange={handleSwitchChange} /><Label>Is Active</Label></div>

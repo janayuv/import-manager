@@ -9,6 +9,12 @@
     "core:default",
     "dialog:allow-open",
     "dialog:allow-save",
+    "fs:read-all",
+    "fs:write-all",
+    "fs:allow-exists",
+   
+    "fs:allow-copy-file",
+   
     {
       "identifier": "fs:allow-write-text-file",
       "allow": [{ "path": "$DOWNLOAD/*" }]

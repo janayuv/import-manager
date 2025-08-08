@@ -28,6 +28,9 @@ export interface BoeDetails {
 export interface InvoiceItem {
   partNo: string;
   description: string;
+  qty: number; // NEW
+  unitPrice: number; // NEW
+  hsCode: string; // NEW
   lineTotal: number;
   actualBcdRate: number;
   actualSwsRate: number;
@@ -77,6 +80,22 @@ export interface CalculationResult {
     customsDutyTotal: number;
 }
 
+// --- Phase 3: Operational Hub additions ---
+export type BoeStatus =
+  | 'Awaiting BOE Data'
+  | 'Discrepancy Found'
+  | 'Reconciled'
+  | 'Investigation'
+  | 'Closed';
+
+export interface Attachment {
+  id: string;
+  documentType: string; // e.g., 'Commercial Invoice', 'BOE Scan', 'Packing List'
+  fileName: string;
+  url: string; // link to stored document
+  uploadedAt: string; // ISO date string
+}
+
 // Represents a fully saved BOE record, combining inputs and results
 export interface SavedBoe {
     id: string;
@@ -84,6 +103,7 @@ export interface SavedBoe {
     boeId?: string; 
     invoiceNumber: string;
     supplierName: string;
+    status: BoeStatus; // NEW: workflow status
     formValues: {
         supplierName: string;
         shipmentId: string;
@@ -96,4 +116,5 @@ export interface SavedBoe {
     };
     itemInputs: BoeItemInput[];
     calculationResult: CalculationResult;
+    attachments?: Attachment[]; // NEW: linked documents
 }

@@ -157,6 +157,16 @@ pub struct NewBoePayload {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
+pub struct Attachment {
+    pub id: String,
+    pub document_type: String,
+    pub file_name: String,
+    pub url: String,
+    pub uploaded_at: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(rename_all = "camelCase")]
 pub struct FormValues {
     pub supplier_name: String,
     pub shipment_id: String,
@@ -207,9 +217,11 @@ pub struct SavedBoe {
     pub boe_id: Option<String>,
     pub invoice_number: String,
     pub supplier_name: String,
+    pub status: String,
     pub form_values: FormValues,
     pub item_inputs: Vec<BoeItemInput>,
     pub calculation_result: CalculationResult,
+    pub attachments: Option<Vec<Attachment>>,
 }
 
 // --- Structs for the specialized BOE Entry command ---
@@ -218,6 +230,9 @@ pub struct SavedBoe {
 pub struct BoeShipmentItem {
     pub part_no: String,
     pub description: String,
+    pub qty: f64,
+    pub unit_price: f64,
+    pub hs_code: String,
     pub line_total: f64,
     pub actual_bcd_rate: f64,
     pub actual_sws_rate: f64,
@@ -236,6 +251,47 @@ pub struct BoeShipment {
     pub incoterm: String,
     pub status: String,
     pub items: Vec<BoeShipmentItem>,
+}
+
+// --- Reconciliation output types ---
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconciledItemRow {
+    pub part_no: String,
+    pub description: String,
+    pub qty: f64,
+    pub unit_price: f64,
+    pub hs_code: String,
+    pub assessable_value: f64,
+    pub actual_bcd: f64,
+    pub actual_sws: f64,
+    pub actual_igst: f64,
+    pub actual_total: f64,
+    pub boe_bcd: f64,
+    pub boe_sws: f64,
+    pub boe_igst: f64,
+    pub boe_total: f64,
+    pub method: String,
+    pub savings: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ReconciliationTotals {
+    pub actual_total: f64,
+    pub boe_total: f64,
+    pub savings_total: f64,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct BoeReconciliationReport {
+    pub saved_boe_id: String,
+    pub shipment_id: String,
+    pub supplier_name: String,
+    pub invoice_number: String,
+    pub items: Vec<ReconciledItemRow>,
+    pub totals: ReconciliationTotals,
 }
 pub struct DbState {
     pub db: Mutex<Connection>,
@@ -352,14 +408,20 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             boe_id TEXT, -- <-- ADDED: New column for the BOE ID link
             supplier_name TEXT NOT NULL,
             invoice_number TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'Awaiting BOE Data',
             form_values_json TEXT NOT NULL,
             item_inputs_json TEXT NOT NULL,
             calculation_result_json TEXT NOT NULL,
+            attachments_json TEXT,
             created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')),
             FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
         )",
         [],
     )?;
+
+    // Attempt to migrate existing table to include new columns (no-op if already present)
+    let _ = conn.execute("ALTER TABLE boe_calculations ADD COLUMN status TEXT NOT NULL DEFAULT 'Awaiting BOE Data'", []);
+    let _ = conn.execute("ALTER TABLE boe_calculations ADD COLUMN attachments_json TEXT", []);
     // MODIFIED: Create tables for all the dropdown options.
     let option_tables = vec![
         "units", "currencies", "countries", "bcd_rates", "sws_rates",

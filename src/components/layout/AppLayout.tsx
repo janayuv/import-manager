@@ -1,23 +1,28 @@
-import { Outlet } from 'react-router-dom'
-import { Navbar } from '@/components/layout/navbar'
-import { Sidebar } from '@/components/layout/sidebar'
-import { useState } from 'react'
+import { Outlet } from "react-router-dom";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { AppSidebar } from "./app-sidebar";
+import { SiteHeader } from "./site-header";
+import { useIsMobile } from "@/hooks/use-mobile";
 
-export const AppLayout = () => {
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+export function AppLayout() {
+  const isMobile = useIsMobile();
+  
+  // Set defaultOpen to false on mobile to have it closed initially
+  const defaultOpen = !isMobile;
 
   return (
-    <div className="relative h-screen w-full min-w-[100vw] border-b bg-background px-4 flex items-center justify-between">
-      {/* Sidebar */}
-      <Sidebar open={sidebarOpen} onToggle={() => setSidebarOpen(!sidebarOpen)} />
-
-      {/* Main content */}
-      <div className="flex flex-col flex-1 h-screen">
-        <Navbar onSidebarToggle={() => setSidebarOpen(!sidebarOpen)} />
-        <main className="flex-1 overflow-auto px-6 py-4">
+    // SidebarProvider manages the open/closed state
+    <SidebarProvider defaultOpen={defaultOpen}>
+      {/* AppSidebar is your main navigation component */}
+      <AppSidebar />
+      
+      {/* SidebarInset pushes your main content to the right */}
+      <SidebarInset>
+        <SiteHeader />
+        <main className="flex-1 overflow-y-auto p-4 lg:p-6">
           <Outlet />
         </main>
-      </div>
-    </div>
-  )
+      </SidebarInset>
+    </SidebarProvider>
+  );
 }

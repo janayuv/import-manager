@@ -50,6 +50,9 @@ export function ItemsTable({
           <TableRow className="bg-pink-800 text-gray-100">
             <TableHead className="w-[150px]">Part No</TableHead>
             <TableHead>Description</TableHead>
+            <TableHead className="text-right">Qty</TableHead>
+            <TableHead className="text-right">Unit Price</TableHead>
+            <TableHead className="text-right">HS Code</TableHead>
             <TableHead className="text-right">Actual BCD %</TableHead>
             <TableHead className="text-right">Actual SWS %</TableHead>
             <TableHead className="text-right">Actual IGST %</TableHead>
@@ -64,6 +67,9 @@ export function ItemsTable({
             <TableRow key={item.partNo}>
               <TableCell className="font-medium">{item.partNo}</TableCell>
               <TableCell>{item.description}</TableCell>
+              <TableCell className="text-right">{item.qty ?? '-'}</TableCell>
+              <TableCell className="text-right">{item.unitPrice != null ? item.unitPrice.toFixed(2) : '-'}</TableCell>
+              <TableCell className="text-right">{item.hsCode ?? '-'}</TableCell>
               {/* --- NEW: Display actual rates from shipment --- */}
               <TableCell className="text-right">{item.actualBcdRate.toFixed(2)}%</TableCell>
               <TableCell className="text-right">{item.actualSwsRate.toFixed(2)}%</TableCell>

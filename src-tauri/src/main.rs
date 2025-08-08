@@ -56,6 +56,12 @@ fn main() {
             commands::update_boe_calculation,
             commands::delete_boe_calculation,
             commands::get_shipments_for_boe_entry,
+            commands::get_shipments_for_boe_summary,
+            commands::update_boe_status,
+            commands::add_boe_attachment,
+            commands::get_boe_reconciliation,
+            commands::save_boe_attachment_file,
+            commands::save_item_photo_file,
 
             // --- Generic and Specific Option Commands ---
             commands::add_option, // The new generic command for adding any option

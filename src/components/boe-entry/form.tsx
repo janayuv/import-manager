@@ -1,4 +1,4 @@
-// src/components/boe-entry/form.tsx (FIXED)
+// src/components/boe-entry/form.tsx (MODIFIED)
 "use client";
 
 import * as React from "react";
@@ -288,9 +288,11 @@ export function BoeEntryForm({
         boeId: selectedBoeId, // <-- FIX: Add boeId to the top level
         invoiceNumber: selectedShipment.invoiceNumber,
         supplierName: selectedShipment.supplierName,
+          status: 'Awaiting BOE Data',
         formValues: values, // <-- FIX: No longer pass boeId inside here
         itemInputs: finalInputs,
         calculationResult: results,
+          attachments: [],
       });
       toast.info("Import Successful", {
         description: `Verify imported details and click "Update BOE" to save.`,
@@ -316,16 +318,17 @@ export function BoeEntryForm({
       }
     }
 
-    // FIX: No need to create a separate `finalFormValues` object anymore
     onSaveOrUpdate({
       id: initialData?.id || `BOE-${Date.now()}`,
       shipmentId: selectedShipment.id,
       boeId: selectedBoeId,
       invoiceNumber: selectedShipment.invoiceNumber,
       supplierName: selectedShipment.supplierName,
-      formValues: lastValidFormValues, // Use the form values directly
+      status: initialData?.status ?? 'Awaiting BOE Data',
+      formValues: lastValidFormValues,
       itemInputs,
       calculationResult,
+      attachments: initialData?.attachments ?? [],
     });
     if (!isEditing) {
       form.reset();
@@ -396,10 +399,11 @@ export function BoeEntryForm({
                <FormControl>
                     <Input
                         type="number"
+                        step="0.001"
                         placeholder="e.g., 83.50"
                         {...field}
-                        value={field.value || ''}
-                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     />
                 </FormControl>
                <FormMessage />
@@ -411,10 +415,11 @@ export function BoeEntryForm({
                <FormControl>
                     <Input
                         type="number"
+                        step="0.01"
                         placeholder="e.g., 5000"
                         {...field}
-                        value={field.value || ''}
-                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     />
                 </FormControl>
                <FormMessage />
@@ -426,10 +431,11 @@ export function BoeEntryForm({
                <FormControl>
                     <Input
                         type="number"
+                        step="0.01"
                         placeholder="e.g., 200"
                         {...field}
-                        value={field.value || ''}
-                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     />
                 </FormControl>
                <FormMessage />
@@ -441,10 +447,11 @@ export function BoeEntryForm({
                <FormControl>
                  <Input
                    type="number"
+                   step="0.001"
                    placeholder="e.g., 1.125"
                    {...field}
-                   value={field.value || ''}
-                   onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                   value={field.value ?? ''}
+                   onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                  />
                </FormControl>
                <FormMessage />
@@ -456,10 +463,11 @@ export function BoeEntryForm({
                <FormControl>
                     <Input
                         type="number"
+                        step="0.01"
                         placeholder="e.g., 100"
                         {...field}
-                        value={field.value || ''}
-                        onChange={e => field.onChange(e.target.value === '' ? undefined : parseFloat(e.target.value))}
+                        value={field.value ?? ''}
+                        onChange={e => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     />
                 </FormControl>
                <FormMessage />
