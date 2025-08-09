@@ -1,7 +1,7 @@
-// src/components/ui/data-table.tsx
+// src/components/shared/data-table.tsx
 import * as React from 'react';
 import {
-type  ColumnDef,
+  type ColumnDef,
   flexRender,
   getCoreRowModel,
   getPaginationRowModel,
@@ -10,32 +10,23 @@ type  ColumnDef,
   getSortedRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
+  type ColumnFiltersState,
 } from '@tanstack/react-table';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { DataTablePagination } from './data-table-pagination';
 
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[];
   data: TData[];
-  globalFilter: string;
-  setGlobalFilter: (filter: string) => void;
   storageKey?: string;
-  statusFilter: string;
-  setStatusFilter: (filter: string) => void;
+  toolbar?: React.ReactNode;
 }
 
-export function DataTable<TData, TValue>({
-  columns,
-  data,
-  globalFilter,
-  setGlobalFilter,
-  storageKey,
-  statusFilter,
-  setStatusFilter,
-}: DataTableProps<TData, TValue>) {
+export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }: DataTableProps<TData, TValue>) {
+  const [globalFilter, setGlobalFilter] = React.useState('');
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+
   const table = useReactTable({
     data,
     columns,
@@ -47,38 +38,22 @@ export function DataTable<TData, TValue>({
     getFacetedUniqueValues: getFacetedUniqueValues(),
     state: {
       globalFilter,
+      columnFilters,
     },
     onGlobalFilterChange: setGlobalFilter,
+    onColumnFiltersChange: setColumnFilters,
   });
-
-  React.useEffect(() => {
-    if (statusFilter === 'All') {
-      table.setColumnFilters([]);
-    } else {
-      table.setColumnFilters([{ id: 'status', value: statusFilter }]);
-    }
-  }, [statusFilter, table]);
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between">
         <Input
           placeholder="Search all columns..."
           value={globalFilter ?? ''}
           onChange={(event) => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="All">All</SelectItem>
-            <SelectItem value="Draft">Draft</SelectItem>
-            <SelectItem value="Finalized">Finalized</SelectItem>
-            <SelectItem value="Mismatch">Mismatch</SelectItem>
-          </SelectContent>
-        </Select>
+        {toolbar}
       </div>
       <div className="rounded-md border">
         <Table>

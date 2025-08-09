@@ -19,7 +19,7 @@ import { ShipmentForm } from '@/components/shipment/form';
 import { ShipmentViewDialog } from '@/components/shipment/view';
 import { getShipmentColumns } from '@/components/shipment/columns';
 import { Button } from '@/components/ui/button';
-import { DataTable } from '@/components/shipment/data-table';
+import { DataTable } from '@/components/shared/data-table';
 import { Upload, Download, Plus, FileOutput } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
 import type { Supplier } from '@/types/supplier';
@@ -41,24 +41,7 @@ const ShipmentPage = () => {
   const [statuses, setStatuses] = React.useState<Option[]>([]);
   const [currencies, setCurrencies] = React.useState<Option[]>([]);
 
-  const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [rowSelection, setRowSelection] = React.useState({});
-
-  const columns = React.useMemo(() => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit), [suppliers]);
-
-  const table = useReactTable({
-    data: shipments,
-    columns,
-    onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-    onRowSelectionChange: setRowSelection,
-    state: { sorting, columnFilters, rowSelection },
-  });
+  const columns = React.useMemo(() => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit), [suppliers, handleView, handleOpenFormForEdit]);
 
   const fetchShipments = async () => {
     try {
@@ -285,13 +268,11 @@ const ShipmentPage = () => {
   }
 
   function handleExportAll() {
-    const allData = table.getFilteredRowModel().rows.map(row => row.original);
-    exportData(allData);
+    exportData(shipments);
   }
 
   function handleExportSelected() {
-    const selectedData = table.getFilteredSelectedRowModel().rows.map(row => row.original);
-    exportData(selectedData);
+    toast.warning("Export selected is temporarily disabled during refactoring.");
   }
 
   async function handleOptionCreate(type: OptionType, newOption: Option) {
@@ -311,6 +292,13 @@ const ShipmentPage = () => {
     }
   }
 
+  const toolbar = (
+    <div className="flex items-center gap-2">
+       <Button variant="outline" onClick={handleExportSelected} disabled={true}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
+       <Button variant="outline" onClick={handleExportAll}><Download className="mr-2 h-4 w-4" />Export All</Button>
+    </div>
+  );
+
   return (
     <div className="w-full max-w-full px-6 py-10">
       <div className="flex justify-between items-center mb-4">
@@ -319,15 +307,13 @@ const ShipmentPage = () => {
            <Button onClick={handleOpenFormForAdd}><Plus className="mr-2 h-4 w-4"/>Add New</Button>
            <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2 h-4 w-4" />Template</Button>
            <Button variant="outline" onClick={handleImport}><Upload className="mr-2 h-4 w-4" />Import</Button>
-           <Button variant="outline" onClick={handleExportSelected} disabled={table.getFilteredSelectedRowModel().rows.length === 0}><FileOutput className="mr-2 h-4 w-4" />Export Selected</Button>
-           <Button variant="outline" onClick={handleExportAll}><Download className="mr-2 h-4 w-4" />Export All</Button>
         </div>
       </div>
       <DataTable 
-        table={table} 
         columns={columns}
-        filterColumnId="invoiceNumber"
-        filterPlaceholder="Search by invoice number..."
+        data={shipments}
+        toolbar={toolbar}
+        storageKey="shipment-table-page-size"
       />
       <ShipmentForm 
         isOpen={isFormOpen}

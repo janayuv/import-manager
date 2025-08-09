@@ -11,12 +11,13 @@ import type { Shipment } from '@/types/shipment';
 import type { Item } from '@/types/item';
 import type { Supplier } from '@/types/supplier';
 import { getInvoiceColumns } from '@/components/invoice/columns';
-import { DataTable } from '@/components/invoice/data-table';
+import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { Plus, Loader2, Upload, Download } from 'lucide-react';
 import { InvoiceForm } from '@/components/invoice/form';
 import { InvoiceViewDialog } from '@/components/invoice/view';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 type BulkImportRow = {
   shipmentInvoiceNumber: string;
@@ -41,7 +42,6 @@ const InvoicePage = () => {
   const [invoiceToView, setInvoiceToView] = React.useState<Invoice | null>(null);
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<{id: string, number: string} | null>(null);
   
-  const [globalFilter, setGlobalFilter] = React.useState(''); 
   const [statusFilter, setStatusFilter] = React.useState('All'); 
 
   const fetchData = async () => {
@@ -286,6 +286,20 @@ const InvoicePage = () => {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-16 w-16 animate-spin" /></div>
   }
 
+  const toolbar = (
+    <Select value={statusFilter} onValueChange={setStatusFilter}>
+      <SelectTrigger className="w-[180px]">
+        <SelectValue placeholder="Filter by status" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="All">All</SelectItem>
+        <SelectItem value="Draft">Draft</SelectItem>
+        <SelectItem value="Finalized">Finalized</SelectItem>
+        <SelectItem value="Mismatch">Mismatch</SelectItem>
+      </SelectContent>
+    </Select>
+  );
+
   return (
     <div className="container mx-auto py-10">
       <div className="flex justify-between items-center mb-4">
@@ -305,11 +319,8 @@ const InvoicePage = () => {
       <DataTable 
         columns={columns} 
         data={flattenedData} 
-        globalFilter={globalFilter}
-        setGlobalFilter={setGlobalFilter}
         storageKey="invoice-table-page-size"
-        statusFilter={statusFilter}
-        setStatusFilter={setStatusFilter}
+        toolbar={toolbar}
       />
       
       <InvoiceForm 

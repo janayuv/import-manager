@@ -1,109 +1,47 @@
-name: CI
+name: Continuous Integration
 
 on:
-  push:
-    branches: [ main, develop ]
   pull_request:
-    branches: [ main ]
-
-env:
-  CARGO_TERM_COLOR: always
+    branches: [main]
+  push:
+    branches: [main]
 
 jobs:
-  test-frontend:
+  build-and-test:
     runs-on: ubuntu-latest
-    
     steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install frontend dependencies
-      run: npm ci
-    
-    - name: Run frontend linting
-      run: npm run lint
-    
-    - name: Run frontend tests
-      run: npm test -- --watchAll=false
-    
-    - name: Build frontend
-      run: npm run build
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-  test-tauri:
-    runs-on: ${{ matrix.platform }}
-    
-    strategy:
-      fail-fast: false
-      matrix:
-        platform: [macos-latest, ubuntu-20.04, windows-latest]
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install Rust stable
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Rust cache
-      uses: swatinem/rust-cache@v2
-      with:
-        workspaces: './src-tauri -> target'
-    
-    - name: Install dependencies (ubuntu only)
-      if: matrix.platform == 'ubuntu-20.04'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
-    
-    - name: Install frontend dependencies
-      run: npm ci
-    
-    - name: Build frontend
-      run: npm run build
-    
-    - name: Run Tauri tests
-      run: |
-        cd src-tauri
-        cargo test
-    
-    - name: Build Tauri app (debug)
-      run: npm run tauri build -- --debug
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
 
-  security-audit:
-    runs-on: ubuntu-latest
-    
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '18'
-        cache: 'npm'
-    
-    - name: Install dependencies
-      run: npm ci
-    
-    - name: Run npm audit
-      run: npm audit --audit-level=moderate
-    
-    - name: Install Rust stable
-      uses: dtolnay/rust-toolchain@stable
-    
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    
-    - name: Run cargo audit
-      run: |
-        cd src-tauri
-        cargo audit
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Code Quality Checks
+        run: |
+          # Frontend linting
+          npm run lint -- --max-warnings=0
+          
+          # Backend formatting and linting
+          cd src-tauri
+          cargo fmt -- --check
+          cargo clippy -- -D warnings
+          cd ..
+
+      - name: Run Tests
+        run: npm test

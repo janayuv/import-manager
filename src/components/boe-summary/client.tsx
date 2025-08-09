@@ -23,7 +23,6 @@ import {
 import type { SavedBoe, Shipment, CalculatedDutyItem } from "@/types/boe-entry";
 import type { BoeDetails } from "@/types/boe";
 import { StatusBadge } from "./columns";
-import { Badge } from "@/components/ui/badge";
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import * as XLSX from "xlsx";
