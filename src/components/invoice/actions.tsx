@@ -1,18 +1,31 @@
 // src/components/invoice/actions.tsx (MODIFIED - Added Delete action)
-import { MoreHorizontal, Pencil, View, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import type { FlattenedInvoiceLine } from "@/types/invoice";
+import { MoreHorizontal, Pencil, Trash2, View } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import type { FlattenedInvoiceLine } from '@/types/invoice'
 
 interface InvoiceLineActionsProps {
-  lineItem: FlattenedInvoiceLine;
-  onView: (invoiceId: string) => void;
-  onEdit: (invoiceId: string) => void;
-  onDelete: (invoiceId: string, invoiceNumber: string) => void;
+  lineItem: FlattenedInvoiceLine
+  onView: (invoiceId: string) => void
+  onEdit: (invoiceId: string) => void
+  onDelete: (invoiceId: string, invoiceNumber: string) => void
 }
 
-export function InvoiceLineActions({ lineItem, onView, onEdit, onDelete }: InvoiceLineActionsProps) {
-  const isFinalized = lineItem.status === 'Finalized';
+export function InvoiceLineActions({
+  lineItem,
+  onView,
+  onEdit,
+  onDelete,
+}: InvoiceLineActionsProps) {
+  const isFinalized = lineItem.status === 'Finalized'
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -30,8 +43,11 @@ export function InvoiceLineActions({ lineItem, onView, onEdit, onDelete }: Invoi
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onDelete(lineItem.invoiceId, lineItem.invoiceNumber)} className="text-red-600">
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
+        <DropdownMenuItem
+          onClick={() => onDelete(lineItem.invoiceId, lineItem.invoiceNumber)}
+          className="text-red-600"
+        >
+          <Trash2 className="mr-2 h-4 w-4" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

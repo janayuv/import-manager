@@ -1,45 +1,46 @@
-"use client";
+'use client'
 
-import * as React from "react";
-import { invoke } from "@tauri-apps/api/core";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { BoeSummaryClient } from "@/components/boe-summary/client";
-import type { SavedBoe, Shipment } from "@/types/boe-entry";
-import type { BoeDetails } from "@/types/boe";
+import * as React from 'react'
+
+import { BoeSummaryClient } from '@/components/boe-summary/client'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
+import type { BoeDetails } from '@/types/boe'
+import type { SavedBoe, Shipment } from '@/types/boe-entry'
+import { invoke } from '@tauri-apps/api/core'
 
 export default function BoeSummaryPage() {
-  const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([]);
-  const [shipments, setShipments] = React.useState<Shipment[]>([]);
-  const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([]);
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([])
+  const [shipments, setShipments] = React.useState<Shipment[]>([])
+  const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([])
+  const [isLoading, setIsLoading] = React.useState(true)
 
   React.useEffect(() => {
     const load = async () => {
-      setIsLoading(true);
+      setIsLoading(true)
       try {
         const [shipmentsData, savedBoesData, allBoesData] = await Promise.all([
-          invoke<Shipment[]>("get_shipments_for_boe_summary"),
-          invoke<SavedBoe[]>("get_boe_calculations"),
-          invoke<BoeDetails[]>("get_boes"),
-        ]);
-        setShipments(shipmentsData);
-        setSavedBoes(savedBoesData);
-        setAllBoes(allBoesData);
+          invoke<Shipment[]>('get_shipments_for_boe_summary'),
+          invoke<SavedBoe[]>('get_boe_calculations'),
+          invoke<BoeDetails[]>('get_boes'),
+        ])
+        setShipments(shipmentsData)
+        setSavedBoes(savedBoesData)
+        setAllBoes(allBoesData)
       } finally {
-        setIsLoading(false);
+        setIsLoading(false)
       }
-    };
-    load();
-  }, []);
+    }
+    load()
+  }, [])
 
   if (isLoading) {
     return (
-      <div className="p-4 md:p-8 space-y-8">
+      <div className="space-y-8 p-4 md:p-8">
         <Card>
           <CardHeader>
             <Skeleton className="h-8 w-72" />
-            <Skeleton className="h-4 w-96 mt-2" />
+            <Skeleton className="mt-2 h-4 w-96" />
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
@@ -57,11 +58,11 @@ export default function BoeSummaryPage() {
           </CardContent>
         </Card>
       </div>
-    );
+    )
   }
 
   return (
-    <div className="p-4 md:p-8 space-y-8">
+    <div className="space-y-8 p-4 md:p-8">
       <Card>
         <CardHeader>
           <div>
@@ -76,5 +77,5 @@ export default function BoeSummaryPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

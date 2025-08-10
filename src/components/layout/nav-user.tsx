@@ -1,19 +1,11 @@
-"use client"
+'use client'
 
-import {
-  LogOut,
-  User,
-  Lock,
-  FileText,
-} from "lucide-react"
-import { useNavigate } from "react-router-dom"
-import { toast } from "sonner"
+import { FileText, Lock, LogOut, Snowflake, User } from 'lucide-react'
+import { toast } from 'sonner'
 
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar"
+import { useNavigate } from 'react-router-dom'
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -22,12 +14,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import {
-  SidebarMenu,
-  SidebarMenuButton,
-  useSidebar,
-} from "@/components/ui/sidebar"
+} from '@/components/ui/dropdown-menu'
+import { SidebarMenu, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar'
 
 export function NavUser({
   user,
@@ -42,14 +30,15 @@ export function NavUser({
   const navigate = useNavigate()
 
   const handleLogout = () => {
-    localStorage.removeItem("isAuthenticated")
-    navigate("/login")
-    toast.info("You have been logged out.")
+    localStorage.removeItem('isAuthenticated')
+    navigate('/login')
+    toast.info('You have been logged out.')
   }
 
-  const handleNotImplemented = () => {
-    toast.info("This feature is not yet implemented.")
-  }
+  const goFrozen = () => navigate('/frozen-shipments')
+  const openAccount = () => navigate('/account')
+  const openUpdate = () => navigate('/account/update')
+  const openPassword = () => navigate('/account/password')
 
   return (
     <SidebarMenu>
@@ -57,13 +46,11 @@ export function NavUser({
         <DropdownMenuTrigger asChild>
           <SidebarMenuButton
             size="lg"
-            className="w-full data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+            className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground w-full"
           >
             <Avatar className="size-8 rounded-lg">
               <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback className="rounded-lg">
-                {user.name.charAt(0)}
-              </AvatarFallback>
+              <AvatarFallback className="rounded-lg">{user.name.charAt(0)}</AvatarFallback>
             </Avatar>
             <div className="grid flex-1 text-left text-sm leading-tight">
               <span className="truncate font-medium">{user.name}</span>
@@ -73,7 +60,7 @@ export function NavUser({
         </DropdownMenuTrigger>
         <DropdownMenuContent
           className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-56 rounded-lg"
-          side={isMobile ? "bottom" : "right"}
+          side={isMobile ? 'bottom' : 'right'}
           align="end"
           sideOffset={4}
         >
@@ -81,9 +68,7 @@ export function NavUser({
             <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
               <Avatar className="size-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.name} />
-                <AvatarFallback className="rounded-lg">
-                  {user.name.charAt(0)}
-                </AvatarFallback>
+                <AvatarFallback className="rounded-lg">{user.name.charAt(0)}</AvatarFallback>
               </Avatar>
               <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{user.name}</span>
@@ -93,15 +78,19 @@ export function NavUser({
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem onClick={handleNotImplemented}>
+            <DropdownMenuItem onClick={goFrozen}>
+              <Snowflake className="mr-2 size-4" />
+              Unfreeze shipments
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={openAccount}>
               <FileText className="mr-2 size-4" />
               Account details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleNotImplemented}>
+            <DropdownMenuItem onClick={openUpdate}>
               <User className="mr-2 size-4" />
               Update user details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={handleNotImplemented}>
+            <DropdownMenuItem onClick={openPassword}>
               <Lock className="mr-2 size-4" />
               Change password
             </DropdownMenuItem>

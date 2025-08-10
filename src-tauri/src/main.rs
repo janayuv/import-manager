@@ -30,6 +30,7 @@ fn main() {
             
             // Shipment commands
             commands::get_shipments,
+            commands::get_active_shipments,
             commands::add_shipment,
             commands::update_shipment,
             commands::add_shipments_bulk,
@@ -97,7 +98,22 @@ fn main() {
             commands::get_shipment_types,
             commands::add_shipment_type,
             commands::get_shipment_statuses,
-            commands::add_shipment_status
+            commands::add_shipment_status,
+
+            // --- Expense Module Commands ---
+            commands::get_service_providers,
+            commands::add_service_provider,
+            commands::get_expense_types,
+            commands::add_expense_type,
+            commands::get_expenses_for_shipment,
+            commands::add_expense,
+            commands::update_expense,
+            commands::delete_expense,
+            commands::attach_invoice_to_expense,
+            commands::generate_shipment_expense_report,
+            commands::generate_monthly_gst_summary,
+            // Freeze shipment
+            commands::freeze_shipment
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

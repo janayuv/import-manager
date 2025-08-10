@@ -1,6 +1,8 @@
-import * as React from "react";
-import { NavMain } from "./nav-main";
-import { NavUser } from "./nav-user";
+import { Package2 } from 'lucide-react'
+
+import * as React from 'react'
+
+import { Separator } from '@/components/ui/separator'
 import {
   Sidebar,
   SidebarContent,
@@ -9,24 +11,22 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
-import { navItems } from "./nav-data";
-import { Package2 } from "lucide-react";
+} from '@/components/ui/sidebar'
+
+import { navItems } from './nav-data'
+import { NavMain } from './nav-main'
+import { NavUser } from './nav-user'
 
 // Placeholder user data
 const userData = {
-  name: "Admin User",
-  email: "admin@importmanager.com",
-  avatar: "/avatars/placeholder.jpg",
-};
+  name: 'Admin User',
+  email: 'admin@importmanager.com',
+  avatar: '/avatars/placeholder.jpg',
+}
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
-    <Sidebar
-      className="h-full"
-      {...props}
-    >
+    <Sidebar className="h-full" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -37,7 +37,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Import Manager</span>
-                  <span className="truncate text-xs text-muted-foreground">by JANA</span>
+                  <span className="text-muted-foreground truncate text-xs">by JANA</span>
                 </div>
               </a>
             </SidebarMenuButton>
@@ -55,5 +55,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
-  );
+  )
 }

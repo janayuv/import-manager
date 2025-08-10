@@ -1,207 +1,287 @@
 // src/pages/supplier.tsx
-import * as React from 'react';
-import type { Column, ColumnDef } from '@tanstack/react-table';
-import { SupplierDataTable } from '@/components/supplier/table';
-import { AddSupplierForm } from '@/components/supplier/form';
-import { ViewSupplierDialog } from '@/components/supplier/view';  
-import { EditSupplierDialog } from '@/components/supplier/edit';
-import type { Supplier } from '@/types/supplier';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { ArrowUpDown, ArrowUp, ArrowDown, Upload, Download } from 'lucide-react';
-import { SupplierActions } from '@/components/supplier/actions';  
-import { invoke } from '@tauri-apps/api/core';
-import { open } from '@tauri-apps/plugin-dialog';
-import { readTextFile } from '@tauri-apps/plugin-fs';
-import { toast } from 'sonner';
+import { ArrowDown, ArrowUp, ArrowUpDown, Download, Upload } from 'lucide-react'
+import { toast } from 'sonner'
+
+import * as React from 'react'
+
+import { SupplierActions } from '@/components/supplier/actions'
+import { EditSupplierDialog } from '@/components/supplier/edit'
+import { AddSupplierForm } from '@/components/supplier/form'
+import { SupplierDataTable } from '@/components/supplier/table'
+import { ViewSupplierDialog } from '@/components/supplier/view'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import type { Supplier } from '@/types/supplier'
+import type { Column, ColumnDef } from '@tanstack/react-table'
+import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { readTextFile } from '@tauri-apps/plugin-fs'
 
 const SupplierPage = () => {
-    const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
-    const [isViewOpen, setViewOpen] = React.useState(false);
-    const [isEditOpen, setEditOpen] = React.useState(false);
-    const [selectedSupplier, setSelectedSupplier] = React.useState<Supplier | null>(null);
+  const [suppliers, setSuppliers] = React.useState<Supplier[]>([])
+  const [isViewOpen, setViewOpen] = React.useState(false)
+  const [isEditOpen, setEditOpen] = React.useState(false)
+  const [selectedSupplier, setSelectedSupplier] = React.useState<Supplier | null>(null)
 
-    const fetchSuppliers = async () => {
-        try {
-            const fetchedSuppliers: Supplier[] = await invoke('get_suppliers');
-            setSuppliers(fetchedSuppliers);
-        } catch (error) {
-            console.error("Failed to fetch suppliers:", error);
-            toast.error("Failed to fetch suppliers.");
-        }
-    };
+  const fetchSuppliers = async () => {
+    try {
+      const fetchedSuppliers: Supplier[] = await invoke('get_suppliers')
+      setSuppliers(fetchedSuppliers)
+    } catch (error) {
+      console.error('Failed to fetch suppliers:', error)
+      toast.error('Failed to fetch suppliers.')
+    }
+  }
 
-    React.useEffect(() => {
-        fetchSuppliers();
-    }, []);
+  React.useEffect(() => {
+    fetchSuppliers()
+  }, [])
 
-    const handleView = (supplier: Supplier) => {
-        setSelectedSupplier(supplier);
-        setViewOpen(true);
-    };
+  const handleView = (supplier: Supplier) => {
+    setSelectedSupplier(supplier)
+    setViewOpen(true)
+  }
 
-    const handleEdit = (supplier: Supplier) => {
-        setSelectedSupplier(supplier);
-        setEditOpen(true);
-    };
+  const handleEdit = (supplier: Supplier) => {
+    setSelectedSupplier(supplier)
+    setEditOpen(true)
+  }
 
-    const handleAdd = async (newSupplierData: Omit<Supplier, 'id'>) => {
-        const maxId = suppliers.reduce((max, s) => {
-            const num = parseInt(s.id.split('-')[1]);
-            return num > max ? num : max;
-        }, 0);
-        const newId = `Sup-${(maxId + 1).toString().padStart(3, '0')}`;
-        const newSupplier: Supplier = { id: newId, ...newSupplierData };
+  const handleAdd = async (newSupplierData: Omit<Supplier, 'id'>) => {
+    const maxId = suppliers.reduce((max, s) => {
+      const num = parseInt(s.id.split('-')[1])
+      return num > max ? num : max
+    }, 0)
+    const newId = `Sup-${(maxId + 1).toString().padStart(3, '0')}`
+    const newSupplier: Supplier = { id: newId, ...newSupplierData }
 
-        try {
-            await invoke('add_supplier', { supplier: newSupplier });
-            toast.success("Supplier added successfully!");
-            fetchSuppliers();
-        } catch (error) {
-            console.error("Failed to add supplier:", error);
-            toast.error("Failed to add supplier.");
-        }
-    };
+    try {
+      await invoke('add_supplier', { supplier: newSupplier })
+      toast.success('Supplier added successfully!')
+      fetchSuppliers()
+    } catch (error) {
+      console.error('Failed to add supplier:', error)
+      toast.error('Failed to add supplier.')
+    }
+  }
 
-    const handleSave = async (updatedSupplier: Supplier) => {
-        try {
-            await invoke('update_supplier', { supplier: updatedSupplier });
-            toast.success("Supplier updated successfully!");
-            fetchSuppliers();
-        } catch (error) {
-            console.error("Failed to update supplier:", error);
-            toast.error("Failed to update supplier.");
-        }
-    };
+  const handleSave = async (updatedSupplier: Supplier) => {
+    try {
+      await invoke('update_supplier', { supplier: updatedSupplier })
+      toast.success('Supplier updated successfully!')
+      fetchSuppliers()
+    } catch (error) {
+      console.error('Failed to update supplier:', error)
+      toast.error('Failed to update supplier.')
+    }
+  }
 
-    const handleDownloadTemplate = () => {
-        const headers = "supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive";
-        const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'supplier_template.csv';
-        a.click();
-        URL.revokeObjectURL(url);
-        toast.info("Supplier template downloaded.");
-    };
+  const handleDownloadTemplate = () => {
+    const headers =
+      'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive'
+    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'supplier_template.csv'
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.info('Supplier template downloaded.')
+  }
 
-    const handleImport = async () => {
-        try {
-            const selectedPath = await open({
-                multiple: false,
-                filters: [{ name: 'CSV', extensions: ['csv'] }]
-            });
+  const handleImport = async () => {
+    try {
+      const selectedPath = await open({
+        multiple: false,
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      })
 
-            if (!selectedPath) {
-                toast.info("Import cancelled.");
-                return;
-            }
+      if (!selectedPath) {
+        toast.info('Import cancelled.')
+        return
+      }
 
-            const content = await readTextFile(selectedPath as string);
-            const lines = content.split('\n').slice(1); // Skip header
-            const newSuppliers: Supplier[] = [];
-            let maxId = suppliers.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1])), 0);
+      const content = await readTextFile(selectedPath as string)
+      const lines = content.split('\n').slice(1) // Skip header
+      const newSuppliers: Supplier[] = []
+      let maxId = suppliers.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1])), 0)
 
-            for (const line of lines) {
-                if (line.trim() === '') continue;
-                const [supplierName, shortName, country, email, phone, beneficiaryName, bankName, branch, bankAddress, accountNo, iban, swiftCode, isActiveStr] = line.split(',');
-                
-                maxId++;
-                const newId = `Sup-${maxId.toString().padStart(3, '0')}`;
-                
-                newSuppliers.push({
-                    id: newId,
-                    supplierName,
-                    shortName,
-                    country,
-                    email,
-                    phone,
-                    beneficiaryName,
-                    bankName,
-                    branch,
-                    bankAddress,
-                    accountNo,
-                    iban,
-                    swiftCode,
-                    isActive: isActiveStr.trim().toLowerCase() === 'true',
-                });
-            }
+      for (const line of lines) {
+        if (line.trim() === '') continue
+        const [
+          supplierName,
+          shortName,
+          country,
+          email,
+          phone,
+          beneficiaryName,
+          bankName,
+          branch,
+          bankAddress,
+          accountNo,
+          iban,
+          swiftCode,
+          isActiveStr,
+        ] = line.split(',')
 
-            if (newSuppliers.length > 0) {
-                await invoke('add_suppliers_bulk', { suppliers: newSuppliers });
-                toast.success(`${newSuppliers.length} suppliers imported successfully!`);
-                fetchSuppliers();
-            } else {
-                toast.warning("No new suppliers found in the file.");
-            }
+        maxId++
+        const newId = `Sup-${maxId.toString().padStart(3, '0')}`
 
-        } catch (error) {
-            console.error("Failed to import suppliers:", error);
-            toast.error("Failed to import suppliers. Please check the file format.");
-        }
-    };
+        newSuppliers.push({
+          id: newId,
+          supplierName,
+          shortName,
+          country,
+          email,
+          phone,
+          beneficiaryName,
+          bankName,
+          branch,
+          bankAddress,
+          accountNo,
+          iban,
+          swiftCode,
+          isActive: isActiveStr.trim().toLowerCase() === 'true',
+        })
+      }
 
-    const SortIndicator = ({ column }: { column: Column<Supplier, unknown> }) => {
-        const sorted = column.getIsSorted();
-        if (sorted === 'asc') return <ArrowUp className="ml-2 h-4 w-4" />;
-        if (sorted === 'desc') return <ArrowDown className="ml-2 h-4 w-4" />;
-        return <ArrowUpDown className="ml-2 h-4 w-4" />;
-    };
-    
-    const columns: ColumnDef<Supplier>[] = [
-        {
-            id: 'select',
-            header: ({ table }) => <Checkbox checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && "indeterminate")} onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)} aria-label="Select all" />,
-            cell: ({ row }) => <Checkbox checked={row.getIsSelected()} onCheckedChange={(value) => row.toggleSelected(!!value)} aria-label="Select row" />,
-            enableSorting: false,
-            enableHiding: false,
-        },
-        {
-            accessorKey: 'id',
-            header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Supplier ID<SortIndicator column={column} /></Button>,
-        },
-        {
-            accessorKey: 'supplierName',
-            header: ({ column }) => <Button variant="ghost"  onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Supplier Name<SortIndicator column={column} /></Button>,
-        },
-        { accessorKey: 'shortName', header: 'Short Name' },
-        {
-            accessorKey: 'country',
-            header: ({ column }) => <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>Country<SortIndicator column={column} /></Button>,
-        },
-        { accessorKey: 'phone', header: 'Phone' },
-        { accessorKey: 'email', header: 'Email' },
-        {
-          accessorKey: 'isActive',
-          header: 'Status',
-          cell: ({ row }) => {
-            const isActive = row.getValue('isActive');
-            return <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>{isActive ? 'Active' : 'Inactive'}</Badge>;
-          },
-        },
-        {
-            id: 'actions',
-            cell: ({ row }) => <SupplierActions supplier={row.original} onView={() => handleView(row.original)} onEdit={() => handleEdit(row.original)} />,
-        },
-    ];
+      if (newSuppliers.length > 0) {
+        await invoke('add_suppliers_bulk', { suppliers: newSuppliers })
+        toast.success(`${newSuppliers.length} suppliers imported successfully!`)
+        fetchSuppliers()
+      } else {
+        toast.warning('No new suppliers found in the file.')
+      }
+    } catch (error) {
+      console.error('Failed to import suppliers:', error)
+      toast.error('Failed to import suppliers. Please check the file format.')
+    }
+  }
+
+  const SortIndicator = ({ column }: { column: Column<Supplier, unknown> }) => {
+    const sorted = column.getIsSorted()
+    if (sorted === 'asc') return <ArrowUp className="ml-2 h-4 w-4" />
+    if (sorted === 'desc') return <ArrowDown className="ml-2 h-4 w-4" />
+    return <ArrowUpDown className="ml-2 h-4 w-4" />
+  }
+
+  const columns: ColumnDef<Supplier>[] = [
+    {
+      id: 'select',
+      header: ({ table }) => (
+        <Checkbox
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          aria-label="Select all"
+        />
+      ),
+      cell: ({ row }) => (
+        <Checkbox
+          checked={row.getIsSelected()}
+          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          aria-label="Select row"
+        />
+      ),
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'id',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Supplier ID
+          <SortIndicator column={column} />
+        </Button>
+      ),
+    },
+    {
+      accessorKey: 'supplierName',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Supplier Name
+          <SortIndicator column={column} />
+        </Button>
+      ),
+    },
+    { accessorKey: 'shortName', header: 'Short Name' },
+    {
+      accessorKey: 'country',
+      header: ({ column }) => (
+        <Button
+          variant="ghost"
+          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+        >
+          Country
+          <SortIndicator column={column} />
+        </Button>
+      ),
+    },
+    { accessorKey: 'phone', header: 'Phone' },
+    { accessorKey: 'email', header: 'Email' },
+    {
+      accessorKey: 'isActive',
+      header: 'Status',
+      cell: ({ row }) => {
+        const isActive = row.getValue('isActive')
+        return (
+          <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
+            {isActive ? 'Active' : 'Inactive'}
+          </Badge>
+        )
+      },
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <SupplierActions
+          supplier={row.original}
+          onView={() => handleView(row.original)}
+          onEdit={() => handleEdit(row.original)}
+        />
+      ),
+    },
+  ]
 
   return (
     <div className="container mx-auto py-10">
-      <div className="flex justify-between items-center mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Suppliers</h1>
         <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleDownloadTemplate}><Download className="mr-2 h-4 w-4" />Download Template</Button>
-          <Button onClick={handleImport}><Upload className="mr-2 h-4 w-4" />Import</Button>
+          <Button variant="outline" onClick={handleDownloadTemplate}>
+            <Download className="mr-2 h-4 w-4" />
+            Download Template
+          </Button>
+          <Button onClick={handleImport}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import
+          </Button>
           <AddSupplierForm onAdd={handleAdd} />
         </div>
       </div>
       <SupplierDataTable columns={columns} data={suppliers} />
-      <ViewSupplierDialog isOpen={isViewOpen} onOpenChange={setViewOpen} supplier={selectedSupplier} />
-      <EditSupplierDialog isOpen={isEditOpen} onOpenChange={setEditOpen} supplier={selectedSupplier} onSave={handleSave} />
+      <ViewSupplierDialog
+        isOpen={isViewOpen}
+        onOpenChange={setViewOpen}
+        supplier={selectedSupplier}
+      />
+      <EditSupplierDialog
+        isOpen={isEditOpen}
+        onOpenChange={setEditOpen}
+        supplier={selectedSupplier}
+        onSave={handleSave}
+      />
     </div>
-  );
-};
+  )
+}
 
-export default SupplierPage;
+export default SupplierPage

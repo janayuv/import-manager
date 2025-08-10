@@ -8,23 +8,22 @@
 | Also added the missing `key` prop to the `<SelectItem>` components.          |
 ================================================================================
 */
-"use client";
+'use client'
 
-import * as React from "react";
+import * as z from 'zod'
+
+import * as React from 'react'
+import { useForm } from 'react-hook-form'
+
+import { Button } from '@/components/ui/button'
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogDescription,
   DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Form,
   FormControl,
@@ -32,15 +31,51 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
-import type { Shipment } from "@/types/boe-entry";
+} from '@/components/ui/select'
+import type { Shipment } from '@/types/boe-entry'
+import { zodResolver } from '@hookform/resolvers/zod'
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/import-dialog.tsx (MODIFIED)    |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| This file has been corrected to fix the persistent `react-hook-form` type    |
+| errors by letting the `useForm` hook infer its type from the Zod resolver.   |
+| Also added the missing `key` prop to the `<SelectItem>` components.          |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/import-dialog.tsx (MODIFIED)    |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| This file has been corrected to fix the persistent `react-hook-form` type    |
+| errors by letting the `useForm` hook infer its type from the Zod resolver.   |
+| Also added the missing `key` prop to the `<SelectItem>` components.          |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/import-dialog.tsx (MODIFIED)    |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| This file has been corrected to fix the persistent `react-hook-form` type    |
+| errors by letting the `useForm` hook infer its type from the Zod resolver.   |
+| Also added the missing `key` prop to the `<SelectItem>` components.          |
+================================================================================
+*/
 
 const importFormSchema = z.object({
   supplierName: z.string().min(1),
@@ -50,54 +85,54 @@ const importFormSchema = z.object({
   exwCost: z.coerce.number().min(0),
   insuranceRate: z.coerce.number().min(0),
   interest: z.coerce.number().min(0).optional(),
-});
+})
 
-type ImportFormValues = z.infer<typeof importFormSchema>;
+type ImportFormValues = z.infer<typeof importFormSchema>
 
 export interface ImportFormData {
-    formValues: ImportFormValues;
-    overrideFile: File;
+  formValues: ImportFormValues
+  overrideFile: File
 }
 
 interface ImportDialogProps {
-  shipments: Shipment[];
-  onClose: () => void;
-  onImport: (importData: ImportFormData) => void;
+  shipments: Shipment[]
+  onClose: () => void
+  onImport: (importData: ImportFormData) => void
 }
 
 export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps) {
-  const [suppliers, setSuppliers] = React.useState<string[]>([]);
-  const [availableInvoices, setAvailableInvoices] = React.useState<Shipment[]>([]);
-  const [overrideFile, setOverrideFile] = React.useState<File | null>(null);
+  const [suppliers, setSuppliers] = React.useState<string[]>([])
+  const [availableInvoices, setAvailableInvoices] = React.useState<Shipment[]>([])
+  const [overrideFile, setOverrideFile] = React.useState<File | null>(null)
 
   React.useEffect(() => {
-    const uniqueSuppliers = [...new Set(shipments.map(s => s.supplierName))];
-    setSuppliers(uniqueSuppliers);
-  }, [shipments]);
+    const uniqueSuppliers = [...new Set(shipments.map((s) => s.supplierName))]
+    setSuppliers(uniqueSuppliers)
+  }, [shipments])
 
   const form = useForm({
     resolver: zodResolver(importFormSchema),
     defaultValues: {
-      supplierName: "",
-      shipmentId: "",
+      supplierName: '',
+      shipmentId: '',
       exchangeRate: 83.55,
       freightCost: 0,
       exwCost: 0,
       insuranceRate: 1.125,
       interest: 0,
     },
-  });
+  })
 
   const handleSupplierChange = (supplierName: string) => {
-    form.setValue("supplierName", supplierName);
-    const invoicesForSupplier = shipments.filter(s => s.supplierName === supplierName);
-    setAvailableInvoices(invoicesForSupplier);
-    form.resetField("shipmentId");
-  };
+    form.setValue('supplierName', supplierName)
+    const invoicesForSupplier = shipments.filter((s) => s.supplierName === supplierName)
+    setAvailableInvoices(invoicesForSupplier)
+    form.resetField('shipmentId')
+  }
 
   function onSubmit(values: ImportFormValues) {
     if (overrideFile) {
-        onImport({ formValues: values, overrideFile });
+      onImport({ formValues: values, overrideFile })
     }
   }
 
@@ -120,28 +155,44 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                   <FormLabel>Supplier</FormLabel>
                   <Select onValueChange={handleSupplierChange} defaultValue={field.value}>
                     <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Select supplier" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select supplier" />
+                      </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {suppliers.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                      {suppliers.map((s) => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
-             <FormField
+            <FormField
               control={form.control}
               name="shipmentId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Invoice / Shipment</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value} disabled={availableInvoices.length === 0}>
+                  <Select
+                    onValueChange={field.onChange}
+                    defaultValue={field.value}
+                    disabled={availableInvoices.length === 0}
+                  >
                     <FormControl>
-                      <SelectTrigger><SelectValue placeholder="Select invoice" /></SelectTrigger>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select invoice" />
+                      </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {availableInvoices.map(s => <SelectItem key={s.id} value={s.id}>{s.invoiceNumber}</SelectItem>)}
+                      {availableInvoices.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.invoiceNumber}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -149,84 +200,126 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
               )}
             />
             <div className="grid grid-cols-2 gap-4">
-                <FormField control={form.control} name="exchangeRate" render={({ field }) => (
+              <FormField
+                control={form.control}
+                name="exchangeRate"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Exch. Rate</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : ""}
+                        value={
+                          typeof field.value === 'number' || typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-                <FormField control={form.control} name="freightCost" render={({ field }) => (
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="freightCost"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Freight</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : ""}
+                        value={
+                          typeof field.value === 'number' || typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-                <FormField control={form.control} name="exwCost" render={({ field }) => (
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="exwCost"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>EXW</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : ""}
+                        value={
+                          typeof field.value === 'number' || typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
-                <FormField control={form.control} name="insuranceRate" render={({ field }) => (
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="insuranceRate"
+                render={({ field }) => (
                   <FormItem>
                     <FormLabel>Insurance %</FormLabel>
                     <FormControl>
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === "number" || typeof field.value === "string" ? field.value : ""}
+                        value={
+                          typeof field.value === 'number' || typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
-                )} />
+                )}
+              />
             </div>
-             <FormField control={form.control} name="interest" render={({ field }) => (
+            <FormField
+              control={form.control}
+              name="interest"
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>Interest</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
                       {...field}
-                      value={typeof field.value === "number" || typeof field.value === "string" ? field.value : ""}
+                      value={
+                        typeof field.value === 'number' || typeof field.value === 'string'
+                          ? field.value
+                          : ''
+                      }
                     />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
-            )} />
+              )}
+            />
             <div className="grid w-full max-w-sm items-center gap-1.5">
-                <Label htmlFor="override-file">Duty Override File (.csv)</Label>
-                <Input 
-                    id="override-file" 
-                    type="file" 
-                    accept=".csv"
-                    onChange={(e) => setOverrideFile(e.target.files ? e.target.files[0] : null)}
-                />
+              <Label htmlFor="override-file">Duty Override File (.csv)</Label>
+              <Input
+                id="override-file"
+                type="file"
+                accept=".csv"
+                onChange={(e) => setOverrideFile(e.target.files ? e.target.files[0] : null)}
+              />
             </div>
 
             <DialogFooter>
-              <Button variant="ghost" type="button" onClick={onClose}>Cancel</Button>
+              <Button variant="ghost" type="button" onClick={onClose}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={!overrideFile || !form.formState.isValid}>
                 Import & Calculate
               </Button>
@@ -235,5 +328,5 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
         </Form>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

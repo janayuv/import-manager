@@ -1,10 +1,10 @@
 // src/pages/supplier/edit.tsx
 // This component now takes an onSave prop and calls it on submission.
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Separator } from '@/components/ui/separator';
+// Adjust the import path as necessary
+import { useEffect, useState } from 'react'
+
+import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
 import {
   Dialog,
   DialogContent,
@@ -12,56 +12,60 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import type { Supplier } from '@/types/supplier'; // Adjust the import path as necessary
-import { useEffect, useState } from 'react';
+} from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Separator } from '@/components/ui/separator'
+import type { Supplier } from '@/types/supplier'
 
 interface EditSupplierProps {
-    isOpen: boolean;
-    onOpenChange: (isOpen: boolean) => void;
-    supplier: Supplier | null;
-    onSave: (updatedSupplier: Supplier) => void;
+  isOpen: boolean
+  onOpenChange: (isOpen: boolean) => void
+  supplier: Supplier | null
+  onSave: (updatedSupplier: Supplier) => void
 }
 
 export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: EditSupplierProps) {
-  const [formData, setFormData] = useState<Supplier | null>(null);
+  const [formData, setFormData] = useState<Supplier | null>(null)
 
   useEffect(() => {
     if (supplier) {
-      setFormData(supplier);
+      setFormData(supplier)
     }
-  }, [supplier]);
+  }, [supplier])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!formData) return;
-    const { id, value, type, checked } = e.target;
-    setFormData(prev => ({ ...prev!, [id]: type === 'checkbox' ? checked : value }));
+    if (!formData) return
+    const { id, value, type, checked } = e.target
+    setFormData((prev) => ({ ...prev!, [id]: type === 'checkbox' ? checked : value }))
   }
 
   const handleSubmit = () => {
     if (formData) {
-        onSave(formData);
-        onOpenChange(false);
+      onSave(formData)
+      onOpenChange(false)
     }
   }
 
-  if (!formData) return null;
+  if (!formData) return null
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>Edit Supplier: {formData.supplierName}</DialogTitle>
-          <DialogDescription>
-            Update the details for this supplier.
-          </DialogDescription>
+          <DialogDescription>Update the details for this supplier.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           {/* General Details */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplierName">Supplier Name *</Label>
-              <Input id="supplierName" value={formData.supplierName || ''} onChange={handleChange} />
+              <Input
+                id="supplierName"
+                value={formData.supplierName || ''}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="shortName">Short Name</Label>
@@ -80,14 +84,16 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
               <Input id="phone" value={formData.phone || ''} onChange={handleChange} />
             </div>
             <div className="flex items-center space-x-4 pt-6">
-            <Checkbox
-              id="isActive"
-              checked={formData.isActive || false}
-              onCheckedChange={(checked) =>
-                setFormData((prev) => ({ ...prev!, isActive: !!checked }))
-              }
-              className={formData.isActive ? 'bg-green-600 border-green-600' : 'bg-red-600 border-red-600'}
-            />
+              <Checkbox
+                id="isActive"
+                checked={formData.isActive || false}
+                onCheckedChange={(checked) =>
+                  setFormData((prev) => ({ ...prev!, isActive: !!checked }))
+                }
+                className={
+                  formData.isActive ? 'border-green-600 bg-green-600' : 'border-red-600 bg-red-600'
+                }
+              />
               <Label htmlFor="isActive">Is Active</Label>
 
               <span
@@ -98,30 +104,37 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
                 {formData.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
-
           </div>
 
           <Separator />
 
           {/* Bank Details */}
           <div>
-            <h3 className="text-lg font-medium mb-4">Bank Details</h3>
+            <h3 className="mb-4 text-lg font-medium">Bank Details</h3>
             <div className="grid grid-cols-2 gap-4">
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="beneficiaryName">Beneficiary Name</Label>
-                <Input id="beneficiaryName" value={formData.beneficiaryName || ''} onChange={handleChange} />
+                <Input
+                  id="beneficiaryName"
+                  value={formData.beneficiaryName || ''}
+                  onChange={handleChange}
+                />
               </div>
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="bankName">Bank Name</Label>
                 <Input id="bankName" value={formData.bankName || ''} onChange={handleChange} />
               </div>
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="branch">Branch</Label>
                 <Input id="branch" value={formData.branch || ''} onChange={handleChange} />
               </div>
-               <div className="space-y-2">
+              <div className="space-y-2">
                 <Label htmlFor="bankAddress">Bank Address</Label>
-                <Input id="bankAddress" value={formData.bankAddress || ''} onChange={handleChange} />
+                <Input
+                  id="bankAddress"
+                  value={formData.bankAddress || ''}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="accountNo">Account No.</Label>
@@ -139,11 +152,11 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} className="bg-red-600 hover:bg-red-700 text-white">
-          Save Supplier
-        </Button>
+          <Button onClick={handleSubmit} className="bg-red-600 text-white hover:bg-red-700">
+            Save Supplier
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

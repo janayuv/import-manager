@@ -52,6 +52,7 @@ pub struct Shipment {
     pub eta: String,
     pub status: String,
     pub date_of_delivery: Option<String>,
+    pub is_frozen: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -293,6 +294,68 @@ pub struct BoeReconciliationReport {
     pub items: Vec<ReconciledItemRow>,
     pub totals: ReconciliationTotals,
 }
+
+// --- NEW EXPENSE MODULE STRUCTS ---
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ServiceProvider {
+    pub id: String,
+    pub name: String,
+    pub gstin: Option<String>,
+    pub state: Option<String>,
+    pub contact_person: Option<String>,
+    pub contact_email: Option<String>,
+    pub contact_phone: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseType {
+    pub id: String,
+    pub name: String,
+    pub default_cgst_rate: f64,
+    pub default_sgst_rate: f64,
+    pub default_igst_rate: f64,
+    pub is_active: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct Expense {
+    pub id: String,
+    pub shipment_id: String,
+    pub expense_type_id: String,
+    pub service_provider_id: String,
+    pub invoice_no: String,
+    pub invoice_date: String,
+    pub amount: f64,
+    pub cgst_rate: f64,
+    pub sgst_rate: f64,
+    pub igst_rate: f64,
+    pub cgst_amount: f64,
+    pub sgst_amount: f64,
+    pub igst_amount: f64,
+    pub total_amount: f64,
+    pub remarks: Option<String>,
+    pub created_by: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseAttachment {
+    pub id: String,
+    pub expense_id: String,
+    pub file_name: String,
+    pub file_path: String,
+    pub file_type: Option<String>,
+    pub uploaded_at: String,
+    pub uploaded_by: Option<String>,
+}
+
+
 pub struct DbState {
     pub db: Mutex<Connection>,
 }
@@ -327,11 +390,13 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             invoice_currency TEXT NOT NULL, incoterm TEXT NOT NULL, shipment_mode TEXT,
             shipment_type TEXT, bl_awb_number TEXT, bl_awb_date TEXT, vessel_name TEXT,
             container_number TEXT, gross_weight_kg REAL, etd TEXT, eta TEXT,
-            status TEXT, date_of_delivery TEXT,
+            status TEXT, date_of_delivery TEXT, is_frozen BOOLEAN NOT NULL DEFAULT 0,
             FOREIGN KEY (supplier_id) REFERENCES suppliers (id)
         )",
         [],
     )?;
+    // Migration: add is_frozen if missing
+    let _ = conn.execute("ALTER TABLE shipments ADD COLUMN is_frozen BOOLEAN NOT NULL DEFAULT 0", []);
     
     conn.execute(
         "CREATE TABLE IF NOT EXISTS items (
@@ -442,6 +507,76 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )?;
     }
     
+    // --- EXPENSE MODULE TABLES ---
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS service_providers (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            gstin TEXT UNIQUE,
+            state TEXT,
+            contact_person TEXT,
+            contact_email TEXT,
+            contact_phone TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS expense_types (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL UNIQUE,
+            default_cgst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            default_sgst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            default_igst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            is_active BOOLEAN DEFAULT TRUE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS expenses (
+            id TEXT PRIMARY KEY,
+            shipment_id TEXT NOT NULL,
+            expense_type_id TEXT NOT NULL,
+            service_provider_id TEXT NOT NULL,
+            invoice_no TEXT NOT NULL,
+            invoice_date DATE NOT NULL,
+            amount DECIMAL(12, 2) NOT NULL,
+            cgst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            sgst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            igst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            cgst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * cgst_rate / 100) STORED,
+            sgst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * sgst_rate / 100) STORED,
+            igst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * igst_rate / 100) STORED,
+            total_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount + (amount * (cgst_rate + sgst_rate + igst_rate) / 100)) STORED,
+            remarks TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (shipment_id) REFERENCES shipments(id),
+            FOREIGN KEY (expense_type_id) REFERENCES expense_types(id),
+            FOREIGN KEY (service_provider_id) REFERENCES service_providers(id),
+            UNIQUE(service_provider_id, invoice_no)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS expense_attachments (
+            id TEXT PRIMARY KEY,
+            expense_id TEXT NOT NULL,
+            file_name TEXT NOT NULL,
+            file_path TEXT NOT NULL,
+            file_type TEXT,
+            uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            uploaded_by TEXT,
+            FOREIGN KEY (expense_id) REFERENCES expenses(id)
+        )",
+        [],
+    )?;
 
     Ok(conn)
 }

@@ -6,7 +6,7 @@
 | Provides the sample shipment data for the frontend prototype.                |
 ================================================================================
 */
-import type { Shipment } from "@/types/boe-entry";
+import type { Shipment } from '@/types/boe-entry'
 
 export const dummyShipments: Shipment[] = [
   {
@@ -14,7 +14,7 @@ export const dummyShipments: Shipment[] = [
     supplierName: 'KOREA WECOSTA CO LTD',
     invoiceNumber: 'KWC-250121-001',
     invoiceDate: '2025-01-21',
-    invoiceValue: 34806.24, 
+    invoiceValue: 34806.24,
     invoiceCurrency: 'USD',
     incoterm: 'EXW',
     status: 'Delivered',
@@ -35,10 +35,10 @@ export const dummyShipments: Shipment[] = [
         actualSwsRate: 10,
         actualIgstRate: 28,
       },
-       {
+      {
         partNo: '548143',
         description: 'Acoustic Assy - AIR (Ai3 K1.0/1.2)',
-        lineTotal: 27896.40,
+        lineTotal: 27896.4,
         actualBcdRate: 15,
         actualSwsRate: 10,
         actualIgstRate: 28,
@@ -93,4 +93,4 @@ export const dummyShipments: Shipment[] = [
       },
     ],
   },
-];
+]

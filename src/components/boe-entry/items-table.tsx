@@ -1,5 +1,15 @@
-"use client";
+'use client'
 
+import type { Dispatch, SetStateAction } from 'react'
+
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import {
   Table,
   TableBody,
@@ -7,41 +17,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
-import type { InvoiceItem, BoeItemInput, CalculationMethod } from "@/types/boe-entry";
-import type { Dispatch, SetStateAction } from "react";
+} from '@/components/ui/table'
+import type { BoeItemInput, CalculationMethod, InvoiceItem } from '@/types/boe-entry'
 
 interface ItemsTableProps {
-  items: InvoiceItem[];
-  itemInputs: BoeItemInput[];
-  setItemInputs: Dispatch<SetStateAction<BoeItemInput[]>>;
+  items: InvoiceItem[]
+  itemInputs: BoeItemInput[]
+  setItemInputs: Dispatch<SetStateAction<BoeItemInput[]>>
 }
 
-export function ItemsTable({
-  items = [],
-  itemInputs,
-  setItemInputs,
-}: ItemsTableProps) {
-  const handleInputChange = (
-    index: number,
-    field: keyof BoeItemInput,
-    value: string | number
-  ) => {
-    const updatedInputs = [...itemInputs];
+export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTableProps) {
+  const handleInputChange = (index: number, field: keyof BoeItemInput, value: string | number) => {
+    const updatedInputs = [...itemInputs]
     updatedInputs[index] = {
       ...updatedInputs[index],
       [field]: value,
-    };
-    setItemInputs(updatedInputs);
-  };
+    }
+    setItemInputs(updatedInputs)
+  }
 
   return (
     <div className="rounded-md border">
@@ -57,9 +50,9 @@ export function ItemsTable({
             <TableHead className="text-right">Actual SWS %</TableHead>
             <TableHead className="text-right">Actual IGST %</TableHead>
             <TableHead className="w-[150px]">Calc Method</TableHead>
-            <TableHead className="text-right w-[120px]">BOE BCD %</TableHead>
-            <TableHead className="text-right w-[120px]">BOE SWS %</TableHead>
-            <TableHead className="text-right w-[120px]">BOE IGST %</TableHead>
+            <TableHead className="w-[120px] text-right">BOE BCD %</TableHead>
+            <TableHead className="w-[120px] text-right">BOE SWS %</TableHead>
+            <TableHead className="w-[120px] text-right">BOE IGST %</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -68,7 +61,9 @@ export function ItemsTable({
               <TableCell className="font-medium">{item.partNo}</TableCell>
               <TableCell>{item.description}</TableCell>
               <TableCell className="text-right">{item.qty ?? '-'}</TableCell>
-              <TableCell className="text-right">{item.unitPrice != null ? item.unitPrice.toFixed(2) : '-'}</TableCell>
+              <TableCell className="text-right">
+                {item.unitPrice != null ? item.unitPrice.toFixed(2) : '-'}
+              </TableCell>
               <TableCell className="text-right">{item.hsCode ?? '-'}</TableCell>
               {/* --- NEW: Display actual rates from shipment --- */}
               <TableCell className="text-right">{item.actualBcdRate.toFixed(2)}%</TableCell>
@@ -76,9 +71,9 @@ export function ItemsTable({
               <TableCell className="text-right">{item.actualIgstRate.toFixed(2)}%</TableCell>
               <TableCell>
                 <Select
-                  value={itemInputs[index]?.calculationMethod || "Standard"}
+                  value={itemInputs[index]?.calculationMethod || 'Standard'}
                   onValueChange={(value: CalculationMethod) =>
-                    handleInputChange(index, "calculationMethod", value)
+                    handleInputChange(index, 'calculationMethod', value)
                   }
                 >
                   <SelectTrigger>
@@ -97,7 +92,7 @@ export function ItemsTable({
                   className="text-right"
                   value={itemInputs[index]?.boeBcdRate ?? ''}
                   onChange={(e) =>
-                    handleInputChange(index, "boeBcdRate", parseFloat(e.target.value) || 0)
+                    handleInputChange(index, 'boeBcdRate', parseFloat(e.target.value) || 0)
                   }
                 />
               </TableCell>
@@ -106,15 +101,15 @@ export function ItemsTable({
                   type="number"
                   className="text-right"
                   value={itemInputs[index]?.boeSwsRate ?? ''}
-                   onChange={(e) =>
-                    handleInputChange(index, "boeSwsRate", parseFloat(e.target.value) || 0)
+                  onChange={(e) =>
+                    handleInputChange(index, 'boeSwsRate', parseFloat(e.target.value) || 0)
                   }
                 />
               </TableCell>
               <TableCell>
                 <Input
                   type="number"
-                  className="text-right bg-gray-100"
+                  className="bg-gray-100 text-right"
                   value={itemInputs[index]?.boeIgstRate ?? ''}
                   readOnly // IGST should not be user-editable here
                 />
@@ -124,5 +119,5 @@ export function ItemsTable({
         </TableBody>
       </Table>
     </div>
-  );
+  )
 }

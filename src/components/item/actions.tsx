@@ -1,5 +1,6 @@
-import { MoreHorizontal } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MoreHorizontal } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -7,13 +8,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import type { Item } from '@/types/item';
+} from '@/components/ui/dropdown-menu'
+import type { Item } from '@/types/item'
 
 interface ItemActionsProps {
-  item: Item;
-  onView: () => void;
-  onEdit: () => void;
+  item: Item
+  onView: () => void
+  onEdit: () => void
 }
 
 export const ItemActions = ({ item, onView, onEdit }: ItemActionsProps) => {
@@ -35,5 +36,5 @@ export const ItemActions = ({ item, onView, onEdit }: ItemActionsProps) => {
         <DropdownMenuItem onClick={onEdit}>Edit item</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-};
+  )
+}

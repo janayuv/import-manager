@@ -1,31 +1,45 @@
 // src/components/shared/data-table.tsx
-import * as React from 'react';
+import * as React from 'react'
+
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import {
   type ColumnDef,
+  type ColumnFiltersState,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  useReactTable,
-  getSortedRowModel,
   getFacetedRowModel,
   getFacetedUniqueValues,
-  type ColumnFiltersState,
-} from '@tanstack/react-table';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { DataTablePagination } from './data-table-pagination';
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+
+import { DataTablePagination } from './data-table-pagination'
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  storageKey?: string;
-  toolbar?: React.ReactNode;
+  columns: ColumnDef<TData, TValue>[]
+  data: TData[]
+  storageKey?: string
+  toolbar?: React.ReactNode
 }
 
-export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }: DataTableProps<TData, TValue>) {
-  const [globalFilter, setGlobalFilter] = React.useState('');
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
+export function DataTable<TData, TValue>({
+  columns,
+  data,
+  storageKey,
+  toolbar,
+}: DataTableProps<TData, TValue>) {
+  const [globalFilter, setGlobalFilter] = React.useState('')
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
 
   const table = useReactTable({
     data,
@@ -42,7 +56,7 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
     },
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
-  });
+  })
 
   return (
     <div className="space-y-4">
@@ -61,7 +75,13 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
-                  return <TableHead key={header.id}>{header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}</TableHead>;
+                  return (
+                    <TableHead key={header.id}>
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(header.column.columnDef.header, header.getContext())}
+                    </TableHead>
+                  )
                 })}
               </TableRow>
             ))}
@@ -71,7 +91,9 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
@@ -87,5 +109,5 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
       </div>
       <DataTablePagination table={table} storageKey={storageKey} />
     </div>
-  );
+  )
 }

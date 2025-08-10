@@ -1,14 +1,22 @@
 // src/components/boe/actions.tsx (No changes needed)
-import { MoreHorizontal, Pencil, View, Trash2 } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
-import type { BoeDetails } from "@/types/boe";
+import { MoreHorizontal, Pencil, Trash2, View } from 'lucide-react'
+
+import { Button } from '@/components/ui/button'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import type { BoeDetails } from '@/types/boe'
 
 interface BoeActionsProps {
-  boe: BoeDetails;
-  onView: (boe: BoeDetails) => void;
-  onEdit: (boe: BoeDetails) => void;
-  onDelete: (boeId: string, beNumber: string) => void;
+  boe: BoeDetails
+  onView: (boe: BoeDetails) => void
+  onEdit: (boe: BoeDetails) => void
+  onDelete: (boeId: string, beNumber: string) => void
 }
 
 export function BoeActions({ boe, onView, onEdit, onDelete }: BoeActionsProps) {
@@ -30,7 +38,7 @@ export function BoeActions({ boe, onView, onEdit, onDelete }: BoeActionsProps) {
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={() => onDelete(boe.id, boe.beNumber)} className="text-red-600">
-            <Trash2 className="mr-2 h-4 w-4" /> Delete
+          <Trash2 className="mr-2 h-4 w-4" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

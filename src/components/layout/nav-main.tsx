@@ -1,10 +1,8 @@
-import { NavLink, useLocation } from "react-router-dom";
-import { ChevronRight, type LucideIcon } from "lucide-react";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { ChevronRight, type LucideIcon } from 'lucide-react'
+
+import { NavLink, useLocation } from 'react-router-dom'
+
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import {
   SidebarMenu,
   SidebarMenuAction,
@@ -13,23 +11,25 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-} from "@/components/ui/sidebar";
+} from '@/components/ui/sidebar'
 
 interface NavItem {
-  title: string;
-  url: string;
-  icon: LucideIcon;
-  items?: Omit<NavItem, 'icon' | 'items'>[];
+  title: string
+  url: string
+  icon: LucideIcon
+  items?: Omit<NavItem, 'icon' | 'items'>[]
 }
 
 export function NavMain({ items }: { items: NavItem[] }) {
-  const location = useLocation();
+  const location = useLocation()
 
-  const isActive = (path: string) => location.pathname === path;
+  const isActive = (path: string) => location.pathname === path
   const isGroupActive = (path: string, subItems?: Omit<NavItem, 'icon' | 'items'>[]) => {
-      if (!subItems) return false;
-      // Check if the current path starts with the parent path, or if any sub-item is active
-      return location.pathname.startsWith(path) || subItems.some(item => location.pathname === item.url);
+    if (!subItems) return false
+    // Check if the current path starts with the parent path, or if any sub-item is active
+    return (
+      location.pathname.startsWith(path) || subItems.some((item) => location.pathname === item.url)
+    )
   }
 
   return (
@@ -37,11 +37,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
       {items.map((item) =>
         item.items && item.items.length > 0 ? (
           // Render as a collapsible menu item if it has sub-items
-          <Collapsible
-            key={item.title}
-            asChild
-            defaultOpen={isGroupActive(item.url, item.items)}
-          >
+          <Collapsible key={item.title} asChild defaultOpen={isGroupActive(item.url, item.items)}>
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
@@ -56,7 +52,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
 
               <CollapsibleTrigger asChild>
                 {/* UPDATED: Added classes to make the trigger smaller and remove button styles */}
-                <SidebarMenuAction className="data-[state=open]:rotate-90 size-5 p-0 bg-transparent hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0">
+                <SidebarMenuAction className="size-5 bg-transparent p-0 hover:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0 data-[state=open]:rotate-90">
                   <ChevronRight className="size-4" />
                   <span className="sr-only">Toggle</span>
                 </SidebarMenuAction>
@@ -78,11 +74,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
         ) : (
           // Render as a simple menu item if it has no sub-items
           <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton
-              asChild
-              tooltip={item.title}
-              isActive={isActive(item.url)}
-            >
+            <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)}>
               <NavLink to={item.url}>
                 <item.icon />
                 <span>{item.title}</span>
@@ -92,5 +84,5 @@ export function NavMain({ items }: { items: NavItem[] }) {
         )
       )}
     </SidebarMenu>
-  );
+  )
 }

@@ -1,28 +1,30 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { toast } from 'sonner';
+import { toast } from 'sonner'
+
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 
 export function LoginPage() {
-  const navigate = useNavigate();
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
+  const navigate = useNavigate()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
 
   const handleLogin = () => {
     if (username === 'Jana' && password === 'inzi@123$%') {
-      localStorage.setItem('isAuthenticated', 'true');
-      toast.success('Login successful!');
-      navigate('/');
+      localStorage.setItem('isAuthenticated', 'true')
+      toast.success('Login successful!')
+      navigate('/')
     } else {
-      toast.error('Invalid username or password');
+      toast.error('Invalid username or password')
     }
-  };
+  }
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background">
+    <div className="bg-background flex min-h-screen items-center justify-center">
       <Card className="mx-auto max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
@@ -63,5 +65,5 @@ export function LoginPage() {
         </CardContent>
       </Card>
     </div>
-  );
+  )
 }

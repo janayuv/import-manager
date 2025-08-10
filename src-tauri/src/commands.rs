@@ -1,11 +1,12 @@
 // In src-tauri/src/commands.rs
 
-use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload, SavedBoe, BoeShipment, BoeShipmentItem, SelectOption, BoeReconciliationReport, ReconciledItemRow, ReconciliationTotals, Attachment}; 
+use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload, SavedBoe, BoeShipment, BoeShipmentItem, SelectOption, BoeReconciliationReport, ReconciledItemRow, ReconciliationTotals, Attachment, ServiceProvider, ExpenseType, Expense, ExpenseAttachment}; 
 use rusqlite::{params, Transaction, Error as RusqliteError};
 use tauri::State;
 use tauri::Manager; // for app.path()
 use rand::Rng;
 use std::collections::HashMap;
+use uuid::Uuid;
 
 
 fn generate_id(prefix: &str) -> String {
@@ -228,7 +229,7 @@ pub fn get_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
             shipment_type: row.get(9)?, bl_awb_number: row.get(10)?, bl_awb_date: row.get(11)?,
             vessel_name: row.get(12)?, container_number: row.get(13)?, gross_weight_kg: row.get(14)?,
             etd: row.get(15)?, eta: row.get(16)?, status: row.get(17)?,
-            date_of_delivery: row.get(18)?,
+            date_of_delivery: row.get(18)?, is_frozen: row.get(19)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -240,17 +241,38 @@ pub fn get_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
 }
 
 #[tauri::command]
+pub fn get_active_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn.prepare("SELECT * FROM shipments WHERE is_frozen = 0").map_err(|e| e.to_string())?;
+    let shipments = stmt.query_map([], |row| {
+        Ok(Shipment {
+            id: row.get(0)?, supplier_id: row.get(1)?, invoice_number: row.get(2)?,
+            invoice_date: row.get(3)?, goods_category: row.get(4)?, invoice_value: row.get(5)?,
+            invoice_currency: row.get(6)?, incoterm: row.get(7)?, shipment_mode: row.get(8)?,
+            shipment_type: row.get(9)?, bl_awb_number: row.get(10)?, bl_awb_date: row.get(11)?,
+            vessel_name: row.get(12)?, container_number: row.get(13)?, gross_weight_kg: row.get(14)?,
+            etd: row.get(15)?, eta: row.get(16)?, status: row.get(17)?,
+            date_of_delivery: row.get(18)?, is_frozen: row.get(19)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    let mut out = Vec::new();
+    for s in shipments { out.push(s.map_err(|e| e.to_string())?); }
+    Ok(out)
+}
+
+#[tauri::command]
 pub fn add_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
     conn.execute(
-        "INSERT INTO shipments (id, supplier_id, invoice_number, invoice_date, goods_category, invoice_value, invoice_currency, incoterm, shipment_mode, shipment_type, bl_awb_number, bl_awb_date, vessel_name, container_number, gross_weight_kg, etd, eta, status, date_of_delivery) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)",
+        "INSERT INTO shipments (id, supplier_id, invoice_number, invoice_date, goods_category, invoice_value, invoice_currency, incoterm, shipment_mode, shipment_type, bl_awb_number, bl_awb_date, vessel_name, container_number, gross_weight_kg, etd, eta, status, date_of_delivery, is_frozen) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
         params![
             shipment.id, shipment.supplier_id, shipment.invoice_number, shipment.invoice_date,
             shipment.goods_category, shipment.invoice_value, shipment.invoice_currency,
             shipment.incoterm, shipment.shipment_mode, shipment.shipment_type,
             shipment.bl_awb_number, shipment.bl_awb_date, shipment.vessel_name,
             shipment.container_number, shipment.gross_weight_kg, shipment.etd,
-            shipment.eta, shipment.status, shipment.date_of_delivery,
+            shipment.eta, shipment.status, shipment.date_of_delivery, shipment.is_frozen,
         ],
     ).map_err(|e| e.to_string())?;
     Ok(())
@@ -260,15 +282,25 @@ pub fn add_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), Str
 pub fn update_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
     conn.execute(
-        "UPDATE shipments SET supplier_id = ?2, invoice_number = ?3, invoice_date = ?4, goods_category = ?5, invoice_value = ?6, invoice_currency = ?7, incoterm = ?8, shipment_mode = ?9, shipment_type = ?10, bl_awb_number = ?11, bl_awb_date = ?12, vessel_name = ?13, container_number = ?14, gross_weight_kg = ?15, etd = ?16, eta = ?17, status = ?18, date_of_delivery = ?19 WHERE id = ?1",
+        "UPDATE shipments SET supplier_id = ?2, invoice_number = ?3, invoice_date = ?4, goods_category = ?5, invoice_value = ?6, invoice_currency = ?7, incoterm = ?8, shipment_mode = ?9, shipment_type = ?10, bl_awb_number = ?11, bl_awb_date = ?12, vessel_name = ?13, container_number = ?14, gross_weight_kg = ?15, etd = ?16, eta = ?17, status = ?18, date_of_delivery = ?19, is_frozen = ?20 WHERE id = ?1",
         params![
             shipment.id, shipment.supplier_id, shipment.invoice_number, shipment.invoice_date,
             shipment.goods_category, shipment.invoice_value, shipment.invoice_currency,
             shipment.incoterm, shipment.shipment_mode, shipment.shipment_type,
             shipment.bl_awb_number, shipment.bl_awb_date, shipment.vessel_name,
             shipment.container_number, shipment.gross_weight_kg, shipment.etd,
-            shipment.eta, shipment.status, shipment.date_of_delivery,
+            shipment.eta, shipment.status, shipment.date_of_delivery, shipment.is_frozen,
         ],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn freeze_shipment(state: State<DbState>, shipment_id: String, frozen: bool) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    conn.execute(
+        "UPDATE shipments SET is_frozen = ?2 WHERE id = ?1",
+        params![shipment_id, if frozen { 1 } else { 0 }],
     ).map_err(|e| e.to_string())?;
     Ok(())
 }
@@ -545,7 +577,7 @@ pub fn get_unfinalized_shipments(state: State<DbState>) -> Result<Vec<Shipment>,
             shipment_type: row.get(9)?, bl_awb_number: row.get(10)?, bl_awb_date: row.get(11)?,
             vessel_name: row.get(12)?, container_number: row.get(13)?, gross_weight_kg: row.get(14)?,
             etd: row.get(15)?, eta: row.get(16)?, status: row.get(17)?,
-            date_of_delivery: row.get(18)?,
+            date_of_delivery: row.get(18)?, is_frozen: row.get(19)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -1135,4 +1167,357 @@ pub fn save_item_photo_file(app: tauri::AppHandle, src_path: String) -> Result<S
     let result_path = dest_path.to_string_lossy().to_string();
     println!("✅ [RUST] Returning saved item photo path: {}", result_path);
     Ok(result_path)
+}
+
+// ============================================================================
+// --- EXPENSE MODULE COMMANDS ---
+// ============================================================================
+
+// --- Service Provider Commands ---
+#[allow(dead_code)]
+#[tauri::command]
+pub fn get_service_providers(state: State<DbState>) -> Result<Vec<ServiceProvider>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT id, name, gstin, state, contact_person, contact_email, contact_phone FROM service_providers ORDER BY name")
+        .map_err(|e| e.to_string())?;
+
+    let iter = stmt
+        .query_map([], |row| {
+            Ok(ServiceProvider {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                gstin: row.get(2)?,
+                state: row.get(3)?,
+                contact_person: row.get(4)?,
+                contact_email: row.get(5)?,
+                contact_phone: row.get(6)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+#[allow(dead_code)]
+#[tauri::command]
+pub fn add_service_provider(name: String, state: State<DbState>) -> Result<ServiceProvider, String> {
+    let db = state.db.lock().unwrap();
+    let new_service_provider = ServiceProvider {
+        id: Uuid::new_v4().to_string(),
+        name,
+        gstin: None,
+        state: None,
+        contact_person: None,
+        contact_email: None,
+        contact_phone: None,
+    };
+
+    db.execute(
+        "INSERT INTO service_providers (id, name) VALUES (?1, ?2)",
+        rusqlite::params![&new_service_provider.id, &new_service_provider.name],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(new_service_provider)
+}
+
+// --- Expense Type Commands ---
+#[allow(dead_code)]
+#[tauri::command]
+pub fn get_expense_types(state: State<DbState>) -> Result<Vec<ExpenseType>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT id, name, default_cgst_rate, default_sgst_rate, default_igst_rate, is_active FROM expense_types ORDER BY name")
+        .map_err(|e| e.to_string())?;
+
+    let iter = stmt
+        .query_map([], |row| {
+            Ok(ExpenseType {
+                id: row.get(0)?,
+                name: row.get(1)?,
+                default_cgst_rate: row.get(2)?,
+                default_sgst_rate: row.get(3)?,
+                default_igst_rate: row.get(4)?,
+                is_active: row.get(5)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+#[allow(dead_code)]
+#[tauri::command]
+pub fn add_expense_type(name: String, state: State<DbState>) -> Result<ExpenseType, String> {
+    let db = state.db.lock().unwrap();
+    let new_expense_type = ExpenseType {
+        id: Uuid::new_v4().to_string(),
+        name: name.clone(),
+        default_cgst_rate: 0.0,
+        default_sgst_rate: 0.0,
+        default_igst_rate: 0.0,
+        is_active: true,
+    };
+
+    db.execute(
+        "INSERT INTO expense_types (id, name, is_active) VALUES (?1, ?2, ?3)",
+        rusqlite::params![&new_expense_type.id, &new_expense_type.name, &new_expense_type.is_active],
+    )
+    .map_err(|e| e.to_string())?;
+
+    Ok(new_expense_type)
+}
+
+// --- Expense Commands ---
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> Result<Vec<Expense>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, cgst_amount, sgst_amount, igst_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE shipment_id = ?1 ORDER BY invoice_date")
+        .map_err(|e| e.to_string())?;
+
+    let iter = stmt
+        .query_map(params![shipment_id], |row| {
+            Ok(Expense {
+                id: row.get(0)?,
+                shipment_id: row.get(1)?,
+                expense_type_id: row.get(2)?,
+                service_provider_id: row.get(3)?,
+                invoice_no: row.get(4)?,
+                invoice_date: row.get(5)?,
+                amount: row.get(6)?,
+                cgst_rate: row.get(7)?,
+                sgst_rate: row.get(8)?,
+                igst_rate: row.get(9)?,
+                cgst_amount: row.get(10)?,
+                sgst_amount: row.get(11)?,
+                igst_amount: row.get(12)?,
+                total_amount: row.get(13)?,
+                remarks: row.get(14)?,
+                created_by: row.get(15)?,
+                created_at: row.get(16)?,
+                updated_at: row.get(17)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpensePayload {
+    pub shipment_id: String,
+    pub expense_type_id: String,
+    pub service_provider_id: String,
+    pub invoice_no: String,
+    pub invoice_date: String,
+    pub amount: f64,
+    pub cgst_rate: Option<f64>,
+    pub sgst_rate: Option<f64>,
+    pub igst_rate: Option<f64>,
+    pub remarks: Option<String>,
+}
+
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result<Expense, String> {
+    let conn = state.db.lock().unwrap();
+
+    let new_id = generate_id("EXP");
+
+    conn.execute(
+        "INSERT INTO expenses (id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, remarks)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        params![
+            &new_id,
+            &payload.shipment_id,
+            &payload.expense_type_id,
+            &payload.service_provider_id,
+            &payload.invoice_no,
+            &payload.invoice_date,
+            &payload.amount,
+            &payload.cgst_rate.unwrap_or(0.0),
+            &payload.sgst_rate.unwrap_or(0.0),
+            &payload.igst_rate.unwrap_or(0.0),
+            &payload.remarks,
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    // Fetch the newly created record to get generated values
+    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, cgst_amount, sgst_amount, igst_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+
+    let expense = stmt.query_row(params![new_id], |row| {
+        Ok(Expense {
+            id: row.get(0)?,
+            shipment_id: row.get(1)?,
+            expense_type_id: row.get(2)?,
+            service_provider_id: row.get(3)?,
+            invoice_no: row.get(4)?,
+            invoice_date: row.get(5)?,
+            amount: row.get(6)?,
+            cgst_rate: row.get(7)?,
+            sgst_rate: row.get(8)?,
+            igst_rate: row.get(9)?,
+            cgst_amount: row.get(10)?,
+            sgst_amount: row.get(11)?,
+            igst_amount: row.get(12)?,
+            total_amount: row.get(13)?,
+            remarks: row.get(14)?,
+            created_by: row.get(15)?,
+            created_at: row.get(16)?,
+            updated_at: row.get(17)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    Ok(expense)
+}
+
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn update_expense(id: String, payload: ExpensePayload, state: State<'_, DbState>) -> Result<Expense, String> {
+    let conn = state.db.lock().unwrap();
+
+    conn.execute(
+        "UPDATE expenses 
+         SET expense_type_id = ?2, service_provider_id = ?3, invoice_no = ?4, invoice_date = ?5, amount = ?6, cgst_rate = ?7, sgst_rate = ?8, igst_rate = ?9, remarks = ?10, updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')
+         WHERE id = ?1",
+        params![
+            &id,
+            &payload.expense_type_id,
+            &payload.service_provider_id,
+            &payload.invoice_no,
+            &payload.invoice_date,
+            &payload.amount,
+            &payload.cgst_rate.unwrap_or(0.0),
+            &payload.sgst_rate.unwrap_or(0.0),
+            &payload.igst_rate.unwrap_or(0.0),
+            &payload.remarks,
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    // Fetch the newly created record to get generated values
+    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, cgst_amount, sgst_amount, igst_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+
+    let expense = stmt.query_row(params![id], |row| {
+        Ok(Expense {
+            id: row.get(0)?,
+            shipment_id: row.get(1)?,
+            expense_type_id: row.get(2)?,
+            service_provider_id: row.get(3)?,
+            invoice_no: row.get(4)?,
+            invoice_date: row.get(5)?,
+            amount: row.get(6)?,
+            cgst_rate: row.get(7)?,
+            sgst_rate: row.get(8)?,
+            igst_rate: row.get(9)?,
+            cgst_amount: row.get(10)?,
+            sgst_amount: row.get(11)?,
+            igst_amount: row.get(12)?,
+            total_amount: row.get(13)?,
+            remarks: row.get(14)?,
+            created_by: row.get(15)?,
+            created_at: row.get(16)?,
+            updated_at: row.get(17)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    Ok(expense)
+}
+
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn delete_expense(id: String, state: State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+
+    // Optional: First, delete any associated attachments to maintain data integrity
+    conn.execute("DELETE FROM expense_attachments WHERE expense_id = ?1", params![&id])
+        .map_err(|e| e.to_string())?;
+    
+    // Then, delete the expense itself
+    let rows_affected = conn.execute("DELETE FROM expenses WHERE id = ?1", params![&id])
+        .map_err(|e| e.to_string())?;
+
+    if rows_affected == 0 {
+        return Err("Expense not found".to_string());
+    }
+
+    Ok(())
+}
+
+// --- File Attachment Commands ---
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn attach_invoice_to_expense(
+    app: tauri::AppHandle,
+    expense_id: String,
+    src_path: String,
+    file_type: Option<String>,
+    user_id: Option<String>,
+    state: State<DbState>,
+) -> Result<ExpenseAttachment, String> {
+    // 1. Get base path and create directory
+    let base = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let attach_dir = base.join("attachments").join("expenses").join(&expense_id);
+    std::fs::create_dir_all(&attach_dir).map_err(|e| e.to_string())?;
+
+    // 2. Copy file
+    let file_name = std::path::Path::new(&src_path)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or("Invalid source file name")?
+        .to_string();
+    let dest_path = attach_dir.join(&file_name);
+    std::fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
+
+    // 3. Create database record
+    let conn = state.db.lock().unwrap();
+    let new_id = generate_id("ATT");
+    let now = chrono::Utc::now().to_rfc3339();
+
+    let new_attachment = ExpenseAttachment {
+        id: new_id,
+        expense_id: expense_id.clone(),
+        file_name,
+        file_path: dest_path.to_string_lossy().to_string(),
+        file_type,
+        uploaded_at: now,
+        uploaded_by: user_id,
+    };
+
+    conn.execute(
+        "INSERT INTO expense_attachments (id, expense_id, file_name, file_path, file_type, uploaded_at, uploaded_by)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            &new_attachment.id,
+            &new_attachment.expense_id,
+            &new_attachment.file_name,
+            &new_attachment.file_path,
+            &new_attachment.file_type,
+            &new_attachment.uploaded_at,
+            &new_attachment.uploaded_by,
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    Ok(new_attachment)
+}
+
+
+// --- Reporting Commands ---
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn generate_shipment_expense_report(_shipment_id: String, _state: State<DbState>) -> Result<Vec<Expense>, String> {
+    // TODO: Implement report generation logic
+    Ok(vec![])
+}
+
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn generate_monthly_gst_summary(_month: u32, _year: i32, _state: State<DbState>) -> Result<Vec<Expense>, String> {
+    // TODO: Implement report generation logic
+    Ok(vec![])
 }

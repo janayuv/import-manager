@@ -1,10 +1,21 @@
 // src/components/ui/combobox-creatable.tsx (NO CHANGE)
 // A reusable combobox that allows selecting from a list or creating a new option.
-import * as React from "react"
-import { Check, ChevronsUpDown, PlusCircle } from "lucide-react"
+import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react'
 
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
+import * as React from 'react'
+
+import { Button } from '@/components/ui/button'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { cn } from '@/lib/utils'
+
 import {
   Command,
   CommandEmpty,
@@ -13,22 +24,9 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from "./command"
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
-import { Input } from "./input"
-import { Label } from "./label"
+} from './command'
+import { Input } from './input'
+import { Label } from './label'
 
 interface Option {
   value: string
@@ -39,7 +37,8 @@ interface CreatableComboboxProps {
   options: Option[]
   value: string
   onChange: (value: string) => void
-  onOptionCreate: (newOption: Option) => void
+  onOptionCreate?: (newOption: Option) => void
+  onNameCreate?: (name: string) => void
   placeholder?: string
   searchPlaceholder?: string
   emptyText?: string
@@ -52,26 +51,31 @@ export function CreatableCombobox({
   value,
   onChange,
   onOptionCreate,
-  placeholder = "Select an option...",
-  searchPlaceholder = "Search...",
-  emptyText = "No results found.",
-  dialogTitle = "Create New",
-  dialogDescription = "Enter the details for the new option.",
+  onNameCreate,
+  placeholder = 'Select an option...',
+  searchPlaceholder = 'Search...',
+  emptyText = 'No results found.',
+  dialogTitle = 'Create New',
+  dialogDescription = 'Enter the details for the new option.',
 }: CreatableComboboxProps) {
   const [open, setOpen] = React.useState(false)
   const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [newOptionLabel, setNewOptionLabel] = React.useState("")
+  const [newOptionLabel, setNewOptionLabel] = React.useState('')
 
   const handleCreateNew = () => {
     if (newOptionLabel) {
-      const newOption = {
-        value: newOptionLabel.toLowerCase().replace(/\s/g, "-"),
-        label: newOptionLabel,
+      if (onNameCreate) {
+        onNameCreate(newOptionLabel)
+      } else if (onOptionCreate) {
+        const newOption = {
+          value: newOptionLabel.toLowerCase().replace(/\s/g, '-'),
+          label: newOptionLabel,
+        }
+        onOptionCreate(newOption)
+        onChange(newOption.value)
       }
-      onOptionCreate(newOption)
-      onChange(newOption.value)
       setDialogOpen(false)
-      setNewOptionLabel("")
+      setNewOptionLabel('')
       setOpen(false)
     }
   }
@@ -86,9 +90,7 @@ export function CreatableCombobox({
             aria-expanded={open}
             className="w-full justify-between"
           >
-            {value
-              ? options.find((option) => option.value === value)?.label
-              : placeholder}
+            {value ? options.find((option) => option.value === value)?.label : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -111,8 +113,8 @@ export function CreatableCombobox({
                   >
                     <Check
                       className={cn(
-                        "mr-2 h-4 w-4",
-                        value === option.value ? "opacity-100" : "opacity-0"
+                        'mr-2 h-4 w-4',
+                        value === option.value ? 'opacity-100' : 'opacity-0'
                       )}
                     />
                     {option.label}

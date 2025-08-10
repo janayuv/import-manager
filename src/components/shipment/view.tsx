@@ -6,59 +6,62 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
-import type { Shipment } from '@/types/shipment';
-import type { Option } from '@/types/options';
-import { Separator } from '@/components/ui/separator';
-import { formatDateForDisplay } from '@/lib/date-format';
+} from '@/components/ui/dialog'
+import { Separator } from '@/components/ui/separator'
+import { formatDateForDisplay } from '@/lib/date-format'
+import type { Option } from '@/types/options'
+import type { Shipment } from '@/types/shipment'
 
 interface ViewShipmentProps {
-    isOpen: boolean;
-    onOpenChange: (isOpen: boolean) => void;
-    shipment: Shipment | null;
-    suppliers: Option[];
+  isOpen: boolean
+  onOpenChange: (isOpen: boolean) => void
+  shipment: Shipment | null
+  suppliers: Option[]
 }
 
 const DetailItem = ({ label, value }: { label: string; value?: string | number | null }) => {
-    if (value === undefined || value === null || value === '') return null;
-    return (
-        <div>
-            <p className="text-sm text-muted-foreground">{label}</p>
-            <p className="font-medium">{value}</p>
-        </div>
-    )
+  if (value === undefined || value === null || value === '') return null
+  return (
+    <div>
+      <p className="text-muted-foreground text-sm">{label}</p>
+      <p className="font-medium">{value}</p>
+    </div>
+  )
 }
 
-export function ShipmentViewDialog({ isOpen, onOpenChange, shipment, suppliers }: ViewShipmentProps) {
-  if (!shipment) return null;
+export function ShipmentViewDialog({
+  isOpen,
+  onOpenChange,
+  shipment,
+  suppliers,
+}: ViewShipmentProps) {
+  if (!shipment) return null
 
-  const supplierName = suppliers.find(s => s.value === shipment.supplierId)?.label || 'Unknown';
+  const supplierName = suppliers.find((s) => s.value === shipment.supplierId)?.label || 'Unknown'
 
   const calculateTransitDays = () => {
     if (shipment.etd && shipment.eta) {
-        const etdParts = shipment.etd.split('-');
-        const etaParts = shipment.eta.split('-');
-        if (etdParts.length === 3 && etaParts.length === 3) {
-            const etd = new Date(`${etdParts[2]}-${etdParts[1]}-${etdParts[0]}`);
-            const eta = new Date(`${etaParts[2]}-${etaParts[1]}-${etaParts[0]}`);
-            if (!isNaN(etd.getTime()) && !isNaN(eta.getTime())) {
-                const diffTime = Math.abs(eta.getTime() - etd.getTime());
-                const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                return diffDays;
-            }
+      const etdParts = shipment.etd.split('-')
+      const etaParts = shipment.eta.split('-')
+      if (etdParts.length === 3 && etaParts.length === 3) {
+        const etd = new Date(`${etdParts[2]}-${etdParts[1]}-${etdParts[0]}`)
+        const eta = new Date(`${etaParts[2]}-${etaParts[1]}-${etaParts[0]}`)
+        if (!isNaN(etd.getTime()) && !isNaN(eta.getTime())) {
+          const diffTime = Math.abs(eta.getTime() - etd.getTime())
+          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+          return diffDays
         }
+      }
     }
-    return 'N/A';
+    return 'N/A'
   }
 
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Shipment Details: {shipment.invoiceNumber}</DialogTitle>
-          <DialogDescription>
-            Read-only view of all shipment information.
-          </DialogDescription>
+          <DialogDescription>Read-only view of all shipment information.</DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           <h3 className="text-lg font-medium">Commercial Details</h3>
@@ -84,15 +87,20 @@ export function ShipmentViewDialog({ isOpen, onOpenChange, shipment, suppliers }
           </div>
           <Separator />
           <h3 className="text-lg font-medium">Dates & Status</h3>
-          <div className="grid grid-cols-4 gap-4 items-end">
+          <div className="grid grid-cols-4 items-end gap-4">
             <DetailItem label="ETD" value={formatDateForDisplay(shipment.etd)} />
             <DetailItem label="ETA" value={formatDateForDisplay(shipment.eta)} />
             <DetailItem label="Transit Days" value={calculateTransitDays()} />
             <DetailItem label="Status" value={shipment.status} />
-            {shipment.dateOfDelivery && <DetailItem label="Date of Delivery" value={formatDateForDisplay(shipment.dateOfDelivery)} />}
+            {shipment.dateOfDelivery && (
+              <DetailItem
+                label="Date of Delivery"
+                value={formatDateForDisplay(shipment.dateOfDelivery)}
+              />
+            )}
           </div>
         </div>
       </DialogContent>
     </Dialog>
-  );
+  )
 }

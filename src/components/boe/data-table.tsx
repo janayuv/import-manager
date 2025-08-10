@@ -1,26 +1,35 @@
 // src/components/ui/data-table.tsx (MODIFIED)
-import * as React from 'react';
+import * as React from 'react'
+
+import { Input } from '@/components/ui/input'
 import {
-type  ColumnDef,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  type ColumnDef,
+  type SortingState,
   flexRender,
   getCoreRowModel,
-  getPaginationRowModel,
-  getFilteredRowModel,
-  useReactTable,
-  getSortedRowModel,
-type  SortingState,
   getFacetedRowModel,
   getFacetedUniqueValues,
-} from '@tanstack/react-table';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Input } from '@/components/ui/input';
-import { DataTablePagination } from './data-table-pagination';
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+
+import { DataTablePagination } from './data-table-pagination'
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
-  globalFilter: string;
-  setGlobalFilter: (filter: string) => void;
+  columns: ColumnDef<TData, TValue>[]
+  data: TData[]
+  globalFilter: string
+  setGlobalFilter: (filter: string) => void
 }
 
 export function DataTable<TData, TValue>({
@@ -29,7 +38,7 @@ export function DataTable<TData, TValue>({
   globalFilter,
   setGlobalFilter,
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>([])
 
   const table = useReactTable({
     data,
@@ -46,7 +55,7 @@ export function DataTable<TData, TValue>({
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-  });
+  })
 
   return (
     <div className="space-y-4">
@@ -83,7 +92,7 @@ export function DataTable<TData, TValue>({
                         </div>
                       )}
                     </TableHead>
-                  );
+                  )
                 })}
               </TableRow>
             ))}
@@ -93,7 +102,9 @@ export function DataTable<TData, TValue>({
               table.getRowModel().rows.map((row) => (
                 <TableRow key={row.id} data-state={row.getIsSelected() && 'selected'}>
                   {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                    <TableCell key={cell.id}>
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
@@ -109,5 +120,5 @@ export function DataTable<TData, TValue>({
       </div>
       <DataTablePagination table={table} />
     </div>
-  );
+  )
 }

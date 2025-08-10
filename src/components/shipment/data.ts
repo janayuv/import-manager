@@ -1,5 +1,5 @@
-import type { Shipment } from '@/types/shipment';
-import type { Option } from '@/types/options';
+import type { Option } from '@/types/options'
+import type { Shipment } from '@/types/shipment'
 
 export const dummyShipments: Shipment[] = [
   {
@@ -21,6 +21,7 @@ export const dummyShipments: Shipment[] = [
     etd: '20-07-2025',
     eta: '15-08-2025',
     status: 'in-transit',
+    isFrozen: false,
   },
   {
     id: 'SHP-0002',
@@ -41,8 +42,9 @@ export const dummyShipments: Shipment[] = [
     eta: '25-07-2025',
     status: 'delivered',
     dateOfDelivery: '26-07-2025',
+    isFrozen: false,
   },
-];
+]
 
 // ... rest of the file remains the same
 export const initialGoodsCategories: Option[] = [
@@ -51,26 +53,26 @@ export const initialGoodsCategories: Option[] = [
   { value: 'samples', label: 'Samples' },
   { value: 'electronics', label: 'Electronics' },
   { value: 'machinery', label: 'Machinery' },
-];
+]
 export const initialIncoterms: Option[] = [
   { value: 'fob', label: 'FOB' },
   { value: 'cif', label: 'CIF' },
   { value: 'exw', label: 'EXW' },
   { value: 'dap', label: 'DAP' },
-];
+]
 export const initialShipmentModes: Option[] = [
   { value: 'sea', label: 'Sea' },
   { value: 'air', label: 'Air' },
   { value: 'courier', label: 'Courier' },
-];
+]
 export const initialShipmentTypes: Option[] = [
-    { value: 'fcl', label: 'FCL' },
-    { value: 'lcl', label: 'LCL' },
-    { value: 'pallet', label: 'Pallet' },
-];
+  { value: 'fcl', label: 'FCL' },
+  { value: 'lcl', label: 'LCL' },
+  { value: 'pallet', label: 'Pallet' },
+]
 export const initialShipmentStatuses: Option[] = [
   { value: 'booking-confirmed', label: 'Booking Confirmed' },
   { value: 'in-transit', label: 'In Transit' },
   { value: 'customs-clearance', label: 'Customs Clearance' },
   { value: 'delivered', label: 'Delivered' },
-];
+]
