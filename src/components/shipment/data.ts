@@ -71,8 +71,8 @@ export const initialShipmentTypes: Option[] = [
   { value: 'pallet', label: 'Pallet' },
 ]
 export const initialShipmentStatuses: Option[] = [
-  { value: 'booking-confirmed', label: 'Booking Confirmed' },
+  { value: 'docu-received', label: 'Docu Received' },
   { value: 'in-transit', label: 'In Transit' },
-  { value: 'customs-clearance', label: 'Customs Clearance' },
+  { value: 'custom-clearance', label: 'Custom Clearance' },
   { value: 'delivered', label: 'Delivered' },
 ]

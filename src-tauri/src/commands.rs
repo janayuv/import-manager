@@ -48,6 +48,8 @@ pub fn get_suppliers(state: State<DbState>) -> Result<Vec<Supplier>, String> {
     Ok(suppliers)
 }
 
+
+
 #[tauri::command]
 pub fn add_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
@@ -306,6 +308,25 @@ pub fn freeze_shipment(state: State<DbState>, shipment_id: String, frozen: bool)
 }
 
 #[tauri::command]
+pub fn update_shipment_status(state: State<DbState>, shipment_id: String, status: String, date_of_delivery: Option<String>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    
+    if let Some(delivery_date) = date_of_delivery {
+        conn.execute(
+            "UPDATE shipments SET status = ?2, date_of_delivery = ?3 WHERE id = ?1",
+            params![shipment_id, status, delivery_date],
+        ).map_err(|e| e.to_string())?;
+    } else {
+        conn.execute(
+            "UPDATE shipments SET status = ?2 WHERE id = ?1",
+            params![shipment_id, status],
+        ).map_err(|e| e.to_string())?;
+    }
+    
+    Ok(())
+}
+
+#[tauri::command]
 pub fn add_shipments_bulk(state: State<DbState>, shipments: Vec<Shipment>) -> Result<(), String> {
     let mut conn = state.db.lock().unwrap();
     let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -475,6 +496,12 @@ fn execute_add_invoice(tx: &Transaction, payload: &NewInvoicePayload) -> Result<
             params![line_item_id, &invoice_id, &line_item.item_id, line_item.quantity, line_item.unit_price],
         )?;
     }
+    
+    // Automatically update shipment status to "In Transit" when invoice is added
+    tx.execute(
+        "UPDATE shipments SET status = 'in-transit' WHERE id = ?1",
+        params![&payload.shipment_id],
+    )?;
     
     Ok(invoice_id)
 }
@@ -729,6 +756,12 @@ pub fn add_boe_calculation(payload: SavedBoe, state: State<DbState>) -> Result<S
             calculation_result_json,
             serde_json::to_string(&payload.attachments).unwrap_or("null".into()),
         ],
+    ).map_err(|e| e.to_string())?;
+
+    // Automatically update shipment status to "Custom Clearance" when BOE entry is added
+    conn.execute(
+        "UPDATE shipments SET status = 'custom-clearance' WHERE id = ?1",
+        params![payload.shipment_id],
     ).map_err(|e| e.to_string())?;
 
     Ok(new_id.to_string())
@@ -1275,7 +1308,7 @@ pub fn add_expense_type(name: String, state: State<DbState>) -> Result<ExpenseTy
 pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> Result<Vec<Expense>, String> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn
-        .prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, cgst_amount, sgst_amount, igst_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE shipment_id = ?1 ORDER BY invoice_date")
+        .prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE shipment_id = ?1 ORDER BY invoice_date")
         .map_err(|e| e.to_string())?;
 
     let iter = stmt
@@ -1291,14 +1324,16 @@ pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> 
                 cgst_rate: row.get(7)?,
                 sgst_rate: row.get(8)?,
                 igst_rate: row.get(9)?,
-                cgst_amount: row.get(10)?,
-                sgst_amount: row.get(11)?,
-                igst_amount: row.get(12)?,
-                total_amount: row.get(13)?,
-                remarks: row.get(14)?,
-                created_by: row.get(15)?,
-                created_at: row.get(16)?,
-                updated_at: row.get(17)?,
+                tds_rate: row.get(10)?,
+                cgst_amount: row.get(11)?,
+                sgst_amount: row.get(12)?,
+                igst_amount: row.get(13)?,
+                tds_amount: row.get(14)?,
+                total_amount: row.get(15)?,
+                remarks: row.get(16)?,
+                created_by: row.get(17)?,
+                created_at: row.get(18)?,
+                updated_at: row.get(19)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -1318,6 +1353,7 @@ pub struct ExpensePayload {
     pub cgst_rate: Option<f64>,
     pub sgst_rate: Option<f64>,
     pub igst_rate: Option<f64>,
+    pub tds_rate: Option<f64>,
     pub remarks: Option<String>,
 }
 
@@ -1329,8 +1365,8 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
     let new_id = generate_id("EXP");
 
     conn.execute(
-        "INSERT INTO expenses (id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, remarks)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        "INSERT INTO expenses (id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
         params![
             &new_id,
             &payload.shipment_id,
@@ -1342,12 +1378,13 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
             &payload.cgst_rate.unwrap_or(0.0),
             &payload.sgst_rate.unwrap_or(0.0),
             &payload.igst_rate.unwrap_or(0.0),
+            &payload.tds_rate.unwrap_or(0.0),
             &payload.remarks,
         ],
     ).map_err(|e| e.to_string())?;
 
     // Fetch the newly created record to get generated values
-    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, cgst_amount, sgst_amount, igst_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
+    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
         .map_err(|e| e.to_string())?;
 
     let expense = stmt.query_row(params![new_id], |row| {
@@ -1362,14 +1399,16 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
             cgst_rate: row.get(7)?,
             sgst_rate: row.get(8)?,
             igst_rate: row.get(9)?,
-            cgst_amount: row.get(10)?,
-            sgst_amount: row.get(11)?,
-            igst_amount: row.get(12)?,
-            total_amount: row.get(13)?,
-            remarks: row.get(14)?,
-            created_by: row.get(15)?,
-            created_at: row.get(16)?,
-            updated_at: row.get(17)?,
+            tds_rate: row.get(10)?,
+            cgst_amount: row.get(11)?,
+            sgst_amount: row.get(12)?,
+            igst_amount: row.get(13)?,
+            tds_amount: row.get(14)?,
+            total_amount: row.get(15)?,
+            remarks: row.get(16)?,
+            created_by: row.get(17)?,
+            created_at: row.get(18)?,
+            updated_at: row.get(19)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -1383,7 +1422,7 @@ pub fn update_expense(id: String, payload: ExpensePayload, state: State<'_, DbSt
 
     conn.execute(
         "UPDATE expenses 
-         SET expense_type_id = ?2, service_provider_id = ?3, invoice_no = ?4, invoice_date = ?5, amount = ?6, cgst_rate = ?7, sgst_rate = ?8, igst_rate = ?9, remarks = ?10, updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')
+         SET expense_type_id = ?2, service_provider_id = ?3, invoice_no = ?4, invoice_date = ?5, amount = ?6, cgst_rate = ?7, sgst_rate = ?8, igst_rate = ?9, tds_rate = ?10, remarks = ?11, updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')
          WHERE id = ?1",
         params![
             &id,
@@ -1395,12 +1434,13 @@ pub fn update_expense(id: String, payload: ExpensePayload, state: State<'_, DbSt
             &payload.cgst_rate.unwrap_or(0.0),
             &payload.sgst_rate.unwrap_or(0.0),
             &payload.igst_rate.unwrap_or(0.0),
+            &payload.tds_rate.unwrap_or(0.0),
             &payload.remarks,
         ],
     ).map_err(|e| e.to_string())?;
 
     // Fetch the newly created record to get generated values
-    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, cgst_amount, sgst_amount, igst_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
+    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
         .map_err(|e| e.to_string())?;
 
     let expense = stmt.query_row(params![id], |row| {
@@ -1415,14 +1455,16 @@ pub fn update_expense(id: String, payload: ExpensePayload, state: State<'_, DbSt
             cgst_rate: row.get(7)?,
             sgst_rate: row.get(8)?,
             igst_rate: row.get(9)?,
-            cgst_amount: row.get(10)?,
-            sgst_amount: row.get(11)?,
-            igst_amount: row.get(12)?,
-            total_amount: row.get(13)?,
-            remarks: row.get(14)?,
-            created_by: row.get(15)?,
-            created_at: row.get(16)?,
-            updated_at: row.get(17)?,
+            tds_rate: row.get(10)?,
+            cgst_amount: row.get(11)?,
+            sgst_amount: row.get(12)?,
+            igst_amount: row.get(13)?,
+            tds_amount: row.get(14)?,
+            total_amount: row.get(15)?,
+            remarks: row.get(16)?,
+            created_by: row.get(17)?,
+            created_at: row.get(18)?,
+            updated_at: row.get(19)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -1520,4 +1562,437 @@ pub fn generate_shipment_expense_report(_shipment_id: String, _state: State<DbSt
 pub fn generate_monthly_gst_summary(_month: u32, _year: i32, _state: State<DbState>) -> Result<Vec<Expense>, String> {
     // TODO: Implement report generation logic
     Ok(vec![])
+}
+
+// ============================================================================
+// --- Consolidated Report Command (backed by SQL view: report_view) ---
+// ============================================================================
+
+#[derive(serde::Serialize, Debug)]
+pub struct ReportRow {
+    pub supplier: String,
+    pub invoice_no: String,
+    pub invoice_date: String,
+    pub part_no: String,
+    pub description: String,
+    pub unit: String,
+    pub qty: f64,
+    pub unit_price: f64,
+    pub assessable_value: f64,
+    pub bcd_amount: f64,
+    pub sws_amount: f64,
+    pub igst_amount: f64,
+    pub expenses_total: f64,
+    pub ldc_per_qty: f64,
+}
+
+#[derive(serde::Serialize, Debug)]
+pub struct ReportTotals {
+    pub qty: f64,
+    pub assessable_value: f64,
+    pub bcd_amount: f64,
+    pub sws_amount: f64,
+    pub igst_amount: f64,
+    pub expenses_total: f64,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportFilters {
+    pub start_date: Option<String>,
+    pub end_date: Option<String>,
+    #[allow(dead_code)] // Intentionally unused for now, can be implemented later
+    pub supplier_id: Option<String>,
+    pub supplier: Option<String>,
+    pub invoice_no: Option<String>,
+    pub part_no: Option<String>,
+    pub page: Option<u32>,
+    pub page_size: Option<u32>,
+    pub sort_by: Option<String>,   // column name
+    pub sort_direction: Option<String>,  // asc|desc
+    pub include_totals: Option<bool>,
+}
+
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReportResponse {
+    pub rows: Vec<ReportRow>,
+    pub page: u32,
+    pub page_size: u32,
+    pub total_rows: u32,
+    pub totals: Option<ReportTotals>,
+}
+
+#[allow(unused_assignments)]
+fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>) {
+    let mut conditions = Vec::new();
+    let mut params = Vec::new();
+    let mut idx = 1;
+
+    println!("=== build_report_where called ===");
+    println!("Filters: {:?}", filters);
+
+    if let Some(start_date) = &filters.start_date {
+        println!("Adding start_date filter: {}", start_date);
+        conditions.push(format!("invoice_date >= ?{}", idx));
+        params.push((format!("start_date_{}", idx), start_date.clone()));
+        idx += 1;
+    }
+
+    if let Some(end_date) = &filters.end_date {
+        println!("Adding end_date filter: {}", end_date);
+        conditions.push(format!("invoice_date <= ?{}", idx));
+        params.push((format!("end_date_{}", idx), end_date.clone()));
+        idx += 1;
+    }
+
+    if let Some(supplier) = &filters.supplier {
+        if !supplier.is_empty() {
+            println!("Adding supplier filter: {}", supplier);
+            conditions.push(format!("supplier LIKE ?{}", idx));
+            params.push((format!("supplier_{}", idx), format!("%{}%", supplier)));
+            idx += 1;
+        }
+    }
+
+    if let Some(invoice_no) = &filters.invoice_no {
+        if !invoice_no.is_empty() {
+            println!("Adding invoice_no filter: {}", invoice_no);
+            conditions.push(format!("invoice_no LIKE ?{}", idx));
+            params.push((format!("invoice_no_{}", idx), format!("%{}%", invoice_no)));
+            idx += 1;
+        }
+    }
+
+    if let Some(part_no) = &filters.part_no {
+        if !part_no.is_empty() {
+            println!("Adding part_no filter: {}", part_no);
+            conditions.push(format!("part_no LIKE ?{}", idx));
+            params.push((format!("part_no_{}", idx), format!("%{}%", part_no)));
+            idx += 1;
+        }
+    }
+
+    // Note: supplier_id field is available but not currently used in filtering
+    // This can be implemented later if needed for supplier ID-based filtering
+
+    let where_sql = if conditions.is_empty() {
+        String::new()
+    } else {
+        format!(" WHERE {}", conditions.join(" AND "))
+    };
+
+    println!("Final WHERE SQL: {}", where_sql);
+    println!("Final params: {:?}", params);
+
+    (where_sql, params)
+}
+
+
+
+#[tauri::command]
+pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<ReportResponse, String> {
+    let conn = state.db.lock().unwrap();
+    
+    // Debug logging
+    println!("=== get_report called ===");
+    println!("Filters: {:?}", filters);
+
+    let (where_sql, params) = build_report_where(&filters);
+    
+    // Debug logging
+    println!("Where SQL: {}", where_sql);
+    println!("Params: {:?}", params);
+
+    // Determine sort column and direction
+    let sort_col = match filters.sort_by.as_deref() {
+        Some("supplier") => "supplier",
+        Some("invoice_no") => "invoice_no",
+        Some("invoice_date") => "invoice_date",
+        Some("part_no") => "part_no",
+        Some("description") => "description",
+        Some("unit") => "unit",
+        Some("qty") => "qty",
+        Some("unit_price") => "unit_price",
+        Some("assessable_value") => "assessable_value",
+        Some("bcd_amount") => "bcd_amount",
+        Some("sws_amount") => "sws_amount",
+        Some("igst_amount") => "igst_amount",
+        Some("expenses_total") => "expenses_total",
+        Some("ldc_per_qty") => "ldc_per_qty",
+        _ => "invoice_date"
+    };
+    
+    let sort_dir = if filters.sort_direction.as_deref() == Some("desc") {
+        "DESC"
+    } else {
+        "ASC"
+    };
+
+    let page = filters.page.unwrap_or(1);
+    let page_size = filters.page_size.unwrap_or(50);
+    let offset = (page - 1) * page_size;
+
+    // Debug logging
+    println!("Sort: {} {}", sort_col, sort_dir);
+    println!("Page: {}, PageSize: {}, Offset: {}", page, page_size, offset);
+
+    // Total rows
+    let count_sql = format!("SELECT COUNT(1) FROM report_view{}", where_sql);
+    println!("Count SQL: {}", count_sql);
+    
+    let mut count_stmt = conn.prepare(&count_sql).map_err(|e| {
+        println!("Error preparing count statement: {}", e);
+        e.to_string()
+    })?;
+    
+    let mut count_query = count_stmt.query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v))).map_err(|e| {
+        println!("Error executing count query: {}", e);
+        e.to_string()
+    })?;
+    
+    let total_rows: u32 = if let Some(row) = count_query.next().map_err(|e| e.to_string())? {
+        let count: i64 = row.get(0).map_err(|e| e.to_string())?;
+        println!("Total rows found: {}", count);
+        count as u32
+    } else {
+        println!("No rows found in count query");
+        0
+    };
+
+    // Data rows
+    let sql = format!(
+        "SELECT 
+            supplier, invoice_no, invoice_date, part_no, description, unit, 
+            printf('%.2f', qty) as qty,
+            printf('%.4f', unit_price) as unit_price,
+            printf('%.2f', assessable_value) as assessable_value,
+            printf('%.2f', bcd_amount) as bcd_amount,
+            printf('%.2f', sws_amount) as sws_amount,
+            printf('%.2f', igst_amount) as igst_amount,
+            printf('%.2f', expenses_total) as expenses_total,
+            printf('%.2f', ldc_per_qty) as ldc_per_qty
+        FROM report_view{} ORDER BY {} {} LIMIT ?{} OFFSET ?{}",
+        where_sql,
+        sort_col,
+        sort_dir,
+        params.len() + 1,
+        params.len() + 2
+    );
+    
+    println!("Data SQL: {}", sql);
+    
+    let mut stmt = conn.prepare(&sql).map_err(|e| {
+        println!("Error preparing data statement: {}", e);
+        e.to_string()
+    })?;
+
+    let mut param_values: Vec<String> = params.iter().map(|(_, v)| v.clone()).collect();
+    param_values.push(page_size.to_string());
+    param_values.push(offset.to_string());
+    
+    println!("Final param values: {:?}", param_values);
+
+    let rows_iter = stmt
+        .query_map(rusqlite::params_from_iter(param_values.iter()), |row| {
+            let report_row = ReportRow {
+                supplier: row.get(0)?,
+                invoice_no: row.get(1)?,
+                invoice_date: row.get(2)?,
+                part_no: row.get(3)?,
+                description: row.get(4)?,
+                unit: row.get(5)?,
+                qty: row.get::<_, String>(6)?.parse::<f64>().unwrap_or(0.0),
+                unit_price: row.get::<_, String>(7)?.parse::<f64>().unwrap_or(0.0),
+                assessable_value: row.get::<_, String>(8)?.parse::<f64>().unwrap_or(0.0),
+                bcd_amount: row.get::<_, String>(9)?.parse::<f64>().unwrap_or(0.0),
+                sws_amount: row.get::<_, String>(10)?.parse::<f64>().unwrap_or(0.0),
+                igst_amount: row.get::<_, String>(11)?.parse::<f64>().unwrap_or(0.0),
+                expenses_total: row.get::<_, String>(12)?.parse::<f64>().unwrap_or(0.0),
+                ldc_per_qty: row.get::<_, String>(13)?.parse::<f64>().unwrap_or(0.0),
+            };
+            println!("Row parsed: {:?}", report_row);
+            Ok(report_row)
+        })
+        .map_err(|e| {
+            println!("Error in query_map: {}", e);
+            e.to_string()
+        })?;
+
+    let rows = rows_iter.collect::<Result<Vec<_>, _>>().map_err(|e| {
+        println!("Error collecting rows: {}", e);
+        e.to_string()
+    })?;
+    
+    println!("Total rows collected: {}", rows.len());
+
+    // Calculate totals if requested
+    let mut totals = None;
+    if filters.include_totals.unwrap_or(false) {
+        let totals_sql = format!(
+            "SELECT 
+                printf('%.2f', SUM(qty)) as total_qty,
+                printf('%.2f', SUM(assessable_value)) as total_assessable_value,
+                printf('%.2f', SUM(bcd_amount)) as total_bcd_amount,
+                printf('%.2f', SUM(sws_amount)) as total_sws_amount,
+                printf('%.2f', SUM(igst_amount)) as total_igst_amount,
+                printf('%.2f', SUM(expenses_total)) as total_expenses_total
+            FROM report_view{}",
+            where_sql
+        );
+        
+        println!("Totals SQL: {}", totals_sql);
+        
+        let mut totals_stmt = conn.prepare(&totals_sql).map_err(|e| e.to_string())?;
+        let mut totals_query = totals_stmt.query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v))).map_err(|e| e.to_string())?;
+        
+        if let Some(totals_row) = totals_query.next().map_err(|e| e.to_string())? {
+            totals = Some(ReportTotals {
+                qty: totals_row.get::<_, String>(0).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+                assessable_value: totals_row.get::<_, String>(1).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+                bcd_amount: totals_row.get::<_, String>(2).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+                sws_amount: totals_row.get::<_, String>(3).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+                igst_amount: totals_row.get::<_, String>(4).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+                expenses_total: totals_row.get::<_, String>(5).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+            });
+            println!("Totals calculated: {:?}", totals);
+        }
+    }
+
+    println!("=== get_report completed ===");
+    Ok(ReportResponse { rows, page, page_size, total_rows, totals })
+}
+
+#[tauri::command]
+pub fn validate_shipment_import(shipments: Vec<Shipment>, state: State<DbState>) -> Result<Vec<String>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut errors = Vec::new();
+    
+    for (index, shipment) in shipments.iter().enumerate() {
+        let row_num = index + 1;
+        
+        // Check for empty or invalid supplier_id
+        if shipment.supplier_id.is_empty() || shipment.supplier_id == "#N/A" {
+            errors.push(format!("Row {}: Column 'supplier_id' has invalid value '{}'", row_num, shipment.supplier_id));
+        } else {
+            // Check if supplier exists in database
+            let exists: bool = conn.query_row(
+                "SELECT COUNT(*) FROM suppliers WHERE id = ?",
+                params![shipment.supplier_id],
+                |row| Ok(row.get::<_, i64>(0)? > 0)
+            ).map_err(|e| e.to_string())?;
+            
+            if !exists {
+                errors.push(format!("Row {}: Column 'supplier_id' references non-existent supplier '{}'", row_num, shipment.supplier_id));
+            }
+        }
+        
+        // Check for empty shipment ID
+        if shipment.id.is_empty() {
+            errors.push(format!("Row {}: Column 'id' is empty", row_num));
+        }
+        
+        // Check for empty invoice_number
+        if shipment.invoice_number.is_empty() {
+            errors.push(format!("Row {}: Column 'invoice_number' is empty", row_num));
+        }
+        
+        // Check for empty invoice_date
+        if shipment.invoice_date.is_empty() {
+            errors.push(format!("Row {}: Column 'invoice_date' is empty", row_num));
+        }
+        
+        // Check for empty goods_category
+        if shipment.goods_category.is_empty() {
+            errors.push(format!("Row {}: Column 'goods_category' is empty", row_num));
+        }
+        
+        // Check for invalid invoice_value
+        if shipment.invoice_value <= 0.0 {
+            errors.push(format!("Row {}: Column 'invoice_value' has invalid value '{}'", row_num, shipment.invoice_value));
+        }
+        
+        // Check for empty invoice_currency
+        if shipment.invoice_currency.is_empty() {
+            errors.push(format!("Row {}: Column 'invoice_currency' is empty", row_num));
+        }
+        
+        // Check for empty incoterm
+        if shipment.incoterm.is_empty() {
+            errors.push(format!("Row {}: Column 'incoterm' is empty", row_num));
+        }
+        
+        // Check for empty shipment_mode
+        if shipment.shipment_mode.is_empty() {
+            errors.push(format!("Row {}: Column 'shipment_mode' is empty", row_num));
+        }
+        
+        // Check for empty shipment_type
+        if shipment.shipment_type.is_empty() {
+            errors.push(format!("Row {}: Column 'shipment_type' is empty", row_num));
+        }
+        
+        // Check for empty bl_awb_number
+        if shipment.bl_awb_number.is_empty() {
+            errors.push(format!("Row {}: Column 'bl_awb_number' is empty", row_num));
+        }
+        
+        // Check for empty bl_awb_date
+        if shipment.bl_awb_date.is_empty() {
+            errors.push(format!("Row {}: Column 'bl_awb_date' is empty", row_num));
+        }
+        
+        // Check for empty vessel_name
+        if shipment.vessel_name.is_empty() {
+            errors.push(format!("Row {}: Column 'vessel_name' is empty", row_num));
+        }
+        
+        // Check for empty container_number (optional field)
+        if let Some(ref container_number) = shipment.container_number {
+            if container_number.is_empty() {
+                errors.push(format!("Row {}: Column 'container_number' is empty", row_num));
+            }
+        }
+        
+        // Check for invalid gross_weight_kg
+        if shipment.gross_weight_kg <= 0.0 {
+            errors.push(format!("Row {}: Column 'gross_weight_kg' has invalid value '{}'", row_num, shipment.gross_weight_kg));
+        }
+        
+        // Check for empty etd
+        if shipment.etd.is_empty() {
+            errors.push(format!("Row {}: Column 'etd' is empty", row_num));
+        }
+        
+        // Check for empty eta
+        if shipment.eta.is_empty() {
+            errors.push(format!("Row {}: Column 'eta' is empty", row_num));
+        }
+        
+        // Check for empty status
+        if shipment.status.is_empty() {
+            errors.push(format!("Row {}: Column 'status' is empty", row_num));
+        }
+        
+        // Check for empty date_of_delivery (optional field)
+        if let Some(ref date_of_delivery) = shipment.date_of_delivery {
+            if date_of_delivery.is_empty() {
+                errors.push(format!("Row {}: Column 'date_of_delivery' is empty", row_num));
+            }
+        }
+    }
+    
+    Ok(errors)
+}
+
+#[tauri::command]
+pub fn check_supplier_exists(state: State<DbState>, supplier_id: String) -> Result<bool, String> {
+    let conn = state.db.lock().unwrap();
+    let exists: bool = conn.query_row(
+        "SELECT COUNT(*) FROM suppliers WHERE id = ?",
+        params![supplier_id],
+        |row| Ok(row.get::<_, i64>(0)? > 0)
+    ).map_err(|e| e.to_string())?;
+    
+    Ok(exists)
 }

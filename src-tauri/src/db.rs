@@ -333,9 +333,11 @@ pub struct Expense {
     pub cgst_rate: f64,
     pub sgst_rate: f64,
     pub igst_rate: f64,
+    pub tds_rate: f64,
     pub cgst_amount: f64,
     pub sgst_amount: f64,
     pub igst_amount: f64,
+    pub tds_amount: f64,
     pub total_amount: f64,
     pub remarks: Option<String>,
     pub created_by: Option<String>,
@@ -548,10 +550,12 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             cgst_rate DECIMAL(5, 2) DEFAULT 0.00,
             sgst_rate DECIMAL(5, 2) DEFAULT 0.00,
             igst_rate DECIMAL(5, 2) DEFAULT 0.00,
+            tds_rate DECIMAL(5, 2) DEFAULT 0.00,
             cgst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * cgst_rate / 100) STORED,
             sgst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * sgst_rate / 100) STORED,
             igst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * igst_rate / 100) STORED,
-            total_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount + (amount * (cgst_rate + sgst_rate + igst_rate) / 100)) STORED,
+            tds_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * tds_rate / 100) STORED,
+            total_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount + (amount * (cgst_rate + sgst_rate + igst_rate) / 100) - (amount * tds_rate / 100)) STORED,
             remarks TEXT,
             created_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -575,6 +579,75 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             uploaded_by TEXT,
             FOREIGN KEY (expense_id) REFERENCES expenses(id)
         )",
+        [],
+    )?;
+
+    // ----------------------------------------------------------------------------
+    // Report View: source from boe_calculations (JSON results) joined to invoices
+    // ----------------------------------------------------------------------------
+    // We recreate the view at startup to ensure it stays up-to-date with schema changes
+    let _ = conn.execute("DROP VIEW IF EXISTS report_view", []);
+
+    conn.execute(
+        r#"
+        CREATE VIEW IF NOT EXISTS report_view AS
+        WITH 
+        boe_items AS (
+            SELECT
+                bc.id AS boe_calc_id,
+                bc.shipment_id,
+                bc.supplier_name,
+                bc.invoice_number,
+                json_extract(item.value, '$.partNo') AS part_no,
+                json_extract(item.value, '$.description') AS boe_description,
+                CAST(json_extract(item.value, '$.assessableValue') AS REAL) AS boe_assessable_value,
+                CAST(json_extract(item.value, '$.bcdValue') AS REAL) AS boe_bcd_amount,
+                CAST(json_extract(item.value, '$.swsValue') AS REAL) AS boe_sws_amount,
+                CAST(json_extract(item.value, '$.igstValue') AS REAL) AS boe_igst_amount
+            FROM boe_calculations bc
+            JOIN json_each(json_extract(bc.calculation_result_json, '$.calculatedItems')) AS item
+        ),
+        shipment_expenses AS (
+            SELECT e.shipment_id, SUM(e.total_amount) AS shipment_expenses_total
+            FROM expenses e
+            GROUP BY e.shipment_id
+        ),
+        boe_assessable AS (
+            SELECT shipment_id, SUM(boe_assessable_value) AS shipment_boe_assessable_total
+            FROM boe_items
+            GROUP BY shipment_id
+        )
+        SELECT 
+            sup.supplier_name AS supplier,
+            s.supplier_id AS supplier_id,
+            s.invoice_number AS invoice_no,
+            s.invoice_date AS invoice_date,
+            bi.part_no AS part_no,
+            COALESCE(i.item_description, bi.boe_description) AS description,
+            i.unit AS unit,
+            ili.quantity AS qty,
+            ili.unit_price AS unit_price,
+            bi.boe_assessable_value AS assessable_value,
+            bi.boe_bcd_amount AS bcd_amount,
+            bi.boe_sws_amount AS sws_amount,
+            bi.boe_igst_amount AS igst_amount,
+            -- Expense allocation proportional by BOE assessable value per shipment
+            COALESCE(se.shipment_expenses_total, 0.0) * 
+              (bi.boe_assessable_value / NULLIF(ba.shipment_boe_assessable_total, 0)) AS expenses_total,
+            -- LDC per qty: (assessable + bcd + sws + expenses) / qty
+            (
+              (bi.boe_assessable_value + bi.boe_bcd_amount + bi.boe_sws_amount
+               + (COALESCE(se.shipment_expenses_total, 0.0) * (bi.boe_assessable_value / NULLIF(ba.shipment_boe_assessable_total, 0))))
+            ) / NULLIF(ili.quantity, 0) AS ldc_per_qty
+        FROM boe_items bi
+        JOIN shipments s ON s.id = bi.shipment_id
+        JOIN suppliers sup ON sup.id = s.supplier_id
+        JOIN invoices inv ON inv.shipment_id = s.id
+        JOIN items i ON i.part_number = bi.part_no
+        JOIN invoice_line_items ili ON ili.invoice_id = inv.id AND ili.item_id = i.id
+        LEFT JOIN shipment_expenses se ON se.shipment_id = s.id
+        LEFT JOIN boe_assessable ba ON ba.shipment_id = s.id;
+        "#,
         [],
     )?;
 

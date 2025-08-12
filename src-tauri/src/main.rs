@@ -112,8 +112,15 @@ fn main() {
             commands::attach_invoice_to_expense,
             commands::generate_shipment_expense_report,
             commands::generate_monthly_gst_summary,
+            // --- Reports ---
+            commands::get_report,
             // Freeze shipment
-            commands::freeze_shipment
+            commands::freeze_shipment,
+            // Update shipment status
+            commands::update_shipment_status,
+            // Validation commands
+            commands::validate_shipment_import,
+            commands::check_supplier_exists,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

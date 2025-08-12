@@ -5,6 +5,7 @@ import {
   Landmark,
   LayoutDashboard,
   Package,
+  Settings,
   Ship,
   Users,
 } from 'lucide-react'
@@ -54,5 +55,10 @@ export const navItems = [
     title: 'Report',
     url: '/report',
     icon: BarChart3,
+  },
+  {
+    title: 'Settings',
+    url: '/settings',
+    icon: Settings,
   },
 ]

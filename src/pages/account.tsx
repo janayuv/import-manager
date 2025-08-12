@@ -15,7 +15,7 @@ const getUser = (): User => {
 }
 
 export const AccountDetailsPage = () => {
-  const [user, setUser] = useState<User>(getUser())
+  const [user] = useState<User>(getUser())
   return (
     <div className="container mx-auto p-6">
       <Card>

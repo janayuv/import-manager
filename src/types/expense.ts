@@ -28,6 +28,7 @@ export interface Expense {
   cgstAmount: number
   sgstAmount: number
   igstAmount: number
+  tdsAmount: number
   totalAmount: number
   remarks?: string
   createdBy?: string

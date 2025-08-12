@@ -37,6 +37,7 @@ const expenseSchema = z.object({
   cgstAmount: z.string().optional(),
   sgstAmount: z.string().optional(),
   igstAmount: z.string().optional(),
+  tdsRate: z.string().optional(),
   remarks: z.string().optional(),
 })
 
@@ -74,6 +75,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       cgstAmount: expenseToEdit?.cgstAmount?.toString() || '',
       sgstAmount: expenseToEdit?.sgstAmount?.toString() || '',
       igstAmount: expenseToEdit?.igstAmount?.toString() || '',
+      tdsRate: '0', // Default TDS rate
       remarks: expenseToEdit?.remarks || '',
     },
   })
@@ -90,6 +92,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         cgstAmount: expenseToEdit.cgstAmount.toString(),
         sgstAmount: expenseToEdit.sgstAmount.toString(),
         igstAmount: expenseToEdit.igstAmount.toString(),
+        tdsRate: '0', // Default TDS rate for editing
         remarks: expenseToEdit.remarks || '',
       })
     } else {
@@ -102,6 +105,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         cgstAmount: '',
         sgstAmount: '',
         igstAmount: '',
+        tdsRate: '0',
         remarks: '',
       })
     }
@@ -111,16 +115,18 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
   const cgstAmount = form.watch('cgstAmount')
   const sgstAmount = form.watch('sgstAmount')
   const igstAmount = form.watch('igstAmount')
+  const tdsRate = form.watch('tdsRate')
 
   // ✅ Calculate total whenever amounts change
   useEffect(() => {
-    setTotalAmount(
-      (Number(amount) || 0) +
-        (Number(cgstAmount) || 0) +
-        (Number(sgstAmount) || 0) +
-        (Number(igstAmount) || 0)
-    )
-  }, [amount, cgstAmount, sgstAmount, igstAmount])
+    const baseAmount = Number(amount) || 0
+    const cgst = Number(cgstAmount) || 0
+    const sgst = Number(sgstAmount) || 0
+    const igst = Number(igstAmount) || 0
+    const tdsAmount = (baseAmount * (Number(tdsRate) || 0)) / 100
+    
+    setTotalAmount(baseAmount + cgst + sgst + igst - tdsAmount)
+  }, [amount, cgstAmount, sgstAmount, igstAmount, tdsRate])
 
   // ✅ Fetch dropdown data on mount
   useEffect(() => {
@@ -176,6 +182,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
     const cgstAmt = Number(values.cgstAmount) || 0
     const sgstAmt = Number(values.sgstAmount) || 0
     const igstAmt = Number(values.igstAmount) || 0
+    const tdsRate = Number(values.tdsRate) || 0
 
     if (baseAmount === 0 && (cgstAmt > 0 || sgstAmt > 0 || igstAmt > 0)) {
       toast.error('Amount must be greater than 0 to enter GST amounts')
@@ -199,6 +206,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         cgstRate: toRate(cgstAmt),
         sgstRate: toRate(sgstAmt),
         igstRate: toRate(igstAmt),
+        tdsRate: tdsRate,
         remarks: values.remarks,
       }
 
@@ -220,6 +228,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         cgstAmount: '',
         sgstAmount: '',
         igstAmount: '',
+        tdsRate: '0',
         remarks: '',
       })
     } catch (error) {
@@ -244,6 +253,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         cgstAmount: '',
         sgstAmount: '',
         igstAmount: '',
+        tdsRate: '0',
         remarks: '',
       })
     }
@@ -385,6 +395,21 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
             )}
           />
         </div>
+
+        {/* TDS Rate */}
+        <FormField
+          control={form.control}
+          name="tdsRate"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>TDS %</FormLabel>
+              <FormControl>
+                <Input type="number" step="0.01" placeholder="TDS Percentage" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
         {/* Total */}
         <div className="space-y-2">

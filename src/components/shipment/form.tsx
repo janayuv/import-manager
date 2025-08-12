@@ -57,7 +57,12 @@ export function ShipmentForm({
 
   React.useEffect(() => {
     // When the dialog opens, reset the form data to the shipment being edited, or to an empty object for a new shipment.
-    setFormData(shipmentToEdit || {})
+    if (shipmentToEdit) {
+      setFormData(shipmentToEdit)
+    } else {
+      // For new shipments, set default status to "Docu Received"
+      setFormData({ status: 'docu-received' })
+    }
   }, [shipmentToEdit, isOpen])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {

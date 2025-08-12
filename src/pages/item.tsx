@@ -13,15 +13,7 @@ import { exportItemsToCsv, importItemsFromCsv } from '@/lib/csv-helpers'
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'
 import type { Supplier } from '@/types/supplier'
-import {
-  type ColumnFiltersState,
-  type SortingState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
+// react-table imports were unused in this refactored page
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'

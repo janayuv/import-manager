@@ -35,5 +35,6 @@ export interface FlattenedInvoiceLine {
   bcd: number
   igst: number
   invoiceTotal: number
+  shipmentTotal: number
   status: 'Draft' | 'Finalized' | 'Mismatch'
 }

@@ -144,6 +144,29 @@ import-manager/
 
 ---
 
+## 📊 Reports
+
+A consolidated import report is available under `Report` in the sidebar (`/report`).
+
+Backend:
+- A SQL view `report_view` is created at app startup. It returns one row per invoice line with fields: `supplier, invoice_no, invoice_date, part_no, description, unit, qty, unit_price, assessable_value, bcd_amount, sws_amount, igst_amount, expenses_total, ldc_per_qty`.
+- Tauri command `get_report(filters)` supports filters: `startDate, endDate, supplierId, supplier (name contains), invoiceNo, partNo`, plus `page, pageSize, sortBy, sortDir, includeTotals`.
+- Expenses are allocated proportionally by assessable value across lines per shipment. Rates (`bcd/sws/igst`) are read from `items` as percentages (e.g., "10%"). If not set, they default to zero.
+
+Frontend:
+- Page `src/pages/reports.tsx` uses the shared `DataTable` and shadcn components. It provides a filter bar, server-side fetching, totals footer, and CSV export.
+- Hook `src/hooks/useReport.ts` wraps the `get_report` command with pagination/sorting and totals.
+
+Notes:
+- Division-by-zero is protected using `NULLIF` in the SQL view.
+- Multi-currency: current implementation assumes values are in a single working currency; extend the view to normalize if needed.
+- Large datasets: the command paginates on the backend. For full CSV export of all filtered rows, loop pages on the frontend if needed.
+
+Testing:
+- Vitest test `src/pages/reports.test.tsx` validates CSV generation.
+
+---
+
 ## ⚙️ Recommended Workflow
 
 1. **Branching**: Create feature branches (`feature/<name>`).

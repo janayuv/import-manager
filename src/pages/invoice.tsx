@@ -27,12 +27,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type {
-  FlattenedInvoiceLine,
-  Invoice,
-  InvoiceLineItemPayload,
-  NewInvoicePayload,
-} from '@/types/invoice'
+import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
@@ -136,6 +131,7 @@ const InvoicePage = () => {
               bcd: typeof item.bcd === 'number' ? item.bcd : 0,
               igst: typeof item.igst === 'number' ? item.igst : 0,
               invoiceTotal: invoice.calculatedTotal,
+              shipmentTotal: invoice.shipmentTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
             })
           }
@@ -158,6 +154,7 @@ const InvoicePage = () => {
             bcd: 0,
             igst: 0,
             invoiceTotal: invoice.calculatedTotal,
+            shipmentTotal: invoice.shipmentTotal,
             status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
           })
         }
@@ -192,6 +189,46 @@ const InvoicePage = () => {
     setIsDeleteDialogOpen(true)
   }
 
+  const handleQuickFinalize = async (invoiceId: string, invoiceNumber: string) => {
+    try {
+      // Find the invoice to get its current data
+      const invoice = invoices.find((inv) => inv.id === invoiceId)
+      if (!invoice) {
+        toast.error('Invoice not found.')
+        return
+      }
+
+      // Check if the invoice totals match
+      const tolerance = 0.01
+      const isMatched = Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+      
+      if (!isMatched) {
+        toast.error('Cannot finalize. The calculated total must match the shipment value.')
+        return
+      }
+
+      // Show confirmation dialog
+      if (confirm(`Are you sure you want to finalize invoice ${invoiceNumber}?\n\nShipment Value: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.shipmentTotal)}\nCalculated Total: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.calculatedTotal)}\n\nThis action cannot be undone.`)) {
+        const payload = {
+          shipmentId: invoice.shipmentId,
+          status: 'Finalized',
+          lineItems: invoice.lineItems?.map((li) => ({
+            itemId: li.itemId,
+            quantity: li.quantity,
+            unitPrice: li.unitPrice,
+          })) || [],
+        }
+
+        await invoke('update_invoice', { id: invoiceId, payload })
+        toast.success(`Invoice ${invoiceNumber} has been finalized successfully!`)
+        fetchData()
+      }
+    } catch (error) {
+      console.error('Failed to finalize invoice:', error)
+      toast.error('Failed to finalize invoice.')
+    }
+  }
+
   const handleDeleteConfirm = async () => {
     if (invoiceToDelete) {
       try {
@@ -208,7 +245,7 @@ const InvoicePage = () => {
   }
 
   const handleSubmit = async (invoiceData: Omit<Invoice, 'id'>, id?: string) => {
-    const payload: NewInvoicePayload = {
+    const payload = {
       shipmentId: invoiceData.shipmentId,
       status: invoiceData.status,
       lineItems:
@@ -272,7 +309,7 @@ const InvoicePage = () => {
       const shipmentMap = new Map(shipments.map((s) => [s.invoiceNumber, s.id]))
       const itemMap = new Map(items.map((i) => [i.partNumber, i.id]))
 
-      const invoicesToCreate = new Map<string, InvoiceLineItemPayload[]>()
+      const invoicesToCreate = new Map<string, { itemId: string; quantity: number; unitPrice: number }[]>()
 
       for (const row of results.data) {
         const shipmentId = shipmentMap.get(row.shipmentInvoiceNumber)
@@ -303,7 +340,7 @@ const InvoicePage = () => {
         return
       }
 
-      const payloads: NewInvoicePayload[] = Array.from(invoicesToCreate.entries()).map(
+      const payloads = Array.from(invoicesToCreate.entries()).map(
         ([shipmentId, lineItems]) => ({
           shipmentId,
           status: 'Draft',
@@ -323,6 +360,7 @@ const InvoicePage = () => {
     onView: handleView,
     onEdit: handleOpenFormForEdit,
     onDelete: handleDeleteRequest,
+    onQuickFinalize: handleQuickFinalize,
   })
 
   if (loading) {

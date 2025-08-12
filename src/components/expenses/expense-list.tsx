@@ -73,8 +73,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
     const cgst = Number(exp.cgstAmount) || 0
     const sgst = Number(exp.sgstAmount) || 0
     const igst = Number(exp.igstAmount) || 0
+    const tds = Number(exp.tdsAmount) || 0
     const serverTotal = Number(exp.totalAmount) || 0
-    const derivedTotal = amount + cgst + sgst + igst
+    const derivedTotal = amount + cgst + sgst + igst - tds
     return serverTotal > 0 ? serverTotal : derivedTotal
   }
 
@@ -140,6 +141,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
             <TableHead>CGST</TableHead>
             <TableHead>SGST</TableHead>
             <TableHead>IGST</TableHead>
+            <TableHead>TDS</TableHead>
             <TableHead>Total Amount</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
@@ -157,6 +159,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
               <TableCell className="font-mono">₹{expense.cgstAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.sgstAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.igstAmount.toFixed(2)}</TableCell>
+              <TableCell className="font-mono">₹{expense.tdsAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono font-semibold">
                 ₹{computeTotalForExpense(expense).toFixed(2)}
               </TableCell>

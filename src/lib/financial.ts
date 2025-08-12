@@ -67,3 +67,49 @@ export function computeSavingsFromActualVsBoe(params: {
   const diff = actual.total - params.boe.total
   return round(Math.max(diff, 0), 2)
 }
+
+// Helpers for report formatting/CSV
+export function toFixed2(n: number | undefined | null): string {
+  if (n == null || Number.isNaN(n)) return '0.00'
+  return Number(n).toFixed(2)
+}
+
+export function buildReportCsv(rows: Array<Record<string, unknown>>): string {
+  const header = [
+    'Supplier',
+    'Invoice No',
+    'Date',
+    'Part No',
+    'Description',
+    'Unit',
+    'Qty',
+    'Unit Price',
+    'Assessable Value',
+    'BCD',
+    'SWS',
+    'IGST',
+    'Expenses',
+    'LDC per qty',
+  ]
+  const csvRows = [header.join(',')]
+  for (const r of rows) {
+    const vals = [
+      r.supplier,
+      r.invoice_no,
+      r.invoice_date,
+      r.part_no,
+      r.description,
+      r.unit,
+      r.qty,
+      r.unit_price,
+      r.assessable_value,
+      r.bcd_amount,
+      r.sws_amount,
+      r.igst_amount,
+      r.expenses_total,
+      r.ldc_per_qty,
+    ]
+    csvRows.push(vals.map((v) => `"${String(v ?? '')}"`).join(','))
+  }
+  return csvRows.join('\n')
+}

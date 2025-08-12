@@ -21,7 +21,8 @@ const dateSort = (rowA: Row<Shipment>, rowB: Row<Shipment>, columnId: string) =>
 export const getShipmentColumns = (
   suppliers: Option[],
   onView: (shipment: Shipment) => void,
-  onEdit: (shipment: Shipment) => void
+  onEdit: (shipment: Shipment) => void,
+  onMarkAsDelivered?: (shipment: Shipment) => void
 ): ColumnDef<Shipment>[] => [
   {
     id: 'select',
@@ -139,6 +140,7 @@ export const getShipmentColumns = (
         shipment={row.original}
         onView={() => onView(row.original)}
         onEdit={() => onEdit(row.original)}
+        onMarkAsDelivered={onMarkAsDelivered ? () => onMarkAsDelivered(row.original) : undefined}
       />
     ),
   },

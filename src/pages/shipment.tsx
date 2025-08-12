@@ -13,15 +13,7 @@ import { Button } from '@/components/ui/button'
 import type { Option } from '@/types/options'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
-import {
-  type ColumnFiltersState,
-  type SortingState,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
+// react-table imports not used here; table lives in a shared component
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
@@ -44,8 +36,8 @@ const ShipmentPage = () => {
   const [currencies, setCurrencies] = React.useState<Option[]>([])
 
   const columns = React.useMemo(
-    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit),
-    [suppliers, handleView, handleOpenFormForEdit]
+    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered),
+    [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered]
   )
 
   const fetchShipments = async () => {
@@ -119,6 +111,22 @@ const ShipmentPage = () => {
   function handleView(shipment: Shipment) {
     setSelectedShipment(shipment)
     setViewOpen(true)
+  }
+
+  async function handleMarkAsDelivered(shipment: Shipment) {
+    try {
+      const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
+      await invoke('update_shipment_status', { 
+        shipmentId: shipment.id, 
+        status: 'delivered',
+        dateOfDelivery: today
+      })
+      toast.success(`Shipment ${shipment.invoiceNumber} marked as delivered.`)
+      fetchShipments()
+    } catch (error) {
+      console.error('Failed to mark shipment as delivered:', error)
+      toast.error('Failed to mark shipment as delivered.')
+    }
   }
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
@@ -219,9 +227,13 @@ const ShipmentPage = () => {
           continue // Skip duplicates or rows without an invoice number
         }
         maxId++
+        
+        // Use supplier ID as is - validation will catch invalid values
+        const supplierId = row.supplierId || ''
+        
         newShipments.push({
           id: `SHP-${maxId.toString().padStart(3, '0')}`,
-          supplierId: row.supplierId,
+          supplierId: supplierId,
           invoiceNumber: row.invoiceNumber,
           invoiceDate: row.invoiceDate,
           goodsCategory: row.goodsCategory,
@@ -245,9 +257,33 @@ const ShipmentPage = () => {
       }
 
       if (newShipments.length > 0) {
-        await invoke('add_shipments_bulk', { shipments: newShipments })
-        toast.success(`${newShipments.length} new shipments imported successfully!`)
-        fetchShipments()
+        try {
+          // First validate the shipments
+          const validationErrors = await invoke('validate_shipment_import', { shipments: newShipments }) as string[]
+          
+          if (validationErrors && validationErrors.length > 0) {
+            // Show validation errors in a detailed notification
+            const errorMessage = validationErrors.join('\n')
+            toast.error(`Import validation failed:\n${errorMessage}`, {
+              duration: 10000, // Show for 10 seconds
+              style: {
+                whiteSpace: 'pre-line',
+                maxWidth: '600px',
+                maxHeight: '400px',
+                overflow: 'auto'
+              }
+            })
+            return
+          }
+          
+          // If validation passes, proceed with import
+          await invoke('add_shipments_bulk', { shipments: newShipments })
+          toast.success(`${newShipments.length} new shipments imported successfully!`)
+          fetchShipments()
+        } catch (error) {
+          console.error('Failed to import shipments:', error)
+          toast.error(`Failed to import shipments: ${error}`)
+        }
       } else {
         toast.info('No new shipments to import.')
       }

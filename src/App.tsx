@@ -10,19 +10,16 @@ import BOEPage from '@/pages/boe'
 import BOEEntrypage from '@/pages/boe-entry'
 import BoeSummaryPage from '@/pages/boe-summary'
 import DashboardPage from '@/pages/dashboard'
+import ReportsPage from '@/pages/reports'
 import ExpensesPage from '@/pages/expenses'
 import FrozenShipmentsPage from '@/pages/frozen-shipments'
 import InvoicePage from '@/pages/invoice'
 import ItemMasterPage from '@/pages/item'
 import ShipmentPage from '@/pages/shipment'
 import SupplierPage from '@/pages/supplier'
+import SettingsPage from '@/pages/settings'
+import { SettingsProvider } from '@/lib/settings-context'
 
-// A simple placeholder for pages you haven't created yet
-const Placeholder = ({ title }: { title: string }) => (
-  <div className="flex h-full items-center justify-center">
-    <h1 className="text-4xl font-bold">{title}</h1>
-  </div>
-)
 
 const ProtectedRoute = () => {
   const isAuthenticated = localStorage.getItem('isAuthenticated')
@@ -35,31 +32,34 @@ function App() {
       defaultTheme={{ mode: 'light', color: 'zinc' }}
       storageKey="import-manager-theme"
     >
-      <Router>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route element={<ProtectedRoute />}>
-            <Route element={<AppLayout />}>
-              <Route path="/" element={<DashboardPage />} />
-              <Route path="/supplier" element={<SupplierPage />} />
-              <Route path="/shipment" element={<ShipmentPage />} />
-              <Route path="/invoice" element={<InvoicePage />} />
-              <Route path="/item-master" element={<ItemMasterPage />} />
-              <Route path="/boe" element={<BOEPage />} />
-              <Route path="/boe-entry" element={<BOEEntrypage />} />
-              <Route path="/boe-summary" element={<BoeSummaryPage />} />
-              <Route path="/expenses" element={<ExpensesPage />} />
-              <Route path="/frozen-shipments" element={<FrozenShipmentsPage />} />
-              <Route path="/report" element={<Placeholder title="Report" />} />
-              <Route path="/frozen-shipments" element={<FrozenShipmentsPage />} />
-              <Route path="/account" element={<AccountDetailsPage />} />
-              <Route path="/account/update" element={<AccountUpdatePage />} />
-              <Route path="/account/password" element={<AccountPasswordPage />} />
+      <SettingsProvider>
+        <Router>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route element={<ProtectedRoute />}>
+              <Route element={<AppLayout />}>
+                <Route path="/" element={<DashboardPage />} />
+                <Route path="/supplier" element={<SupplierPage />} />
+                <Route path="/shipment" element={<ShipmentPage />} />
+                <Route path="/invoice" element={<InvoicePage />} />
+                <Route path="/item-master" element={<ItemMasterPage />} />
+                <Route path="/boe" element={<BOEPage />} />
+                <Route path="/boe-entry" element={<BOEEntrypage />} />
+                <Route path="/boe-summary" element={<BoeSummaryPage />} />
+                <Route path="/expenses" element={<ExpensesPage />} />
+                <Route path="/frozen-shipments" element={<FrozenShipmentsPage />} />
+                <Route path="/report" element={<ReportsPage />} />
+                <Route path="/frozen-shipments" element={<FrozenShipmentsPage />} />
+                <Route path="/account" element={<AccountDetailsPage />} />
+                <Route path="/account/update" element={<AccountUpdatePage />} />
+                <Route path="/account/password" element={<AccountPasswordPage />} />
+                <Route path="/settings" element={<SettingsPage />} />
+              </Route>
             </Route>
-          </Route>
-        </Routes>
-      </Router>
-      <Toaster position="top-right" richColors />
+          </Routes>
+        </Router>
+        <Toaster position="top-right" richColors />
+      </SettingsProvider>
     </ThemeProvider>
   )
 }

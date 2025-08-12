@@ -1,5 +1,5 @@
 // src/components/invoice/actions.tsx (MODIFIED - Added Delete action)
-import { MoreHorizontal, Pencil, Trash2, View } from 'lucide-react'
+import { MoreHorizontal, Pencil, Trash2, View, Zap } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
 import {
@@ -17,6 +17,7 @@ interface InvoiceLineActionsProps {
   onView: (invoiceId: string) => void
   onEdit: (invoiceId: string) => void
   onDelete: (invoiceId: string, invoiceNumber: string) => void
+  onQuickFinalize: (invoiceId: string, invoiceNumber: string) => void
 }
 
 export function InvoiceLineActions({
@@ -24,8 +25,10 @@ export function InvoiceLineActions({
   onView,
   onEdit,
   onDelete,
+  onQuickFinalize,
 }: InvoiceLineActionsProps) {
   const isFinalized = lineItem.status === 'Finalized'
+  const isMatched = Math.abs(lineItem.shipmentTotal - lineItem.invoiceTotal) < 0.01
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -42,6 +45,14 @@ export function InvoiceLineActions({
         <DropdownMenuItem onClick={() => onEdit(lineItem.invoiceId)} disabled={isFinalized}>
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
+        {!isFinalized && isMatched && (
+          <DropdownMenuItem
+            onClick={() => onQuickFinalize(lineItem.invoiceId, lineItem.invoiceNumber)}
+            className="text-green-600"
+          >
+            <Zap className="mr-2 h-4 w-4" /> Quick Finalize
+          </DropdownMenuItem>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => onDelete(lineItem.invoiceId, lineItem.invoiceNumber)}

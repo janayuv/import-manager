@@ -45,9 +45,16 @@ import { StatusBadge } from './columns'
 
 // src/app/dashboard/boe-summary/client.tsx
 
+import { formatCurrency as formatCurrencyWithSettings } from '@/lib/settings'
+
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount === null || amount === undefined) return '-'
   return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
+}
+
+const formatCurrencyNoDecimals = (amount: number | null | undefined) => {
+  if (amount === null || amount === undefined) return '-'
+  return formatCurrencyWithSettings(amount)
 }
 
 function downloadCsv(filename: string, rows: Array<Record<string, string | number>>) {
@@ -243,16 +250,16 @@ function ItemDetailsTable({
   const exportRows = rows.map((r) => ({
     'Part No': r.partNo,
     Description: r.description,
-    'Assessable Value': r.assessableValue,
-    BCD: r.bcdValue,
-    SWS: r.swsValue,
-    IGST: r.igstValue,
-    'Total Duty': r.totalDuty,
+    'Assessable Value': Math.round(r.assessableValue),
+    BCD: Math.round(r.bcdValue),
+    SWS: Math.round(r.swsValue),
+    IGST: Math.round(r.igstValue),
+    'Total Duty': Math.round(r.totalDuty),
     Qty: r.qty,
     'Per-Unit Duty': r.qty ? r.perUnitDuty : '',
     'Landed Cost / Unit': r.qty ? r.landedCostPerUnit : '',
-    'Actual Duty': r.actualDuty ?? '',
-    Savings: r.dutySavings,
+    'Actual Duty': r.actualDuty != null ? Math.round(r.actualDuty) : '',
+    Savings: Math.round(r.dutySavings),
   }))
 
   const handleExport = () => {
@@ -305,19 +312,19 @@ function ItemDetailsTable({
                   <TableCell className="font-medium">{r.partNo}</TableCell>
                   <TableCell>{r.description}</TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(r.assessableValue)}
+                    {formatCurrencyNoDecimals(r.assessableValue)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(r.bcdValue)}
+                    {formatCurrencyNoDecimals(r.bcdValue)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(r.swsValue)}
+                    {formatCurrencyNoDecimals(r.swsValue)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(r.igstValue)}
+                    {formatCurrencyNoDecimals(r.igstValue)}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(r.totalDuty)}
+                    {formatCurrencyNoDecimals(r.totalDuty)}
                   </TableCell>
                   <TableCell className="text-right font-mono">{r.qty || '-'}</TableCell>
                   <TableCell className="text-right font-mono">
@@ -327,10 +334,10 @@ function ItemDetailsTable({
                     {r.qty ? formatCurrency(r.landedCostPerUnit) : '-'}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {r.actualDuty != null ? formatCurrency(r.actualDuty) : '-'}
+                    {r.actualDuty != null ? formatCurrencyNoDecimals(r.actualDuty) : '-'}
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(r.dutySavings)}
+                    {formatCurrencyNoDecimals(r.dutySavings)}
                   </TableCell>
                 </TableRow>
               ))}
@@ -339,19 +346,19 @@ function ItemDetailsTable({
                   Totals
                 </TableCell>
                 <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrency(totals.assessableValue)}
+                  {formatCurrencyNoDecimals(totals.assessableValue)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrency(totals.bcdValue)}
+                  {formatCurrencyNoDecimals(totals.bcdValue)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrency(totals.swsValue)}
+                  {formatCurrencyNoDecimals(totals.swsValue)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrency(totals.igstValue)}
+                  {formatCurrencyNoDecimals(totals.igstValue)}
                 </TableCell>
                 <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrency(totals.totalDuty)}
+                  {formatCurrencyNoDecimals(totals.totalDuty)}
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -479,6 +486,13 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
   const [statusFilter, setStatusFilter] = React.useState<string>('All')
   const [pendingStatus, setPendingStatus] = React.useState<string>('')
   const [isUpdatingStatus, setIsUpdatingStatus] = React.useState<boolean>(false)
+
+  // Example of how to use module settings
+  // import { getVisibleFields, getFieldConfig } from '@/lib/settings'
+  // const visibleFields = getVisibleFields('boeSummary')
+  // const fieldConfig = getFieldConfig('boeSummary', 'partNo')
+  // console.log('Visible fields:', visibleFields)
+  // console.log('Field config:', fieldConfig)
 
   const suppliers = React.useMemo(() => {
     const supplierSet = new Set(savedBoes.map((boe) => boe.supplierName))

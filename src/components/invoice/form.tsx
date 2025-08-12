@@ -22,6 +22,7 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -37,6 +38,11 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Invoice, InvoiceLineItem } from '@/types/invoice'
+
+// Extended type for form handling with isNew flag
+interface FormInvoiceLineItem extends InvoiceLineItem {
+  isNew?: boolean
+}
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
 import { open, save } from '@tauri-apps/plugin-dialog'
@@ -60,7 +66,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   invoiceToEdit,
 }) => {
   const [selectedShipment, setSelectedShipment] = React.useState<Shipment | null>(null)
-  const [lineItems, setLineItems] = React.useState<InvoiceLineItem[]>([])
+  const [lineItems, setLineItems] = React.useState<FormInvoiceLineItem[]>([])
   const [calculatedTotal, setCalculatedTotal] = React.useState(0)
   const [isSubmitting, setIsSubmitting] = React.useState(false)
 
@@ -98,7 +104,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   }, [invoiceToEdit, isOpen, shipments])
 
   React.useEffect(() => {
-    setCalculatedTotal(lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0))
+    // Round to 2 decimal places to avoid floating-point precision issues
+    const total = lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
+    setCalculatedTotal(Math.round(total * 100) / 100)
   }, [lineItems])
 
   const handleShipmentSelect = (shipmentId: string) => {
@@ -109,21 +117,26 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   const handleAddItem = () =>
     setLineItems([
       ...lineItems,
-      { id: `item-${Date.now()}`, itemId: '', quantity: 1, unitPrice: 0 },
+      { id: `item-${Date.now()}`, itemId: '', quantity: 1, unitPrice: 0, isNew: true },
     ])
   const handleRemoveItem = (id: string) => setLineItems(lineItems.filter((item) => item.id !== id))
   const handleLineItemChange = (
     id: string,
-    field: keyof InvoiceLineItem,
+    field: keyof FormInvoiceLineItem,
     value: string | number
   ) => {
     setLineItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id === id) {
           const updatedItem = { ...item, [field]: value }
-          if (field === 'itemId') {
+          // Only set unit price from item master for new items (isNew flag)
+          if (field === 'itemId' && (item as FormInvoiceLineItem).isNew) {
             const selectedItem = items.find((i: Item) => i.id === value)
-            updatedItem.unitPrice = selectedItem ? selectedItem.unitPrice : 0
+            if (selectedItem) {
+              updatedItem.unitPrice = selectedItem.unitPrice
+              // Remove the isNew flag after setting the unit price
+              delete (updatedItem as FormInvoiceLineItem).isNew
+            }
           }
           return updatedItem
         }
@@ -232,7 +245,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         setIsSubmitting(false)
         return toast.error('Please select a shipment first.')
       }
-      const isMatched = selectedShipment.invoiceValue === calculatedTotal
+      // Use tolerance-based comparison for floating-point numbers
+      const tolerance = 0.01 // Allow 1 cent difference
+      const isMatched = Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
       if (status === 'Finalized' && !isMatched) {
         setIsSubmitting(false)
         return toast.error('Cannot finalize. The calculated total must match the shipment value.')
@@ -252,7 +267,28 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }, 500)
   }
 
-  const isMatch = selectedShipment ? selectedShipment.invoiceValue === calculatedTotal : false
+  const [showQuickFinalizeDialog, setShowQuickFinalizeDialog] = React.useState(false)
+
+  const handleQuickFinalize = () => {
+    if (!selectedShipment) {
+      return toast.error('Please select a shipment first.')
+    }
+    
+    // Use tolerance-based comparison for floating-point numbers
+    const tolerance = 0.01 // Allow 1 cent difference
+    const isMatched = Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
+    
+    if (!isMatched) {
+      return toast.error('Cannot finalize. The calculated total must match the shipment value.')
+    }
+
+    // Show confirmation dialog
+    setShowQuickFinalizeDialog(true)
+  }
+
+  // Use tolerance-based comparison for floating-point numbers
+  const tolerance = 0.01 // Allow 1 cent difference
+  const isMatch = selectedShipment ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance : false
   const matchDifference = selectedShipment ? calculatedTotal - selectedShipment.invoiceValue : 0
   const formTitle = invoiceToEdit
     ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}`
@@ -263,6 +299,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{formTitle}</DialogTitle>
+          <DialogDescription>
+            Create or edit an invoice by selecting a shipment and adding line items.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4 border-b pb-4 md:grid-cols-3">
           <div>
@@ -409,22 +448,35 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                 <Plus className="mr-2 h-4 w-4" /> Add Item
               </Button>
             </div>
-            <div className="flex items-center justify-end gap-6 border-t pt-4">
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Shipment Value</p>
-                <p className="text-lg font-bold">
-                  {formatCurrency(selectedShipment?.invoiceValue || 0)}
-                </p>
+            <div className="flex items-center justify-between border-t pt-4">
+              <div className="flex items-center gap-6">
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Shipment Value</p>
+                  <p className="text-lg font-bold">
+                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-500">Calculated Total</p>
+                  <p className="text-lg font-bold">{formatCurrency(calculatedTotal)}</p>
+                </div>
+                <div
+                  className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-green-600' : 'text-red-600'}`}
+                >
+                  {isMatch ? '✅ Match' : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-500">Calculated Total</p>
-                <p className="text-lg font-bold">{formatCurrency(calculatedTotal)}</p>
-              </div>
-              <div
-                className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-green-600' : 'text-red-600'}`}
-              >
-                {isMatch ? '✅ Match' : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
-              </div>
+              {isMatch && (
+                <Button
+                  type="button"
+                  className="bg-green-600 hover:bg-green-700 text-white"
+                  onClick={handleQuickFinalize}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  🚀 Quick Finalize
+                </Button>
+              )}
             </div>
           </>
         )}
@@ -460,6 +512,49 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Quick Finalize Confirmation Dialog */}
+      <AlertDialog open={showQuickFinalizeDialog} onOpenChange={setShowQuickFinalizeDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Finalize Invoice</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to finalize invoice <strong>{selectedShipment?.invoiceNumber}</strong>?
+              <br /><br />
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Shipment Value:</span>
+                  <span className="font-semibold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Calculated Total:</span>
+                  <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
+                </div>
+                <div className="flex justify-between text-green-600">
+                  <span>Status:</span>
+                  <span className="font-semibold">✅ Match</span>
+                </div>
+              </div>
+              <br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="custom-alert-action-cancel">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              className="custom-alert-action-ok"
+              onClick={() => {
+                setShowQuickFinalizeDialog(false)
+                handleSave('Finalized')
+              }}
+            >
+              Finalize Invoice
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   )
 }

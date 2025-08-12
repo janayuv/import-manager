@@ -10,10 +10,19 @@ interface GetInvoiceColumnsProps {
   onView: (invoiceId: string) => void
   onEdit: (invoiceId: string) => void
   onDelete: (invoiceId: string, invoiceNumber: string) => void
+  onQuickFinalize: (invoiceId: string, invoiceNumber: string) => void
 }
 
 const formatCurrency = (amount: number, currency: string) => {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+  // Normalize common currency codes
+  const normalizedCurrency = currency?.toUpperCase() === 'EURO' ? 'EUR' : currency?.toUpperCase()
+  
+  try {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizedCurrency }).format(amount)
+  } catch {
+    // Fallback for invalid currency codes
+    return `${normalizedCurrency} ${amount.toFixed(2)}`
+  }
 }
 
 // The columns now expect the flattened data structure
@@ -21,6 +30,7 @@ export const getInvoiceColumns = ({
   onView,
   onEdit,
   onDelete,
+  onQuickFinalize,
 }: GetInvoiceColumnsProps): ColumnDef<FlattenedInvoiceLine>[] => [
   {
     id: 'actions',
@@ -30,6 +40,7 @@ export const getInvoiceColumns = ({
         onView={onView}
         onEdit={onEdit}
         onDelete={onDelete}
+        onQuickFinalize={onQuickFinalize}
       />
     ),
   },
