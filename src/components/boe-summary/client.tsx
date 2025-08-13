@@ -248,23 +248,22 @@ function printReport(params: {
   title: string
 }) {
   const { itemsRows, summary, title } = params
+  
+  // Get the ordered fields for consistent column order
+  const orderedFields = getOrderedFields()
+  const fieldDisplayNames = orderedFields.map(fieldName => getFieldDisplayName(fieldName))
+  
   const itemRowsHtml = itemsRows
     .map(
-      (r) => `
-      <tr>
-        <td>${r['Part No']}</td>
-        <td>${r['Description']}</td>
-        <td class="num">${r['Assessable Value']}</td>
-        <td class="num">${r['BCD']}</td>
-        <td class="num">${r['SWS']}</td>
-        <td class="num">${r['IGST']}</td>
-        <td class="num">${r['Total Duty']}</td>
-        <td class="num">${r['Qty'] ?? '-'}</td>
-        <td class="num">${r['Per-Unit Duty'] ?? '-'}</td>
-        <td class="num">${r['Landed Cost / Unit'] ?? '-'}</td>
-        <td class="num">${r['Actual Duty'] ?? '-'}</td>
-        <td class="num">${r['Savings'] ?? '-'}</td>
-      </tr>`
+      (r) => {
+        const cells = orderedFields.map(fieldName => {
+          const value = r[getFieldDisplayName(fieldName)] ?? '-'
+          const isNumeric = ['assessableValue', 'bcd', 'sws', 'igst', 'totalDuty', 'qty', 'perUnitDuty', 'landedCostPerUnit', 'actualDuty', 'savings'].includes(fieldName)
+          return `<td class="${isNumeric ? 'num' : ''}">${value}</td>`
+        }).join('')
+        
+        return `<tr>${cells}</tr>`
+      }
     )
     .join('')
   const summaryRowsHtml = summary
@@ -295,14 +294,17 @@ function printReport(params: {
   <body>
     <h1>${title}</h1>
     <h2>Item Details</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Part No</th><th>Description</th><th class="num">Assessable</th><th class="num">BCD</th><th class="num">SWS</th><th class="num">IGST</th><th class="num">Total Duty</th><th class="num">Qty</th><th class="num">Per-Unit Duty</th><th class="num">Landed Cost / Unit</th><th class="num">Actual Duty</th><th class="num">Savings</th>
-        </tr>
-      </thead>
-      <tbody>${itemRowsHtml}</tbody>
-    </table>
+         <table>
+       <thead>
+         <tr>
+           ${fieldDisplayNames.map(displayName => {
+             const isNumeric = ['Assessable', 'BCD', 'SWS', 'IGST', 'Total Duty', 'Qty', 'Per-Unit Duty', 'Landed Cost / Unit', 'Actual Duty', 'Savings'].includes(displayName)
+             return `<th class="${isNumeric ? 'num' : ''}">${displayName}</th>`
+           }).join('')}
+         </tr>
+       </thead>
+       <tbody>${itemRowsHtml}</tbody>
+     </table>
     <h2>BOE Summary & Variance</h2>
     <table>
       <thead>
