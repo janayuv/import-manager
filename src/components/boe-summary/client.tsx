@@ -1,9 +1,7 @@
 'use client'
 
 import { toast } from 'sonner'
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
-// @ts-ignore
-import * as XLSX from 'xlsx'
+import * as ExcelJS from 'exceljs'
 
 import * as React from 'react'
 
@@ -204,7 +202,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, string | numbe
 
 type SummaryRow = { label: string; calculated: number; boe: number | null; variance: number | null }
 
-function exportXlsx(params: {
+async function exportXlsx(params: {
   itemsRows?: Array<Record<string, string | number>>
   summary: SummaryRow[]
 }) {
@@ -215,14 +213,33 @@ function exportXlsx(params: {
     BOE: r.boe ?? '',
     Variance: r.variance ?? '',
   }))
-  const wb = XLSX.utils.book_new()
+  
+  const workbook = new ExcelJS.Workbook()
+  
   if (itemsRows.length) {
-    const ws1 = XLSX.utils.json_to_sheet(itemsRows)
-    XLSX.utils.book_append_sheet(wb, ws1, 'Items')
+    const itemsSheet = workbook.addWorksheet('Items')
+    const headers = Object.keys(itemsRows[0])
+    itemsSheet.addRow(headers)
+    itemsRows.forEach(row => {
+      itemsSheet.addRow(headers.map(header => row[header]))
+    })
   }
-  const ws2 = XLSX.utils.json_to_sheet(summaryRows)
-  XLSX.utils.book_append_sheet(wb, ws2, 'Summary')
-  XLSX.writeFile(wb, 'boe-report.xlsx')
+  
+  const summarySheet = workbook.addWorksheet('Summary')
+  const summaryHeaders = ['Metric', 'Calculated', 'BOE', 'Variance']
+  summarySheet.addRow(summaryHeaders)
+  summaryRows.forEach(row => {
+    summarySheet.addRow([row.Metric, row.Calculated, row.BOE, row.Variance])
+  })
+  
+  const buffer = await workbook.xlsx.writeBuffer()
+  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'boe-report.xlsx'
+  a.click()
+  URL.revokeObjectURL(url)
 }
 
 function printReport(params: {
@@ -390,7 +407,7 @@ function ItemDetailsTable({
     downloadCsv('boe-item-details.csv', exportRows)
   }
 
-  const handleExportXlsx = () => exportXlsx({ itemsRows: exportRows, summary: [] })
+  const handleExportXlsx = async () => await exportXlsx({ itemsRows: exportRows, summary: [] })
 
   const handlePrint = () =>
     printReport({ itemsRows: exportRows, summary: [], title: 'BOE Item Details' })
@@ -499,7 +516,7 @@ function BoeSummaryTable({
     )
   }
 
-  const handleExportXlsx = () => exportXlsx({ itemsRows: [], summary: summaryRows })
+  const handleExportXlsx = async () => await exportXlsx({ itemsRows: [], summary: summaryRows })
 
   const handlePrint = () =>
     printReport({ itemsRows: [], summary: summaryRows, title: 'BOE Summary' })
