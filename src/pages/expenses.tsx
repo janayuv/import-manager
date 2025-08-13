@@ -6,10 +6,13 @@ import ExpenseReports from '@/components/expenses/expense-reports'
 import ShipmentSelector from '@/components/expenses/shipment-selector'
 import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
+import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { Expense } from '@/types/expense'
 import type { Shipment } from '@/types/shipment'
 
 const ExpensesPage = () => {
+  const { settings } = useSettings()
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
   const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
@@ -47,10 +50,10 @@ const ExpensesPage = () => {
         {selectedShipment && (
           <div className="text-right">
             <Badge variant="outline" className="text-sm">
-              Shipment: {selectedShipment.invoiceNumber}
+              Shipment: {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
             </Badge>
             <p className="text-muted-foreground mt-1 text-xs">
-              BL/AWB: {selectedShipment.blAwbNumber}
+              BL/AWB: {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
             </p>
           </div>
         )}
@@ -72,7 +75,7 @@ const ExpensesPage = () => {
             <div className="lg:col-span-2">
               <div className="mb-4 flex items-center justify-between">
                 <h2 className="text-2xl font-semibold">
-                  Expenses for Invoice: {selectedShipment.invoiceNumber}
+                  Expenses for Invoice: {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
                 </h2>
                 {expenseToEdit && <Badge variant="secondary">Editing Expense</Badge>}
               </div>
@@ -89,7 +92,7 @@ const ExpensesPage = () => {
                   {selectedShipment && (
                     <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-xs">
-                        {selectedShipment.invoiceNumber}
+                        {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
                       </Badge>
                     </div>
                   )}
@@ -111,7 +114,7 @@ const ExpensesPage = () => {
 
           <div>
             <h2 className="mb-4 text-2xl font-semibold">
-              Reports for Invoice: {selectedShipment.invoiceNumber}
+              Reports for Invoice: {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
             </h2>
             <ExpenseReports shipmentId={selectedShipment.id} />
           </div>

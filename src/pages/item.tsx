@@ -10,6 +10,8 @@ import { ItemViewDialog } from '@/components/item/view'
 import { DataTable } from '@/components/shared/data-table'
 import { Button } from '@/components/ui/button'
 import { exportItemsToCsv, importItemsFromCsv } from '@/lib/csv-helpers'
+import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'
 import type { Supplier } from '@/types/supplier'
@@ -36,6 +38,7 @@ const optionConfigs = {
 }
 
 export function ItemMasterPage() {
+  const { settings } = useSettings()
   const [items, setItems] = React.useState<Item[]>([])
   const [suppliers, setSuppliers] = React.useState<Option[]>([])
   const [isFormOpen, setFormOpen] = React.useState(false)
@@ -82,7 +85,10 @@ export function ItemMasterPage() {
     setLoading(true)
     try {
       const supplierData: Supplier[] = await invoke('get_suppliers')
-      setSuppliers(supplierData.map((s) => ({ value: s.id, label: s.supplierName })))
+      setSuppliers(supplierData.map((s) => ({ 
+        value: s.id, 
+        label: formatText(s.supplierName, settings.textFormat) 
+      })))
 
       const optionPromises = Object.values(optionConfigs).map((config) =>
         invoke<Option[]>(config.fetcher)
@@ -280,8 +286,8 @@ export function ItemMasterPage() {
   }
 
   const columns = React.useMemo(
-    () => getItemColumns(suppliers, handleView, handleOpenFormForEdit),
-    [suppliers, handleView, handleOpenFormForEdit]
+    () => getItemColumns(suppliers, handleView, handleOpenFormForEdit, settings),
+    [suppliers, handleView, handleOpenFormForEdit, settings]
   )
 
   if (loading) {
@@ -328,7 +334,7 @@ export function ItemMasterPage() {
         columns={columns}
         data={items}
         toolbar={toolbar}
-        storageKey="item-table-page-size"
+        storageKey="item-master-table-page-size"
       />
       <ItemForm
         isOpen={isFormOpen}

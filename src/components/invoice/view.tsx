@@ -160,9 +160,9 @@ export function InvoiceViewDialog({
                       <TableCell>{formatCurrency(lineItem.unitPrice, currency)}</TableCell>
                       <TableCell>{formatCurrency(lineTotal, currency)}</TableCell>
                       {/* FIX: Display the BCD number as a percentage */}
-                      <TableCell>{item.bcd ? `${item.bcd}` : '-'}</TableCell>
+                      <TableCell>{item.bcd ? `${item.bcd}%` : '-'}</TableCell>
                       {/* FIX: Display the IGST number as a percentage */}
-                      <TableCell>{item.igst ? `${item.igst}` : '-'}</TableCell>
+                      <TableCell>{item.igst ? `${item.igst}%` : '-'}</TableCell>
                     </TableRow>
                   )
                 })}

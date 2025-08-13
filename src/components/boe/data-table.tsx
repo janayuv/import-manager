@@ -23,13 +23,14 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 
-import { DataTablePagination } from './data-table-pagination'
+import { DataTablePagination } from '@/components/shared/data-table-pagination'
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
   globalFilter: string
   setGlobalFilter: (filter: string) => void
+  storageKey?: string
 }
 
 export function DataTable<TData, TValue>({
@@ -37,6 +38,7 @@ export function DataTable<TData, TValue>({
   data,
   globalFilter,
   setGlobalFilter,
+  storageKey = 'table-page-size',
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([])
 
@@ -118,7 +120,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination table={table} />
+      <DataTablePagination table={table} storageKey={storageKey} />
     </div>
   )
 }

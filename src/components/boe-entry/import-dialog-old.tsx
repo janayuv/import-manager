@@ -41,6 +41,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { Shipment } from '@/types/boe-entry'
 import { zodResolver } from '@hookform/resolvers/zod'
 
@@ -101,14 +103,15 @@ interface ImportDialogProps {
 }
 
 export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps) {
+  const { settings } = useSettings()
   const [suppliers, setSuppliers] = React.useState<string[]>([])
   const [availableInvoices, setAvailableInvoices] = React.useState<Shipment[]>([])
   const [overrideFile, setOverrideFile] = React.useState<File | null>(null)
 
   React.useEffect(() => {
-    const uniqueSuppliers = [...new Set(shipments.map((s) => s.supplierName))]
+    const uniqueSuppliers = [...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))]
     setSuppliers(uniqueSuppliers)
-  }, [shipments])
+  }, [shipments, settings.textFormat])
 
   const form = useForm({
     resolver: zodResolver(importFormSchema),
@@ -125,7 +128,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
 
   const handleSupplierChange = (supplierName: string) => {
     form.setValue('supplierName', supplierName)
-    const invoicesForSupplier = shipments.filter((s) => s.supplierName === supplierName)
+    const invoicesForSupplier = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === supplierName)
     setAvailableInvoices(invoicesForSupplier)
     form.resetField('shipmentId')
   }

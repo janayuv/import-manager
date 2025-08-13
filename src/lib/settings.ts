@@ -4,6 +4,13 @@ export interface NumberFormatSettings {
   useThousandsSeparator: boolean
   currencySymbol: string
   currencyPosition: 'before' | 'after'
+  showCurrency: boolean
+  useCompactNotation: boolean
+  compactThreshold: number
+  useScientificNotation: boolean
+  scientificThreshold: number
+  negativeFormat: 'minus' | 'parentheses' | 'brackets'
+  zeroFormat: '0' | '0.00' | '-'
 }
 
 export interface DateFormatSettings {
@@ -21,6 +28,11 @@ export interface ModuleFieldSettings {
   visible: boolean
   order: number
   width?: string
+  case?: 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase' | 'none'
+  trimWhitespace?: boolean
+  numberFormat?: 'currency' | 'percentage' | 'decimal' | 'integer' | 'scientific'
+  precision?: number
+  showSign?: boolean
 }
 
 export interface ModuleSettings {
@@ -46,88 +58,134 @@ export interface AppSettings {
 }
 
 // Default module field configurations - Updated to match actual data structure
-const defaultModuleFields = {
+const defaultModuleFields: Record<string, Record<string, ModuleFieldSettings>> = {
   shipment: {
-    'supplierId': { visible: true, order: 1, width: '150px' },
-    'invoiceNumber': { visible: true, order: 2, width: '150px' },
-    'invoiceDate': { visible: true, order: 3, width: '120px' },
-    'goodsCategory': { visible: true, order: 4, width: '120px' },
-    'invoiceCurrency': { visible: true, order: 5, width: '80px' },
-    'invoiceValue': { visible: true, order: 6, width: '120px' },
-    'incoterm': { visible: true, order: 7, width: '100px' },
-    'vesselName': { visible: true, order: 8, width: '150px' },
-    'blAwbNumber': { visible: true, order: 9, width: '120px' },
-    'etd': { visible: true, order: 10, width: '100px' },
-    'eta': { visible: true, order: 11, width: '100px' },
-    'status': { visible: true, order: 12, width: '120px' },
-    'actions': { visible: true, order: 13, width: '100px' }
+    'supplierId': { visible: true, order: 1, width: '150px', case: 'none' as const, trimWhitespace: false },
+    'invoiceNumber': { visible: true, order: 2, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'invoiceDate': { visible: true, order: 3, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'goodsCategory': { visible: true, order: 4, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'invoiceCurrency': { visible: true, order: 5, width: '80px', case: 'uppercase' as const, trimWhitespace: true },
+    'invoiceValue': { visible: true, order: 6, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'incoterm': { visible: true, order: 7, width: '100px', case: 'uppercase' as const, trimWhitespace: true },
+    'vesselName': { visible: true, order: 8, width: '150px', case: 'titlecase' as const, trimWhitespace: true },
+    'blAwbNumber': { visible: true, order: 9, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'blAwbDate': { visible: true, order: 10, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'shipmentMode': { visible: true, order: 11, width: '100px', case: 'titlecase' as const, trimWhitespace: true },
+    'shipmentType': { visible: true, order: 12, width: '100px', case: 'uppercase' as const, trimWhitespace: true },
+    'containerNumber': { visible: true, order: 13, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'grossWeightKg': { visible: true, order: 14, width: '120px', numberFormat: 'decimal' as const, precision: 2, showSign: false },
+    'etd': { visible: true, order: 15, width: '100px', case: 'none' as const, trimWhitespace: false },
+    'eta': { visible: true, order: 16, width: '100px', case: 'none' as const, trimWhitespace: false },
+    'status': { visible: true, order: 17, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'dateOfDelivery': { visible: true, order: 18, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'actions': { visible: true, order: 19, width: '100px', case: 'none' as const, trimWhitespace: false }
   },
   invoice: {
-    'invoiceNumber': { visible: true, order: 1, width: '150px' },
-    'invoiceDate': { visible: true, order: 2, width: '120px' },
-    'status': { visible: true, order: 3, width: '100px' },
-    'calculatedTotal': { visible: true, order: 4, width: '120px' },
-    'shipmentTotal': { visible: true, order: 5, width: '120px' },
-    'actions': { visible: true, order: 6, width: '100px' }
+    'invoiceId': { visible: true, order: 1, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'supplierName': { visible: true, order: 2, width: '200px', case: 'titlecase' as const, trimWhitespace: true },
+    'invoiceNumber': { visible: true, order: 3, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'invoiceDate': { visible: true, order: 4, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'partNumber': { visible: true, order: 5, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'itemDescription': { visible: true, order: 6, width: '200px', case: 'titlecase' as const, trimWhitespace: true },
+    'hsnCode': { visible: true, order: 7, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'currency': { visible: true, order: 8, width: '80px', case: 'uppercase' as const, trimWhitespace: true },
+    'unit': { visible: true, order: 9, width: '80px', case: 'uppercase' as const, trimWhitespace: true },
+    'quantity': { visible: true, order: 10, width: '100px', numberFormat: 'integer' as const, precision: 0, showSign: false },
+    'unitPrice': { visible: true, order: 11, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'lineTotal': { visible: true, order: 12, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'bcd': { visible: true, order: 13, width: '100px', numberFormat: 'percentage' as const, precision: 2, showSign: false },
+    'igst': { visible: true, order: 14, width: '100px', numberFormat: 'percentage' as const, precision: 2, showSign: false },
+    'invoiceTotal': { visible: true, order: 15, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'shipmentTotal': { visible: true, order: 16, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+        'status': { visible: true, order: 17, width: '100px', case: 'titlecase' as const, trimWhitespace: true },
+    'actions': { visible: true, order: 18, width: '100px', case: 'none' as const, trimWhitespace: false }
   },
   boe: {
-    'beNumber': { visible: true, order: 1, width: '150px' },
-    'beDate': { visible: true, order: 2, width: '120px' },
-    'location': { visible: true, order: 3, width: '150px' },
-    'totalAssessmentValue': { visible: true, order: 4, width: '150px' },
-    'dutyAmount': { visible: true, order: 5, width: '120px' },
-    'paymentDate': { visible: true, order: 6, width: '120px' },
-    'dutyPaid': { visible: true, order: 7, width: '120px' },
-    'challanNumber': { visible: true, order: 8, width: '120px' },
-    'actions': { visible: true, order: 9, width: '100px' }
+    'id': { visible: true, order: 1, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'beNumber': { visible: true, order: 2, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'beDate': { visible: true, order: 3, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'location': { visible: true, order: 4, width: '150px', case: 'titlecase' as const, trimWhitespace: true },
+    'totalAssessmentValue': { visible: true, order: 5, width: '150px', numberFormat: 'currency' as const, showSign: false },
+    'dutyAmount': { visible: true, order: 6, width: '120px', numberFormat: 'currency' as const, showSign: false },
+    'paymentDate': { visible: true, order: 7, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'dutyPaid': { visible: true, order: 8, width: '120px', numberFormat: 'currency' as const, showSign: false },
+    'challanNumber': { visible: true, order: 9, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'refId': { visible: true, order: 10, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'transactionId': { visible: true, order: 11, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'actions': { visible: true, order: 12, width: '100px', case: 'none' as const, trimWhitespace: false }
   },
   boeSummary: {
-    'partNo': { visible: true, order: 1, width: '150px' },
-    'description': { visible: true, order: 2, width: '200px' },
-    'assessableValue': { visible: true, order: 3, width: '120px' },
-    'bcd': { visible: true, order: 4, width: '100px' },
-    'sws': { visible: true, order: 5, width: '100px' },
-    'igst': { visible: true, order: 6, width: '100px' },
-    'totalDuty': { visible: true, order: 7, width: '120px' },
-    'qty': { visible: true, order: 8, width: '80px' },
-    'perUnitDuty': { visible: true, order: 9, width: '120px' },
-    'landedCostPerUnit': { visible: true, order: 10, width: '150px' },
-    'actualDuty': { visible: true, order: 11, width: '120px' },
-    'savings': { visible: true, order: 12, width: '100px' }
+    'partNo': { visible: true, order: 1, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'description': { visible: true, order: 2, width: '200px', case: 'titlecase' as const, trimWhitespace: true },
+    'assessableValue': { visible: true, order: 3, width: '120px', numberFormat: 'currency' as const, showSign: false },
+    'totalDuty': { visible: true, order: 4, width: '120px', numberFormat: 'currency' as const, showSign: false },
+    'actualDuty': { visible: true, order: 5, width: '120px', numberFormat: 'currency' as const, showSign: false },
+    'qty': { visible: true, order: 6, width: '80px', numberFormat: 'integer' as const, showSign: false },
+    'landedCostPerUnit': { visible: true, order: 7, width: '150px', numberFormat: 'currency' as const, showSign: false },
+    'perUnitDuty': { visible: true, order: 8, width: '120px', numberFormat: 'currency' as const, showSign: false },
+    'bcd': { visible: true, order: 9, width: '100px', numberFormat: 'decimal' as const, showSign: false },
+    'sws': { visible: true, order: 10, width: '100px', numberFormat: 'decimal' as const, showSign: false },
+    'igst': { visible: true, order: 11, width: '100px', numberFormat: 'decimal' as const, showSign: false },
+    'savings': { visible: true, order: 12, width: '100px', numberFormat: 'currency' as const, showSign: true }
   },
   supplier: {
-    'id': { visible: true, order: 1, width: '120px' },
-    'supplierName': { visible: true, order: 2, width: '200px' },
-    'shortName': { visible: true, order: 3, width: '120px' },
-    'country': { visible: true, order: 4, width: '120px' },
-    'phone': { visible: true, order: 5, width: '120px' },
-    'email': { visible: true, order: 6, width: '200px' },
-    'isActive': { visible: true, order: 7, width: '100px' },
-    'actions': { visible: true, order: 8, width: '100px' }
+    'id': { visible: true, order: 1, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'supplierName': { visible: true, order: 2, width: '200px', case: 'titlecase' as const, trimWhitespace: true },
+    'shortName': { visible: true, order: 3, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'country': { visible: true, order: 4, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'phone': { visible: true, order: 5, width: '120px', case: 'none' as const, trimWhitespace: true },
+    'email': { visible: true, order: 6, width: '200px', case: 'lowercase' as const, trimWhitespace: true },
+    'beneficiaryName': { visible: true, order: 7, width: '150px', case: 'titlecase' as const, trimWhitespace: true },
+    'bankName': { visible: true, order: 8, width: '150px', case: 'titlecase' as const, trimWhitespace: true },
+    'branch': { visible: true, order: 9, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'bankAddress': { visible: true, order: 10, width: '200px', case: 'titlecase' as const, trimWhitespace: true },
+    'accountNo': { visible: true, order: 11, width: '120px', case: 'none' as const, trimWhitespace: true },
+    'iban': { visible: true, order: 12, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'swiftCode': { visible: true, order: 13, width: '100px', case: 'uppercase' as const, trimWhitespace: true },
+    'isActive': { visible: true, order: 14, width: '100px', case: 'none' as const, trimWhitespace: false },
+    'actions': { visible: true, order: 15, width: '100px', case: 'none' as const, trimWhitespace: false }
   },
   itemMaster: {
-    'partNumber': { visible: true, order: 1, width: '150px' },
-    'itemDescription': { visible: true, order: 2, width: '200px' },
-    'currency': { visible: true, order: 3, width: '80px' },
-    'unitPrice': { visible: true, order: 4, width: '120px' },
-    'hsnCode': { visible: true, order: 5, width: '120px' },
-    'supplierId': { visible: true, order: 6, width: '150px' },
-    'isActive': { visible: true, order: 7, width: '100px' },
-    'actions': { visible: true, order: 8, width: '100px' }
+    'id': { visible: true, order: 1, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'partNumber': { visible: true, order: 2, width: '150px', case: 'uppercase' as const, trimWhitespace: true },
+    'itemDescription': { visible: true, order: 3, width: '200px', case: 'titlecase' as const, trimWhitespace: true },
+    'unit': { visible: true, order: 4, width: '80px', case: 'uppercase' as const, trimWhitespace: true },
+    'currency': { visible: true, order: 5, width: '80px', case: 'uppercase' as const, trimWhitespace: true },
+    'unitPrice': { visible: true, order: 6, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'hsnCode': { visible: true, order: 7, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'supplierId': { visible: true, order: 8, width: '150px', case: 'none' as const, trimWhitespace: false },
+    'isActive': { visible: true, order: 9, width: '100px', case: 'none' as const, trimWhitespace: false },
+    'countryOfOrigin': { visible: true, order: 10, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'bcd': { visible: true, order: 11, width: '80px', numberFormat: 'percentage' as const, precision: 2, showSign: false },
+    'sws': { visible: true, order: 12, width: '80px', numberFormat: 'percentage' as const, precision: 2, showSign: false },
+    'igst': { visible: true, order: 13, width: '80px', numberFormat: 'percentage' as const, precision: 2, showSign: false },
+    'technicalWriteUp': { visible: true, order: 14, width: '200px', case: 'sentencecase' as const, trimWhitespace: true },
+    'category': { visible: true, order: 15, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'endUse': { visible: true, order: 16, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'netWeightKg': { visible: true, order: 17, width: '100px', numberFormat: 'decimal' as const, precision: 2, showSign: false },
+    'purchaseUom': { visible: true, order: 18, width: '100px', case: 'uppercase' as const, trimWhitespace: true },
+    'grossWeightPerUomKg': { visible: true, order: 19, width: '120px', numberFormat: 'decimal' as const, precision: 2, showSign: false },
+    'photoPath': { visible: true, order: 20, width: '150px', case: 'none' as const, trimWhitespace: false },
+    'actions': { visible: true, order: 21, width: '100px', case: 'none' as const, trimWhitespace: false }
   },
   expenses: {
-    'expenseTypeId': { visible: true, order: 1, width: '120px' },
-    'serviceProviderId': { visible: true, order: 2, width: '150px' },
-    'invoiceNo': { visible: true, order: 3, width: '120px' },
-    'invoiceDate': { visible: true, order: 4, width: '120px' },
-    'amount': { visible: true, order: 5, width: '120px' },
-    'cgstAmount': { visible: true, order: 6, width: '100px' },
-    'sgstAmount': { visible: true, order: 7, width: '100px' },
-    'igstAmount': { visible: true, order: 8, width: '100px' },
-    'tdsAmount': { visible: true, order: 9, width: '100px' },
-    'totalAmount': { visible: true, order: 10, width: '120px' },
-    'remarks': { visible: true, order: 11, width: '150px' },
-    'actions': { visible: true, order: 12, width: '100px' }
+    'id': { visible: true, order: 1, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'shipmentId': { visible: true, order: 2, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'expenseTypeId': { visible: true, order: 3, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'serviceProviderId': { visible: true, order: 4, width: '150px', case: 'none' as const, trimWhitespace: false },
+    'invoiceNo': { visible: true, order: 5, width: '120px', case: 'uppercase' as const, trimWhitespace: true },
+    'invoiceDate': { visible: true, order: 6, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'amount': { visible: true, order: 7, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'cgstAmount': { visible: true, order: 8, width: '100px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'sgstAmount': { visible: true, order: 9, width: '100px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'igstAmount': { visible: true, order: 10, width: '100px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'tdsAmount': { visible: true, order: 11, width: '100px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'totalAmount': { visible: true, order: 12, width: '120px', numberFormat: 'currency' as const, precision: 2, showSign: false },
+    'remarks': { visible: true, order: 13, width: '150px', case: 'titlecase' as const, trimWhitespace: true },
+    'createdBy': { visible: true, order: 14, width: '120px', case: 'titlecase' as const, trimWhitespace: true },
+    'createdAt': { visible: true, order: 15, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'updatedAt': { visible: true, order: 16, width: '120px', case: 'none' as const, trimWhitespace: false },
+    'actions': { visible: true, order: 17, width: '100px', case: 'none' as const, trimWhitespace: false }
   }
 }
 
@@ -137,7 +195,14 @@ export const defaultSettings: AppSettings = {
     decimalPlaces: 2,
     useThousandsSeparator: true,
     currencySymbol: '₹',
-    currencyPosition: 'before'
+    currencyPosition: 'before',
+    showCurrency: true,
+    useCompactNotation: false,
+    compactThreshold: 1000,
+    useScientificNotation: false,
+    scientificThreshold: 1000000,
+    negativeFormat: 'minus',
+    zeroFormat: '0'
   },
   dateFormat: {
     format: 'DD/MM/YYYY',
@@ -194,6 +259,23 @@ export const defaultSettings: AppSettings = {
   }
 }
 
+// Deep merge function for settings
+function deepMerge<T extends Record<string, any>>(target: T, source: Partial<T>): T {
+  const result = { ...target }
+  
+  for (const key in source) {
+    if (source[key] !== undefined && source[key] !== null && typeof source[key] === 'object' && !Array.isArray(source[key])) {
+      const targetValue = target[key] as Record<string, any> || {}
+      const sourceValue = source[key] as Record<string, any>
+      result[key] = deepMerge(targetValue, sourceValue) as T[Extract<keyof T, string>]
+    } else if (source[key] !== undefined) {
+      result[key] = source[key] as T[Extract<keyof T, string>]
+    }
+  }
+  
+  return result
+}
+
 // Settings storage key
 const SETTINGS_STORAGE_KEY = 'import-manager-settings'
 
@@ -201,8 +283,10 @@ const SETTINGS_STORAGE_KEY = 'import-manager-settings'
 export function loadSettings(): AppSettings {
   try {
     const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    
     if (stored) {
       const parsed = JSON.parse(stored)
+      
       // Check if the stored settings have the old supplier fields structure
       const hasOldSupplierFields = parsed.modules?.supplier?.fields && 
         (parsed.modules.supplier.fields.name || 
@@ -210,17 +294,102 @@ export function loadSettings(): AppSettings {
          parsed.modules.supplier.fields.state)
       
       if (hasOldSupplierFields) {
-        console.log('Detected old supplier fields structure, clearing settings...')
         localStorage.removeItem(SETTINGS_STORAGE_KEY)
         return defaultSettings
       }
       
-      // Merge with defaults to ensure all properties exist
-      return { ...defaultSettings, ...parsed }
+      // Check if shipment module is missing new fields
+      const shipmentFields = parsed.modules?.shipment?.fields
+      const hasOldShipmentFields = shipmentFields && 
+        (!shipmentFields.blAwbDate || 
+         !shipmentFields.shipmentMode || 
+         !shipmentFields.shipmentType || 
+         !shipmentFields.containerNumber || 
+         !shipmentFields.grossWeightKg || 
+         !shipmentFields.dateOfDelivery)
+      
+      if (hasOldShipmentFields) {
+        console.log('🔧 loadSettings - Detected old shipment fields structure, clearing settings...')
+        localStorage.removeItem(SETTINGS_STORAGE_KEY)
+        return defaultSettings
+      }
+      
+      // Check if invoice module is missing new fields
+      const invoiceFields = parsed.modules?.invoice?.fields
+      const hasOldInvoiceFields = invoiceFields && 
+        (!invoiceFields.invoiceId || 
+         !invoiceFields.supplierName || 
+         !invoiceFields.partNumber || 
+         !invoiceFields.itemDescription || 
+         !invoiceFields.hsnCode || 
+         !invoiceFields.currency || 
+         !invoiceFields.unit || 
+         !invoiceFields.quantity || 
+         !invoiceFields.unitPrice || 
+         !invoiceFields.lineTotal || 
+         !invoiceFields.bcd || 
+         !invoiceFields.igst || 
+         !invoiceFields.invoiceTotal)
+      
+      if (hasOldInvoiceFields) {
+        console.log('🔧 loadSettings - Detected old invoice fields structure, clearing settings...')
+        localStorage.removeItem(SETTINGS_STORAGE_KEY)
+        return defaultSettings
+      }
+      
+      // Check if BOE module is missing new fields
+      const boeFields = parsed.modules?.boe?.fields
+      const hasOldBoeFields = boeFields && 
+        (!boeFields.id || 
+         !boeFields.refId || 
+         !boeFields.transactionId)
+      
+      if (hasOldBoeFields) {
+        console.log('🔧 loadSettings - Detected old BOE fields structure, clearing settings...')
+        localStorage.removeItem(SETTINGS_STORAGE_KEY)
+        return defaultSettings
+      }
+      
+      // Check if expenses module is missing new fields
+      const expensesFields = parsed.modules?.expenses?.fields
+      const hasOldExpensesFields = expensesFields && 
+        (!expensesFields.id || 
+         !expensesFields.shipmentId || 
+         !expensesFields.createdBy || 
+         !expensesFields.createdAt || 
+         !expensesFields.updatedAt)
+      
+      if (hasOldExpensesFields) {
+        console.log('🔧 loadSettings - Detected old expenses fields structure, clearing settings...')
+        localStorage.removeItem(SETTINGS_STORAGE_KEY)
+        return defaultSettings
+      }
+      
+      // Check if item master module is missing new fields
+      const itemMasterFields = parsed.modules?.itemMaster?.fields
+      const hasOldItemMasterFields = itemMasterFields && 
+        (!itemMasterFields.id)
+      
+      if (hasOldItemMasterFields) {
+        console.log('🔧 loadSettings - Detected old item master fields structure, clearing settings...')
+        localStorage.removeItem(SETTINGS_STORAGE_KEY)
+        return defaultSettings
+      }
+      
+      // Deep merge with defaults to ensure all properties exist
+      const mergedSettings = deepMerge(defaultSettings, parsed)
+      
+      // Force shipmentType to be uppercase (fix for existing settings)
+      if (mergedSettings.modules?.shipment?.fields?.shipmentType) {
+        mergedSettings.modules.shipment.fields.shipmentType.case = 'uppercase'
+      }
+      
+      return mergedSettings
     }
   } catch (error) {
-    console.error('Failed to load settings:', error)
+    console.error('🔧 loadSettings - Failed to load settings:', error)
   }
+  
   return defaultSettings
 }
 
@@ -229,17 +398,65 @@ export function saveSettings(settings: AppSettings): void {
   try {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
   } catch (error) {
-    console.error('Failed to save settings:', error)
+    console.error('🔧 saveSettings - Failed to save settings:', error)
   }
 }
 
 // Clear all settings and reset to defaults
 export function clearSettings(): void {
   try {
-    localStorage.removeItem(SETTINGS_STORAGE_KEY)
-    console.log('Settings cleared and reset to defaults')
+    localStorage.clear()
+    console.log('🔧 Settings cleared successfully')
+    window.location.reload()
   } catch (error) {
     console.error('Failed to clear settings:', error)
+  }
+}
+
+// Force refresh settings to apply new defaults
+export function refreshSettings(): AppSettings {
+  clearSettings()
+  return loadSettings()
+}
+
+// Clear table page size settings to force refresh from module settings
+export function clearTablePageSizeSettings(): void {
+  try {
+    // Clear all table page size settings
+    const keysToRemove = [
+      'shipment-table-page-size',
+      'invoice-table-page-size', 
+      'boe-table-page-size',
+      'boe-summary-table-page-size',
+      'supplier-table-page-size',
+      'item-table-page-size',
+      'item-master-table-page-size',
+      'expense-table-page-size'
+    ]
+    
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key)
+    })
+    
+    // Also clear the main settings to force refresh
+    localStorage.removeItem('import-manager-settings')
+    
+    console.log('🔧 Table page size settings and main settings cleared successfully')
+    
+    // Force page reload to apply new settings
+    window.location.reload()
+  } catch (error) {
+    console.error('Failed to clear table page size settings:', error)
+  }
+}
+
+// Make it available globally for console access
+if (typeof window !== 'undefined') {
+  (window as any).clearTablePageSizeSettings = clearTablePageSizeSettings
+  ;(window as any).clearAllSettings = clearSettings
+  ;(window as any).forceReloadSettings = () => {
+    localStorage.clear()
+    window.location.reload()
   }
 }
 
@@ -257,22 +474,126 @@ export function updateSettings<K extends keyof AppSettings>(
 // Format number based on settings
 export function formatNumber(
   value: number | null | undefined,
-  settings: NumberFormatSettings = loadSettings().numberFormat
+  settings: NumberFormatSettings = loadSettings().numberFormat,
+  fieldSettings?: Partial<ModuleFieldSettings>
 ): string {
-  if (value === null || value === undefined) return '-'
+  if (value === null || value === undefined) {
+    if (settings.zeroFormat === '-') return '-'
+    if (settings.zeroFormat === '0') return '0'
+    if (settings.zeroFormat === '0.00') return '0.00'
+    return '-'
+  }
   
-  const options: Intl.NumberFormatOptions = {
-    minimumFractionDigits: settings.decimalPlaces,
-    maximumFractionDigits: settings.decimalPlaces,
+  // Handle zero values
+  if (value === 0) {
+    if (settings.zeroFormat === '-') return '-'
+    if (settings.zeroFormat === '0') return '0'
+    if (settings.zeroFormat === '0.00') return '0.00'
+  }
+  
+  // Handle negative values
+  const isNegative = value < 0
+  const absValue = Math.abs(value)
+  
+  // Determine precision from field settings or global settings
+  const precision = fieldSettings?.precision ?? settings.decimalPlaces
+  
+  // Handle scientific notation
+  if (settings.useScientificNotation && absValue >= settings.scientificThreshold) {
+    const options: Intl.NumberFormatOptions = {
+      notation: 'scientific',
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+      useGrouping: settings.useThousandsSeparator
+    }
+    const formatted = new Intl.NumberFormat('en-US', options).format(absValue)
+    return isNegative ? `-${formatted}` : formatted
+  }
+  
+  // Handle compact notation (K, M, B)
+  if (settings.useCompactNotation && absValue >= settings.compactThreshold) {
+    const options: Intl.NumberFormatOptions = {
+      notation: 'compact',
+      minimumFractionDigits: precision,
+      maximumFractionDigits: precision,
+      useGrouping: settings.useThousandsSeparator
+    }
+    const formatted = new Intl.NumberFormat('en-US', options).format(absValue)
+    return isNegative ? `-${formatted}` : formatted
+  }
+  
+  // Handle different number formats
+  let formatted: string
+  const baseOptions: Intl.NumberFormatOptions = {
+    minimumFractionDigits: precision,
+    maximumFractionDigits: precision,
     useGrouping: settings.useThousandsSeparator
   }
   
-  const formatted = new Intl.NumberFormat('en-IN', options).format(value)
+  switch (fieldSettings?.numberFormat) {
+    case 'currency':
+      if (settings.showCurrency) {
+        const currencyOptions: Intl.NumberFormatOptions = {
+          ...baseOptions,
+          style: 'currency',
+          currency: 'INR'
+        }
+        formatted = new Intl.NumberFormat('en-US', currencyOptions).format(absValue)
+      } else {
+        formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue)
+        if (settings.currencySymbol) {
+          formatted = settings.currencyPosition === 'before' 
+            ? `${settings.currencySymbol}${formatted}`
+            : `${formatted}${settings.currencySymbol}`
+        }
+      }
+      break
+      
+    case 'percentage':
+      // Don't use style: 'percent' to avoid automatic % symbol
+      formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue)
+      break
+      
+    case 'integer':
+      const integerOptions: Intl.NumberFormatOptions = {
+        ...baseOptions,
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+      }
+      formatted = new Intl.NumberFormat('en-US', integerOptions).format(absValue)
+      break
+      
+    case 'scientific':
+      const scientificOptions: Intl.NumberFormatOptions = {
+        ...baseOptions,
+        notation: 'scientific'
+      }
+      formatted = new Intl.NumberFormat('en-US', scientificOptions).format(absValue)
+      break
+      
+    default: // decimal
+      formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue)
+      break
+  }
   
-  if (settings.currencySymbol) {
-    return settings.currencyPosition === 'before' 
-      ? `${settings.currencySymbol}${formatted}`
-      : `${formatted}${settings.currencySymbol}`
+  // Handle negative formatting
+  if (isNegative) {
+    switch (settings.negativeFormat) {
+      case 'minus':
+        formatted = `-${formatted}`
+        break
+      case 'parentheses':
+        formatted = `(${formatted})`
+        break
+      case 'brackets':
+        formatted = `[${formatted}]`
+        break
+    }
+  }
+  
+  // Handle sign display
+  if (fieldSettings?.showSign && !isNegative && value > 0) {
+    formatted = `+${formatted}`
   }
   
   return formatted
@@ -286,14 +607,12 @@ export function formatCurrency(
   if (value === null || value === undefined) return '-'
   
   const options: Intl.NumberFormatOptions = {
-    style: 'currency',
-    currency: 'INR',
     minimumFractionDigits: settings.decimalPlaces,
     maximumFractionDigits: settings.decimalPlaces,
     useGrouping: settings.useThousandsSeparator
   }
   
-  return new Intl.NumberFormat('en-IN', options).format(value)
+  return new Intl.NumberFormat('en-US', options).format(value)
 }
 
 // Format date based on settings
@@ -407,7 +726,9 @@ export function updateModuleField(
   updates: Partial<ModuleFieldSettings>
 ): AppSettings {
   const current = loadSettings()
+  
   const moduleSettings = current.modules[moduleName]
+  
   const updated = {
     ...current,
     modules: {
@@ -424,6 +745,7 @@ export function updateModuleField(
       }
     }
   }
+  
   saveSettings(updated)
   return updated
 }
@@ -442,4 +764,15 @@ export function getFieldConfig(
 ): ModuleFieldSettings | undefined {
   const moduleSettings = getModuleSettings(moduleName)
   return moduleSettings.fields[fieldName]
+}
+
+// Make it available globally for console access
+if (typeof window !== 'undefined') {
+  // @ts-ignore
+  window.clearAllSettings = clearSettings
+  // @ts-ignore
+  window.forceReloadSettings = () => {
+    localStorage.clear()
+    window.location.reload()
+  }
 }

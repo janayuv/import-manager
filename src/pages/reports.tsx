@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataTable } from '@/components/shared/data-table';
 import { useReport } from '@/hooks/useReport';
 import { format } from 'date-fns';
+import type { Row } from '@tanstack/react-table';
 
 export default function ReportsPage() {
   const { data, totals, loading, error, updateFilters } = useReport();
@@ -109,7 +110,7 @@ export default function ReportsPage() {
     { 
       accessorKey: 'qty', 
       header: 'Qty',
-      cell: ({ row }: { row: any }) => {
+      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
         const qty = row.getValue('qty');
         return qty ? Number(qty).toFixed(2) : '0.00';
       }

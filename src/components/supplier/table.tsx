@@ -23,6 +23,7 @@ import {
 } from '@tanstack/react-table'
 
 import { DataTablePagination } from './pagination'
+import { useSettings } from '@/lib/use-settings'
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
@@ -30,13 +31,21 @@ interface DataTableProps<TData, TValue> {
 }
 
 export function SupplierDataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
+  const { settings } = useSettings()
   const [sorting, setSorting] = React.useState<SortingState>([])
   const [globalFilter, setGlobalFilter] = React.useState('')
   const [rowSelection, setRowSelection] = React.useState({})
 
+  // Filter columns based on visibility settings
+  const visibleColumns = columns.filter(column => {
+    if (column.id === 'select') return true // Always show select column
+    const isVisible = column.meta?.visible !== false
+    return isVisible
+  })
+
   const table = useReactTable({
     data,
-    columns,
+    columns: visibleColumns,
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
     getCoreRowModel: getCoreRowModel(),
@@ -44,6 +53,11 @@ export function SupplierDataTable<TData, TValue>({ columns, data }: DataTablePro
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
+    initialState: {
+      pagination: {
+        pageSize: settings.modules.supplier.itemsPerPage,
+      },
+    },
     state: {
       sorting,
       globalFilter,

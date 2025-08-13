@@ -17,8 +17,17 @@ export function ModuleSettingsDemo() {
     { key: 'expenses', title: 'Expenses' },
   ]
 
-  const visibleFields = getVisibleFields(selectedModule)
-  const moduleSettings = getModuleSettings(selectedModule)
+  // Safety check - try to get settings, but handle errors gracefully
+  let visibleFields: string[] = []
+  let moduleSettings: any = { fields: {}, itemsPerPage: 10, showTotals: false, showActions: true }
+  
+  try {
+    visibleFields = getVisibleFields(selectedModule)
+    moduleSettings = getModuleSettings(selectedModule)
+  } catch (error) {
+    console.warn('ModuleSettingsDemo: Error loading settings:', error)
+    // Use default values if settings are not available
+  }
 
   return (
     <div className="space-y-6">

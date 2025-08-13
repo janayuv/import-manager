@@ -20,12 +20,14 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
+import { useSettings } from '@/lib/use-settings'
 import type { BoeDetails } from '@/types/boe'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
 const BoePage = () => {
+  const { settings } = useSettings()
   const [boes, setBoes] = React.useState<BoeDetails[]>([])
   const [loading, setLoading] = React.useState(true)
   const [isFormOpen, setFormOpen] = React.useState(false)
@@ -217,11 +219,15 @@ const BoePage = () => {
     }
   }
 
-  const columns = getBoeColumns({
-    onView: handleView,
-    onEdit: handleOpenFormForEdit,
-    onDelete: handleDeleteRequest,
-  })
+  const columns = React.useMemo(
+    () => getBoeColumns({
+      onView: handleView,
+      onEdit: handleOpenFormForEdit,
+      onDelete: handleDeleteRequest,
+      settings,
+    }),
+    [handleView, handleOpenFormForEdit, handleDeleteRequest, settings]
+  )
 
   if (loading) {
     return (
@@ -270,6 +276,7 @@ const BoePage = () => {
         data={boes}
         globalFilter={globalFilter}
         setGlobalFilter={setGlobalFilter}
+        storageKey="boe-table-page-size"
       />
 
       <BoeForm

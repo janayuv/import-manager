@@ -1,4 +1,3 @@
-// src/app/dashboard/boe-summary/client.tsx
 'use client'
 
 import { toast } from 'sonner'
@@ -39,22 +38,145 @@ import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 import { StatusBadge } from './columns'
 
-// src/app/dashboard/boe-summary/client.tsx
-
-// src/app/dashboard/boe-summary/client.tsx
-
-// src/app/dashboard/boe-summary/client.tsx
-
-import { formatCurrency as formatCurrencyWithSettings } from '@/lib/settings'
+import { formatCurrency as formatCurrencyWithSettings, loadSettings } from '@/lib/settings'
 
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount === null || amount === undefined) return '-'
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount)
+  return new Intl.NumberFormat('en-US', { 
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount)
 }
 
 const formatCurrencyNoDecimals = (amount: number | null | undefined) => {
   if (amount === null || amount === undefined) return '-'
   return formatCurrencyWithSettings(amount)
+}
+
+// Function to get ordered fields based on settings
+const getOrderedFields = () => {
+  const settings = loadSettings()
+  const boeSummaryFields = settings.modules.boeSummary.fields
+  
+  // Convert to array and sort by order
+  return Object.entries(boeSummaryFields)
+    .filter(([, config]) => config.visible)
+    .sort(([, a], [, b]) => a.order - b.order)
+    .map(([fieldName]) => fieldName)
+}
+
+// Function to get field display name
+const getFieldDisplayName = (fieldName: string) => {
+  const fieldMap: Record<string, string> = {
+    partNo: 'Part No',
+    description: 'Description',
+    assessableValue: 'Assessable',
+    bcd: 'BCD',
+    sws: 'SWS',
+    igst: 'IGST',
+    totalDuty: 'Total Duty',
+    qty: 'Qty',
+    perUnitDuty: 'Per-Unit Duty',
+    landedCostPerUnit: 'Landed Cost / Unit',
+    actualDuty: 'Actual Duty',
+    savings: 'Savings'
+  }
+  return fieldMap[fieldName] || fieldName
+}
+
+// Function to render cell value
+const renderCellValue = (fieldName: string, row: {
+  partNo: string
+  description: string
+  assessableValue: number
+  bcdValue: number
+  swsValue: number
+  igstValue: number
+  totalDuty: number
+  qty: number
+  perUnitDuty: number
+  landedCostPerUnit: number
+  actualDuty: number | null
+  dutySavings: number
+}) => {
+  switch (fieldName) {
+    case 'partNo':
+      return <TableCell className="font-medium">{row.partNo}</TableCell>
+    case 'description':
+      return <TableCell>{row.description}</TableCell>
+    case 'assessableValue':
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.assessableValue)}</TableCell>
+    case 'bcd':
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.bcdValue)}</TableCell>
+    case 'sws':
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.swsValue)}</TableCell>
+    case 'igst':
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.igstValue)}</TableCell>
+    case 'totalDuty':
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.totalDuty)}</TableCell>
+    case 'qty':
+      return <TableCell className="text-right font-mono">{row.qty || '-'}</TableCell>
+    case 'perUnitDuty':
+      return <TableCell className="text-right font-mono">{row.qty ? formatCurrency(row.perUnitDuty) : '-'}</TableCell>
+    case 'landedCostPerUnit':
+      return <TableCell className="text-right font-mono">{row.qty ? formatCurrency(row.landedCostPerUnit) : '-'}</TableCell>
+    case 'actualDuty':
+      return <TableCell className="text-right font-mono">{row.actualDuty != null ? formatCurrencyNoDecimals(row.actualDuty) : '-'}</TableCell>
+    case 'savings':
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.dutySavings)}</TableCell>
+    default:
+      return <TableCell>-</TableCell>
+  }
+}
+
+// Function to render totals cell value
+const renderTotalsCellValue = (fieldName: string, totals: {
+  assessableValue: number
+  bcdValue: number
+  swsValue: number
+  igstValue: number
+  totalDuty: number
+  dutySavings: number
+  actualDuty: number
+}, orderedFields: string[]) => {
+  // Find the index of the current field in the ordered fields
+  const fieldIndex = orderedFields.indexOf(fieldName)
+  
+  // If this is the first field (partNo), create a cell that spans the first two columns
+  if (fieldIndex === 0) {
+    return <TableCell colSpan={2} className="text-right font-semibold">Totals</TableCell>
+  }
+  
+  // If this is the second field (description), skip it since it's covered by the colspan
+  if (fieldIndex === 1) {
+    return null
+  }
+  
+  // For all other fields, render the appropriate value
+  switch (fieldName) {
+    case 'assessableValue':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.assessableValue)}</TableCell>
+    case 'bcd':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.bcdValue)}</TableCell>
+    case 'sws':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.swsValue)}</TableCell>
+    case 'igst':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.igstValue)}</TableCell>
+    case 'totalDuty':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.totalDuty)}</TableCell>
+    case 'qty':
+      return <TableCell className="text-right font-mono font-semibold">-</TableCell>
+    case 'perUnitDuty':
+      return <TableCell className="text-right font-mono font-semibold">-</TableCell>
+    case 'landedCostPerUnit':
+      return <TableCell className="text-right font-mono font-semibold">-</TableCell>
+    case 'actualDuty':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.actualDuty)}</TableCell>
+    case 'savings':
+      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.dutySavings)}</TableCell>
+    default:
+      return <TableCell className="text-right font-mono font-semibold">-</TableCell>
+  }
 }
 
 function downloadCsv(filename: string, rows: Array<Record<string, string | number>>) {
@@ -242,9 +364,11 @@ function ItemDetailsTable({
       acc.swsValue += r.swsValue
       acc.igstValue += r.igstValue
       acc.totalDuty += r.totalDuty
+      acc.dutySavings += r.dutySavings
+      acc.actualDuty += r.actualDuty || 0
       return acc
     },
-    { assessableValue: 0, bcdValue: 0, swsValue: 0, igstValue: 0, totalDuty: 0 }
+    { assessableValue: 0, bcdValue: 0, swsValue: 0, igstValue: 0, totalDuty: 0, dutySavings: 0, actualDuty: 0 }
   )
 
   const exportRows = rows.map((r) => ({
@@ -271,6 +395,8 @@ function ItemDetailsTable({
   const handlePrint = () =>
     printReport({ itemsRows: exportRows, summary: [], title: 'BOE Item Details' })
 
+  const orderedFields = getOrderedFields()
+
   return (
     <Card className="mt-2">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -292,75 +418,29 @@ function ItemDetailsTable({
           <Table>
             <TableHeader>
               <TableRow className="bg-muted/50">
-                <TableHead>Part No</TableHead>
-                <TableHead>Description</TableHead>
-                <TableHead className="text-right">Assessable</TableHead>
-                <TableHead className="text-right">BCD</TableHead>
-                <TableHead className="text-right">SWS</TableHead>
-                <TableHead className="text-right">IGST</TableHead>
-                <TableHead className="text-right">Total Duty</TableHead>
-                <TableHead className="text-right">Qty</TableHead>
-                <TableHead className="text-right">Per-Unit Duty</TableHead>
-                <TableHead className="text-right">Landed Cost / Unit</TableHead>
-                <TableHead className="text-right">Actual Duty</TableHead>
-                <TableHead className="text-right">Savings</TableHead>
+                {orderedFields.map((fieldName) => (
+                  <TableHead key={fieldName} className={fieldName !== 'partNo' && fieldName !== 'description' ? 'text-right' : ''}>
+                    {getFieldDisplayName(fieldName)}
+                  </TableHead>
+                ))}
               </TableRow>
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
                 <TableRow key={r.partNo}>
-                  <TableCell className="font-medium">{r.partNo}</TableCell>
-                  <TableCell>{r.description}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrencyNoDecimals(r.assessableValue)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrencyNoDecimals(r.bcdValue)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrencyNoDecimals(r.swsValue)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrencyNoDecimals(r.igstValue)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrencyNoDecimals(r.totalDuty)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">{r.qty || '-'}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {r.qty ? formatCurrency(r.perUnitDuty) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {r.qty ? formatCurrency(r.landedCostPerUnit) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {r.actualDuty != null ? formatCurrencyNoDecimals(r.actualDuty) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrencyNoDecimals(r.dutySavings)}
-                  </TableCell>
+                  {orderedFields.map((fieldName) => (
+                    <React.Fragment key={fieldName}>
+                      {renderCellValue(fieldName, r)}
+                    </React.Fragment>
+                  ))}
                 </TableRow>
               ))}
-              <TableRow className="bg-muted/30">
-                <TableCell colSpan={2} className="text-right font-semibold">
-                  Totals
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrencyNoDecimals(totals.assessableValue)}
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrencyNoDecimals(totals.bcdValue)}
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrencyNoDecimals(totals.swsValue)}
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrencyNoDecimals(totals.igstValue)}
-                </TableCell>
-                <TableCell className="text-right font-mono font-semibold">
-                  {formatCurrencyNoDecimals(totals.totalDuty)}
-                </TableCell>
-              </TableRow>
+                             <TableRow className="bg-muted/30">
+                 {orderedFields.map((fieldName) => {
+                   const cell = renderTotalsCellValue(fieldName, totals, orderedFields)
+                   return cell ? <React.Fragment key={fieldName}>{cell}</React.Fragment> : null
+                 })}
+               </TableRow>
             </TableBody>
           </Table>
         </div>
@@ -486,13 +566,6 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
   const [statusFilter, setStatusFilter] = React.useState<string>('All')
   const [pendingStatus, setPendingStatus] = React.useState<string>('')
   const [isUpdatingStatus, setIsUpdatingStatus] = React.useState<boolean>(false)
-
-  // Example of how to use module settings
-  // import { getVisibleFields, getFieldConfig } from '@/lib/settings'
-  // const visibleFields = getVisibleFields('boeSummary')
-  // const fieldConfig = getFieldConfig('boeSummary', 'partNo')
-  // console.log('Visible fields:', visibleFields)
-  // console.log('Field config:', fieldConfig)
 
   const suppliers = React.useMemo(() => {
     const supplierSet = new Set(savedBoes.map((boe) => boe.supplierName))

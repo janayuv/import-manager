@@ -5,11 +5,13 @@ import * as React from 'react'
 import { BoeSummaryClient } from '@/components/boe-summary/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useSettings } from '@/lib/use-settings'
 import type { BoeDetails } from '@/types/boe'
 import type { SavedBoe, Shipment } from '@/types/boe-entry'
 import { invoke } from '@tauri-apps/api/core'
 
 export default function BoeSummaryPage() {
+  const { settings } = useSettings()
   const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([])
   const [shipments, setShipments] = React.useState<Shipment[]>([])
   const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([])
@@ -73,7 +75,7 @@ export default function BoeSummaryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <BoeSummaryClient savedBoes={savedBoes} shipments={shipments} allBoes={allBoes} />
+          <BoeSummaryClient savedBoes={savedBoes} shipments={shipments} allBoes={allBoes} settings={settings} />
         </CardContent>
       </Card>
     </div>

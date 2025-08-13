@@ -651,5 +651,223 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         [],
     )?;
 
+    // Insert sample data if the suppliers table is empty
+    let supplier_count: i32 = conn.query_row("SELECT COUNT(*) FROM suppliers", [], |row| row.get(0))?;
+    
+    println!("🔧 Database init - Supplier count: {}", supplier_count);
+    
+    // For debugging, let's also check what's in the database
+    if supplier_count > 0 {
+        let mut stmt = conn.prepare("SELECT id, supplier_name, bank_name, account_no, swift_code FROM suppliers LIMIT 3")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((
+                row.get::<_, String>(0)?,
+                row.get::<_, String>(1)?,
+                row.get::<_, Option<String>>(2)?,
+                row.get::<_, Option<String>>(3)?,
+                row.get::<_, Option<String>>(4)?,
+            ))
+        })?;
+        
+        for row in rows {
+            let (id, name, bank_name, account_no, swift_code) = row?;
+            println!("🔧 Database init - Existing supplier: {} - {} - Bank: {:?} - Account: {:?} - Swift: {:?}", 
+                     id, name, bank_name, account_no, swift_code);
+        }
+    }
+    
+    if supplier_count == 0 {
+        // Insert sample suppliers
+        let sample_suppliers = vec![
+            (
+                "Sup-001",
+                "Clean and Science Co.Ltd Korea",
+                "CSC Korea",
+                "S.Korea",
+                "Clean and Science@gmail.com",
+                "123456789",
+                "Clean and Science Co.Ltd Korea",
+                "Korea Exchange Bank",
+                "Seoul Main Branch",
+                "123 Seoul Street, Seoul, Korea",
+                "1234567890",
+                "KOEXKRSE",
+                "KOEXKRSE",
+                true
+            ),
+            (
+                "Sup-002",
+                "CNF Co., LTD.",
+                "CNF",
+                "Czech Republic",
+                "cnf@gmail.com",
+                "123456789",
+                "CNF Co., LTD.",
+                "Ceska Narodni Banka",
+                "Prague Branch",
+                "456 Prague Avenue, Prague, Czech Republic",
+                "0987654321",
+                "CZEKCNB",
+                "CZEKCNB",
+                true
+            ),
+            (
+                "Sup-003",
+                "CTS CZECH REPUBLIC",
+                "CTS",
+                "Czech Republic",
+                "cts@gmail.com",
+                "123456789",
+                "CTS CZECH REPUBLIC",
+                "Ceska Narodni Banka",
+                "Brno Branch",
+                "789 Brno Street, Brno, Czech Republic",
+                "1122334455",
+                "CZEKCNB",
+                "CZEKCNB",
+                true
+            ),
+            (
+                "Sup-004",
+                "DUCI SARL",
+                "DUCI",
+                "France",
+                "duci@gmail.com",
+                "123456789",
+                "DUCI SARL",
+                "Banque de France",
+                "Paris Branch",
+                "321 Paris Boulevard, Paris, France",
+                "5544332211",
+                "FRBNFRPP",
+                "FRBNFRPP",
+                true
+            ),
+            (
+                "Sup-005",
+                "DY ELACEN CO LTD",
+                "DY ELACEN",
+                "France",
+                "dyelacen@gmail.com",
+                "123456789",
+                "DY ELACEN CO LTD",
+                "Credit Agricole",
+                "Lyon Branch",
+                "654 Lyon Street, Lyon, France",
+                "6677889900",
+                "CRLYFRPP",
+                "CRLYFRPP",
+                true
+            ),
+            (
+                "Sup-006",
+                "DY ELACEN CO LTD - VIETNAM",
+                "DY ELACEN VN",
+                "Vietnam",
+                "dyelacenvn@gmail.com",
+                "123456789",
+                "DY ELACEN CO LTD - VIETNAM",
+                "Vietcombank",
+                "Ho Chi Minh Branch",
+                "987 Ho Chi Minh Avenue, Ho Chi Minh, Vietnam",
+                "7788990011",
+                "VNVTCBVX",
+                "VNVTCBVX",
+                true
+            ),
+            (
+                "Sup-007",
+                "EARTH PANDA ADVANCE MAGNETIC",
+                "Earth Panda",
+                "China",
+                "earthpanda@gmail.com",
+                "123456789",
+                "EARTH PANDA ADVANCE MAGNETIC",
+                "Bank of China",
+                "Shanghai Branch",
+                "147 Shanghai Road, Shanghai, China",
+                "8899001122",
+                "CNBKCNBJ",
+                "CNBKCNBJ",
+                true
+            ),
+            (
+                "Sup-008",
+                "EFFBE FRANCE SAS HABSHEIM - FRANCE",
+                "EFFBE",
+                "France",
+                "effbe@gmail.com",
+                "123456789",
+                "EFFBE FRANCE SAS HABSHEIM - FRANCE",
+                "BNP Paribas",
+                "Strasbourg Branch",
+                "258 Strasbourg Street, Strasbourg, France",
+                "9900112233",
+                "BNPAFRPP",
+                "BNPAFRPP",
+                true
+            ),
+            (
+                "Sup-009",
+                "Essence Fastening Systems (Shanghai) Co. Ltd.",
+                "Essence",
+                "China",
+                "essence@gmail.com",
+                "123456789",
+                "Essence Fastening Systems (Shanghai) Co. Ltd.",
+                "Industrial and Commercial Bank of China",
+                "Shanghai Branch",
+                "369 Shanghai Avenue, Shanghai, China",
+                "0011223344",
+                "ICBKCNBJ",
+                "ICBKCNBJ",
+                true
+            ),
+            (
+                "Sup-010",
+                "FERGUSON LTD",
+                "Ferguson",
+                "UK",
+                "ferguson@gmail.com",
+                "123456789",
+                "FERGUSON LTD",
+                "Barclays Bank",
+                "London Branch",
+                "741 London Street, London, UK",
+                "1122334455",
+                "BARCGB22",
+                "BARCGB22",
+                true
+            ),
+            (
+                "Sup-011",
+                "Fraenkidche Pipe-Systems(Shanghai) Co. Ltd",
+                "Fraenkidche",
+                "China",
+                "fraenkidche@gmail.com",
+                "123456789",
+                "Fraenkidche Pipe-Systems(Shanghai) Co. Ltd",
+                "China Construction Bank",
+                "Shanghai Branch",
+                "852 Shanghai Boulevard, Shanghai, China",
+                "2233445566",
+                "PCBCCNBJ",
+                "PCBCCNBJ",
+                true
+            ),
+        ];
+
+        for supplier in sample_suppliers {
+            conn.execute(
+                "INSERT INTO suppliers (id, supplier_name, short_name, country, email, phone, beneficiary_name, bank_name, branch, bank_address, account_no, iban, swift_code, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
+                rusqlite::params![
+                    supplier.0, supplier.1, supplier.2, supplier.3, supplier.4, supplier.5,
+                    supplier.6, supplier.7, supplier.8, supplier.9, supplier.10, supplier.11,
+                    supplier.12, supplier.13
+                ],
+            )?;
+        }
+    }
+
     Ok(conn)
 }

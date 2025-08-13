@@ -17,8 +17,11 @@ import type { Column, ColumnDef } from '@tanstack/react-table'
 import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-dialog'
 import { readTextFile } from '@tauri-apps/plugin-fs'
+import { useSettings } from '@/lib/use-settings'
+import { formatText } from '@/lib/settings'
 
 const SupplierPage = () => {
+  const { settings } = useSettings()
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([])
   const [isViewOpen, setViewOpen] = React.useState(false)
   const [isEditOpen, setEditOpen] = React.useState(false)
@@ -166,6 +169,8 @@ const SupplierPage = () => {
     return <ArrowUpDown className="ml-2 h-4 w-4" />
   }
 
+
+
   const columns: ColumnDef<Supplier>[] = [
     {
       id: 'select',
@@ -200,6 +205,7 @@ const SupplierPage = () => {
           <SortIndicator column={column} />
         </Button>
       ),
+      meta: { visible: settings.modules.supplier.fields.id?.visible ?? true }
     },
     {
       accessorKey: 'supplierName',
@@ -212,8 +218,15 @@ const SupplierPage = () => {
           <SortIndicator column={column} />
         </Button>
       ),
+      cell: ({ row }) => formatText(row.getValue('supplierName'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.supplierName?.visible ?? true }
     },
-    { accessorKey: 'shortName', header: 'Short Name' },
+    { 
+      accessorKey: 'shortName', 
+      header: 'Short Name',
+      cell: ({ row }) => formatText(row.getValue('shortName'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.shortName?.visible ?? true }
+    },
     {
       accessorKey: 'country',
       header: ({ column }) => (
@@ -225,9 +238,63 @@ const SupplierPage = () => {
           <SortIndicator column={column} />
         </Button>
       ),
+      cell: ({ row }) => formatText(row.getValue('country'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.country?.visible ?? true }
     },
-    { accessorKey: 'phone', header: 'Phone' },
-    { accessorKey: 'email', header: 'Email' },
+    { 
+      accessorKey: 'phone', 
+      header: 'Phone',
+      cell: ({ row }) => formatText(row.getValue('phone'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.phone?.visible ?? true }
+    },
+    { 
+      accessorKey: 'email', 
+      header: 'Email',
+      cell: ({ row }) => formatText(row.getValue('email'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.email?.visible ?? true }
+    },
+    {
+      accessorKey: 'beneficiaryName',
+      header: 'Beneficiary Name',
+      cell: ({ row }) => formatText(row.getValue('beneficiaryName'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.beneficiaryName?.visible ?? true }
+    },
+    {
+      accessorKey: 'bankName',
+      header: 'Bank Name',
+      cell: ({ row }) => formatText(row.getValue('bankName'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.bankName?.visible ?? true }
+    },
+    {
+      accessorKey: 'branch',
+      header: 'Branch',
+      cell: ({ row }) => formatText(row.getValue('branch'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.branch?.visible ?? true }
+    },
+    {
+      accessorKey: 'bankAddress',
+      header: 'Bank Address',
+      cell: ({ row }) => formatText(row.getValue('bankAddress'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.bankAddress?.visible ?? true }
+    },
+    {
+      accessorKey: 'accountNo',
+      header: 'Account No.',
+      cell: ({ row }) => formatText(row.getValue('accountNo'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.accountNo?.visible ?? true }
+    },
+    {
+      accessorKey: 'iban',
+      header: 'IBAN',
+      cell: ({ row }) => formatText(row.getValue('iban'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.iban?.visible ?? true }
+    },
+    {
+      accessorKey: 'swiftCode',
+      header: 'SWIFT Code',
+      cell: ({ row }) => formatText(row.getValue('swiftCode'), settings.textFormat),
+      meta: { visible: settings.modules.supplier.fields.swiftCode?.visible ?? true }
+    },
     {
       accessorKey: 'isActive',
       header: 'Status',
@@ -239,6 +306,7 @@ const SupplierPage = () => {
           </Badge>
         )
       },
+      meta: { visible: settings.modules.supplier.fields.isActive?.visible ?? true }
     },
     {
       id: 'actions',
@@ -249,6 +317,7 @@ const SupplierPage = () => {
           onEdit={() => handleEdit(row.original)}
         />
       ),
+      meta: { visible: settings.modules.supplier.fields.actions?.visible ?? true }
     },
   ]
 
@@ -264,6 +333,21 @@ const SupplierPage = () => {
           <Button onClick={handleImport}>
             <Upload className="mr-2 h-4 w-4" />
             Import
+          </Button>
+          <Button 
+            variant="destructive" 
+            onClick={async () => {
+              try {
+                await invoke('clear_suppliers')
+                toast.success('Database cleared')
+                fetchSuppliers()
+              } catch (error) {
+                console.error('Failed to clear suppliers:', error)
+                toast.error('Failed to clear suppliers')
+              }
+            }}
+          >
+            Clear DB
           </Button>
           <AddSupplierForm onAdd={handleAdd} />
         </div>

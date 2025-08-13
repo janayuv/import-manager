@@ -28,45 +28,26 @@ import {
 } from '@/lib/settings'
 import { ModuleSettings } from '@/components/module-settings'
 import { ModuleSettingsDemo } from '@/components/module-settings-demo'
-
+import { useSettings } from '@/lib/use-settings'
 export default function SettingsPage() {
-  const [settings, setSettings] = React.useState<AppSettings>(loadSettings())
+  const { settings, updateSettings, updateNumberSettings, updateDateSettings, updateTextSettings } = useSettings()
   const [selectedModule, setSelectedModule] = React.useState<string | null>(null)
 
-  const updateNumberSettings = (updates: Partial<AppSettings['numberFormat']>) => {
-    setSettings(prev => ({
-      ...prev,
-      numberFormat: { ...prev.numberFormat, ...updates }
-    }))
-  }
-
-  const updateDateSettings = (updates: Partial<AppSettings['dateFormat']>) => {
-    setSettings(prev => ({
-      ...prev,
-      dateFormat: { ...prev.dateFormat, ...updates }
-    }))
-  }
-
-  const updateTextSettings = (updates: Partial<AppSettings['textFormat']>) => {
-    setSettings(prev => ({
-      ...prev,
-      textFormat: { ...prev.textFormat, ...updates }
-    }))
-  }
-
   const handleSave = () => {
-    saveSettings(settings)
+    // Settings are automatically saved via context
     toast.success('Settings saved successfully')
   }
 
   const handleReset = () => {
-    setSettings(loadSettings())
+    const defaultSettings = loadSettings()
+    updateSettings(defaultSettings)
     toast.info('Settings reset')
   }
 
   const handleClearSettings = () => {
     clearSettings()
-    setSettings(loadSettings())
+    const defaultSettings = loadSettings()
+    updateSettings(defaultSettings)
     toast.success('Settings cleared and reset to defaults')
   }
 

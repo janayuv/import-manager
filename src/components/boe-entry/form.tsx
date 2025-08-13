@@ -22,6 +22,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 // Removed unused Select imports
 import { calculateDuties } from '@/lib/duty-calculator'
+import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { BoeDetails } from '@/types/boe'
 import type {
   BoeItemInput,
@@ -80,6 +82,7 @@ export function BoeEntryForm({
   onCancelEdit,
   setEditingBoe,
 }: BoeEntryFormProps) {
+  const { settings } = useSettings()
   const [suppliers, setSuppliers] = React.useState<string[]>([])
   const [availableInvoices, setAvailableInvoices] = React.useState<Shipment[]>([])
   const [selectedShipment, setSelectedShipment] = React.useState<Shipment | null>(null)
@@ -138,13 +141,13 @@ export function BoeEntryForm({
   }, [allBoes, savedBoes, initialData])
 
   React.useEffect(() => {
-    setSuppliers([...new Set(shipments.map((s) => s.supplierName))])
-  }, [shipments])
+    setSuppliers([...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))])
+  }, [shipments, settings.textFormat])
 
   React.useEffect(() => {
     if (initialData) {
       form.reset(initialData.formValues)
-      const invs = shipments.filter((s) => s.supplierName === initialData.formValues.supplierName)
+      const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === initialData.formValues.supplierName)
       setAvailableInvoices(invs)
       setSelectedShipment(shipments.find((s) => s.id === initialData.shipmentId) || null)
       setItemInputs(initialData.itemInputs)
@@ -175,7 +178,7 @@ export function BoeEntryForm({
 
   const handleSupplierChange = (supplierName: string) => {
     form.setValue('supplierName', supplierName, { shouldValidate: true })
-    const invs = shipments.filter((s) => s.supplierName === supplierName)
+    const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === supplierName)
     setAvailableInvoices(invs)
     form.resetField('shipmentId')
     setSelectedShipment(null)

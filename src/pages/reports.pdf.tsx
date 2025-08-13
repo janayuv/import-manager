@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button'
 // no-op util imports here
 
 type PdfProps = {
-  rows: Array<any>
+  rows: Array<Record<string, unknown>>
   totals?: { qty: number; assessable_value: number; bcd_amount: number; sws_amount: number; igst_amount: number; expenses_total: number }
 }
 

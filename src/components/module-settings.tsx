@@ -35,13 +35,13 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
-  getModuleSettings,
   updateModuleField,
   updateModuleSettings,
   type ModuleSettings,
   type ModuleFieldSettings,
   type AppSettings,
 } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 
 interface ModuleSettingsProps {
   moduleName: keyof AppSettings['modules']
@@ -110,7 +110,31 @@ function SortableFieldItem({ fieldName, config, onToggle, onWidthChange }: Sorta
 }
 
 export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSettingsProps) {
-  const [settings, setSettings] = React.useState<ModuleSettings>(getModuleSettings(moduleName))
+  const { settings: globalSettings, updateModuleSettings: updateGlobalModuleSettings, updateModuleField: updateGlobalModuleField } = useSettings()
+  
+  // Check if settings are loaded
+  if (!globalSettings || !globalSettings.modules || !globalSettings.modules[moduleName]) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="text-lg font-medium">Loading settings...</div>
+          <div className="text-sm text-muted-foreground">Please wait while settings are being loaded.</div>
+        </div>
+      </div>
+    )
+  }
+  
+  const [settings, setSettings] = React.useState<ModuleSettings>(globalSettings.modules[moduleName])
+  
+  console.log('🔧 ModuleSettings - Module name:', moduleName)
+  console.log('🔧 ModuleSettings - Global settings:', globalSettings)
+  console.log('🔧 ModuleSettings - Module settings:', settings)
+  console.log('🔧 ModuleSettings - Module fields:', settings.fields)
+  
+  // Update local state when global settings change
+  React.useEffect(() => {
+    setSettings(globalSettings.modules[moduleName])
+  }, [globalSettings.modules, moduleName])
   // Removed unused state variables
 
   const sensors = useSensors(
@@ -121,21 +145,19 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
   )
 
   const handleFieldToggle = (fieldName: string, visible: boolean) => {
-    const updated = updateModuleField(moduleName, fieldName, { visible })
-    setSettings(updated.modules[moduleName])
+    console.log('🔧 ModuleSettings - Toggling field:', fieldName, 'to:', visible)
+    updateGlobalModuleField(moduleName, fieldName, { visible })
     toast.success(`${fieldName} ${visible ? 'shown' : 'hidden'}`)
   }
 
-  // Removed unused function
-
   const handleFieldWidthChange = (fieldName: string, width: string) => {
-    const updated = updateModuleField(moduleName, fieldName, { width })
-    setSettings(updated.modules[moduleName])
+    console.log('🔧 ModuleSettings - Changing field width:', fieldName, 'to:', width)
+    updateGlobalModuleField(moduleName, fieldName, { width })
   }
 
   const handleModuleSettingChange = (key: keyof ModuleSettings, value: unknown) => {
-    const updated = updateModuleSettings(moduleName, { [key]: value })
-    setSettings(updated.modules[moduleName])
+    console.log('🔧 ModuleSettings - Changing module setting:', key, 'to:', value)
+    updateGlobalModuleSettings(moduleName, { [key]: value })
   }
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -156,8 +178,8 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
         ])
       )
 
-      const updated = updateModuleSettings(moduleName, { fields: updatedFields })
-      setSettings(updated.modules[moduleName])
+      console.log('🔧 ModuleSettings - Reordering fields:', updatedFields)
+      updateGlobalModuleSettings(moduleName, { fields: updatedFields })
       toast.success('Field order updated')
     }
   }

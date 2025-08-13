@@ -23,7 +23,7 @@ pub fn get_suppliers(state: State<DbState>) -> Result<Vec<Supplier>, String> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn.prepare("SELECT * FROM suppliers").map_err(|e| e.to_string())?;
     let supplier_iter = stmt.query_map([], |row| {
-        Ok(Supplier {
+        let supplier = Supplier {
             id: row.get(0)?,
             supplier_name: row.get(1)?,
             short_name: row.get(2)?,
@@ -38,7 +38,15 @@ pub fn get_suppliers(state: State<DbState>) -> Result<Vec<Supplier>, String> {
             iban: row.get(11)?,
             swift_code: row.get(12)?,
             is_active: row.get(13)?,
-        })
+        };
+        
+        // Debug logging
+        println!("🔧 get_suppliers - Supplier: {:?}", supplier);
+        println!("🔧 get_suppliers - Bank name: {:?}", supplier.bank_name);
+        println!("🔧 get_suppliers - Account no: {:?}", supplier.account_no);
+        println!("🔧 get_suppliers - Swift code: {:?}", supplier.swift_code);
+        
+        Ok(supplier)
     }).map_err(|e| e.to_string())?;
 
     let mut suppliers = Vec::new();
@@ -72,6 +80,14 @@ pub fn add_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), Str
             supplier.is_active,
         ],
     ).map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn clear_suppliers(state: State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    conn.execute("DELETE FROM suppliers", []).map_err(|e| e.to_string())?;
+    println!("🔧 clear_suppliers - All suppliers deleted");
     Ok(())
 }
 

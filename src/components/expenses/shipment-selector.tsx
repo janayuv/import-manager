@@ -16,6 +16,8 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
+import { formatText, formatNumber } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { Expense } from '@/types/expense'
 import type { Shipment } from '@/types/shipment'
 import { invoke } from '@tauri-apps/api/core'
@@ -35,6 +37,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
   selectedShipment,
   setSelectedShipment,
 }) => {
+  const { settings } = useSettings()
   const [shipments, setShipments] = useState<ShipmentWithExpenseCount[]>([])
   const [options, setOptions] = useState<ComboboxOption[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,7 +72,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
       setOptions(
         shipmentsWithExpenses.map((s) => ({
           value: s.id,
-          label: `${s.invoiceNumber} - ${s.blAwbNumber} - ${safeDateLabel(s.invoiceDate)}`,
+          label: `${formatText(s.invoiceNumber, settings.textFormat)} - ${formatText(s.blAwbNumber, settings.textFormat)} - ${safeDateLabel(s.invoiceDate)}`,
           metadata: {
             expenseCount: s.expenseCount,
             totalAmount: s.totalExpenseAmount,
@@ -95,9 +98,9 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
     if (shipment) {
       if (shipment.isComplete)
         toast.success(
-          `Selected completed shipment: ${shipment.invoiceNumber} (${shipment.expenseCount} expenses)`
+          `Selected completed shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} (${shipment.expenseCount} expenses)`
         )
-      else toast.info(`Selected shipment: ${shipment.invoiceNumber} - ready for expenses`)
+      else toast.info(`Selected shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} - ready for expenses`)
     }
   }
 
@@ -235,10 +238,10 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
           </div>
           <div className="text-muted-foreground space-y-1 text-xs">
             <p>
-              <strong>Invoice:</strong> {selectedShipment.invoiceNumber}
+              <strong>Invoice:</strong> {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
             </p>
             <p>
-              <strong>BL/AWB:</strong> {selectedShipment.blAwbNumber}
+              <strong>BL/AWB:</strong> {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
             </p>
             <p>
               <strong>Date:</strong> {safeDateLabel(selectedShipment.invoiceDate)}
@@ -246,7 +249,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
             {selectedShipmentWithExpenses && selectedShipmentWithExpenses.expenseCount > 0 && (
               <p>
                 <strong>Expenses:</strong> {selectedShipmentWithExpenses.expenseCount} (₹
-                {selectedShipmentWithExpenses.totalExpenseAmount.toFixed(2)})
+                {formatNumber(selectedShipmentWithExpenses.totalExpenseAmount, settings.numberFormat, { numberFormat: 'currency', precision: 2, showSign: false })})
               </p>
             )}
           </div>

@@ -10,6 +10,8 @@ import {
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import type { Supplier } from '@/types/supplier'
+import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 
 interface ViewSupplierProps {
   isOpen: boolean
@@ -18,6 +20,8 @@ interface ViewSupplierProps {
 }
 
 const DetailItem = ({ label, value }: { label: string; value?: string | boolean | null }) => {
+  const { settings } = useSettings()
+  
   if (value === undefined || value === null || value === '') return null
 
   if (typeof value === 'boolean') {
@@ -35,7 +39,7 @@ const DetailItem = ({ label, value }: { label: string; value?: string | boolean 
   return (
     <div>
       <span className="text-muted-foreground text-sm">{label}</span>
-      <p className="font-medium">{value}</p>
+      <p className="font-medium">{formatText(value, settings.textFormat)}</p>
     </div>
   )
 }

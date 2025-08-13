@@ -10,6 +10,8 @@ import { getShipmentColumns } from '@/components/shipment/columns'
 import { ShipmentForm } from '@/components/shipment/form'
 import { ShipmentViewDialog } from '@/components/shipment/view'
 import { Button } from '@/components/ui/button'
+import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { Option } from '@/types/options'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
@@ -21,6 +23,7 @@ import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 type OptionType = 'category' | 'incoterm' | 'mode' | 'status' | 'type' | 'currency'
 
 const ShipmentPage = () => {
+  const { settings } = useSettings()
   const [shipments, setShipments] = React.useState<Shipment[]>([])
   const [suppliers, setSuppliers] = React.useState<Option[]>([])
   const [isFormOpen, setFormOpen] = React.useState(false)
@@ -36,8 +39,8 @@ const ShipmentPage = () => {
   const [currencies, setCurrencies] = React.useState<Option[]>([])
 
   const columns = React.useMemo(
-    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered),
-    [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered]
+    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings),
+    [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings]
   )
 
   const fetchShipments = async () => {
@@ -85,7 +88,7 @@ const ShipmentPage = () => {
         const fetchedSuppliers: Supplier[] = await invoke('get_suppliers')
         const supplierOptions = fetchedSuppliers.map((s) => ({
           value: s.id,
-          label: s.supplierName,
+          label: formatText(s.supplierName, settings.textFormat),
         }))
         setSuppliers(supplierOptions)
         await fetchShipments()

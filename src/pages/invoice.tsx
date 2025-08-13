@@ -31,6 +31,7 @@ import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
+import { useSettings } from '@/lib/use-settings'
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
@@ -43,6 +44,7 @@ type BulkImportRow = {
 }
 
 const InvoicePage = () => {
+  const { settings } = useSettings()
   const [invoices, setInvoices] = React.useState<Invoice[]>([])
   const [shipments, setShipments] = React.useState<Shipment[]>([])
   const [unfinalizedShipments, setUnfinalizedShipments] = React.useState<Shipment[]>([])
@@ -100,6 +102,20 @@ const InvoicePage = () => {
     return unfinalizedShipments
   }, [unfinalizedShipments, shipments, invoiceToEdit])
 
+  // Helper function to parse percentage values from database
+  const parsePercentage = (value: string | number | undefined): number => {
+    if (typeof value === 'number') {
+      return value
+    }
+    if (typeof value === 'string') {
+      // Remove '%' and convert to number
+      const cleanValue = value.replace('%', '').trim()
+      const parsed = parseFloat(cleanValue)
+      return isNaN(parsed) ? 0 : parsed
+    }
+    return 0
+  }
+
   const flattenedData = React.useMemo(() => {
     const data: FlattenedInvoiceLine[] = []
     const filteredInvoices =
@@ -128,8 +144,8 @@ const InvoicePage = () => {
               quantity: lineItem.quantity,
               unitPrice: lineItem.unitPrice,
               lineTotal: lineItem.quantity * lineItem.unitPrice,
-              bcd: typeof item.bcd === 'number' ? item.bcd : 0,
-              igst: typeof item.igst === 'number' ? item.igst : 0,
+              bcd: parsePercentage(item.bcd),
+              igst: parsePercentage(item.igst),
               invoiceTotal: invoice.calculatedTotal,
               shipmentTotal: invoice.shipmentTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
@@ -356,12 +372,16 @@ const InvoicePage = () => {
     }
   }
 
-  const columns = getInvoiceColumns({
-    onView: handleView,
-    onEdit: handleOpenFormForEdit,
-    onDelete: handleDeleteRequest,
-    onQuickFinalize: handleQuickFinalize,
-  })
+  const columns = React.useMemo(
+    () => getInvoiceColumns({
+      onView: handleView,
+      onEdit: handleOpenFormForEdit,
+      onDelete: handleDeleteRequest,
+      onQuickFinalize: handleQuickFinalize,
+      settings,
+    }),
+    [handleView, handleOpenFormForEdit, handleDeleteRequest, handleQuickFinalize, settings]
+  )
 
   if (loading) {
     return (

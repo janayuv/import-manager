@@ -11,9 +11,9 @@ export interface Item {
   supplierId?: string
   isActive: boolean
   countryOfOrigin?: string
-  bcd?: number
-  sws?: number
-  igst?: number
+  bcd?: string | number // Database stores as string (e.g., "7.5%"), but can be number
+  sws?: string | number // Database stores as string (e.g., "5%"), but can be number
+  igst?: string | number // Database stores as string (e.g., "18%"), but can be number
   technicalWriteUp?: string
   category?: string
   endUse?: string

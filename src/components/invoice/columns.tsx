@@ -5,6 +5,7 @@ import type { FlattenedInvoiceLine } from '@/types/invoice'
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { InvoiceLineActions } from './actions'
+import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
 
 interface GetInvoiceColumnsProps {
   onView: (invoiceId: string) => void
@@ -31,7 +32,11 @@ export const getInvoiceColumns = ({
   onEdit,
   onDelete,
   onQuickFinalize,
-}: GetInvoiceColumnsProps): ColumnDef<FlattenedInvoiceLine>[] => [
+  settings,
+}: GetInvoiceColumnsProps & { settings?: any }): ColumnDef<FlattenedInvoiceLine>[] => {
+  
+  // Get all possible columns
+  const allColumns: ColumnDef<FlattenedInvoiceLine>[] = [
   {
     id: 'actions',
     cell: ({ row }) => (
@@ -44,19 +49,114 @@ export const getInvoiceColumns = ({
       />
     ),
   },
-  { accessorKey: 'supplierName', header: 'Supplier Name' },
-  { accessorKey: 'invoiceNumber', header: 'Invoice No' },
+  { 
+    accessorKey: 'supplierName', 
+    header: 'Supplier Name',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'supplierName')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('supplierName')
+      }
+      return formatText(row.getValue('supplierName'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
+  { 
+    accessorKey: 'invoiceNumber', 
+    header: 'Invoice No',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'invoiceNumber')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('invoiceNumber')
+      }
+      return formatText(row.getValue('invoiceNumber'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
   {
     accessorKey: 'invoiceDate',
     header: 'Invoice Date',
     cell: ({ row }) => formatDateForDisplay(row.original.invoiceDate),
   },
-  { accessorKey: 'partNumber', header: 'Part No' },
-  { accessorKey: 'itemDescription', header: 'Description' },
-  { accessorKey: 'hsnCode', header: 'HS.Code' },
-  { accessorKey: 'currency', header: 'Currency' },
-  { accessorKey: 'unit', header: 'Unit' },
-  { accessorKey: 'quantity', header: 'Qty' },
+  { 
+    accessorKey: 'partNumber', 
+    header: 'Part No',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'partNumber')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('partNumber')
+      }
+      return formatText(row.getValue('partNumber'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
+  { 
+    accessorKey: 'itemDescription', 
+    header: 'Description',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'itemDescription')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('itemDescription')
+      }
+      return formatText(row.getValue('itemDescription'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
+  { 
+    accessorKey: 'hsnCode', 
+    header: 'HS.Code',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'hsnCode')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('hsnCode')
+      }
+      return formatText(row.getValue('hsnCode'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
+  { 
+    accessorKey: 'currency', 
+    header: 'Currency',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'currency')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('currency')
+      }
+      return formatText(row.getValue('currency'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
+  { 
+    accessorKey: 'unit', 
+    header: 'Unit',
+    cell: ({ row }) => {
+      const fieldConfig = getFieldConfig('invoice', 'unit')
+      if (fieldConfig?.case === 'none') {
+        return row.getValue('unit')
+      }
+      return formatText(row.getValue('unit'), { 
+        case: fieldConfig?.case || 'sentencecase', 
+        trimWhitespace: fieldConfig?.trimWhitespace || false 
+      })
+    }
+  },
+  { 
+    accessorKey: 'quantity', 
+    header: 'Qty',
+    cell: ({ row }) => formatNumber(row.getValue('quantity'), settings.numberFormat, { numberFormat: 'integer', precision: 0, showSign: false })
+  },
   {
     accessorKey: 'unitPrice',
     header: 'Unit Price',
@@ -99,5 +199,43 @@ export const getInvoiceColumns = ({
 
       return <Badge className={colorClass}>{status}</Badge>
     },
-  },
-]
+      },
+  ]
+  
+  // Filter columns based on visibility settings and sort by order
+  const invoiceFields = settings.modules.invoice.fields
+  const visibleColumns = allColumns.filter(column => {
+    // Always show actions column
+    if (column.id === 'actions') {
+      return true
+    }
+    
+    // Check if the column has an accessorKey and if it's visible in settings
+    if ('accessorKey' in column && column.accessorKey && typeof column.accessorKey === 'string') {
+      const fieldSettings = invoiceFields[column.accessorKey]
+      return fieldSettings?.visible !== false
+    }
+    
+    // If no accessorKey, show the column (fallback)
+    return true
+  })
+  
+  // Sort columns by their order property
+  const sortedColumns = visibleColumns.sort((a, b) => {
+    // Actions column should always be first
+    if (a.id === 'actions') return -1
+    if (b.id === 'actions') return 1
+    
+    // Get order values from settings
+        const aOrder = 'accessorKey' in a && a.accessorKey && typeof a.accessorKey === 'string'
+      ? invoiceFields[a.accessorKey]?.order || 999
+      : 999
+    const bOrder = 'accessorKey' in b && b.accessorKey && typeof b.accessorKey === 'string'
+      ? invoiceFields[b.accessorKey]?.order || 999
+      : 999
+    
+    return aOrder - bOrder
+  })
+  
+  return sortedColumns
+}

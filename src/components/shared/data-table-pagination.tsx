@@ -11,6 +11,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { getModuleSettings } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
 import type { Table } from '@tanstack/react-table'
 
 interface DataTablePaginationProps<TData> {
@@ -22,13 +24,41 @@ export function DataTablePagination<TData>({
   table,
   storageKey = 'table-page-size',
 }: DataTablePaginationProps<TData>) {
-  // Effect to load the page size from localStorage on initial render
+  const { settings } = useSettings()
+  
+  // Effect to load the page size from localStorage or module settings on initial render
   React.useEffect(() => {
     const savedPageSize = localStorage.getItem(storageKey)
-    if (savedPageSize) {
+    
+    // Try to determine the module from the storage key
+    let moduleName: keyof typeof settings.modules = 'shipment' // default
+    if (storageKey?.includes('shipment')) {
+      moduleName = 'shipment'
+    } else if (storageKey?.includes('invoice')) {
+      moduleName = 'invoice'
+    } else if (storageKey?.includes('boe')) {
+      moduleName = 'boe'
+    } else if (storageKey?.includes('supplier')) {
+      moduleName = 'supplier'
+    } else if (storageKey?.includes('item')) {
+      moduleName = 'itemMaster'
+    } else if (storageKey?.includes('expense')) {
+      moduleName = 'expenses'
+    }
+    
+    const moduleSettings = getModuleSettings(moduleName)
+    const currentPageSize = table.getState().pagination.pageSize
+    
+    // Always use module settings if they differ from current page size
+    if (moduleSettings.itemsPerPage !== currentPageSize) {
+      console.log(`🔧 Setting page size to ${moduleSettings.itemsPerPage} for ${moduleName} module`)
+      table.setPageSize(moduleSettings.itemsPerPage)
+    } else if (savedPageSize && Number(savedPageSize) !== currentPageSize) {
+      // Use localStorage only if it's different from current
+      console.log(`🔧 Using localStorage page size: ${savedPageSize}`)
       table.setPageSize(Number(savedPageSize))
     }
-  }, [table, storageKey])
+  }, [table, storageKey, settings])
 
   const pageSize = table.getState().pagination.pageSize
 
