@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "format": "prettier --write \"{src,public}/**/*.{ts,tsx,js,jsx,css,html,md}\"",
     "format:check": "prettier --check \"{src,public}/**/*.{ts,tsx,js,jsx,css,html,md}\"",
+    "type-check": "tsc --noEmit",
     "prepare": "husky",
     "preview": "vite preview",
     "test": "vitest run --coverage=false",

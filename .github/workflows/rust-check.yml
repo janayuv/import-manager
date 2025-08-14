@@ -1,0 +1,45 @@
+name: Rust Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  rust-checks:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install Rust stable
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+        
+    - name: Rust cache
+      uses: swatinem/rust-cache@v2
+      with:
+        workspaces: './src-tauri -> target'
+        
+    - name: Check Rust formatting
+      run: |
+        cd src-tauri
+        cargo fmt --all -- --check
+        
+    - name: Run Clippy
+      run: |
+        cd src-tauri
+        cargo clippy -- -D warnings
+        
+    - name: Build Tauri
+      run: |
+        cd src-tauri
+        cargo build --release
+        
+    - name: Test Rust code
+      run: |
+        cd src-tauri
+        cargo test

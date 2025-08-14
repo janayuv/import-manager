@@ -1,205 +1,178 @@
 # Import Manager
 
-[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)]()
-[![License](https://img.shields.io/badge/license-MIT-blue)]()
+A comprehensive desktop application for managing import/export operations, built with Tauri, React, and TypeScript.
 
-A powerful desktop application scaffold for importing, processing, and visualizing data, built with **Tauri**, **React**, **TypeScript**, **Tailwind CSS**, and **Shadcn/UI**.
+## 🚀 Features
 
----
+### Core Functionality
+- **BOE (Bill of Entry) Management**: Complete CRUD operations for BOE records
+- **Invoice Management**: Handle import invoices with line items and calculations
+- **Shipment Tracking**: Track shipments from supplier to delivery
+- **Expense Management**: Comprehensive expense tracking and reporting
+- **Item Management**: Manage product items with HSN codes and duty rates
+- **Supplier Management**: Maintain supplier information and relationships
 
-## 🚀 Table of Contents
+### Advanced Features
+- **Multi-format Import/Export**: Support for CSV and Excel files
+- **Real-time Calculations**: Automatic duty and tax calculations
+- **Data Validation**: Comprehensive input validation and error handling
+- **Reporting**: Detailed reports and analytics
+- **Settings Management**: Configurable application settings
+- **Responsive Design**: Modern, responsive UI with dark/light themes
 
-1. [Key Features](#-key-features)
-2. [Technology Stack](#-technology-stack)
-3. [Getting Started](#-getting-started)
+## 🛠️ Tech Stack
 
-   * [Prerequisites](#prerequisites)
-   * [Installation](#installation)
-   * [Development](#development)
-4. [Project Structure](#-project-structure)
-5. [Usage](#-usage)
-6. [Recommended Workflow](#-recommended-workflow)
-7. [Contributing](#-contributing)
-8. [License](#-license)
-9. [Contact](#-contact)
+- **Frontend**: React 19, TypeScript, Tailwind CSS
+- **Backend**: Tauri (Rust)
+- **Database**: SQLite
+- **UI Components**: Radix UI, Lucide React
+- **Forms**: React Hook Form with Zod validation
+- **Tables**: TanStack Table
+- **Charts**: Recharts
+- **Build Tool**: Vite
 
----
+## 📋 Prerequisites
 
-## 🔑 Key Features
+- **Node.js** 18+ 
+- **Rust** (latest stable)
+- **Git**
 
-* **Seamless Desktop Experience**: Combines a Rust-powered Tauri backend with a React frontend for high performance and native integration.
-* **Modular UI**: Leverages Shadcn/UI components and Tailwind CSS for rapid UI development and consistent design.
-* **Extensible Architecture**: Scaffold supports adding custom Rust commands, React pages, and UI components with minimal configuration.
-* **Type Safety**: End-to-end TypeScript enables robust type checks across frontend code.
-* **Cross‑Platform**: Targets Windows, macOS, and Linux out of the box.
+## 🚀 Quick Start
 
----
+### 1. Clone the Repository
+```bash
+git clone https://github.com/janayuv/import-manager.git
+cd import-manager
+```
 
-## 🛠️ Technology Stack
+### 2. Install Dependencies
+```bash
+npm install
+```
 
-| Layer         | Technology                  |
-| ------------- | --------------------------- |
-| Desktop Shell | [Tauri](https://tauri.app/) |
-| Frontend      | React 18, Vite, TypeScript  |
-| Styling       | Tailwind CSS, Shadcn/UI     |
-| Backend       | Rust                        |
-| Linting       | ESLint, Prettier            |
-| Package Mgmt. | pnpm / npm                  |
+### 3. Development
+```bash
+# Start development server
+npm run dev
 
----
+# In another terminal, start Tauri development
+npm run tauri dev
+```
 
-## 📦 Getting Started
-
-### Prerequisites
-
-* Node.js (v16 or higher)
-* pnpm or npm
-* Rust toolchain (stable)
-* Tauri CLI (`cargo install tauri-cli`)
-
-### Installation
-
-1. **Clone the repository**
-
-   ```bash
-   git clone https://github.com/janayuv/import-manager.git
-   cd import-manager
-   ```
-
-2. **Install dependencies**
-
-   ```bash
-   pnpm install
-   # or
-   npm install
-   ```
-
-### Development
-
-1. **Start in development mode**
-
-   ```bash
-   pnpm tauri dev
-   # or
-   npm run tauri dev
-   ```
-2. The Tauri backend and Vite dev server will launch concurrently, opening the app automatically.
-3. Changes in `src/` or `src-tauri/` will hot‑reload the frontend or recompile Rust commands.
-
----
+### 4. Build for Production
+```bash
+# Build the application
+npm run tauri build
+```
 
 ## 📁 Project Structure
 
 ```
-import-manager/
-├── public/                # Static assets & icons
-├── src/                   # React + TypeScript frontend
-│   ├── components/        # Reusable UI components
-│   ├── pages/             # Route-level views
-│   └── hooks/             # Custom React hooks
-├── src-tauri/             # Rust backend & Tauri config
-│   ├── src/               # Rust command implementations
-│   └── tauri.conf.json    # Tauri configuration
-├── components.json        # Shadcn/UI registry
-├── package.json           # Scripts & frontend dependencies
-├── vite.config.ts         # Vite configuration
-├── eslint.config.js       # ESLint ruleset
-└── tsconfig.json          # TypeScript settings
+src/
+├── components/          # React components
+│   ├── ui/             # Reusable UI components
+│   ├── boe/            # BOE management components
+│   ├── invoice/        # Invoice management components
+│   ├── shipment/       # Shipment tracking components
+│   ├── expenses/       # Expense management components
+│   └── layout/         # Layout components
+├── pages/              # Page components
+├── lib/                # Utility functions and configurations
+├── hooks/              # Custom React hooks
+├── types/              # TypeScript type definitions
+└── assets/             # Static assets
+
+src-tauri/
+├── src/                # Rust backend code
+├── Cargo.toml          # Rust dependencies
+└── tauri.conf.json     # Tauri configuration
 ```
 
----
+## 🔧 Development
 
-## 💡 Usage
+### Code Quality
+```bash
+# Lint code
+npm run lint
 
-1. **Define Rust Commands**
+# Format code
+npm run format
 
-   * Add Rust functions in `src-tauri/src/main.rs` or modules under `src-tauri/src/`
-   * Mark functions with `#[tauri::command]` to expose them
+# Check formatting
+npm run format:check
 
-2. **Invoke from React**
+# Type check
+npm run type-check
 
-   ```ts
-   import { invoke } from '@tauri-apps/api/tauri';
+# Run tests
+npm run test
+```
 
-   async function fetchData() {
-     const result = await invoke<'DataType'>('command_name', { /* args */ });
-     // handle result
-   }
-   ```
+### Git Hooks
+The project uses Husky for pre-commit hooks that automatically:
+- Format code with Prettier
+- Fix ESLint issues
+- Run type checking
 
-3. **Build UI**
+## 🚀 GitHub Actions
 
-   * Use Shadcn/UI components (see `components.json`) and Tailwind classes
-   * Organize pages under `src/pages` and configure routes in `src/App.tsx`
+The repository includes comprehensive GitHub Actions workflows:
 
-4. **Build for Production**
+### Code Quality Workflow
+- **Linting**: ESLint checks for code quality
+- **Formatting**: Prettier formatting validation
+- **Type Checking**: TypeScript compilation check
+- **Build Verification**: Ensures the project builds successfully
 
-   ```bash
-   pnpm tauri build
-   # or
-   npm run tauri build
-   ```
+### Security Workflow
+- **Dependency Audit**: npm audit for security vulnerabilities
+- **Vulnerability Reports**: Detailed security reports
+- **Automated Fixes**: Dependabot for dependency updates
 
-   * Generates native binaries in `src-tauri/target/release/bundle`
+### Rust Checks
+- **Code Formatting**: rustfmt formatting check
+- **Linting**: Clippy for Rust code quality
+- **Build Verification**: Cargo build and test
 
----
+## 🔒 Security
 
-## 📊 Reports
+- **Dependabot**: Automated dependency updates
+- **Security Audits**: Regular npm audit checks
+- **Vulnerability Scanning**: GitHub security scanning
+- **Code Quality**: Comprehensive linting and type checking
 
-A consolidated import report is available under `Report` in the sidebar (`/report`).
+## 📝 Contributing
 
-Backend:
-- A SQL view `report_view` is created at app startup. It returns one row per invoice line with fields: `supplier, invoice_no, invoice_date, part_no, description, unit, qty, unit_price, assessable_value, bcd_amount, sws_amount, igst_amount, expenses_total, ldc_per_qty`.
-- Tauri command `get_report(filters)` supports filters: `startDate, endDate, supplierId, supplier (name contains), invoiceNo, partNo`, plus `page, pageSize, sortBy, sortDir, includeTotals`.
-- Expenses are allocated proportionally by assessable value across lines per shipment. Rates (`bcd/sws/igst`) are read from `items` as percentages (e.g., "10%"). If not set, they default to zero.
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-Frontend:
-- Page `src/pages/reports.tsx` uses the shared `DataTable` and shadcn components. It provides a filter bar, server-side fetching, totals footer, and CSV export.
-- Hook `src/hooks/useReport.ts` wraps the `get_report` command with pagination/sorting and totals.
-
-Notes:
-- Division-by-zero is protected using `NULLIF` in the SQL view.
-- Multi-currency: current implementation assumes values are in a single working currency; extend the view to normalize if needed.
-- Large datasets: the command paginates on the backend. For full CSV export of all filtered rows, loop pages on the frontend if needed.
-
-Testing:
-- Vitest test `src/pages/reports.test.tsx` validates CSV generation.
-
----
-
-## ⚙️ Recommended Workflow
-
-1. **Branching**: Create feature branches (`feature/<name>`).
-2. **Commits**: Write clear, atomic commit messages.
-3. **Lint & Format**: Run `pnpm lint` and `pnpm format` before pushing.
-4. **Pull Requests**: Open PRs against `main`, request reviews, and ensure CI passes.
-
----
-
-## 🤝 Contributing
-
-Contributions are welcome! Please follow these steps:
-
-1. Fork the repository.
-2. Create a feature branch: `git checkout -b feature/awesome-feature`.
-3. Commit changes: `git commit -m "feat: add awesome feature"`.
-4. Push to your fork: `git push origin feature/awesome-feature`.
-5. Open a Pull Request and describe your changes.
-
-Please adhere to the existing code style and include tests for new functionality.
-
----
+### Development Guidelines
+- Follow TypeScript best practices
+- Use ESLint and Prettier for code formatting
+- Write meaningful commit messages
+- Add tests for new features
+- Update documentation as needed
 
 ## 📄 License
 
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for details.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Support
+
+For support, please open an issue on GitHub or contact the maintainers.
+
+## 🎯 Roadmap
+
+- [ ] Enhanced reporting features
+- [ ] Multi-language support
+- [ ] Cloud synchronization
+- [ ] Mobile companion app
+- [ ] Advanced analytics dashboard
+- [ ] Integration with customs APIs
 
 ---
 
-## 📬 Contact
-
-Maintained by **Jana Yuv**.
-Email: [jana.acc@gmail.com](mailto:jana.acc@gmail.com)
-
-
-*Thank you for exploring Import Manager!*
+**Built with ❤️ using Tauri, React, and TypeScript**
