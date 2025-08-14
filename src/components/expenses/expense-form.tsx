@@ -124,7 +124,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
     const sgst = Number(sgstAmount) || 0
     const igst = Number(igstAmount) || 0
     const tdsAmount = (baseAmount * (Number(tdsRate) || 0)) / 100
-    
+
     setTotalAmount(baseAmount + cgst + sgst + igst - tdsAmount)
   }, [amount, cgstAmount, sgstAmount, igstAmount, tdsRate])
 

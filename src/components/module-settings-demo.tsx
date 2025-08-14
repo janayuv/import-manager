@@ -2,10 +2,16 @@
 
 import * as React from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { getVisibleFields, getFieldConfig, getModuleSettings, type AppSettings } from '@/lib/settings'
+import {
+  getVisibleFields,
+  getFieldConfig,
+  getModuleSettings,
+  type AppSettings,
+} from '@/lib/settings'
 
 export function ModuleSettingsDemo() {
-  const [selectedModule, setSelectedModule] = React.useState<keyof AppSettings['modules']>('boeSummary')
+  const [selectedModule, setSelectedModule] =
+    React.useState<keyof AppSettings['modules']>('boeSummary')
 
   const modules: Array<{ key: keyof AppSettings['modules']; title: string }> = [
     { key: 'shipment', title: 'Shipment' },
@@ -19,8 +25,13 @@ export function ModuleSettingsDemo() {
 
   // Safety check - try to get settings, but handle errors gracefully
   let visibleFields: string[] = []
-  let moduleSettings: any = { fields: {}, itemsPerPage: 10, showTotals: false, showActions: true }
-  
+  let moduleSettings: Record<string, unknown> = {
+    fields: {},
+    itemsPerPage: 10,
+    showTotals: false,
+    showActions: true,
+  }
+
   try {
     visibleFields = getVisibleFields(selectedModule)
     moduleSettings = getModuleSettings(selectedModule)
@@ -36,12 +47,12 @@ export function ModuleSettingsDemo() {
           <CardTitle>Module Settings Demo</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
             {modules.map((module) => (
               <button
                 key={module.key}
                 onClick={() => setSelectedModule(module.key)}
-                className={`p-4 border rounded-lg text-left transition-colors ${
+                className={`rounded-lg border p-4 text-left transition-colors ${
                   selectedModule === module.key
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-background hover:bg-muted'
@@ -53,7 +64,7 @@ export function ModuleSettingsDemo() {
             ))}
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Visible Fields</CardTitle>
@@ -65,12 +76,12 @@ export function ModuleSettingsDemo() {
                     return (
                       <div
                         key={fieldName}
-                        className="flex items-center justify-between p-2 border rounded"
+                        className="flex items-center justify-between rounded border p-2"
                       >
                         <span className="font-medium">
                           {index + 1}. {fieldName.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
-                        <span className="text-sm text-muted-foreground">
+                        <span className="text-muted-foreground text-sm">
                           {config?.width || 'auto'}
                         </span>
                       </div>
@@ -100,18 +111,16 @@ export function ModuleSettingsDemo() {
                   </div>
                   <div className="flex justify-between">
                     <span>Total Fields:</span>
-                    <span className="font-medium">
-                      {Object.keys(moduleSettings.fields).length}
-                    </span>
+                    <span className="font-medium">{Object.keys(moduleSettings.fields).length}</span>
                   </div>
                 </div>
               </CardContent>
             </Card>
           </div>
 
-          <div className="mt-6 p-4 bg-muted rounded-lg">
-            <h4 className="font-medium mb-2">Usage Example:</h4>
-            <pre className="text-sm overflow-x-auto">
+          <div className="bg-muted mt-6 rounded-lg p-4">
+            <h4 className="mb-2 font-medium">Usage Example:</h4>
+            <pre className="overflow-x-auto text-sm">
               {`// Get visible fields for a module
 const visibleFields = getVisibleFields('boeSummary')
 

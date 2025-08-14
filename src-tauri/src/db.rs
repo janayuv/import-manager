@@ -324,11 +324,8 @@ pub struct ExpenseType {
 #[serde(rename_all = "camelCase")]
 pub struct Expense {
     pub id: String,
-    pub shipment_id: String,
+    pub expense_invoice_id: String, // NEW: Reference to expense_invoice instead of shipment_id
     pub expense_type_id: String,
-    pub service_provider_id: String,
-    pub invoice_no: String,
-    pub invoice_date: String,
     pub amount: f64,
     pub cgst_rate: f64,
     pub sgst_rate: f64,
@@ -355,6 +352,22 @@ pub struct ExpenseAttachment {
     pub file_type: Option<String>,
     pub uploaded_at: String,
     pub uploaded_by: Option<String>,
+}
+
+// NEW: Expense Invoice structure to support multiple expenses per invoice
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseInvoice {
+    pub id: String,
+    pub shipment_id: String,
+    pub service_provider_id: String,
+    pub invoice_no: String,
+    pub invoice_date: String,
+    pub total_amount: f64,
+    pub remarks: Option<String>,
+    pub created_by: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
 }
 
 
@@ -489,6 +502,9 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
     // Attempt to migrate existing table to include new columns (no-op if already present)
     let _ = conn.execute("ALTER TABLE boe_calculations ADD COLUMN status TEXT NOT NULL DEFAULT 'Awaiting BOE Data'", []);
     let _ = conn.execute("ALTER TABLE boe_calculations ADD COLUMN attachments_json TEXT", []);
+    
+    // Migration for expenses table: add expense_invoice_id column if it doesn't exist
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN expense_invoice_id TEXT", []);
     // MODIFIED: Create tables for all the dropdown options.
     let option_tables = vec![
         "units", "currencies", "countries", "bcd_rates", "sws_rates",
@@ -541,11 +557,8 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS expenses (
             id TEXT PRIMARY KEY,
-            shipment_id TEXT NOT NULL,
+            expense_invoice_id TEXT NOT NULL,
             expense_type_id TEXT NOT NULL,
-            service_provider_id TEXT NOT NULL,
-            invoice_no TEXT NOT NULL,
-            invoice_date DATE NOT NULL,
             amount DECIMAL(12, 2) NOT NULL,
             cgst_rate DECIMAL(5, 2) DEFAULT 0.00,
             sgst_rate DECIMAL(5, 2) DEFAULT 0.00,
@@ -560,8 +573,26 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             created_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (shipment_id) REFERENCES shipments(id),
+            FOREIGN KEY (expense_invoice_id) REFERENCES expense_invoices(id),
             FOREIGN KEY (expense_type_id) REFERENCES expense_types(id),
+            UNIQUE(expense_invoice_id, expense_type_id)
+        )",
+        [],
+    )?;
+
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS expense_invoices (
+            id TEXT PRIMARY KEY,
+            shipment_id TEXT NOT NULL,
+            service_provider_id TEXT NOT NULL,
+            invoice_no TEXT NOT NULL,
+            invoice_date DATE NOT NULL,
+            total_amount DECIMAL(12, 2) NOT NULL,
+            remarks TEXT,
+            created_by TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (shipment_id) REFERENCES shipments(id),
             FOREIGN KEY (service_provider_id) REFERENCES service_providers(id),
             UNIQUE(service_provider_id, invoice_no)
         )",
@@ -608,9 +639,10 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             JOIN json_each(json_extract(bc.calculation_result_json, '$.calculatedItems')) AS item
         ),
         shipment_expenses AS (
-            SELECT e.shipment_id, SUM(e.total_amount) AS shipment_expenses_total
-            FROM expenses e
-            GROUP BY e.shipment_id
+            SELECT ei.shipment_id, SUM(e.total_amount) AS shipment_expenses_total
+            FROM expense_invoices ei
+            JOIN expenses e ON e.expense_invoice_id = ei.id
+            GROUP BY ei.shipment_id
         ),
         boe_assessable AS (
             SELECT shipment_id, SUM(boe_assessable_value) AS shipment_boe_assessable_total

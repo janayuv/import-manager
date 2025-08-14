@@ -85,10 +85,12 @@ export function ItemMasterPage() {
     setLoading(true)
     try {
       const supplierData: Supplier[] = await invoke('get_suppliers')
-      setSuppliers(supplierData.map((s) => ({ 
-        value: s.id, 
-        label: formatText(s.supplierName, settings.textFormat) 
-      })))
+      setSuppliers(
+        supplierData.map((s) => ({
+          value: s.id,
+          label: formatText(s.supplierName, settings.textFormat),
+        }))
+      )
 
       const optionPromises = Object.values(optionConfigs).map((config) =>
         invoke<Option[]>(config.fetcher)
@@ -111,7 +113,7 @@ export function ItemMasterPage() {
     } finally {
       setLoading(false)
     }
-  }, [fetchItems, stateSetters])
+  }, [fetchItems, stateSetters, settings.textFormat])
 
   React.useEffect(() => {
     fetchInitialData()

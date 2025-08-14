@@ -4,7 +4,14 @@ import { Button } from '@/components/ui/button'
 
 type PdfProps = {
   rows: Array<Record<string, unknown>>
-  totals?: { qty: number; assessable_value: number; bcd_amount: number; sws_amount: number; igst_amount: number; expenses_total: number }
+  totals?: {
+    qty: number
+    assessable_value: number
+    bcd_amount: number
+    sws_amount: number
+    igst_amount: number
+    expenses_total: number
+  }
 }
 
 export function ReportPdfView({ rows, totals }: PdfProps) {
@@ -25,8 +32,25 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
         <table className="w-full table-fixed border-collapse text-sm">
           <thead>
             <tr>
-              {['Supplier','Invoice No','Date','Part No','Description','Unit','Qty','Unit Price','Assessable Value','BCD','SWS','IGST','Expenses','LDC/qty'].map((h) => (
-                <th key={h} className="border px-2 py-1 text-left">{h}</th>
+              {[
+                'Supplier',
+                'Invoice No',
+                'Date',
+                'Part No',
+                'Description',
+                'Unit',
+                'Qty',
+                'Unit Price',
+                'Assessable Value',
+                'BCD',
+                'SWS',
+                'IGST',
+                'Expenses',
+                'LDC/qty',
+              ].map((h) => (
+                <th key={h} className="border px-2 py-1 text-left">
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
@@ -53,10 +77,14 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
           {totals && (
             <tfoot>
               <tr className="font-semibold">
-                <td className="border px-2 py-1" colSpan={6}>Totals</td>
+                <td className="border px-2 py-1" colSpan={6}>
+                  Totals
+                </td>
                 <td className="border px-2 py-1 text-right">{totals.qty?.toFixed(2)}</td>
                 <td className="border px-2 py-1" />
-                <td className="border px-2 py-1 text-right">{totals.assessable_value?.toFixed(2)}</td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.assessable_value?.toFixed(2)}
+                </td>
                 <td className="border px-2 py-1 text-right">{totals.bcd_amount?.toFixed(2)}</td>
                 <td className="border px-2 py-1 text-right">{totals.sws_amount?.toFixed(2)}</td>
                 <td className="border px-2 py-1 text-right">{totals.igst_amount?.toFixed(2)}</td>
@@ -70,5 +98,3 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
     </div>
   )
 }
-
-

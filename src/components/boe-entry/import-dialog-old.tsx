@@ -109,7 +109,9 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
   const [overrideFile, setOverrideFile] = React.useState<File | null>(null)
 
   React.useEffect(() => {
-    const uniqueSuppliers = [...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))]
+    const uniqueSuppliers = [
+      ...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat))),
+    ]
     setSuppliers(uniqueSuppliers)
   }, [shipments, settings.textFormat])
 
@@ -128,7 +130,9 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
 
   const handleSupplierChange = (supplierName: string) => {
     form.setValue('supplierName', supplierName)
-    const invoicesForSupplier = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === supplierName)
+    const invoicesForSupplier = shipments.filter(
+      (s) => formatText(s.supplierName, settings.textFormat) === supplierName
+    )
     setAvailableInvoices(invoicesForSupplier)
     form.resetField('shipmentId')
   }

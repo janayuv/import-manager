@@ -23,10 +23,10 @@ describe('Report CSV', () => {
     ]
     const csv = buildReportCsv(rows)
     const lines = csv.split('\n')
-    expect(lines[0]).toContain('Supplier,Invoice No,Date,Part No,Description,Unit,Qty,Unit Price,Assessable Value,BCD,SWS,IGST,Expenses,LDC per qty')
+    expect(lines[0]).toContain(
+      'Supplier,Invoice No,Date,Part No,Description,Unit,Qty,Unit Price,Assessable Value,BCD,SWS,IGST,Expenses,LDC per qty'
+    )
     expect(lines[1]).toContain('"ABC Ltd"')
     expect(lines[1]).toContain('"INV-001"')
   })
 })
-
-

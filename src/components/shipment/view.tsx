@@ -21,19 +21,27 @@ interface ViewShipmentProps {
   suppliers: Option[]
 }
 
-const DetailItem = ({ label, value, isNumber = false, numberFormat = 'decimal', precision = 2, showSign = false, fieldName }: { 
-  label: string; 
-  value?: string | number | null; 
-  isNumber?: boolean;
-  numberFormat?: 'currency' | 'percentage' | 'decimal' | 'integer' | 'scientific';
-  precision?: number;
-  showSign?: boolean;
-  fieldName?: string;
+const DetailItem = ({
+  label,
+  value,
+  isNumber = false,
+  numberFormat = 'decimal',
+  precision = 2,
+  showSign = false,
+  fieldName,
+}: {
+  label: string
+  value?: string | number | null
+  isNumber?: boolean
+  numberFormat?: 'currency' | 'percentage' | 'decimal' | 'integer' | 'scientific'
+  precision?: number
+  showSign?: boolean
+  fieldName?: string
 }) => {
   const { settings } = useSettings()
-  
+
   if (value === undefined || value === null || value === '') return null
-  
+
   let displayValue = value
   if (typeof value === 'string' && !isNumber) {
     if (fieldName) {
@@ -41,18 +49,22 @@ const DetailItem = ({ label, value, isNumber = false, numberFormat = 'decimal', 
       if (fieldConfig?.case === 'none') {
         displayValue = value
       } else {
-        displayValue = formatText(value, { 
-          case: fieldConfig?.case || 'sentencecase', 
-          trimWhitespace: fieldConfig?.trimWhitespace || false 
+        displayValue = formatText(value, {
+          case: fieldConfig?.case || 'sentencecase',
+          trimWhitespace: fieldConfig?.trimWhitespace || false,
         })
       }
     } else {
       displayValue = formatText(value, settings.textFormat)
     }
-      } else if (typeof value === 'number' || isNumber) {
-      displayValue = formatNumber(Number(value), settings.numberFormat, { numberFormat, precision, showSign })
-    }
-  
+  } else if (typeof value === 'number' || isNumber) {
+    displayValue = formatNumber(Number(value), settings.numberFormat, {
+      numberFormat,
+      precision,
+      showSign,
+    })
+  }
+
   return (
     <div>
       <p className="text-muted-foreground text-sm">{label}</p>
@@ -99,11 +111,29 @@ export function ShipmentViewDialog({
           <h3 className="text-lg font-medium">Commercial Details</h3>
           <div className="grid grid-cols-4 gap-4">
             <DetailItem label="Supplier" value={supplierName} />
-            <DetailItem label="Invoice #" value={shipment.invoiceNumber} fieldName="invoiceNumber" />
+            <DetailItem
+              label="Invoice #"
+              value={shipment.invoiceNumber}
+              fieldName="invoiceNumber"
+            />
             <DetailItem label="Invoice Date" value={formatDateForDisplay(shipment.invoiceDate)} />
-            <DetailItem label="Goods Category" value={shipment.goodsCategory} fieldName="goodsCategory" />
-            <DetailItem label="Invoice Value" value={shipment.invoiceValue} isNumber={true} numberFormat="currency" precision={2} />
-            <DetailItem label="Currency" value={shipment.invoiceCurrency} fieldName="invoiceCurrency" />
+            <DetailItem
+              label="Goods Category"
+              value={shipment.goodsCategory}
+              fieldName="goodsCategory"
+            />
+            <DetailItem
+              label="Invoice Value"
+              value={shipment.invoiceValue}
+              isNumber={true}
+              numberFormat="currency"
+              precision={2}
+            />
+            <DetailItem
+              label="Currency"
+              value={shipment.invoiceCurrency}
+              fieldName="invoiceCurrency"
+            />
             <DetailItem label="Incoterm" value={shipment.incoterm} fieldName="incoterm" />
           </div>
           <Separator />
@@ -114,8 +144,18 @@ export function ShipmentViewDialog({
             <DetailItem label="BL/AWB #" value={shipment.blAwbNumber} fieldName="blAwbNumber" />
             <DetailItem label="BL/AWB Date" value={formatDateForDisplay(shipment.blAwbDate)} />
             <DetailItem label="Vessel/Flight" value={shipment.vesselName} fieldName="vesselName" />
-            <DetailItem label="Container #" value={shipment.containerNumber} fieldName="containerNumber" />
-            <DetailItem label="Gross Weight (Kg)" value={shipment.grossWeightKg} isNumber={true} numberFormat="decimal" precision={2} />
+            <DetailItem
+              label="Container #"
+              value={shipment.containerNumber}
+              fieldName="containerNumber"
+            />
+            <DetailItem
+              label="Gross Weight (Kg)"
+              value={shipment.grossWeightKg}
+              isNumber={true}
+              numberFormat="decimal"
+              precision={2}
+            />
           </div>
           <Separator />
           <h3 className="text-lg font-medium">Dates & Status</h3>

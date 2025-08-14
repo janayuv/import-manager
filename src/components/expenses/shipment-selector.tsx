@@ -42,7 +42,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
   const [options, setOptions] = useState<ComboboxOption[]>([])
   const [loading, setLoading] = useState(true)
 
-  const refresh = async () => {
+  const refresh = React.useCallback(async () => {
     try {
       setLoading(true)
       const fetchedShipments: Shipment[] = await invoke('get_active_shipments')
@@ -86,11 +86,11 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
     } finally {
       setLoading(false)
     }
-  }
+  }, [settings.textFormat])
 
   useEffect(() => {
     refresh()
-  }, [])
+  }, [refresh])
 
   const handleSelectionChange = (value: string) => {
     const shipment = shipments.find((s) => s.id === value) || null
@@ -100,7 +100,10 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
         toast.success(
           `Selected completed shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} (${shipment.expenseCount} expenses)`
         )
-      else toast.info(`Selected shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} - ready for expenses`)
+      else
+        toast.info(
+          `Selected shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} - ready for expenses`
+        )
     }
   }
 
@@ -238,10 +241,12 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
           </div>
           <div className="text-muted-foreground space-y-1 text-xs">
             <p>
-              <strong>Invoice:</strong> {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
+              <strong>Invoice:</strong>{' '}
+              {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
             </p>
             <p>
-              <strong>BL/AWB:</strong> {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
+              <strong>BL/AWB:</strong>{' '}
+              {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
             </p>
             <p>
               <strong>Date:</strong> {safeDateLabel(selectedShipment.invoiceDate)}
@@ -249,7 +254,12 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
             {selectedShipmentWithExpenses && selectedShipmentWithExpenses.expenseCount > 0 && (
               <p>
                 <strong>Expenses:</strong> {selectedShipmentWithExpenses.expenseCount} (₹
-                {formatNumber(selectedShipmentWithExpenses.totalExpenseAmount, settings.numberFormat, { numberFormat: 'currency', precision: 2, showSign: false })})
+                {formatNumber(
+                  selectedShipmentWithExpenses.totalExpenseAmount,
+                  settings.numberFormat,
+                  { numberFormat: 'currency', precision: 2, showSign: false }
+                )}
+                )
               </p>
             )}
           </div>

@@ -34,15 +34,15 @@ import type { CalculatedDutyItem, SavedBoe, Shipment } from '@/types/boe-entry'
 import { convertFileSrc, invoke } from '@tauri-apps/api/core'
 import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
-import { StatusBadge } from './columns'
+import { StatusBadge } from './status-badge'
 
 import { formatCurrency as formatCurrencyWithSettings, loadSettings } from '@/lib/settings'
 
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount === null || amount === undefined) return '-'
-  return new Intl.NumberFormat('en-US', { 
+  return new Intl.NumberFormat('en-US', {
     minimumFractionDigits: 2,
-    maximumFractionDigits: 2
+    maximumFractionDigits: 2,
   }).format(amount)
 }
 
@@ -55,7 +55,7 @@ const formatCurrencyNoDecimals = (amount: number | null | undefined) => {
 const getOrderedFields = () => {
   const settings = loadSettings()
   const boeSummaryFields = settings.modules.boeSummary.fields
-  
+
   // Convert to array and sort by order
   return Object.entries(boeSummaryFields)
     .filter(([, config]) => config.visible)
@@ -77,91 +77,158 @@ const getFieldDisplayName = (fieldName: string) => {
     perUnitDuty: 'Per-Unit Duty',
     landedCostPerUnit: 'Landed Cost / Unit',
     actualDuty: 'Actual Duty',
-    savings: 'Savings'
+    savings: 'Savings',
   }
   return fieldMap[fieldName] || fieldName
 }
 
 // Function to render cell value
-const renderCellValue = (fieldName: string, row: {
-  partNo: string
-  description: string
-  assessableValue: number
-  bcdValue: number
-  swsValue: number
-  igstValue: number
-  totalDuty: number
-  qty: number
-  perUnitDuty: number
-  landedCostPerUnit: number
-  actualDuty: number | null
-  dutySavings: number
-}) => {
+const renderCellValue = (
+  fieldName: string,
+  row: {
+    partNo: string
+    description: string
+    assessableValue: number
+    bcdValue: number
+    swsValue: number
+    igstValue: number
+    totalDuty: number
+    qty: number
+    perUnitDuty: number
+    landedCostPerUnit: number
+    actualDuty: number | null
+    dutySavings: number
+  }
+) => {
   switch (fieldName) {
     case 'partNo':
       return <TableCell className="font-medium">{row.partNo}</TableCell>
     case 'description':
       return <TableCell>{row.description}</TableCell>
     case 'assessableValue':
-      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.assessableValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {formatCurrencyNoDecimals(row.assessableValue)}
+        </TableCell>
+      )
     case 'bcd':
-      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.bcdValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {formatCurrencyNoDecimals(row.bcdValue)}
+        </TableCell>
+      )
     case 'sws':
-      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.swsValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {formatCurrencyNoDecimals(row.swsValue)}
+        </TableCell>
+      )
     case 'igst':
-      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.igstValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {formatCurrencyNoDecimals(row.igstValue)}
+        </TableCell>
+      )
     case 'totalDuty':
-      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.totalDuty)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {formatCurrencyNoDecimals(row.totalDuty)}
+        </TableCell>
+      )
     case 'qty':
       return <TableCell className="text-right font-mono">{row.qty || '-'}</TableCell>
     case 'perUnitDuty':
-      return <TableCell className="text-right font-mono">{row.qty ? formatCurrency(row.perUnitDuty) : '-'}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {row.qty ? formatCurrency(row.perUnitDuty) : '-'}
+        </TableCell>
+      )
     case 'landedCostPerUnit':
-      return <TableCell className="text-right font-mono">{row.qty ? formatCurrency(row.landedCostPerUnit) : '-'}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {row.qty ? formatCurrency(row.landedCostPerUnit) : '-'}
+        </TableCell>
+      )
     case 'actualDuty':
-      return <TableCell className="text-right font-mono">{row.actualDuty != null ? formatCurrencyNoDecimals(row.actualDuty) : '-'}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {row.actualDuty != null ? formatCurrencyNoDecimals(row.actualDuty) : '-'}
+        </TableCell>
+      )
     case 'savings':
-      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.dutySavings)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono">
+          {formatCurrencyNoDecimals(row.dutySavings)}
+        </TableCell>
+      )
     default:
       return <TableCell>-</TableCell>
   }
 }
 
 // Function to render totals cell value
-const renderTotalsCellValue = (fieldName: string, totals: {
-  assessableValue: number
-  bcdValue: number
-  swsValue: number
-  igstValue: number
-  totalDuty: number
-  dutySavings: number
-  actualDuty: number
-}, orderedFields: string[]) => {
+const renderTotalsCellValue = (
+  fieldName: string,
+  totals: {
+    assessableValue: number
+    bcdValue: number
+    swsValue: number
+    igstValue: number
+    totalDuty: number
+    dutySavings: number
+    actualDuty: number
+  },
+  orderedFields: string[]
+) => {
   // Find the index of the current field in the ordered fields
   const fieldIndex = orderedFields.indexOf(fieldName)
-  
+
   // If this is the first field (partNo), create a cell that spans the first two columns
   if (fieldIndex === 0) {
-    return <TableCell colSpan={2} className="text-right font-semibold">Totals</TableCell>
+    return (
+      <TableCell colSpan={2} className="text-right font-semibold">
+        Totals
+      </TableCell>
+    )
   }
-  
+
   // If this is the second field (description), skip it since it's covered by the colspan
   if (fieldIndex === 1) {
     return null
   }
-  
+
   // For all other fields, render the appropriate value
   switch (fieldName) {
     case 'assessableValue':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.assessableValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.assessableValue)}
+        </TableCell>
+      )
     case 'bcd':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.bcdValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.bcdValue)}
+        </TableCell>
+      )
     case 'sws':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.swsValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.swsValue)}
+        </TableCell>
+      )
     case 'igst':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.igstValue)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.igstValue)}
+        </TableCell>
+      )
     case 'totalDuty':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.totalDuty)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.totalDuty)}
+        </TableCell>
+      )
     case 'qty':
       return <TableCell className="text-right font-mono font-semibold">-</TableCell>
     case 'perUnitDuty':
@@ -169,9 +236,17 @@ const renderTotalsCellValue = (fieldName: string, totals: {
     case 'landedCostPerUnit':
       return <TableCell className="text-right font-mono font-semibold">-</TableCell>
     case 'actualDuty':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.actualDuty)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.actualDuty)}
+        </TableCell>
+      )
     case 'savings':
-      return <TableCell className="text-right font-mono font-semibold">{formatCurrencyNoDecimals(totals.dutySavings)}</TableCell>
+      return (
+        <TableCell className="text-right font-mono font-semibold">
+          {formatCurrencyNoDecimals(totals.dutySavings)}
+        </TableCell>
+      )
     default:
       return <TableCell className="text-right font-mono font-semibold">-</TableCell>
   }
@@ -213,27 +288,29 @@ async function exportXlsx(params: {
     BOE: r.boe ?? '',
     Variance: r.variance ?? '',
   }))
-  
+
   const workbook = new ExcelJS.Workbook()
-  
+
   if (itemsRows.length) {
     const itemsSheet = workbook.addWorksheet('Items')
     const headers = Object.keys(itemsRows[0])
     itemsSheet.addRow(headers)
-    itemsRows.forEach(row => {
-      itemsSheet.addRow(headers.map(header => row[header]))
+    itemsRows.forEach((row) => {
+      itemsSheet.addRow(headers.map((header) => row[header]))
     })
   }
-  
+
   const summarySheet = workbook.addWorksheet('Summary')
   const summaryHeaders = ['Metric', 'Calculated', 'BOE', 'Variance']
   summarySheet.addRow(summaryHeaders)
-  summaryRows.forEach(row => {
+  summaryRows.forEach((row) => {
     summarySheet.addRow([row.Metric, row.Calculated, row.BOE, row.Variance])
   })
-  
+
   const buffer = await workbook.xlsx.writeBuffer()
-  const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const blob = new Blob([buffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
@@ -247,80 +324,209 @@ function printReport(params: {
   summary: SummaryRow[]
   title: string
 }) {
+  console.log('🖨️ Starting printReport function...')
+  console.log('📋 Print params:', params)
+
   const { itemsRows, summary, title } = params
-  
-  // Get the ordered fields for consistent column order
-  const orderedFields = getOrderedFields()
-  const fieldDisplayNames = orderedFields.map(fieldName => getFieldDisplayName(fieldName))
-  
-  const itemRowsHtml = itemsRows
-    .map(
-      (r) => {
-        const cells = orderedFields.map(fieldName => {
-          const value = r[getFieldDisplayName(fieldName)] ?? '-'
-          const isNumeric = ['assessableValue', 'bcd', 'sws', 'igst', 'totalDuty', 'qty', 'perUnitDuty', 'landedCostPerUnit', 'actualDuty', 'savings'].includes(fieldName)
-          return `<td class="${isNumeric ? 'num' : ''}">${value}</td>`
-        }).join('')
-        
-        return `<tr>${cells}</tr>`
+
+  console.log('📊 Items rows count:', itemsRows.length)
+  console.log('📈 Summary rows count:', summary.length)
+  console.log('📝 Title:', title)
+
+  try {
+    // Get the ordered fields for consistent column order
+    console.log('🔧 Getting ordered fields...')
+    const orderedFields = getOrderedFields()
+    console.log('📋 Ordered fields:', orderedFields)
+
+    const fieldDisplayNames = orderedFields.map((fieldName) => getFieldDisplayName(fieldName))
+    console.log('🏷️ Field display names:', fieldDisplayNames)
+
+    console.log('🔨 Building item rows HTML...')
+    const itemRowsHtml = itemsRows
+      .map((r, index) => {
+        console.log(`📦 Processing row ${index}:`, r)
+        const cells = orderedFields
+          .map((fieldName) => {
+            const displayName = getFieldDisplayName(fieldName)
+            const value = r[displayName] ?? '-'
+            const isNumeric = [
+              'assessableValue',
+              'bcd',
+              'sws',
+              'igst',
+              'totalDuty',
+              'qty',
+              'perUnitDuty',
+              'landedCostPerUnit',
+              'actualDuty',
+              'savings',
+            ].includes(fieldName)
+            console.log(
+              `  📄 Field: ${fieldName}, Display: ${displayName}, Value: ${value}, Numeric: ${isNumeric}`
+            )
+            return `<td class="${isNumeric ? 'num' : ''}">${value}</td>`
+          })
+          .join('')
+
+        const rowHtml = `<tr>${cells}</tr>`
+        console.log(`  ✅ Row ${index} HTML:`, rowHtml)
+        return rowHtml
+      })
+      .join('')
+
+    console.log('📊 Final item rows HTML length:', itemRowsHtml.length)
+
+    console.log('📈 Building summary rows HTML...')
+    const summaryRowsHtml = summary
+      .map(
+        (
+          r: { label: string; calculated: number; boe: number | null; variance: number | null },
+          index
+        ) => {
+          console.log(`📊 Processing summary row ${index}:`, r)
+          const rowHtml = `
+          <tr>
+            <td>${r.label}</td>
+            <td class="num">${r.calculated.toFixed(2)}</td>
+            <td class="num">${r.boe != null ? r.boe.toFixed(2) : '-'}</td>
+            <td class="num">${r.variance != null ? r.variance.toFixed(2) : '-'}</td>
+          </tr>`
+          console.log(`  ✅ Summary row ${index} HTML:`, rowHtml)
+          return rowHtml
+        }
+      )
+      .join('')
+
+    console.log('📊 Final summary rows HTML length:', summaryRowsHtml.length)
+
+    console.log('🏗️ Building complete HTML...')
+    const html = `<!doctype html>
+    <html><head>
+      <meta charset="utf-8"/>
+      <title>${title}</title>
+      <style>
+        body { font: 12px system-ui, -apple-system, Segoe UI, Roboto, Arial; color: #111; margin: 24px; }
+        h1 { font-size: 18px; margin: 0 0 12px; }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
+        th, td { border: 1px solid #ddd; padding: 6px 8px; }
+        th { background: #f5f5f5; text-align: left; }
+        td.num, th.num { text-align: right; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+        @media print { button { display: none; } }
+      </style>
+    </head>
+    <body>
+      <h1>${title}</h1>
+      <h2>Item Details</h2>
+           <table>
+         <thead>
+           <tr>
+             ${fieldDisplayNames
+               .map((displayName) => {
+                 const isNumeric = [
+                   'Assessable',
+                   'BCD',
+                   'SWS',
+                   'IGST',
+                   'Total Duty',
+                   'Qty',
+                   'Per-Unit Duty',
+                   'Landed Cost / Unit',
+                   'Actual Duty',
+                   'Savings',
+                 ].includes(displayName)
+                 return `<th class="${isNumeric ? 'num' : ''}">${displayName}</th>`
+               })
+               .join('')}
+           </tr>
+         </thead>
+         <tbody>${itemRowsHtml}</tbody>
+       </table>
+      <h2>BOE Summary & Variance</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Metric</th><th class="num">Calculated</th><th class="num">BOE</th><th class="num">Variance (Calc - BOE)</th>
+          </tr>
+        </thead>
+        <tbody>${summaryRowsHtml}</tbody>
+      </table>
+      <script>window.onload = () => window.print();</script>
+    </body></html>`
+
+    console.log('📄 Complete HTML length:', html.length)
+    console.log('🌐 Opening print window...')
+
+    // Try to open the print window
+    const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768')
+
+    if (!printWindow) {
+      console.error('❌ Failed to open print window - popup blocked?')
+      console.log('🔄 Trying alternative print method...')
+
+      // Fallback: Create a temporary iframe for printing
+      try {
+        const iframe = document.createElement('iframe')
+        iframe.style.position = 'fixed'
+        iframe.style.right = '0'
+        iframe.style.bottom = '0'
+        iframe.style.width = '0'
+        iframe.style.height = '0'
+        iframe.style.border = '0'
+        iframe.style.visibility = 'hidden'
+
+        document.body.appendChild(iframe)
+
+        const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
+        if (iframeDoc) {
+          iframeDoc.open()
+          iframeDoc.write(html)
+          iframeDoc.close()
+
+          console.log('✅ HTML written to iframe successfully')
+
+          // Wait a moment for content to load, then print
+          setTimeout(() => {
+            iframe.contentWindow?.print()
+            console.log('🖨️ Print command sent to iframe')
+
+            // Remove iframe after printing
+            setTimeout(() => {
+              document.body.removeChild(iframe)
+              console.log('🧹 Iframe removed')
+            }, 1000)
+          }, 500)
+        } else {
+          console.error('❌ Failed to access iframe document')
+          alert(
+            'Print failed: Popup blocked and iframe method unavailable. Please allow popups for this site.'
+          )
+        }
+      } catch (error) {
+        console.error('💥 Error in iframe print method:', error)
+        alert(
+          'Print failed: Popup blocked and alternative method failed. Please allow popups for this site.'
+        )
       }
-    )
-    .join('')
-  const summaryRowsHtml = summary
-    .map(
-      (r: { label: string; calculated: number; boe: number | null; variance: number | null }) => `
-      <tr>
-        <td>${r.label}</td>
-        <td class="num">${r.calculated.toFixed(2)}</td>
-        <td class="num">${r.boe != null ? r.boe.toFixed(2) : '-'}</td>
-        <td class="num">${r.variance != null ? r.variance.toFixed(2) : '-'}</td>
-      </tr>`
-    )
-    .join('')
-  const html = `<!doctype html>
-  <html><head>
-    <meta charset="utf-8"/>
-    <title>${title}</title>
-    <style>
-      body { font: 12px system-ui, -apple-system, Segoe UI, Roboto, Arial; color: #111; margin: 24px; }
-      h1 { font-size: 18px; margin: 0 0 12px; }
-      table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-      th, td { border: 1px solid #ddd; padding: 6px 8px; }
-      th { background: #f5f5f5; text-align: left; }
-      td.num, th.num { text-align: right; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
-      @media print { button { display: none; } }
-    </style>
-  </head>
-  <body>
-    <h1>${title}</h1>
-    <h2>Item Details</h2>
-         <table>
-       <thead>
-         <tr>
-           ${fieldDisplayNames.map(displayName => {
-             const isNumeric = ['Assessable', 'BCD', 'SWS', 'IGST', 'Total Duty', 'Qty', 'Per-Unit Duty', 'Landed Cost / Unit', 'Actual Duty', 'Savings'].includes(displayName)
-             return `<th class="${isNumeric ? 'num' : ''}">${displayName}</th>`
-           }).join('')}
-         </tr>
-       </thead>
-       <tbody>${itemRowsHtml}</tbody>
-     </table>
-    <h2>BOE Summary & Variance</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Metric</th><th class="num">Calculated</th><th class="num">BOE</th><th class="num">Variance (Calc - BOE)</th>
-        </tr>
-      </thead>
-      <tbody>${summaryRowsHtml}</tbody>
-    </table>
-    <script>window.onload = () => window.print();</script>
-  </body></html>`
-  const printWindow = window.open('', '_blank', 'noopener,noreferrer,width=1024,height=768')
-  if (!printWindow) return
-  printWindow.document.open()
-  printWindow.document.write(html)
-  printWindow.document.close()
+      return
+    }
+
+    console.log('✅ Print window opened successfully')
+    console.log('📝 Writing HTML to print window...')
+
+    printWindow.document.open()
+    printWindow.document.write(html)
+    printWindow.document.close()
+
+    console.log('✅ HTML written to print window successfully')
+    console.log('🖨️ Print function completed successfully')
+  } catch (error) {
+    console.error('💥 Error in printReport function:', error)
+    console.error('Error details:', {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    })
+  }
 }
 
 function ItemDetailsTable({
@@ -387,13 +593,21 @@ function ItemDetailsTable({
       acc.actualDuty += r.actualDuty || 0
       return acc
     },
-    { assessableValue: 0, bcdValue: 0, swsValue: 0, igstValue: 0, totalDuty: 0, dutySavings: 0, actualDuty: 0 }
+    {
+      assessableValue: 0,
+      bcdValue: 0,
+      swsValue: 0,
+      igstValue: 0,
+      totalDuty: 0,
+      dutySavings: 0,
+      actualDuty: 0,
+    }
   )
 
   const exportRows = rows.map((r) => ({
     'Part No': r.partNo,
     Description: r.description,
-    'Assessable Value': Math.round(r.assessableValue),
+    Assessable: Math.round(r.assessableValue),
     BCD: Math.round(r.bcdValue),
     SWS: Math.round(r.swsValue),
     IGST: Math.round(r.igstValue),
@@ -411,8 +625,17 @@ function ItemDetailsTable({
 
   const handleExportXlsx = async () => await exportXlsx({ itemsRows: exportRows, summary: [] })
 
-  const handlePrint = () =>
+  const handlePrint = () => {
+    console.log('🖨️ ItemDetailsTable handlePrint clicked')
+    console.log('📊 Export rows for print:', exportRows)
+
+    // Show a helpful message about popup blockers
+    toast.info('Printing... If nothing happens, please allow popups for this site.', {
+      duration: 3000,
+    })
+
     printReport({ itemsRows: exportRows, summary: [], title: 'BOE Item Details' })
+  }
 
   const orderedFields = getOrderedFields()
 
@@ -438,7 +661,12 @@ function ItemDetailsTable({
             <TableHeader>
               <TableRow className="bg-muted/50">
                 {orderedFields.map((fieldName) => (
-                  <TableHead key={fieldName} className={fieldName !== 'partNo' && fieldName !== 'description' ? 'text-right' : ''}>
+                  <TableHead
+                    key={fieldName}
+                    className={
+                      fieldName !== 'partNo' && fieldName !== 'description' ? 'text-right' : ''
+                    }
+                  >
                     {getFieldDisplayName(fieldName)}
                   </TableHead>
                 ))}
@@ -448,18 +676,16 @@ function ItemDetailsTable({
               {rows.map((r) => (
                 <TableRow key={r.partNo}>
                   {orderedFields.map((fieldName) => (
-                    <React.Fragment key={fieldName}>
-                      {renderCellValue(fieldName, r)}
-                    </React.Fragment>
+                    <React.Fragment key={fieldName}>{renderCellValue(fieldName, r)}</React.Fragment>
                   ))}
                 </TableRow>
               ))}
-                             <TableRow className="bg-muted/30">
-                 {orderedFields.map((fieldName) => {
-                   const cell = renderTotalsCellValue(fieldName, totals, orderedFields)
-                   return cell ? <React.Fragment key={fieldName}>{cell}</React.Fragment> : null
-                 })}
-               </TableRow>
+              <TableRow className="bg-muted/30">
+                {orderedFields.map((fieldName) => {
+                  const cell = renderTotalsCellValue(fieldName, totals, orderedFields)
+                  return cell ? <React.Fragment key={fieldName}>{cell}</React.Fragment> : null
+                })}
+              </TableRow>
             </TableBody>
           </Table>
         </div>
@@ -520,8 +746,17 @@ function BoeSummaryTable({
 
   const handleExportXlsx = async () => await exportXlsx({ itemsRows: [], summary: summaryRows })
 
-  const handlePrint = () =>
+  const handlePrint = () => {
+    console.log('🖨️ BoeSummaryTable handlePrint clicked')
+    console.log('📊 Summary rows for print:', summaryRows)
+
+    // Show a helpful message about popup blockers
+    toast.info('Printing... If nothing happens, please allow popups for this site.', {
+      duration: 3000,
+    })
+
     printReport({ itemsRows: [], summary: summaryRows, title: 'BOE Summary' })
+  }
 
   return (
     <Card>

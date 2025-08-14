@@ -45,5 +45,3 @@ export interface ReportResponse {
   totalRows: number
   totals?: ReportTotals
 }
-
-

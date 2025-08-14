@@ -25,11 +25,11 @@ export function DataTablePagination<TData>({
   storageKey = 'table-page-size',
 }: DataTablePaginationProps<TData>) {
   const { settings } = useSettings()
-  
+
   // Effect to load the page size from localStorage or module settings on initial render
   React.useEffect(() => {
     const savedPageSize = localStorage.getItem(storageKey)
-    
+
     // Try to determine the module from the storage key
     let moduleName: keyof typeof settings.modules = 'shipment' // default
     if (storageKey?.includes('shipment')) {
@@ -45,10 +45,10 @@ export function DataTablePagination<TData>({
     } else if (storageKey?.includes('expense')) {
       moduleName = 'expenses'
     }
-    
+
     const moduleSettings = getModuleSettings(moduleName)
     const currentPageSize = table.getState().pagination.pageSize
-    
+
     // Always use module settings if they differ from current page size
     if (moduleSettings.itemsPerPage !== currentPageSize) {
       console.log(`🔧 Setting page size to ${moduleSettings.itemsPerPage} for ${moduleName} module`)

@@ -27,6 +27,7 @@ fn main() {
             commands::add_supplier,
             commands::update_supplier,
             commands::add_suppliers_bulk,
+            commands::clear_suppliers,
             
             // Shipment commands
             commands::get_shipments,
@@ -105,7 +106,10 @@ fn main() {
             commands::add_service_provider,
             commands::get_expense_types,
             commands::add_expense_type,
+            commands::get_expense_invoices_for_shipment,
+            commands::get_expenses_for_invoice,
             commands::get_expenses_for_shipment,
+            commands::add_expense_invoice_with_expenses,
             commands::add_expense,
             commands::update_expense,
             commands::delete_expense,

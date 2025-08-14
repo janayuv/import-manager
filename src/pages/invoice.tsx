@@ -65,7 +65,7 @@ const InvoicePage = () => {
 
   const [statusFilter, setStatusFilter] = React.useState('All')
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     setLoading(true)
     try {
       const [inv, shp, unfinalizedShp, itm, sup] = await Promise.all([
@@ -86,11 +86,11 @@ const InvoicePage = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   React.useEffect(() => {
     fetchData()
-  }, [])
+  }, [fetchData])
 
   const availableShipmentsForForm = React.useMemo(() => {
     if (invoiceToEdit) {
@@ -184,66 +184,80 @@ const InvoicePage = () => {
     setFormOpen(true)
   }
 
-  const handleOpenFormForEdit = (invoiceId: string) => {
-    const fullInvoice = invoices.find((inv) => inv.id === invoiceId)
-    if (fullInvoice) {
-      setInvoiceToEdit(fullInvoice)
-      setFormOpen(true)
-    }
-  }
+  const handleOpenFormForEdit = React.useCallback(
+    (invoiceId: string) => {
+      const fullInvoice = invoices.find((inv) => inv.id === invoiceId)
+      if (fullInvoice) {
+        setInvoiceToEdit(fullInvoice)
+        setFormOpen(true)
+      }
+    },
+    [invoices]
+  )
 
-  const handleView = (invoiceId: string) => {
-    const fullInvoice = invoices.find((inv) => inv.id === invoiceId)
-    if (fullInvoice) {
-      setInvoiceToView(fullInvoice)
-      setViewOpen(true)
-    }
-  }
+  const handleView = React.useCallback(
+    (invoiceId: string) => {
+      const fullInvoice = invoices.find((inv) => inv.id === invoiceId)
+      if (fullInvoice) {
+        setInvoiceToView(fullInvoice)
+        setViewOpen(true)
+      }
+    },
+    [invoices]
+  )
 
-  const handleDeleteRequest = (invoiceId: string, invoiceNumber: string) => {
+  const handleDeleteRequest = React.useCallback((invoiceId: string, invoiceNumber: string) => {
     setInvoiceToDelete({ id: invoiceId, number: invoiceNumber })
     setIsDeleteDialogOpen(true)
-  }
+  }, [])
 
-  const handleQuickFinalize = async (invoiceId: string, invoiceNumber: string) => {
-    try {
-      // Find the invoice to get its current data
-      const invoice = invoices.find((inv) => inv.id === invoiceId)
-      if (!invoice) {
-        toast.error('Invoice not found.')
-        return
-      }
-
-      // Check if the invoice totals match
-      const tolerance = 0.01
-      const isMatched = Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
-      
-      if (!isMatched) {
-        toast.error('Cannot finalize. The calculated total must match the shipment value.')
-        return
-      }
-
-      // Show confirmation dialog
-      if (confirm(`Are you sure you want to finalize invoice ${invoiceNumber}?\n\nShipment Value: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.shipmentTotal)}\nCalculated Total: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.calculatedTotal)}\n\nThis action cannot be undone.`)) {
-        const payload = {
-          shipmentId: invoice.shipmentId,
-          status: 'Finalized',
-          lineItems: invoice.lineItems?.map((li) => ({
-            itemId: li.itemId,
-            quantity: li.quantity,
-            unitPrice: li.unitPrice,
-          })) || [],
+  const handleQuickFinalize = React.useCallback(
+    async (invoiceId: string, invoiceNumber: string) => {
+      try {
+        // Find the invoice to get its current data
+        const invoice = invoices.find((inv) => inv.id === invoiceId)
+        if (!invoice) {
+          toast.error('Invoice not found.')
+          return
         }
 
-        await invoke('update_invoice', { id: invoiceId, payload })
-        toast.success(`Invoice ${invoiceNumber} has been finalized successfully!`)
-        fetchData()
+        // Check if the invoice totals match
+        const tolerance = 0.01
+        const isMatched = Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+
+        if (!isMatched) {
+          toast.error('Cannot finalize. The calculated total must match the shipment value.')
+          return
+        }
+
+        // Show confirmation dialog
+        if (
+          confirm(
+            `Are you sure you want to finalize invoice ${invoiceNumber}?\n\nShipment Value: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.shipmentTotal)}\nCalculated Total: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.calculatedTotal)}\n\nThis action cannot be undone.`
+          )
+        ) {
+          const payload = {
+            shipmentId: invoice.shipmentId,
+            status: 'Finalized',
+            lineItems:
+              invoice.lineItems?.map((li) => ({
+                itemId: li.itemId,
+                quantity: li.quantity,
+                unitPrice: li.unitPrice,
+              })) || [],
+          }
+
+          await invoke('update_invoice', { id: invoiceId, payload })
+          toast.success(`Invoice ${invoiceNumber} has been finalized successfully!`)
+          fetchData()
+        }
+      } catch (error) {
+        console.error('Failed to finalize invoice:', error)
+        toast.error('Failed to finalize invoice.')
       }
-    } catch (error) {
-      console.error('Failed to finalize invoice:', error)
-      toast.error('Failed to finalize invoice.')
-    }
-  }
+    },
+    [invoices, fetchData]
+  )
 
   const handleDeleteConfirm = async () => {
     if (invoiceToDelete) {
@@ -325,7 +339,10 @@ const InvoicePage = () => {
       const shipmentMap = new Map(shipments.map((s) => [s.invoiceNumber, s.id]))
       const itemMap = new Map(items.map((i) => [i.partNumber, i.id]))
 
-      const invoicesToCreate = new Map<string, { itemId: string; quantity: number; unitPrice: number }[]>()
+      const invoicesToCreate = new Map<
+        string,
+        { itemId: string; quantity: number; unitPrice: number }[]
+      >()
 
       for (const row of results.data) {
         const shipmentId = shipmentMap.get(row.shipmentInvoiceNumber)
@@ -356,13 +373,11 @@ const InvoicePage = () => {
         return
       }
 
-      const payloads = Array.from(invoicesToCreate.entries()).map(
-        ([shipmentId, lineItems]) => ({
-          shipmentId,
-          status: 'Draft',
-          lineItems,
-        })
-      )
+      const payloads = Array.from(invoicesToCreate.entries()).map(([shipmentId, lineItems]) => ({
+        shipmentId,
+        status: 'Draft',
+        lineItems,
+      }))
 
       await invoke('add_invoices_bulk', { payloads })
       toast.success(`${payloads.length} invoices have been imported as drafts.`)
@@ -373,13 +388,14 @@ const InvoicePage = () => {
   }
 
   const columns = React.useMemo(
-    () => getInvoiceColumns({
-      onView: handleView,
-      onEdit: handleOpenFormForEdit,
-      onDelete: handleDeleteRequest,
-      onQuickFinalize: handleQuickFinalize,
-      settings,
-    }),
+    () =>
+      getInvoiceColumns({
+        onView: handleView,
+        onEdit: handleOpenFormForEdit,
+        onDelete: handleDeleteRequest,
+        onQuickFinalize: handleQuickFinalize,
+        settings,
+      }),
     [handleView, handleOpenFormForEdit, handleDeleteRequest, handleQuickFinalize, settings]
   )
 

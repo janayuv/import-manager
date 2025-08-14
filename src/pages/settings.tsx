@@ -18,7 +18,6 @@ import {
 import { Switch } from '@/components/ui/switch'
 import {
   loadSettings,
-  saveSettings,
   clearSettings,
   type AppSettings,
   formatNumber,
@@ -30,7 +29,8 @@ import { ModuleSettings } from '@/components/module-settings'
 import { ModuleSettingsDemo } from '@/components/module-settings-demo'
 import { useSettings } from '@/lib/use-settings'
 export default function SettingsPage() {
-  const { settings, updateSettings, updateNumberSettings, updateDateSettings, updateTextSettings } = useSettings()
+  const { settings, updateSettings, updateNumberSettings, updateDateSettings, updateTextSettings } =
+    useSettings()
   const [selectedModule, setSelectedModule] = React.useState<string | null>(null)
 
   const handleSave = () => {
@@ -62,12 +62,16 @@ export default function SettingsPage() {
   ]
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <div className="container mx-auto space-y-6 py-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Settings</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleReset}>Reset</Button>
-          <Button variant="destructive" onClick={handleClearSettings}>Clear All Settings</Button>
+          <Button variant="outline" onClick={handleReset}>
+            Reset
+          </Button>
+          <Button variant="destructive" onClick={handleClearSettings}>
+            Clear All Settings
+          </Button>
           <Button onClick={handleSave}>Save Settings</Button>
         </div>
       </div>
@@ -81,16 +85,16 @@ export default function SettingsPage() {
           <CardTitle>Module Settings</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
             {modules.map((module) => (
               <Button
                 key={module.key}
-                variant={selectedModule === module.key ? "default" : "outline"}
+                variant={selectedModule === module.key ? 'default' : 'outline'}
                 onClick={() => setSelectedModule(module.key)}
-                className="h-20 flex flex-col items-center justify-center"
+                className="flex h-20 flex-col items-center justify-center"
               >
                 <span className="font-medium">{module.title}</span>
-                <span className="text-xs text-muted-foreground">Configure Fields</span>
+                <span className="text-muted-foreground text-xs">Configure Fields</span>
               </Button>
             ))}
           </div>
@@ -103,14 +107,14 @@ export default function SettingsPage() {
           <CardContent className="pt-6">
             <ModuleSettings
               moduleName={selectedModule as keyof AppSettings['modules']}
-              moduleTitle={modules.find(m => m.key === selectedModule)?.title || ''}
+              moduleTitle={modules.find((m) => m.key === selectedModule)?.title || ''}
               onClose={() => setSelectedModule(null)}
             />
           </CardContent>
         </Card>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Number Format Settings */}
         <Card>
           <CardHeader>
@@ -122,7 +126,9 @@ export default function SettingsPage() {
                 <Label>Decimal Places</Label>
                 <Select
                   value={settings.numberFormat.decimalPlaces.toString()}
-                  onValueChange={(value) => updateNumberSettings({ decimalPlaces: parseInt(value) })}
+                  onValueChange={(value) =>
+                    updateNumberSettings({ decimalPlaces: parseInt(value) })
+                  }
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -148,14 +154,16 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-2">
               <Switch
                 checked={settings.numberFormat.useThousandsSeparator}
-                onCheckedChange={(checked) => updateNumberSettings({ useThousandsSeparator: checked })}
+                onCheckedChange={(checked) =>
+                  updateNumberSettings({ useThousandsSeparator: checked })
+                }
               />
               <Label>Use Thousands Separator</Label>
             </div>
 
             {/* Preview */}
-            <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">Preview:</h4>
+            <div className="bg-muted rounded-lg p-4">
+              <h4 className="mb-2 font-medium">Preview:</h4>
               <div className="space-y-1 text-sm">
                 <div>Number: {formatNumber(1234567.89, settings.numberFormat)}</div>
                 <div>Currency: {formatCurrency(987654.32, settings.numberFormat)}</div>
@@ -174,7 +182,9 @@ export default function SettingsPage() {
               <Label>Date Format</Label>
               <Select
                 value={settings.dateFormat.format}
-                                 onValueChange={(value) => updateDateSettings({ format: value as AppSettings['dateFormat']['format'] })}
+                onValueChange={(value) =>
+                  updateDateSettings({ format: value as AppSettings['dateFormat']['format'] })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -197,11 +207,9 @@ export default function SettingsPage() {
             </div>
 
             {/* Preview */}
-            <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">Preview:</h4>
-              <div className="text-sm">
-                {formatDate(new Date(), settings.dateFormat)}
-              </div>
+            <div className="bg-muted rounded-lg p-4">
+              <h4 className="mb-2 font-medium">Preview:</h4>
+              <div className="text-sm">{formatDate(new Date(), settings.dateFormat)}</div>
             </div>
           </CardContent>
         </Card>
@@ -216,7 +224,9 @@ export default function SettingsPage() {
               <Label>Text Case</Label>
               <Select
                 value={settings.textFormat.case}
-                                 onValueChange={(value) => updateTextSettings({ case: value as AppSettings['textFormat']['case'] })}
+                onValueChange={(value) =>
+                  updateTextSettings({ case: value as AppSettings['textFormat']['case'] })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -239,8 +249,8 @@ export default function SettingsPage() {
             </div>
 
             {/* Preview */}
-            <div className="p-4 bg-muted rounded-lg">
-              <h4 className="font-medium mb-2">Preview:</h4>
+            <div className="bg-muted rounded-lg p-4">
+              <h4 className="mb-2 font-medium">Preview:</h4>
               <div className="text-sm">
                 {formatText('hello world example text', settings.textFormat)}
               </div>

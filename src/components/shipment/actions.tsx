@@ -19,7 +19,12 @@ interface ShipmentActionsProps {
   onMarkAsDelivered?: () => void
 }
 
-export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }: ShipmentActionsProps) => {
+export const ShipmentActions = ({
+  shipment,
+  onView,
+  onEdit,
+  onMarkAsDelivered,
+}: ShipmentActionsProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -44,10 +49,7 @@ export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }:
         {shipment.status !== 'delivered' && onMarkAsDelivered && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              className="hover:text-green-600" 
-              onClick={onMarkAsDelivered}
-            >
+            <DropdownMenuItem className="hover:text-green-600" onClick={onMarkAsDelivered}>
               Mark as Delivered
             </DropdownMenuItem>
           </>

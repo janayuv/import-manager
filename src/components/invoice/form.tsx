@@ -273,11 +273,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     if (!selectedShipment) {
       return toast.error('Please select a shipment first.')
     }
-    
+
     // Use tolerance-based comparison for floating-point numbers
     const tolerance = 0.01 // Allow 1 cent difference
     const isMatched = Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
-    
+
     if (!isMatched) {
       return toast.error('Cannot finalize. The calculated total must match the shipment value.')
     }
@@ -288,7 +288,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
   // Use tolerance-based comparison for floating-point numbers
   const tolerance = 0.01 // Allow 1 cent difference
-  const isMatch = selectedShipment ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance : false
+  const isMatch = selectedShipment
+    ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
+    : false
   const matchDifference = selectedShipment ? calculatedTotal - selectedShipment.invoiceValue : 0
   const formTitle = invoiceToEdit
     ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}`
@@ -469,7 +471,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               {isMatch && (
                 <Button
                   type="button"
-                  className="bg-green-600 hover:bg-green-700 text-white"
+                  className="bg-green-600 text-white hover:bg-green-700"
                   onClick={handleQuickFinalize}
                   disabled={isSubmitting}
                 >
@@ -519,12 +521,16 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Finalize Invoice</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to finalize invoice <strong>{selectedShipment?.invoiceNumber}</strong>?
-              <br /><br />
+              Are you sure you want to finalize invoice{' '}
+              <strong>{selectedShipment?.invoiceNumber}</strong>?
+              <br />
+              <br />
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Shipment Value:</span>
-                  <span className="font-semibold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</span>
+                  <span className="font-semibold">
+                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Calculated Total:</span>
@@ -540,9 +546,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="custom-alert-action-cancel">
-              Cancel
-            </AlertDialogCancel>
+            <AlertDialogCancel className="custom-alert-action-cancel">Cancel</AlertDialogCancel>
             <AlertDialogAction
               className="custom-alert-action-ok"
               onClick={() => {

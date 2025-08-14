@@ -141,13 +141,18 @@ export function BoeEntryForm({
   }, [allBoes, savedBoes, initialData])
 
   React.useEffect(() => {
-    setSuppliers([...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))])
+    setSuppliers([
+      ...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat))),
+    ])
   }, [shipments, settings.textFormat])
 
   React.useEffect(() => {
     if (initialData) {
       form.reset(initialData.formValues)
-      const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === initialData.formValues.supplierName)
+      const invs = shipments.filter(
+        (s) =>
+          formatText(s.supplierName, settings.textFormat) === initialData.formValues.supplierName
+      )
       setAvailableInvoices(invs)
       setSelectedShipment(shipments.find((s) => s.id === initialData.shipmentId) || null)
       setItemInputs(initialData.itemInputs)
@@ -174,17 +179,22 @@ export function BoeEntryForm({
       setSelectedBoeId('')
       setSelectedBoeDetails(null)
     }
-  }, [initialData, shipments, allBoes, form])
+  }, [initialData, shipments, allBoes, form, settings.textFormat])
 
-  const handleSupplierChange = (supplierName: string) => {
-    form.setValue('supplierName', supplierName, { shouldValidate: true })
-    const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === supplierName)
-    setAvailableInvoices(invs)
-    form.resetField('shipmentId')
-    setSelectedShipment(null)
-    setItemInputs([])
-    setCalculationResult(null)
-  }
+  const handleSupplierChange = React.useCallback(
+    (supplierName: string) => {
+      form.setValue('supplierName', supplierName, { shouldValidate: true })
+      const invs = shipments.filter(
+        (s) => formatText(s.supplierName, settings.textFormat) === supplierName
+      )
+      setAvailableInvoices(invs)
+      form.resetField('shipmentId')
+      setSelectedShipment(null)
+      setItemInputs([])
+      setCalculationResult(null)
+    },
+    [form, shipments, settings.textFormat]
+  )
 
   const handleInvoiceChange = (shipmentId: string) => {
     form.setValue('shipmentId', shipmentId, { shouldValidate: true })
@@ -290,36 +300,38 @@ export function BoeEntryForm({
           const override = validOverrides.find((o) => o.partNo === orig.partNo)
           return override ?? orig
         })
-        
+
         // Validate BCD discrepancies after import
-        const bcdDiscrepancies = finalInputs.map((input) => {
-          const originalItem = selectedShipment.items.find(item => item.partNo === input.partNo)
-          if (!originalItem) return null
-          
-          const actualBcd = originalItem.actualBcdRate
-          const boeBcd = input.boeBcdRate
-          
-          return {
-            partNo: input.partNo,
-            actualBcd,
-            boeBcd,
-            hasDiscrepancy: boeBcd > 0 && boeBcd > actualBcd
-          }
-        }).filter(d => d && d.hasDiscrepancy) as Array<{
+        const bcdDiscrepancies = finalInputs
+          .map((input) => {
+            const originalItem = selectedShipment.items.find((item) => item.partNo === input.partNo)
+            if (!originalItem) return null
+
+            const actualBcd = originalItem.actualBcdRate
+            const boeBcd = input.boeBcdRate
+
+            return {
+              partNo: input.partNo,
+              actualBcd,
+              boeBcd,
+              hasDiscrepancy: boeBcd > 0 && boeBcd > actualBcd,
+            }
+          })
+          .filter((d) => d && d.hasDiscrepancy) as Array<{
           partNo: string
           actualBcd: number
           boeBcd: number
           hasDiscrepancy: boolean
         }>
-        
+
         if (bcdDiscrepancies.length > 0) {
-          const partNumbers = bcdDiscrepancies.map(d => d.partNo).join(', ')
+          const partNumbers = bcdDiscrepancies.map((d) => d.partNo).join(', ')
           toast.error(`BCD Discrepancy Found in Import`, {
             description: `BOE BCD > Actual BCD for parts: ${partNumbers}. Please review the imported rates.`,
             duration: 8000,
           })
         }
-        
+
         setItemInputs(finalInputs)
       } catch (err) {
         toast.error('Import Failed', { description: (err as Error).message })
@@ -361,28 +373,30 @@ export function BoeEntryForm({
     }
 
     // Validate BCD discrepancies before saving
-    const bcdDiscrepancies = itemInputs.map((input) => {
-      const originalItem = selectedShipment.items.find(item => item.partNo === input.partNo)
-      if (!originalItem) return null
-      
-      const actualBcd = originalItem.actualBcdRate
-      const boeBcd = input.boeBcdRate
-      
-      return {
-        partNo: input.partNo,
-        actualBcd,
-        boeBcd,
-        hasDiscrepancy: boeBcd > 0 && boeBcd > actualBcd
-      }
-    }).filter(d => d && d.hasDiscrepancy) as Array<{
+    const bcdDiscrepancies = itemInputs
+      .map((input) => {
+        const originalItem = selectedShipment.items.find((item) => item.partNo === input.partNo)
+        if (!originalItem) return null
+
+        const actualBcd = originalItem.actualBcdRate
+        const boeBcd = input.boeBcdRate
+
+        return {
+          partNo: input.partNo,
+          actualBcd,
+          boeBcd,
+          hasDiscrepancy: boeBcd > 0 && boeBcd > actualBcd,
+        }
+      })
+      .filter((d) => d && d.hasDiscrepancy) as Array<{
       partNo: string
       actualBcd: number
       boeBcd: number
       hasDiscrepancy: boolean
     }>
-    
+
     if (bcdDiscrepancies.length > 0) {
-      const partNumbers = bcdDiscrepancies.map(d => d.partNo).join(', ')
+      const partNumbers = bcdDiscrepancies.map((d) => d.partNo).join(', ')
       toast.error(`Cannot Save - BCD Discrepancy Found`, {
         description: `BOE BCD > Actual BCD for parts: ${partNumbers}. Please correct the rates before saving.`,
         duration: 8000,
@@ -438,7 +452,7 @@ export function BoeEntryForm({
               <FormItem>
                 <FormLabel>Supplier</FormLabel>
                 <Combobox
-                  options={suppliers.map(s => ({ value: s, label: s }))}
+                  options={suppliers.map((s) => ({ value: s, label: s }))}
                   value={field.value}
                   onChange={handleSupplierChange}
                   placeholder="Select a supplier"
@@ -456,9 +470,9 @@ export function BoeEntryForm({
               <FormItem>
                 <FormLabel>Invoice / Shipment</FormLabel>
                 <Combobox
-                  options={availableInvoices.map(inv => ({ 
-                    value: inv.id, 
-                    label: `${inv.invoiceNumber} - ${inv.supplierName}` 
+                  options={availableInvoices.map((inv) => ({
+                    value: inv.id,
+                    label: `${inv.invoiceNumber} - ${inv.supplierName}`,
                   }))}
                   value={field.value}
                   onChange={handleInvoiceChange}

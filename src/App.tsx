@@ -20,7 +20,6 @@ import SupplierPage from '@/pages/supplier'
 import SettingsPage from '@/pages/settings'
 import { SettingsProvider } from '@/lib/settings-context'
 
-
 const ProtectedRoute = () => {
   const isAuthenticated = localStorage.getItem('isAuthenticated')
   return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />

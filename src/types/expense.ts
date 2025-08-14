@@ -17,14 +17,30 @@ export interface ExpenseType {
   isActive: boolean
 }
 
-export interface Expense {
+// NEW: Expense Invoice interface
+export interface ExpenseInvoice {
   id: string
   shipmentId: string
-  expenseTypeId: string
   serviceProviderId: string
   invoiceNo: string
   invoiceDate: string
+  totalAmount: number
+  remarks?: string
+  createdBy?: string
+  createdAt: string
+  updatedAt: string
+}
+
+// UPDATED: Expense interface now references expense invoice
+export interface Expense {
+  id: string
+  expenseInvoiceId: string
+  expenseTypeId: string
   amount: number
+  cgstRate: number
+  sgstRate: number
+  igstRate: number
+  tdsRate: number
   cgstAmount: number
   sgstAmount: number
   igstAmount: number
@@ -34,6 +50,28 @@ export interface Expense {
   createdBy?: string
   createdAt: string
   updatedAt: string
+}
+
+// NEW: Combined interface for creating expense invoice with expenses
+export interface ExpenseInvoiceWithExpenses {
+  shipmentId: string
+  serviceProviderId: string
+  invoiceNo: string
+  invoiceDate: string
+  remarks?: string
+  expenses: Omit<
+    Expense,
+    | 'id'
+    | 'expenseInvoiceId'
+    | 'cgstAmount'
+    | 'sgstAmount'
+    | 'igstAmount'
+    | 'tdsAmount'
+    | 'totalAmount'
+    | 'createdBy'
+    | 'createdAt'
+    | 'updatedAt'
+  >[]
 }
 
 export interface ExpenseAttachment {

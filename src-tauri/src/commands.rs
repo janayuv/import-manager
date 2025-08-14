@@ -1,6 +1,6 @@
 // In src-tauri/src/commands.rs
 
-use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload, SavedBoe, BoeShipment, BoeShipmentItem, SelectOption, BoeReconciliationReport, ReconciledItemRow, ReconciliationTotals, Attachment, ServiceProvider, ExpenseType, Expense, ExpenseAttachment}; 
+use crate::db::{DbState, Supplier, Shipment, Item, Invoice, InvoiceLineItem, NewInvoicePayload, BoeDetails,NewBoePayload, SavedBoe, BoeShipment, BoeShipmentItem, SelectOption, BoeReconciliationReport, ReconciledItemRow, ReconciliationTotals, Attachment, ServiceProvider, ExpenseType, Expense, ExpenseInvoice, ExpenseAttachment}; 
 use rusqlite::{params, Transaction, Error as RusqliteError};
 use tauri::State;
 use tauri::Manager; // for app.path()
@@ -1319,37 +1319,28 @@ pub fn add_expense_type(name: String, state: State<DbState>) -> Result<ExpenseTy
 }
 
 // --- Expense Commands ---
+// NEW: Get expense invoices for a shipment
 #[tauri::command]
 #[allow(dead_code)] // This is called from the frontend
-pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> Result<Vec<Expense>, String> {
+pub fn get_expense_invoices_for_shipment(shipment_id: String, state: State<DbState>) -> Result<Vec<ExpenseInvoice>, String> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn
-        .prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE shipment_id = ?1 ORDER BY invoice_date")
+        .prepare("SELECT id, shipment_id, service_provider_id, invoice_no, invoice_date, total_amount, remarks, created_by, created_at, updated_at FROM expense_invoices WHERE shipment_id = ?1 ORDER BY invoice_date")
         .map_err(|e| e.to_string())?;
 
     let iter = stmt
         .query_map(params![shipment_id], |row| {
-            Ok(Expense {
+            Ok(ExpenseInvoice {
                 id: row.get(0)?,
                 shipment_id: row.get(1)?,
-                expense_type_id: row.get(2)?,
-                service_provider_id: row.get(3)?,
-                invoice_no: row.get(4)?,
-                invoice_date: row.get(5)?,
-                amount: row.get(6)?,
-                cgst_rate: row.get(7)?,
-                sgst_rate: row.get(8)?,
-                igst_rate: row.get(9)?,
-                tds_rate: row.get(10)?,
-                cgst_amount: row.get(11)?,
-                sgst_amount: row.get(12)?,
-                igst_amount: row.get(13)?,
-                tds_amount: row.get(14)?,
-                total_amount: row.get(15)?,
-                remarks: row.get(16)?,
-                created_by: row.get(17)?,
-                created_at: row.get(18)?,
-                updated_at: row.get(19)?,
+                service_provider_id: row.get(2)?,
+                invoice_no: row.get(3)?,
+                invoice_date: row.get(4)?,
+                total_amount: row.get(5)?,
+                remarks: row.get(6)?,
+                created_by: row.get(7)?,
+                created_at: row.get(8)?,
+                updated_at: row.get(9)?,
             })
         })
         .map_err(|e| e.to_string())?;
@@ -1357,14 +1348,84 @@ pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> 
     iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
 }
 
+// NEW: Get expenses for a specific expense invoice
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn get_expenses_for_invoice(expense_invoice_id: String, state: State<DbState>) -> Result<Vec<Expense>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT id, expense_invoice_id, expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE expense_invoice_id = ?1 ORDER BY created_at")
+        .map_err(|e| e.to_string())?;
+
+    let iter = stmt
+        .query_map(params![expense_invoice_id], |row| {
+            Ok(Expense {
+                id: row.get(0)?,
+                expense_invoice_id: row.get(1)?,
+                expense_type_id: row.get(2)?,
+                amount: row.get(3)?,
+                cgst_rate: row.get(4)?,
+                sgst_rate: row.get(5)?,
+                igst_rate: row.get(6)?,
+                tds_rate: row.get(7)?,
+                cgst_amount: row.get(8)?,
+                sgst_amount: row.get(9)?,
+                igst_amount: row.get(10)?,
+                tds_amount: row.get(11)?,
+                total_amount: row.get(12)?,
+                remarks: row.get(13)?,
+                created_by: row.get(14)?,
+                created_at: row.get(15)?,
+                updated_at: row.get(16)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+// UPDATED: Get all expenses for a shipment (including invoice details)
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> Result<Vec<Expense>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare("SELECT e.id, e.expense_invoice_id, e.expense_type_id, e.amount, e.cgst_rate, e.sgst_rate, e.igst_rate, e.tds_rate, e.cgst_amount, e.sgst_amount, e.igst_amount, e.tds_amount, e.total_amount, e.remarks, e.created_by, e.created_at, e.updated_at FROM expenses e JOIN expense_invoices ei ON e.expense_invoice_id = ei.id WHERE ei.shipment_id = ?1 ORDER BY ei.invoice_date, e.created_at")
+        .map_err(|e| e.to_string())?;
+
+    let iter = stmt
+        .query_map(params![shipment_id], |row| {
+            Ok(Expense {
+                id: row.get(0)?,
+                expense_invoice_id: row.get(1)?,
+                expense_type_id: row.get(2)?,
+                amount: row.get(3)?,
+                cgst_rate: row.get(4)?,
+                sgst_rate: row.get(5)?,
+                igst_rate: row.get(6)?,
+                tds_rate: row.get(7)?,
+                cgst_amount: row.get(8)?,
+                sgst_amount: row.get(9)?,
+                igst_amount: row.get(10)?,
+                tds_amount: row.get(11)?,
+                total_amount: row.get(12)?,
+                remarks: row.get(13)?,
+                created_by: row.get(14)?,
+                created_at: row.get(15)?,
+                updated_at: row.get(16)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+}
+
+// NEW: Expense Payload for individual expenses within an invoice
 #[derive(serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ExpensePayload {
-    pub shipment_id: String,
+    pub expense_invoice_id: String,
     pub expense_type_id: String,
-    pub service_provider_id: String,
-    pub invoice_no: String,
-    pub invoice_date: String,
     pub amount: f64,
     pub cgst_rate: Option<f64>,
     pub sgst_rate: Option<f64>,
@@ -1373,6 +1434,88 @@ pub struct ExpensePayload {
     pub remarks: Option<String>,
 }
 
+// NEW: Combined payload for creating expense invoice with multiple expenses
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseInvoiceWithExpensesPayload {
+    pub shipment_id: String,
+    pub service_provider_id: String,
+    pub invoice_no: String,
+    pub invoice_date: String,
+    pub remarks: Option<String>,
+    pub expenses: Vec<ExpensePayload>,
+}
+
+// NEW: Create expense invoice with multiple expenses
+#[tauri::command]
+#[allow(dead_code)] // This is called from the frontend
+pub fn add_expense_invoice_with_expenses(payload: ExpenseInvoiceWithExpensesPayload, state: State<'_, DbState>) -> Result<ExpenseInvoice, String> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    // Create expense invoice
+    let invoice_id = generate_id("EINV");
+    let total_amount: f64 = payload.expenses.iter().map(|e| e.amount).sum();
+    
+    tx.execute(
+        "INSERT INTO expense_invoices (id, shipment_id, service_provider_id, invoice_no, invoice_date, total_amount, remarks)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+        params![
+            &invoice_id,
+            &payload.shipment_id,
+            &payload.service_provider_id,
+            &payload.invoice_no,
+            &payload.invoice_date,
+            &total_amount,
+            &payload.remarks,
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    // Create individual expenses
+    for expense_payload in &payload.expenses {
+        let expense_id = generate_id("EXP");
+        tx.execute(
+            "INSERT INTO expenses (id, expense_invoice_id, expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                &expense_id,
+                &invoice_id,
+                &expense_payload.expense_type_id,
+                &expense_payload.amount,
+                &expense_payload.cgst_rate.unwrap_or(0.0),
+                &expense_payload.sgst_rate.unwrap_or(0.0),
+                &expense_payload.igst_rate.unwrap_or(0.0),
+                &expense_payload.tds_rate.unwrap_or(0.0),
+                &expense_payload.remarks,
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+
+    // Fetch the created expense invoice
+    let mut stmt = conn.prepare("SELECT id, shipment_id, service_provider_id, invoice_no, invoice_date, total_amount, remarks, created_by, created_at, updated_at FROM expense_invoices WHERE id = ?1")
+        .map_err(|e| e.to_string())?;
+
+    let expense_invoice = stmt.query_row(params![invoice_id], |row| {
+        Ok(ExpenseInvoice {
+            id: row.get(0)?,
+            shipment_id: row.get(1)?,
+            service_provider_id: row.get(2)?,
+            invoice_no: row.get(3)?,
+            invoice_date: row.get(4)?,
+            total_amount: row.get(5)?,
+            remarks: row.get(6)?,
+            created_by: row.get(7)?,
+            created_at: row.get(8)?,
+            updated_at: row.get(9)?,
+        })
+    }).map_err(|e| e.to_string())?;
+
+    Ok(expense_invoice)
+}
+
+// NEW: Add individual expense to existing invoice
 #[tauri::command]
 #[allow(dead_code)] // This is called from the frontend
 pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result<Expense, String> {
@@ -1381,15 +1524,12 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
     let new_id = generate_id("EXP");
 
     conn.execute(
-        "INSERT INTO expenses (id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+        "INSERT INTO expenses (id, expense_invoice_id, expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
         params![
             &new_id,
-            &payload.shipment_id,
+            &payload.expense_invoice_id,
             &payload.expense_type_id,
-            &payload.service_provider_id,
-            &payload.invoice_no,
-            &payload.invoice_date,
             &payload.amount,
             &payload.cgst_rate.unwrap_or(0.0),
             &payload.sgst_rate.unwrap_or(0.0),
@@ -1400,31 +1540,28 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
     ).map_err(|e| e.to_string())?;
 
     // Fetch the newly created record to get generated values
-    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
+    let mut stmt = conn.prepare("SELECT id, expense_invoice_id, expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
         .map_err(|e| e.to_string())?;
 
     let expense = stmt.query_row(params![new_id], |row| {
         Ok(Expense {
             id: row.get(0)?,
-            shipment_id: row.get(1)?,
+            expense_invoice_id: row.get(1)?,
             expense_type_id: row.get(2)?,
-            service_provider_id: row.get(3)?,
-            invoice_no: row.get(4)?,
-            invoice_date: row.get(5)?,
-            amount: row.get(6)?,
-            cgst_rate: row.get(7)?,
-            sgst_rate: row.get(8)?,
-            igst_rate: row.get(9)?,
-            tds_rate: row.get(10)?,
-            cgst_amount: row.get(11)?,
-            sgst_amount: row.get(12)?,
-            igst_amount: row.get(13)?,
-            tds_amount: row.get(14)?,
-            total_amount: row.get(15)?,
-            remarks: row.get(16)?,
-            created_by: row.get(17)?,
-            created_at: row.get(18)?,
-            updated_at: row.get(19)?,
+            amount: row.get(3)?,
+            cgst_rate: row.get(4)?,
+            sgst_rate: row.get(5)?,
+            igst_rate: row.get(6)?,
+            tds_rate: row.get(7)?,
+            cgst_amount: row.get(8)?,
+            sgst_amount: row.get(9)?,
+            igst_amount: row.get(10)?,
+            tds_amount: row.get(11)?,
+            total_amount: row.get(12)?,
+            remarks: row.get(13)?,
+            created_by: row.get(14)?,
+            created_at: row.get(15)?,
+            updated_at: row.get(16)?,
         })
     }).map_err(|e| e.to_string())?;
 
@@ -1438,14 +1575,11 @@ pub fn update_expense(id: String, payload: ExpensePayload, state: State<'_, DbSt
 
     conn.execute(
         "UPDATE expenses 
-         SET expense_type_id = ?2, service_provider_id = ?3, invoice_no = ?4, invoice_date = ?5, amount = ?6, cgst_rate = ?7, sgst_rate = ?8, igst_rate = ?9, tds_rate = ?10, remarks = ?11, updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')
+         SET expense_type_id = ?2, amount = ?3, cgst_rate = ?4, sgst_rate = ?5, igst_rate = ?6, tds_rate = ?7, remarks = ?8, updated_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')
          WHERE id = ?1",
         params![
             &id,
             &payload.expense_type_id,
-            &payload.service_provider_id,
-            &payload.invoice_no,
-            &payload.invoice_date,
             &payload.amount,
             &payload.cgst_rate.unwrap_or(0.0),
             &payload.sgst_rate.unwrap_or(0.0),
@@ -1455,32 +1589,29 @@ pub fn update_expense(id: String, payload: ExpensePayload, state: State<'_, DbSt
         ],
     ).map_err(|e| e.to_string())?;
 
-    // Fetch the newly created record to get generated values
-    let mut stmt = conn.prepare("SELECT id, shipment_id, expense_type_id, service_provider_id, invoice_no, invoice_date, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
+    // Fetch the updated record to get generated values
+    let mut stmt = conn.prepare("SELECT id, expense_invoice_id, expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE id = ?1")
         .map_err(|e| e.to_string())?;
 
     let expense = stmt.query_row(params![id], |row| {
         Ok(Expense {
             id: row.get(0)?,
-            shipment_id: row.get(1)?,
+            expense_invoice_id: row.get(1)?,
             expense_type_id: row.get(2)?,
-            service_provider_id: row.get(3)?,
-            invoice_no: row.get(4)?,
-            invoice_date: row.get(5)?,
-            amount: row.get(6)?,
-            cgst_rate: row.get(7)?,
-            sgst_rate: row.get(8)?,
-            igst_rate: row.get(9)?,
-            tds_rate: row.get(10)?,
-            cgst_amount: row.get(11)?,
-            sgst_amount: row.get(12)?,
-            igst_amount: row.get(13)?,
-            tds_amount: row.get(14)?,
-            total_amount: row.get(15)?,
-            remarks: row.get(16)?,
-            created_by: row.get(17)?,
-            created_at: row.get(18)?,
-            updated_at: row.get(19)?,
+            amount: row.get(3)?,
+            cgst_rate: row.get(4)?,
+            sgst_rate: row.get(5)?,
+            igst_rate: row.get(6)?,
+            tds_rate: row.get(7)?,
+            cgst_amount: row.get(8)?,
+            sgst_amount: row.get(9)?,
+            igst_amount: row.get(10)?,
+            tds_amount: row.get(11)?,
+            total_amount: row.get(12)?,
+            remarks: row.get(13)?,
+            created_by: row.get(14)?,
+            created_at: row.get(15)?,
+            updated_at: row.get(16)?,
         })
     }).map_err(|e| e.to_string())?;
 

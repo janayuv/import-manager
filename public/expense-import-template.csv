@@ -1,0 +1,6 @@
+Expense Type,Service Provider,Invoice No,Invoice Date,Amount,CGST Amount,SGST Amount,IGST Amount,TDS Amount,Total Amount,Remarks
+Customs Clearance,ABC Logistics Ltd,INV-001,2024-01-15,5000.00,450.00,450.00,0.00,250.00,5250.00,Customs clearance charges
+Freight Charges,Ocean Shipping Lines,INV-002,2024-01-16,8000.00,720.00,720.00,0.00,400.00,8400.00,Ocean freight charges
+Port Handling,Port Terminal Services,INV-003,2024-01-17,3000.00,270.00,270.00,0.00,150.00,3150.00,Port handling fees
+Transportation,Premium Transport Co.,INV-004,2024-01-18,2500.00,225.00,225.00,0.00,125.00,2625.00,Local transportation
+Documentation,XYZ Customs Brokers,INV-005,2024-01-19,1500.00,135.00,135.00,0.00,75.00,1575.00,Documentation fees

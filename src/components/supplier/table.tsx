@@ -37,7 +37,7 @@ export function SupplierDataTable<TData, TValue>({ columns, data }: DataTablePro
   const [rowSelection, setRowSelection] = React.useState({})
 
   // Filter columns based on visibility settings
-  const visibleColumns = columns.filter(column => {
+  const visibleColumns = columns.filter((column) => {
     if (column.id === 'select') return true // Always show select column
     const isVisible = column.meta?.visible !== false
     return isVisible

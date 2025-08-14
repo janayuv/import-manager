@@ -9,5 +9,3 @@ describe('ReportsPage', () => {
     createElement(ReportsPage)
   })
 })
-
-

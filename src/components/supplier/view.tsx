@@ -21,7 +21,7 @@ interface ViewSupplierProps {
 
 const DetailItem = ({ label, value }: { label: string; value?: string | boolean | null }) => {
   const { settings } = useSettings()
-  
+
   if (value === undefined || value === null || value === '') return null
 
   if (typeof value === 'boolean') {

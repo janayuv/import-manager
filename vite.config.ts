@@ -1,4 +1,4 @@
-import path from "path"
+import path from 'path'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
@@ -6,12 +6,12 @@ import tailwindcss from '@tailwindcss/vite'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react(), tailwindcss()],
-    resolve: {
+  resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
- // 1. prevent vite from obscuring rust errors
+  // 1. prevent vite from obscuring rust errors
   clearScreen: false,
   // 2. tauri expects a fixed port, fail if that port is not available
   server: {
@@ -20,7 +20,7 @@ export default defineConfig({
   },
   // 3. to make use of `TAURI_DEBUG` and other env variables
   // https://tauri.app/v1/api/config#buildconfig.beforedevcommand
-  envPrefix: ["VITE_", "TAURI_"],
+  envPrefix: ['VITE_', 'TAURI_'],
   build: {
     // 4. Tauri uses Chromium on Windows - edgeDAMN WebView2
     target: process.env.TAURI_PLATFORM == 'windows' ? 'chrome105' : 'safari13',

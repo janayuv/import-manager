@@ -39,11 +39,18 @@ const ShipmentPage = () => {
   const [currencies, setCurrencies] = React.useState<Option[]>([])
 
   const columns = React.useMemo(
-    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings),
+    () =>
+      getShipmentColumns(
+        suppliers,
+        handleView,
+        handleOpenFormForEdit,
+        handleMarkAsDelivered,
+        settings
+      ),
     [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings]
   )
 
-  const fetchShipments = async () => {
+  const fetchShipments = React.useCallback(async () => {
     try {
       const fetchedShipments: Shipment[] = await invoke('get_shipments')
       setShipments(fetchedShipments)
@@ -51,7 +58,7 @@ const ShipmentPage = () => {
       console.error('Failed to fetch shipments:', error)
       toast.error('Failed to load shipments from the database.')
     }
-  }
+  }, [])
 
   const fetchOptions = async () => {
     try {
@@ -99,38 +106,41 @@ const ShipmentPage = () => {
       }
     }
     fetchInitialData()
-  }, [])
+  }, [settings.textFormat, fetchShipments])
 
-  function handleOpenFormForEdit(shipment: Shipment) {
+  const handleOpenFormForEdit = React.useCallback((shipment: Shipment) => {
     setShipmentToEdit(shipment)
     setFormOpen(true)
-  }
+  }, [])
 
-  function handleOpenFormForAdd() {
+  const handleOpenFormForAdd = React.useCallback(() => {
     setShipmentToEdit(null)
     setFormOpen(true)
-  }
+  }, [])
 
-  function handleView(shipment: Shipment) {
+  const handleView = React.useCallback((shipment: Shipment) => {
     setSelectedShipment(shipment)
     setViewOpen(true)
-  }
+  }, [])
 
-  async function handleMarkAsDelivered(shipment: Shipment) {
-    try {
-      const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
-      await invoke('update_shipment_status', { 
-        shipmentId: shipment.id, 
-        status: 'delivered',
-        dateOfDelivery: today
-      })
-      toast.success(`Shipment ${shipment.invoiceNumber} marked as delivered.`)
-      fetchShipments()
-    } catch (error) {
-      console.error('Failed to mark shipment as delivered:', error)
-      toast.error('Failed to mark shipment as delivered.')
-    }
-  }
+  const handleMarkAsDelivered = React.useCallback(
+    async (shipment: Shipment) => {
+      try {
+        const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
+        await invoke('update_shipment_status', {
+          shipmentId: shipment.id,
+          status: 'delivered',
+          dateOfDelivery: today,
+        })
+        toast.success(`Shipment ${shipment.invoiceNumber} marked as delivered.`)
+        fetchShipments()
+      } catch (error) {
+        console.error('Failed to mark shipment as delivered:', error)
+        toast.error('Failed to mark shipment as delivered.')
+      }
+    },
+    [fetchShipments]
+  )
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
     const isDuplicate = shipments.some(
@@ -230,10 +240,10 @@ const ShipmentPage = () => {
           continue // Skip duplicates or rows without an invoice number
         }
         maxId++
-        
+
         // Use supplier ID as is - validation will catch invalid values
         const supplierId = row.supplierId || ''
-        
+
         newShipments.push({
           id: `SHP-${maxId.toString().padStart(3, '0')}`,
           supplierId: supplierId,
@@ -262,8 +272,10 @@ const ShipmentPage = () => {
       if (newShipments.length > 0) {
         try {
           // First validate the shipments
-          const validationErrors = await invoke('validate_shipment_import', { shipments: newShipments }) as string[]
-          
+          const validationErrors = (await invoke('validate_shipment_import', {
+            shipments: newShipments,
+          })) as string[]
+
           if (validationErrors && validationErrors.length > 0) {
             // Show validation errors in a detailed notification
             const errorMessage = validationErrors.join('\n')
@@ -273,12 +285,12 @@ const ShipmentPage = () => {
                 whiteSpace: 'pre-line',
                 maxWidth: '600px',
                 maxHeight: '400px',
-                overflow: 'auto'
-              }
+                overflow: 'auto',
+              },
             })
             return
           }
-          
+
           // If validation passes, proceed with import
           await invoke('add_shipments_bulk', { shipments: newShipments })
           toast.success(`${newShipments.length} new shipments imported successfully!`)

@@ -60,20 +60,20 @@ const BoePage = () => {
     setFormOpen(true)
   }
 
-  const handleOpenFormForEdit = (boe: BoeDetails) => {
+  const handleOpenFormForEdit = React.useCallback((boe: BoeDetails) => {
     setBoeToEdit(boe)
     setFormOpen(true)
-  }
+  }, [])
 
-  const handleView = (boe: BoeDetails) => {
+  const handleView = React.useCallback((boe: BoeDetails) => {
     setBoeToView(boe)
     setViewOpen(true)
-  }
+  }, [])
 
-  const handleDeleteRequest = (boe: BoeDetails) => {
+  const handleDeleteRequest = React.useCallback((boe: BoeDetails) => {
     setBoeToDelete({ id: boe.id, number: boe.beNumber })
     setIsDeleteDialogOpen(true)
-  }
+  }, [])
 
   const handleDeleteConfirm = async () => {
     if (boeToDelete) {
@@ -220,12 +220,13 @@ const BoePage = () => {
   }
 
   const columns = React.useMemo(
-    () => getBoeColumns({
-      onView: handleView,
-      onEdit: handleOpenFormForEdit,
-      onDelete: handleDeleteRequest,
-      settings,
-    }),
+    () =>
+      getBoeColumns({
+        onView: handleView,
+        onEdit: handleOpenFormForEdit,
+        onDelete: handleDeleteRequest,
+        settings,
+      }),
     [handleView, handleOpenFormForEdit, handleDeleteRequest, settings]
   )
 

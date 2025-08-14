@@ -17,9 +17,7 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
-import {
-  useSortable,
-} from '@dnd-kit/sortable'
+import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
 import { Button } from '@/components/ui/button'
@@ -34,13 +32,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import {
-  updateModuleField,
-  updateModuleSettings,
-  type ModuleSettings,
-  type ModuleFieldSettings,
-  type AppSettings,
-} from '@/lib/settings'
+import { type ModuleSettings, type ModuleFieldSettings, type AppSettings } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 
 interface ModuleSettingsProps {
@@ -57,13 +49,9 @@ interface SortableFieldItemProps {
 }
 
 function SortableFieldItem({ fieldName, config, onToggle, onWidthChange }: SortableFieldItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-  } = useSortable({ id: fieldName })
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: fieldName,
+  })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -74,16 +62,12 @@ function SortableFieldItem({ fieldName, config, onToggle, onWidthChange }: Sorta
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-4 p-3 border rounded-lg bg-background"
+      className="bg-background flex items-center gap-4 rounded-lg border p-3"
     >
-      <div
-        {...attributes}
-        {...listeners}
-        className="cursor-move text-muted-foreground"
-      >
+      <div {...attributes} {...listeners} className="text-muted-foreground cursor-move">
         ⋮⋮
       </div>
-      
+
       <div className="flex-1">
         <Label className="font-medium capitalize">
           {fieldName.replace(/([A-Z])/g, ' $1').trim()}
@@ -99,7 +83,7 @@ function SortableFieldItem({ fieldName, config, onToggle, onWidthChange }: Sorta
             className="text-sm"
           />
         </div>
-        
+
         <Switch
           checked={config.visible}
           onCheckedChange={(checked) => onToggle(fieldName, checked)}
@@ -110,32 +94,13 @@ function SortableFieldItem({ fieldName, config, onToggle, onWidthChange }: Sorta
 }
 
 export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSettingsProps) {
-  const { settings: globalSettings, updateModuleSettings: updateGlobalModuleSettings, updateModuleField: updateGlobalModuleField } = useSettings()
-  
-  // Check if settings are loaded
-  if (!globalSettings || !globalSettings.modules || !globalSettings.modules[moduleName]) {
-    return (
-      <div className="flex items-center justify-center p-8">
-        <div className="text-center">
-          <div className="text-lg font-medium">Loading settings...</div>
-          <div className="text-sm text-muted-foreground">Please wait while settings are being loaded.</div>
-        </div>
-      </div>
-    )
-  }
-  
-  const [settings, setSettings] = React.useState<ModuleSettings>(globalSettings.modules[moduleName])
-  
-  console.log('🔧 ModuleSettings - Module name:', moduleName)
-  console.log('🔧 ModuleSettings - Global settings:', globalSettings)
-  console.log('🔧 ModuleSettings - Module settings:', settings)
-  console.log('🔧 ModuleSettings - Module fields:', settings.fields)
-  
-  // Update local state when global settings change
-  React.useEffect(() => {
-    setSettings(globalSettings.modules[moduleName])
-  }, [globalSettings.modules, moduleName])
-  // Removed unused state variables
+  const {
+    settings: globalSettings,
+    updateModuleSettings: updateGlobalModuleSettings,
+    updateModuleField: updateGlobalModuleField,
+  } = useSettings()
+
+  const [settings, setSettings] = React.useState<ModuleSettings | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -143,6 +108,36 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
       coordinateGetter: sortableKeyboardCoordinates,
     })
   )
+
+  React.useEffect(() => {
+    if (globalSettings?.modules?.[moduleName]) {
+      setSettings(globalSettings.modules[moduleName])
+    }
+  }, [globalSettings, moduleName])
+
+  // Check if settings are loaded
+  if (
+    !globalSettings ||
+    !globalSettings.modules ||
+    !globalSettings.modules[moduleName] ||
+    !settings
+  ) {
+    return (
+      <div className="flex items-center justify-center p-8">
+        <div className="text-center">
+          <div className="text-lg font-medium">Loading settings...</div>
+          <div className="text-muted-foreground text-sm">
+            Please wait while settings are being loaded.
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  console.log('🔧 ModuleSettings - Module name:', moduleName)
+  console.log('🔧 ModuleSettings - Global settings:', globalSettings)
+  console.log('🔧 ModuleSettings - Module settings:', settings)
+  console.log('🔧 ModuleSettings - Module fields:', settings?.fields)
 
   const handleFieldToggle = (fieldName: string, visible: boolean) => {
     console.log('🔧 ModuleSettings - Toggling field:', fieldName, 'to:', visible)
@@ -174,7 +169,7 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
       const updatedFields = Object.fromEntries(
         reorderedFields.map(([fieldName, config], index) => [
           fieldName,
-          { ...config, order: index + 1 }
+          { ...config, order: index + 1 },
         ])
       )
 
@@ -209,7 +204,9 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
               <Label>Items per Page</Label>
               <Select
                 value={settings.itemsPerPage.toString()}
-                onValueChange={(value) => handleModuleSettingChange('itemsPerPage', parseInt(value))}
+                onValueChange={(value) =>
+                  handleModuleSettingChange('itemsPerPage', parseInt(value))
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -244,7 +241,7 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
       <Card>
         <CardHeader>
           <CardTitle>Field Configuration</CardTitle>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Drag and drop to reorder fields, or toggle visibility
           </p>
         </CardHeader>
@@ -281,9 +278,9 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
             <table className="w-full border-collapse border">
               <thead>
                 <tr className="bg-muted">
-                                     {sortedFields
-                     .filter(([, config]) => config.visible)
-                     .map(([fieldName, config]) => (
+                  {sortedFields
+                    .filter(([, config]) => config.visible)
+                    .map(([fieldName, config]) => (
                       <th
                         key={fieldName}
                         className="border p-2 text-left"
@@ -296,9 +293,9 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
               </thead>
               <tbody>
                 <tr>
-                                   {sortedFields
-                   .filter(([, config]) => config.visible)
-                   .map(([fieldName]) => (
+                  {sortedFields
+                    .filter(([, config]) => config.visible)
+                    .map(([fieldName]) => (
                       <td key={fieldName} className="border p-2">
                         Sample {fieldName}
                       </td>
