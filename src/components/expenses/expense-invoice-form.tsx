@@ -12,9 +12,9 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Plus, Trash2, X } from 'lucide-react'
-import { invoke } from '@tauri-apps/api/tauri'
+import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
-import { ServiceProvider, ExpenseType, ExpenseInvoiceWithExpenses } from '@/types/expense'
+import type { ServiceProvider, ExpenseType, ExpenseInvoiceWithExpenses } from '@/types/expense'
 
 interface ExpenseInvoiceFormProps {
   shipmentId: string

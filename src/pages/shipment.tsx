@@ -38,6 +38,50 @@ const ShipmentPage = () => {
   const [statuses, setStatuses] = React.useState<Option[]>([])
   const [currencies, setCurrencies] = React.useState<Option[]>([])
 
+  const fetchShipments = React.useCallback(async () => {
+    try {
+      const fetchedShipments: Shipment[] = await invoke('get_shipments')
+      setShipments(fetchedShipments)
+    } catch (error) {
+      console.error('Failed to fetch shipments:', error)
+      toast.error('Failed to load shipments from the database.')
+    }
+  }, [])
+
+  const handleOpenFormForEdit = React.useCallback((shipment: Shipment) => {
+    setShipmentToEdit(shipment)
+    setFormOpen(true)
+  }, [])
+
+  const handleOpenFormForAdd = React.useCallback(() => {
+    setShipmentToEdit(null)
+    setFormOpen(true)
+  }, [])
+
+  const handleView = React.useCallback((shipment: Shipment) => {
+    setSelectedShipment(shipment)
+    setViewOpen(true)
+  }, [])
+
+  const handleMarkAsDelivered = React.useCallback(
+    async (shipment: Shipment) => {
+      try {
+        const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
+        await invoke('update_shipment_status', {
+          shipmentId: shipment.id,
+          status: 'delivered',
+          dateOfDelivery: today,
+        })
+        toast.success(`Shipment ${shipment.invoiceNumber} marked as delivered.`)
+        fetchShipments()
+      } catch (error) {
+        console.error('Failed to mark shipment as delivered:', error)
+        toast.error('Failed to mark shipment as delivered.')
+      }
+    },
+    [fetchShipments]
+  )
+
   const columns = React.useMemo(
     () =>
       getShipmentColumns(
@@ -49,16 +93,6 @@ const ShipmentPage = () => {
       ),
     [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings]
   )
-
-  const fetchShipments = React.useCallback(async () => {
-    try {
-      const fetchedShipments: Shipment[] = await invoke('get_shipments')
-      setShipments(fetchedShipments)
-    } catch (error) {
-      console.error('Failed to fetch shipments:', error)
-      toast.error('Failed to load shipments from the database.')
-    }
-  }, [])
 
   const fetchOptions = async () => {
     try {
@@ -107,40 +141,6 @@ const ShipmentPage = () => {
     }
     fetchInitialData()
   }, [settings.textFormat, fetchShipments])
-
-  const handleOpenFormForEdit = React.useCallback((shipment: Shipment) => {
-    setShipmentToEdit(shipment)
-    setFormOpen(true)
-  }, [])
-
-  const handleOpenFormForAdd = React.useCallback(() => {
-    setShipmentToEdit(null)
-    setFormOpen(true)
-  }, [])
-
-  const handleView = React.useCallback((shipment: Shipment) => {
-    setSelectedShipment(shipment)
-    setViewOpen(true)
-  }, [])
-
-  const handleMarkAsDelivered = React.useCallback(
-    async (shipment: Shipment) => {
-      try {
-        const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
-        await invoke('update_shipment_status', {
-          shipmentId: shipment.id,
-          status: 'delivered',
-          dateOfDelivery: today,
-        })
-        toast.success(`Shipment ${shipment.invoiceNumber} marked as delivered.`)
-        fetchShipments()
-      } catch (error) {
-        console.error('Failed to mark shipment as delivered:', error)
-        toast.error('Failed to mark shipment as delivered.')
-      }
-    },
-    [fetchShipments]
-  )
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
     const isDuplicate = shipments.some(

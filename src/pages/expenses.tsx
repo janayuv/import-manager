@@ -6,6 +6,7 @@ import ExpenseList from '@/components/expenses/expense-list'
 import ExpenseReports from '@/components/expenses/expense-reports'
 import ShipmentSelector from '@/components/expenses/shipment-selector'
 import ExpenseImport from '@/components/expenses/expense-import'
+import { ExpenseDebug } from '@/components/expenses/expense-debug'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -13,13 +14,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import { getExpenseTypes, getServiceProviders, getShipments } from '@/lib/mock-expense-data'
-import type { Expense, ExpenseType, ServiceProvider } from '@/types/expense'
+import type { ExpenseType, ServiceProvider, ExpenseWithInvoice } from '@/types/expense'
 import type { Shipment } from '@/types/shipment'
 
 const ExpensesPage = () => {
   const { settings } = useSettings()
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null)
-  const [expenseToEdit, setExpenseToEdit] = useState<Expense | null>(null)
+  const [expenseToEdit, setExpenseToEdit] = useState<ExpenseWithInvoice | null>(null)
   const [refreshKey, setRefreshKey] = useState(0)
   const [shipments, setShipments] = useState<Shipment[]>([])
   const [expenseTypes, setExpenseTypes] = useState<ExpenseType[]>([])
@@ -33,7 +34,7 @@ const ExpensesPage = () => {
     // Keep success handled within form to avoid duplicates
   }, [])
 
-  const handleEdit = (expense: Expense) => {
+  const handleEdit = (expense: ExpenseWithInvoice) => {
     setExpenseToEdit(expense)
   }
 
@@ -116,9 +117,10 @@ const ExpensesPage = () => {
         </div>
       ) : (
         <Tabs defaultValue="manage" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="manage">Manage Expenses</TabsTrigger>
             <TabsTrigger value="import">Import Expenses</TabsTrigger>
+            <TabsTrigger value="debug">Debug & Setup</TabsTrigger>
           </TabsList>
 
           <TabsContent value="manage" className="space-y-6">
@@ -180,7 +182,6 @@ const ExpensesPage = () => {
                             {expenseToEdit ? 'Edit' : 'Add'} Expense
                           </h2>
                           <ExpenseForm
-                            shipmentId={selectedShipment.id}
                             expenseToEdit={expenseToEdit}
                             onFormSubmit={handleFormSubmit}
                             onCancelEdit={handleCancelEdit}
@@ -226,6 +227,10 @@ const ExpensesPage = () => {
               serviceProviders={serviceProviders}
               onImportSuccess={handleImportSuccess}
             />
+          </TabsContent>
+
+          <TabsContent value="debug" className="space-y-6">
+            <ExpenseDebug />
           </TabsContent>
         </Tabs>
       )}

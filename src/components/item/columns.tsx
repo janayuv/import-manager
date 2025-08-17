@@ -100,7 +100,7 @@ export const getItemColumns = (
       accessorKey: 'unitPrice',
       header: 'Unit Price',
       cell: ({ row }) =>
-        formatNumber(row.getValue('unitPrice'), settings.numberFormat, {
+        formatNumber(row.getValue('unitPrice'), settings?.numberFormat, {
           numberFormat: 'currency',
           precision: 2,
           showSign: false,
@@ -214,7 +214,7 @@ export const getItemColumns = (
       accessorKey: 'netWeightKg',
       header: 'Net Weight (Kg)',
       cell: ({ row }) =>
-        formatNumber(row.getValue('netWeightKg'), settings.numberFormat, {
+        formatNumber(row.getValue('netWeightKg'), settings?.numberFormat, {
           numberFormat: 'decimal',
           precision: 2,
           showSign: false,
@@ -238,7 +238,7 @@ export const getItemColumns = (
       accessorKey: 'grossWeightPerUomKg',
       header: 'Gross Weight/UOM (Kg)',
       cell: ({ row }) =>
-        formatNumber(row.getValue('grossWeightPerUomKg'), settings.numberFormat, {
+        formatNumber(row.getValue('grossWeightPerUomKg'), settings?.numberFormat, {
           numberFormat: 'decimal',
           precision: 2,
           showSign: false,
@@ -257,7 +257,7 @@ export const getItemColumns = (
   ]
 
   // Filter columns based on visibility settings and sort by order
-  const itemMasterFields = settings.modules.itemMaster.fields
+  const itemMasterFields = settings?.modules?.itemMaster?.fields || {}
   const visibleColumns = allColumns.filter((column) => {
     // Always show select and actions columns
     if (column.id === 'select' || column.id === 'actions') {

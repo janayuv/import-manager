@@ -133,7 +133,7 @@ export const getShipmentColumns = (
       accessorKey: 'invoiceValue',
       header: 'Invoice Value',
       cell: ({ row }) =>
-        formatNumber(row.getValue('invoiceValue'), settings.numberFormat, {
+        formatNumber(row.getValue('invoiceValue'), settings?.numberFormat, {
           numberFormat: 'currency',
           precision: 2,
           showSign: false,
@@ -233,7 +233,7 @@ export const getShipmentColumns = (
       accessorKey: 'grossWeightKg',
       header: 'Gross Weight (Kg)',
       cell: ({ row }) =>
-        formatNumber(row.getValue('grossWeightKg'), settings.numberFormat, {
+        formatNumber(row.getValue('grossWeightKg'), settings?.numberFormat, {
           numberFormat: 'decimal',
           precision: 2,
           showSign: false,
@@ -307,7 +307,7 @@ export const getShipmentColumns = (
   ]
 
   // Filter columns based on visibility settings and sort by order
-  const shipmentFields = settings.modules.shipment.fields
+  const shipmentFields = settings?.modules?.shipment?.fields || {}
   const visibleColumns = allColumns.filter((column) => {
     // Always show select and actions columns
     if (column.id === 'select' || column.id === 'actions') {

@@ -15,7 +15,7 @@ import {
   FormMessage,
 } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
-import type { Expense, ExpenseType, ServiceProvider } from '@/types/expense'
+import type { ExpenseType, ServiceProvider, ExpenseWithInvoice } from '@/types/expense'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { invoke } from '@tauri-apps/api/core'
 
@@ -44,18 +44,12 @@ const expenseSchema = z.object({
 type ExpenseFormValues = z.infer<typeof expenseSchema>
 
 interface ExpenseFormProps {
-  shipmentId: string
-  expenseToEdit?: Expense | null
+  expenseToEdit?: ExpenseWithInvoice | null
   onFormSubmit: () => void
   onCancelEdit?: () => void
 }
 
-const ExpenseForm: React.FC<ExpenseFormProps> = ({
-  shipmentId,
-  expenseToEdit,
-  onFormSubmit,
-  onCancelEdit,
-}) => {
+const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, onCancelEdit }) => {
   const [expenseTypes, setExpenseTypes] = useState<Option[]>([])
   const [serviceProviders, setServiceProviders] = useState<Option[]>([])
   const [totalAmount, setTotalAmount] = useState<number>(0)
@@ -176,46 +170,47 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   // ✅ Submit handler
   const onSubmit = async (values: ExpenseFormValues) => {
-    if (isSubmitting) return
-
-    const baseAmount = Number(values.amount) || 0
-    const cgstAmt = Number(values.cgstAmount) || 0
-    const sgstAmt = Number(values.sgstAmount) || 0
-    const igstAmt = Number(values.igstAmount) || 0
-    const tdsRate = Number(values.tdsRate) || 0
-
-    if (baseAmount === 0 && (cgstAmt > 0 || sgstAmt > 0 || igstAmt > 0)) {
-      toast.error('Amount must be greater than 0 to enter GST amounts')
-      return
-    }
-
-    const toRate = (taxAmount: number): number => {
-      if (baseAmount <= 0) return 0
-      return (taxAmount / baseAmount) * 100
-    }
-
     setIsSubmitting(true)
+
     try {
-      const payload = {
-        shipmentId,
-        expenseTypeId: values.expenseTypeId,
-        serviceProviderId: values.serviceProviderId,
-        invoiceNo: values.invoiceNo,
-        invoiceDate: values.invoiceDate,
-        amount: baseAmount,
-        cgstRate: toRate(cgstAmt),
-        sgstRate: toRate(sgstAmt),
-        igstRate: toRate(igstAmt),
-        tdsRate: tdsRate,
-        remarks: values.remarks,
+      const baseAmount = Number(values.amount) || 0
+      const cgstAmt = Number(values.cgstAmount) || 0
+      const sgstAmt = Number(values.sgstAmount) || 0
+      const igstAmt = Number(values.igstAmount) || 0
+      const tdsRate = Number(values.tdsRate) || 0
+
+      if (baseAmount === 0 && (cgstAmt > 0 || sgstAmt > 0 || igstAmt > 0)) {
+        toast.error('Amount must be greater than 0 to enter GST amounts')
+        return
+      }
+
+      const toRate = (taxAmount: number): number => {
+        if (baseAmount <= 0) return 0
+        return (taxAmount / baseAmount) * 100
       }
 
       if (expenseToEdit) {
+        // Editing existing expense - only update expense fields
+        const payload = {
+          expenseInvoiceId: expenseToEdit.expenseInvoiceId,
+          expenseTypeId: values.expenseTypeId,
+          amount: baseAmount,
+          cgstRate: toRate(cgstAmt),
+          sgstRate: toRate(sgstAmt),
+          igstRate: toRate(igstAmt),
+          tdsRate: tdsRate,
+          remarks: values.remarks,
+        }
         await invoke('update_expense', { id: expenseToEdit.id, payload })
         toast.success('Expense updated successfully')
       } else {
-        await invoke('add_expense', { payload })
-        toast.success('Expense added successfully')
+        // Adding new expense - need to create both invoice and expense
+        // For now, we'll use a simple approach with default invoice data
+        // In the future, this should be handled by a proper invoice creation flow
+        toast.error(
+          'Adding new expenses requires invoice information. Please use the "Add Multiple Expenses" feature.'
+        )
+        return
       }
 
       onFormSubmit()

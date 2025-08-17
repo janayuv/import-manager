@@ -2,6 +2,7 @@
 
 mod db;
 mod commands;
+mod expense;
 extern crate paste;
 use tauri::Manager;
 
@@ -106,16 +107,28 @@ fn main() {
             commands::add_service_provider,
             commands::get_expense_types,
             commands::add_expense_type,
+            commands::add_expense_type_with_rates,
+            commands::debug_expense_types,
+            commands::fix_expense_types,
+            commands::fix_existing_expenses,
+            commands::fix_lcl_charges_rate,
             commands::get_expense_invoices_for_shipment,
             commands::get_expenses_for_invoice,
             commands::get_expenses_for_shipment,
             commands::add_expense_invoice_with_expenses,
+            commands::check_expense_invoice_exists,
             commands::add_expense,
             commands::update_expense,
             commands::delete_expense,
             commands::attach_invoice_to_expense,
             commands::generate_shipment_expense_report,
             commands::generate_monthly_gst_summary,
+            
+            // New production-grade expense commands
+            expense::create_expense_invoice,
+            expense::preview_expense_invoice,
+            expense::combine_expense_duplicates,
+            expense::get_expense_invoice,
             // --- Reports ---
             commands::get_report,
             // Freeze shipment

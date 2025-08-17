@@ -36,7 +36,7 @@ jobs:
         run: |
           # Frontend linting
           npm run lint -- --max-warnings=0
-          
+
           # Backend formatting and linting
           cd src-tauri
           cargo fmt -- --check

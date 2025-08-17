@@ -1,7 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { SettingsContext } from './settings-context'
+import { SettingsContext } from './settings-context-definition'
 
 export function useSettings() {
   const context = React.useContext(SettingsContext)

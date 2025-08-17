@@ -116,7 +116,7 @@ export default function ReportsPage() {
       header: 'Date',
       cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
         const date = row.getValue('invoice_date')
-        return date ? format(new Date(date), 'dd/MM/yyyy') : ''
+        return date ? format(new Date(date as string), 'dd/MM/yyyy') : ''
       },
     },
     { accessorKey: 'part_no', header: 'Part No' },
@@ -280,7 +280,11 @@ export default function ReportsPage() {
               </p>
             </div>
           ) : (
-            <DataTable columns={columns} data={data} storageKey="report-table" />
+            <DataTable
+              columns={columns}
+              data={data as unknown as Record<string, unknown>[]}
+              storageKey="report-table"
+            />
           )}
         </CardContent>
       </Card>

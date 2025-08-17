@@ -145,6 +145,19 @@ export default function ExpenseImport({
     [expenseTypes, serviceProviders]
   )
 
+  // Parse file (CSV or Excel)
+  const parseFile = useCallback(async (file: File): Promise<ImportExpenseRow[]> => {
+    const fileExtension = file.name.split('.').pop()?.toLowerCase()
+
+    if (fileExtension === 'csv') {
+      return parseCSV(file)
+    } else if (['xlsx', 'xls'].includes(fileExtension || '')) {
+      return parseExcel(file)
+    } else {
+      throw new Error('Unsupported file format. Please use CSV or Excel files.')
+    }
+  }, [])
+
   // Handle file upload
   const handleFileUpload = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -182,19 +195,6 @@ export default function ExpenseImport({
     },
     [validateImportData, parseFile]
   )
-
-  // Parse file (CSV or Excel)
-  const parseFile = React.useCallback(async (file: File): Promise<ImportExpenseRow[]> => {
-    const fileExtension = file.name.split('.').pop()?.toLowerCase()
-
-    if (fileExtension === 'csv') {
-      return parseCSV(file)
-    } else if (['xlsx', 'xls'].includes(fileExtension || '')) {
-      return parseExcel(file)
-    } else {
-      throw new Error('Unsupported file format. Please use CSV or Excel files.')
-    }
-  }, [])
 
   // Parse CSV file
   const parseCSV = async (file: File): Promise<ImportExpenseRow[]> => {

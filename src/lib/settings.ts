@@ -1076,7 +1076,10 @@ export function loadSettings(): AppSettings {
       }
 
       // Deep merge with defaults to ensure all properties exist
-      const mergedSettings = deepMerge(defaultSettings, parsed)
+      const mergedSettings = deepMerge(
+        defaultSettings as unknown as Record<string, unknown>,
+        parsed as unknown as Record<string, unknown>
+      ) as unknown as AppSettings
 
       // Force shipmentType to be uppercase (fix for existing settings)
       if (mergedSettings.modules?.shipment?.fields?.shipmentType) {
@@ -1151,9 +1154,10 @@ export function clearTablePageSizeSettings(): void {
 
 // Make it available globally for console access
 if (typeof window !== 'undefined') {
-  ;(window as Record<string, unknown>).clearTablePageSizeSettings = clearTablePageSizeSettings
-  ;(window as Record<string, unknown>).clearAllSettings = clearSettings
-  ;(window as Record<string, unknown>).forceReloadSettings = () => {
+  ;(window as unknown as Record<string, unknown>).clearTablePageSizeSettings =
+    clearTablePageSizeSettings
+  ;(window as unknown as Record<string, unknown>).clearAllSettings = clearSettings
+  ;(window as unknown as Record<string, unknown>).forceReloadSettings = () => {
     localStorage.clear()
     window.location.reload()
   }

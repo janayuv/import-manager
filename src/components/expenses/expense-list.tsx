@@ -23,18 +23,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { Expense, ExpenseType, ServiceProvider } from '@/types/expense'
+import type { ExpenseType, ServiceProvider, ExpenseWithInvoice } from '@/types/expense'
 import { invoke } from '@tauri-apps/api/core'
 
 interface ExpenseListProps {
   shipmentId: string
-  onEdit: (expense: Expense) => void
+  onEdit: (expense: ExpenseWithInvoice) => void
   onDelete: (expenseId: string) => void
   refreshKey: number
 }
 
 const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete, refreshKey }) => {
-  const [expenses, setExpenses] = useState<Expense[]>([])
+  const [expenses, setExpenses] = useState<ExpenseWithInvoice[]>([])
   const [serviceProviders, setServiceProviders] = useState<Map<string, string>>(new Map())
   const [expenseTypes, setExpenseTypes] = useState<Map<string, string>>(new Map())
   const [loading, setLoading] = useState(true)
@@ -58,7 +58,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
     if (!shipmentId) return
     setLoading(true)
     try {
-      const fetchedExpenses: Expense[] = await invoke('get_expenses_for_shipment', { shipmentId })
+      const fetchedExpenses: ExpenseWithInvoice[] = await invoke('get_expenses_for_shipment', {
+        shipmentId,
+      })
       setExpenses(fetchedExpenses)
     } catch (error) {
       console.error('Failed to fetch expenses:', error)
@@ -68,7 +70,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
     }
   }, [shipmentId])
 
-  const computeTotalForExpense = (exp: Expense): number => {
+  const computeTotalForExpense = (exp: ExpenseWithInvoice): number => {
     const amount = Number(exp.amount) || 0
     const cgst = Number(exp.cgstAmount) || 0
     const sgst = Number(exp.sgstAmount) || 0
@@ -103,7 +105,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
     }
   }
 
-  const handleEdit = (expense: Expense) => {
+  const handleEdit = (expense: ExpenseWithInvoice) => {
     onEdit(expense)
     toast.info('Editing expense - please update the details below')
   }
@@ -153,8 +155,10 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
                 <Badge variant="outline">{expenseTypes.get(expense.expenseTypeId) || 'N/A'}</Badge>
               </TableCell>
               <TableCell>{serviceProviders.get(expense.serviceProviderId) || 'N/A'}</TableCell>
-              <TableCell className="font-mono text-sm">{expense.invoiceNo}</TableCell>
-              <TableCell>{new Date(expense.invoiceDate).toLocaleDateString()}</TableCell>
+              <TableCell className="font-mono text-sm">{expense.invoiceNo || 'N/A'}</TableCell>
+              <TableCell>
+                {expense.invoiceDate ? new Date(expense.invoiceDate).toLocaleDateString() : 'N/A'}
+              </TableCell>
               <TableCell className="font-mono">₹{expense.amount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.cgstAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.sgstAmount.toFixed(2)}</TableCell>

@@ -160,7 +160,7 @@ export const getInvoiceColumns = ({
       accessorKey: 'quantity',
       header: 'Qty',
       cell: ({ row }) =>
-        formatNumber(row.getValue('quantity'), settings.numberFormat, {
+        formatNumber(row.getValue('quantity'), settings?.numberFormat, {
           numberFormat: 'integer',
           precision: 0,
           showSign: false,
@@ -212,7 +212,7 @@ export const getInvoiceColumns = ({
   ]
 
   // Filter columns based on visibility settings and sort by order
-  const invoiceFields = settings.modules.invoice.fields
+  const invoiceFields = settings?.modules?.invoice?.fields || {}
   const visibleColumns = allColumns.filter((column) => {
     // Always show actions column
     if (column.id === 'actions') {

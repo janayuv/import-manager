@@ -5,6 +5,7 @@ A comprehensive desktop application for managing import/export operations, built
 ## 🚀 Features
 
 ### Core Functionality
+
 - **BOE (Bill of Entry) Management**: Complete CRUD operations for BOE records
 - **Invoice Management**: Handle import invoices with line items and calculations
 - **Shipment Tracking**: Track shipments from supplier to delivery
@@ -13,6 +14,7 @@ A comprehensive desktop application for managing import/export operations, built
 - **Supplier Management**: Maintain supplier information and relationships
 
 ### Advanced Features
+
 - **Multi-format Import/Export**: Support for CSV and Excel files
 - **Real-time Calculations**: Automatic duty and tax calculations
 - **Data Validation**: Comprehensive input validation and error handling
@@ -33,24 +35,27 @@ A comprehensive desktop application for managing import/export operations, built
 
 ## 📋 Prerequisites
 
-- **Node.js** 18+ 
+- **Node.js** 18+
 - **Rust** (latest stable)
 - **Git**
 
 ## 🚀 Quick Start
 
 ### 1. Clone the Repository
+
 ```bash
 git clone https://github.com/janayuv/import-manager.git
 cd import-manager
 ```
 
 ### 2. Install Dependencies
+
 ```bash
 npm install
 ```
 
 ### 3. Development
+
 ```bash
 # Start development server
 npm run dev
@@ -60,6 +65,7 @@ npm run tauri dev
 ```
 
 ### 4. Build for Production
+
 ```bash
 # Build the application
 npm run tauri build
@@ -91,6 +97,7 @@ src-tauri/
 ## 🔧 Development
 
 ### Code Quality
+
 ```bash
 # Lint code
 npm run lint
@@ -109,7 +116,9 @@ npm run test
 ```
 
 ### Git Hooks
+
 The project uses Husky for pre-commit hooks that automatically:
+
 - Format code with Prettier
 - Fix ESLint issues
 - Run type checking
@@ -119,17 +128,20 @@ The project uses Husky for pre-commit hooks that automatically:
 The repository includes comprehensive GitHub Actions workflows:
 
 ### Code Quality Workflow
+
 - **Linting**: ESLint checks for code quality
 - **Formatting**: Prettier formatting validation
 - **Type Checking**: TypeScript compilation check
 - **Build Verification**: Ensures the project builds successfully
 
 ### Security Workflow
+
 - **Dependency Audit**: npm audit for security vulnerabilities
 - **Vulnerability Reports**: Detailed security reports
 - **Automated Fixes**: Dependabot for dependency updates
 
 ### Rust Checks
+
 - **Code Formatting**: rustfmt formatting check
 - **Linting**: Clippy for Rust code quality
 - **Build Verification**: Cargo build and test
@@ -150,6 +162,7 @@ The repository includes comprehensive GitHub Actions workflows:
 5. Open a Pull Request
 
 ### Development Guidelines
+
 - Follow TypeScript best practices
 - Use ESLint and Prettier for code formatting
 - Write meaningful commit messages

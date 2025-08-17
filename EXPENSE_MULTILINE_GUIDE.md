@@ -1,146 +1,126 @@
-# Multi-Line Expense Feature Guide
+# Expense Multiline Form Guide
 
 ## Overview
-
-The Import Manager now includes a **Multi-Line Expense Feature** that allows you to add multiple expense lines at once, making it much more efficient to manage expenses for shipments.
-
-## How to Use
-
-### 1. Navigate to Expenses Page
-- Go to the **Expenses** section in the application
-- Select a shipment from the dropdown
-
-### 2. Access Multi-Line Form
-- In the expenses list view, you'll see a new button: **"Add Multiple Expenses"**
-- Click this button to open the multi-line expense form
-
-### 3. Add Expense Lines
-The multi-line form provides:
-
-#### **Add/Remove Lines**
-- **"Add Expense Line"** button: Click to add new expense lines
-- **Trash icon**: Click to remove expense lines (minimum 1 line required)
-
-#### **Per Line Fields**
-Each expense line includes:
-- **Expense Type**: Category of expense (e.g., Freight, Insurance, Customs)
-- **Service Provider**: The service provider for this expense
-- **Invoice Number**: Invoice number from the service provider
-- **Invoice Date**: Date of the invoice
-- **Amount**: Base amount before taxes
-- **CGST Rate**: Central GST percentage
-- **SGST Rate**: State GST percentage
-- **IGST Rate**: Integrated GST percentage
-- **TDS Rate**: Tax Deducted at Source percentage
-- **Remarks**: Optional notes for this specific expense
-
-#### **Auto-Calculations**
-- **Line Total**: Automatically calculated for each expense line
-- **Grand Total**: Sum of all line totals
-- **Default Rates**: When you select an expense type, default GST rates are automatically applied
-
-### 4. Submit the Form
-- Fill in all required fields for each expense line
-- Review the grand total
-- Click **"Create Expense Invoice"** to save all expenses
+The Expense Multiline Form allows users to add multiple expense lines to a single invoice. This is useful when you have multiple expense types (purposes) that need to be recorded under the same invoice from the same service provider.
 
 ## Key Features
 
-### **Efficiency Benefits**
-- **Batch Entry**: Add multiple expenses in one session
-- **Auto-calculations**: Real-time calculation of tax amounts and totals
-- **Default Rates**: Automatic application of expense type default rates
-- **Validation**: Form validation ensures all required fields are completed
+### 1. Multiple Expense Lines
+- Add multiple expense lines to a single invoice
+- Each line can have a different expense type (purpose)
+- All lines share the same invoice number and service provider
 
-### **Flexibility**
-- **Dynamic Lines**: Add or remove expense lines as needed
-- **Individual Control**: Each line can have different service providers, invoice numbers, and tax rates
-- **Line-specific Remarks**: Add specific notes for each expense line
+### 2. Duplicate Expense Type Detection
+- **Real-time validation**: The form detects when multiple lines use the same expense type
+- **Visual warning**: A yellow alert appears when duplicates are detected
+- **Prevention**: The submit button is disabled when duplicates exist
+- **Combination option**: Users can automatically combine duplicate expense types
 
-### **User Experience**
-- **Visual Feedback**: Each expense line is clearly separated in cards
-- **Real-time Totals**: See line totals and grand total update as you type
-- **Responsive Design**: Works well on different screen sizes
+### 3. Auto-sync Functionality
+- Invoice number and service provider are automatically synchronized across all lines
+- When you change the invoice number or service provider on any line, it updates all lines
+- This ensures consistency since all lines belong to the same invoice
 
-## Example Usage
+### 4. Smart Validation
+- Prevents submission with duplicate expense types
+- Ensures all required fields are filled
+- Validates that all lines use the same invoice number and service provider
+- Provides specific error messages for different validation issues
 
-### **Scenario**: Multiple expenses from different service providers
+## How to Use
 
-**Expense Line 1:**
-- Expense Type: Freight
-- Service Provider: ABC Logistics
-- Invoice Number: INV-001
-- Amount: ₹50,000
-- CGST: 9%, SGST: 9%
+### Adding Multiple Expenses
+1. Select an expense type for each line
+2. Choose a service provider (will sync across all lines)
+3. Enter invoice number (will sync across all lines)
+4. Set invoice date
+5. Enter amounts and tax rates for each line
+6. Add remarks if needed
 
-**Expense Line 2:**
-- Expense Type: Insurance
-- Service Provider: ABC Logistics
-- Invoice Number: INV-002
-- Amount: ₹5,000
-- IGST: 18%
+### Handling Duplicate Expense Types
+When you have multiple lines with the same expense type:
 
-**Expense Line 3:**
-- Expense Type: Customs Clearance
-- Service Provider: XYZ Customs
-- Invoice Number: CLR-001
-- Amount: ₹15,000
-- CGST: 9%, SGST: 9%, TDS: 2%
+**Option 1: Combine Automatically**
+- Click the "Combine Duplicates" button in the warning alert
+- The system will merge all lines with the same expense type
+- Amounts will be summed, remarks will be combined
+
+**Option 2: Use Different Expense Types**
+- Change one or more expense types to avoid duplicates
+- This is useful when the same service has different purposes
+
+### Best Practices
+1. **Use different expense types** for different purposes (e.g., "Freight" vs "Handling")
+2. **Combine amounts** when the same expense type appears multiple times
+3. **Use remarks** to provide additional context for each line
+4. **Verify totals** before submitting
 
 ## Technical Implementation
 
-### **Frontend Components**
-- `ExpenseMultilineForm`: Main multi-line form component
-- `ExpenseForm`: Original single-line form (still available)
-- Toggle between forms in the expenses page
+### Duplicate Detection
+```typescript
+// Real-time detection of duplicate expense types
+useEffect(() => {
+  const expenseTypeIds = expenseLines
+    .map(line => line.expenseTypeId)
+    .filter(id => id !== '')
+  
+  const uniqueIds = new Set(expenseTypeIds)
+  
+  if (expenseTypeIds.length !== uniqueIds.size) {
+    // Show warning and disable submit
+  }
+}, [expenseLines, expenseTypes])
+```
 
-### **Backend Integration**
-- Uses existing `add_expense_invoice_with_expenses` command
-- Creates one expense invoice with multiple expense records
-- Maintains data integrity with proper foreign key relationships
+### Auto-sync Implementation
+```typescript
+// Automatically sync invoice number and service provider
+if (field === 'invoiceNo' || field === 'serviceProviderId') {
+  setExpenseLines(prevLines =>
+    prevLines.map(line => ({
+      ...line,
+      [field]: value
+    }))
+  )
+}
+```
 
-### **Database Structure**
-- `expense_invoices`: Invoice header record
-- `expenses`: Individual expense line items
-- Automatic calculation of tax amounts and totals
+### Combination Logic
+```typescript
+// Combine duplicate expense types
+const combineDuplicateExpenseTypes = () => {
+  const expenseTypeGroups = new Map<string, ExpenseLine[]>()
+  
+  // Group by expense type
+  expenseLines.forEach(line => {
+    if (line.expenseTypeId) {
+      const existing = expenseTypeGroups.get(line.expenseTypeId) || []
+      expenseTypeGroups.set(line.expenseTypeId, [...existing, line])
+    }
+  })
+  
+  // Create combined lines
+  expenseTypeGroups.forEach((lines, expenseTypeId) => {
+    if (lines.length > 1) {
+      // Sum amounts, combine remarks, use first line's rates
+    }
+  })
+}
+```
 
-## Switching Between Forms
+## Error Messages
 
-- **Single Line**: Use the original form for quick single expense entry
-- **Multi Line**: Use the new multi-line form for batch expense entry
-- **Toggle**: Click "Add Multiple Expenses" to switch to multi-line mode
-- **Return**: After submitting multi-line form, you return to the single-line view
+- **"Duplicate expense type detected"**: Multiple lines use the same expense type
+- **"All expense lines must use the same invoice number"**: Invoice numbers don't match
+- **"All expense lines must use the same service provider"**: Service providers don't match
+- **"Please fill in all required fields"**: Missing required information
 
-## Best Practices
+## Database Structure
 
-1. **Group Related Expenses**: Add expenses from the same service provider together
-2. **Use Consistent Dates**: Use the same invoice date for related expenses
-3. **Review Totals**: Always check the grand total before submitting
-4. **Add Remarks**: Use remarks to provide context for each expense line
-5. **Validate Data**: Ensure all required fields are completed before submission
+The form creates:
+1. **One expense invoice** with shared invoice details
+2. **Multiple expense records** linked to the invoice
+3. **Automatic total calculations** for the invoice
 
-## Troubleshooting
-
-### **Form Validation Errors**
-- Ensure all required fields (*) are filled for each expense line
-- Check that amounts are greater than 0
-- Verify invoice numbers are not empty
-
-### **Calculation Issues**
-- Tax rates should be between 0-100%
-- Line totals are calculated automatically
-- Grand total updates in real-time
-
-### **Performance**
-- The form handles multiple expense lines efficiently
-- Large numbers of lines may require scrolling
-- Consider breaking very large expense lists into multiple submissions
-
-## Future Enhancements
-
-Potential improvements for future versions:
-- **Template Saving**: Save common expense line combinations
-- **Bulk Import**: Import multiple expenses from CSV/Excel
-- **Copy/Paste**: Copy expense line data between lines
-- **Advanced Validation**: More sophisticated validation rules
-- **Auto-save**: Save draft expense invoices
+This ensures data integrity while allowing flexible expense tracking.

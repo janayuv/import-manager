@@ -25,7 +25,8 @@ export function ModuleSettingsDemo() {
 
   // Safety check - try to get settings, but handle errors gracefully
   let visibleFields: string[] = []
-  let moduleSettings: Record<string, unknown> = {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let moduleSettings: any = {
     fields: {},
     itemsPerPage: 10,
     showTotals: false,

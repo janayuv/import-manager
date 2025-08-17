@@ -314,9 +314,9 @@ pub struct ServiceProvider {
 pub struct ExpenseType {
     pub id: String,
     pub name: String,
-    pub default_cgst_rate: f64,
-    pub default_sgst_rate: f64,
-    pub default_igst_rate: f64,
+    pub default_cgst_rate: i32,  // Now in basis points (900 = 9.00%)
+    pub default_sgst_rate: i32,  // Now in basis points (900 = 9.00%)
+    pub default_igst_rate: i32,  // Now in basis points (900 = 9.00%)
     pub is_active: bool,
 }
 
@@ -364,10 +364,39 @@ pub struct ExpenseInvoice {
     pub invoice_no: String,
     pub invoice_date: String,
     pub total_amount: f64,
+    pub total_cgst_amount: f64,
+    pub total_sgst_amount: f64,
+    pub total_igst_amount: f64,
     pub remarks: Option<String>,
     pub created_by: Option<String>,
     pub created_at: String,
     pub updated_at: String,
+}
+
+// NEW: Combined structure for expense with invoice data
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct ExpenseWithInvoice {
+    pub id: String,
+    pub expense_invoice_id: String,
+    pub expense_type_id: String,
+    pub amount: f64,
+    pub cgst_rate: f64,
+    pub sgst_rate: f64,
+    pub igst_rate: f64,
+    pub tds_rate: f64,
+    pub cgst_amount: f64,
+    pub sgst_amount: f64,
+    pub igst_amount: f64,
+    pub tds_amount: f64,
+    pub total_amount: f64,
+    pub remarks: Option<String>,
+    pub created_by: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    pub service_provider_id: String,
+    pub invoice_no: String,
+    pub invoice_date: String,
 }
 
 
@@ -505,6 +534,8 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
     
     // Migration for expenses table: add expense_invoice_id column if it doesn't exist
     let _ = conn.execute("ALTER TABLE expenses ADD COLUMN expense_invoice_id TEXT", []);
+    // Migration for expenses table: add service_provider_id column if it doesn't exist
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN service_provider_id TEXT", []);
     // MODIFIED: Create tables for all the dropdown options.
     let option_tables = vec![
         "units", "currencies", "countries", "bcd_rates", "sws_rates",
@@ -515,11 +546,10 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
     for table_name in option_tables {
         conn.execute(
             &format!(
-                "CREATE TABLE IF NOT EXISTS {} (
+                "CREATE TABLE IF NOT EXISTS {table_name} (
                     value TEXT PRIMARY KEY NOT NULL,
                     label TEXT NOT NULL UNIQUE
-                )",
-                table_name
+                )"
             ),
             [],
         )?;
@@ -558,6 +588,10 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         "CREATE TABLE IF NOT EXISTS expenses (
             id TEXT PRIMARY KEY,
             expense_invoice_id TEXT NOT NULL,
+            shipment_id TEXT NOT NULL,
+            service_provider_id TEXT NOT NULL,
+            invoice_no TEXT NOT NULL,
+            invoice_date DATE NOT NULL,
             expense_type_id TEXT NOT NULL,
             amount DECIMAL(12, 2) NOT NULL,
             cgst_rate DECIMAL(5, 2) DEFAULT 0.00,
@@ -568,12 +602,14 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             sgst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * sgst_rate / 100) STORED,
             igst_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * igst_rate / 100) STORED,
             tds_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount * tds_rate / 100) STORED,
-            total_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount + (amount * (cgst_rate + sgst_rate + igst_rate) / 100) - (amount * tds_rate / 100)) STORED,
+            total_amount DECIMAL(12, 2) GENERATED ALWAYS AS (amount + (amount * (cgst_rate + sgst_rate + igst_rate) / 100)) STORED,
             remarks TEXT,
             created_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (expense_invoice_id) REFERENCES expense_invoices(id),
+            FOREIGN KEY (shipment_id) REFERENCES shipments(id),
+            FOREIGN KEY (service_provider_id) REFERENCES service_providers(id),
             FOREIGN KEY (expense_type_id) REFERENCES expense_types(id),
             UNIQUE(expense_invoice_id, expense_type_id)
         )",
@@ -588,6 +624,9 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             invoice_no TEXT NOT NULL,
             invoice_date DATE NOT NULL,
             total_amount DECIMAL(12, 2) NOT NULL,
+            total_cgst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+            total_sgst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+            total_igst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
             remarks TEXT,
             created_by TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -612,6 +651,215 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         )",
         [],
     )?;
+
+    // Migration: Add new columns to expense_invoices table if they don't exist
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_cgst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_sgst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_igst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00", []);
+    
+    // Migration: Add basis points rate columns to expense_types table for production-grade module
+    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_cgst_rate_bp INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_sgst_rate_bp INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_igst_rate_bp INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_tds_rate_bp INTEGER DEFAULT 0", []);
+
+    // Migration: Add missing columns to expenses table if they don't exist
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN shipment_id TEXT", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN service_provider_id TEXT", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN invoice_no TEXT", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN invoice_date DATE", []);
+
+    // Migration: Add new columns for production-grade expense module
+    // Add paise-based columns to expense_invoices table
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_cgst_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_sgst_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_igst_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_tds_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN net_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN idempotency_key TEXT", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN version INTEGER DEFAULT 1", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN currency TEXT DEFAULT 'INR'", []);
+    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN invoice_number TEXT", []);
+
+    // Add paise-based columns to expenses table
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN cgst_rate INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN sgst_rate INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN igst_rate INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN tds_rate INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN cgst_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN sgst_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN igst_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN tds_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN total_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN net_amount_paise INTEGER DEFAULT 0", []);
+
+    // Migration: Update existing expense_invoices to have proper tax totals and handle NULL values
+    let _ = conn.execute("
+        UPDATE expense_invoices 
+        SET total_amount = COALESCE(total_amount, 0.00),
+            total_cgst_amount = COALESCE((
+                SELECT SUM(COALESCE(cgst_amount, 0.00)) 
+                FROM expenses 
+                WHERE expense_invoice_id = expense_invoices.id
+            ), 0.00),
+            total_sgst_amount = COALESCE((
+                SELECT SUM(COALESCE(sgst_amount, 0.00)) 
+                FROM expenses 
+                WHERE expense_invoice_id = expense_invoices.id
+            ), 0.00),
+            total_igst_amount = COALESCE((
+                SELECT SUM(COALESCE(igst_amount, 0.00)) 
+                FROM expenses 
+                WHERE expense_invoice_id = expense_invoices.id
+            ), 0.00)
+        WHERE total_amount IS NULL OR total_cgst_amount IS NULL OR total_sgst_amount IS NULL OR total_igst_amount IS NULL
+    ", []);
+    
+    // Migration: Ensure all expense_invoices have valid total_amount values
+    // This handles the case where the NOT NULL constraint is violated
+    let _ = conn.execute("
+        UPDATE expense_invoices 
+        SET total_amount = 0.00
+        WHERE total_amount IS NULL
+    ", []);
+
+    // Migration: Populate missing data in existing expenses records and handle NULL values
+    let _ = conn.execute("
+        UPDATE expenses 
+        SET shipment_id = COALESCE(shipment_id, (
+            SELECT shipment_id 
+            FROM expense_invoices 
+            WHERE expense_invoices.id = expenses.expense_invoice_id
+        )),
+        service_provider_id = COALESCE(service_provider_id, (
+            SELECT service_provider_id 
+            FROM expense_invoices 
+            WHERE expense_invoices.id = expenses.expense_invoice_id
+        )),
+        invoice_no = COALESCE(invoice_no, (
+            SELECT invoice_no 
+            FROM expense_invoices 
+            WHERE expense_invoices.id = expenses.expense_invoice_id
+        )),
+        invoice_date = COALESCE(invoice_date, (
+            SELECT invoice_date 
+            FROM expense_invoices 
+            WHERE expense_invoices.id = expenses.expense_invoice_id
+        )),
+        amount = COALESCE(amount, 0.00),
+        cgst_amount = COALESCE(cgst_amount, 0.00),
+        sgst_amount = COALESCE(sgst_amount, 0.00),
+        igst_amount = COALESCE(igst_amount, 0.00),
+        tds_amount = COALESCE(tds_amount, 0.00),
+        total_amount = COALESCE(total_amount, 0.00),
+        net_amount = COALESCE(net_amount, 0.00)
+        WHERE shipment_id IS NULL OR service_provider_id IS NULL OR invoice_no IS NULL OR invoice_date IS NULL
+           OR amount IS NULL OR cgst_amount IS NULL OR sgst_amount IS NULL OR igst_amount IS NULL 
+           OR tds_amount IS NULL OR total_amount IS NULL OR net_amount IS NULL
+    ", []);
+
+    // Migration: Populate paise-based columns from existing decimal columns
+    let _ = conn.execute("
+        UPDATE expense_invoices 
+        SET total_amount_paise = CASE 
+            WHEN total_amount IS NOT NULL THEN CAST(total_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        total_cgst_amount_paise = CASE 
+            WHEN total_cgst_amount IS NOT NULL THEN CAST(total_cgst_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        total_sgst_amount_paise = CASE 
+            WHEN total_sgst_amount IS NOT NULL THEN CAST(total_sgst_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        total_igst_amount_paise = CASE 
+            WHEN total_igst_amount IS NOT NULL THEN CAST(total_igst_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        total_tds_amount_paise = 0,
+        net_amount_paise = CASE 
+            WHEN total_amount IS NOT NULL THEN CAST(total_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        invoice_number = COALESCE(invoice_no, '')
+        WHERE total_amount_paise IS NULL
+    ", []);
+
+
+
+    let _ = conn.execute("
+        UPDATE expenses 
+        SET amount_paise = CASE 
+            WHEN amount IS NOT NULL THEN CAST(amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        cgst_rate = CASE 
+            WHEN cgst_rate IS NOT NULL THEN CAST(cgst_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        sgst_rate = CASE 
+            WHEN sgst_rate IS NOT NULL THEN CAST(sgst_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        igst_rate = CASE 
+            WHEN igst_rate IS NOT NULL THEN CAST(igst_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        tds_rate = CASE 
+            WHEN tds_rate IS NOT NULL THEN CAST(tds_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        cgst_amount_paise = CASE 
+            WHEN cgst_amount IS NOT NULL THEN CAST(cgst_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        sgst_amount_paise = CASE 
+            WHEN sgst_amount IS NOT NULL THEN CAST(sgst_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        igst_amount_paise = CASE 
+            WHEN igst_amount IS NOT NULL THEN CAST(igst_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        tds_amount_paise = CASE 
+            WHEN tds_amount IS NOT NULL THEN CAST(tds_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        total_amount_paise = CASE 
+            WHEN total_amount IS NOT NULL THEN CAST(total_amount * 100 AS INTEGER)
+            ELSE 0
+        END,
+        net_amount_paise = CASE 
+            WHEN net_amount IS NOT NULL THEN CAST(net_amount * 100 AS INTEGER)
+            ELSE 0
+        END
+        WHERE amount_paise IS NULL
+    ", []);
+    
+    // Migration: Populate basis points rate columns in expense_types table
+    let _ = conn.execute("
+        UPDATE expense_types 
+        SET default_cgst_rate_bp = CASE 
+            WHEN default_cgst_rate IS NOT NULL THEN CAST(default_cgst_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        default_sgst_rate_bp = CASE 
+            WHEN default_sgst_rate IS NOT NULL THEN CAST(default_sgst_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        default_igst_rate_bp = CASE 
+            WHEN default_igst_rate IS NOT NULL THEN CAST(default_igst_rate * 100 AS INTEGER)
+            ELSE 0
+        END,
+        default_tds_rate_bp = CASE 
+            WHEN default_tds_rate IS NOT NULL THEN CAST(default_tds_rate * 100 AS INTEGER)
+            ELSE 0
+        END
+        WHERE default_cgst_rate_bp IS NULL
+    ", []);
 
     // ----------------------------------------------------------------------------
     // Report View: source from boe_calculations (JSON results) joined to invoices
@@ -685,28 +933,6 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
 
     // Insert sample data if the suppliers table is empty
     let supplier_count: i32 = conn.query_row("SELECT COUNT(*) FROM suppliers", [], |row| row.get(0))?;
-    
-    println!("🔧 Database init - Supplier count: {}", supplier_count);
-    
-    // For debugging, let's also check what's in the database
-    if supplier_count > 0 {
-        let mut stmt = conn.prepare("SELECT id, supplier_name, bank_name, account_no, swift_code FROM suppliers LIMIT 3")?;
-        let rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?,
-                row.get::<_, Option<String>>(2)?,
-                row.get::<_, Option<String>>(3)?,
-                row.get::<_, Option<String>>(4)?,
-            ))
-        })?;
-        
-        for row in rows {
-            let (id, name, bank_name, account_no, swift_code) = row?;
-            println!("🔧 Database init - Existing supplier: {} - {} - Bank: {:?} - Account: {:?} - Swift: {:?}", 
-                     id, name, bank_name, account_no, swift_code);
-        }
-    }
     
     if supplier_count == 0 {
         // Insert sample suppliers
@@ -896,6 +1122,54 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
                     supplier.0, supplier.1, supplier.2, supplier.3, supplier.4, supplier.5,
                     supplier.6, supplier.7, supplier.8, supplier.9, supplier.10, supplier.11,
                     supplier.12, supplier.13
+                ],
+            )?;
+        }
+    }
+
+    // Insert sample expense types if table is empty
+    let count: i32 = conn.query_row("SELECT COUNT(*) FROM expense_types", [], |row| row.get(0))?;
+    if count == 0 {
+        let sample_expense_types = [
+            ("ET-001", "Freight Charges", 0.0, 0.0, 0.0),
+            ("ET-002", "Customs Duty", 0.0, 0.0, 0.0),
+            ("ET-003", "Insurance", 0.0, 0.0, 0.0),
+            ("ET-004", "Handling Charges", 0.0, 0.0, 0.0),
+            ("ET-005", "Storage Charges", 0.0, 0.0, 0.0),
+            ("ET-006", "Transportation", 0.0, 0.0, 0.0),
+            ("ET-007", "Documentation", 0.0, 0.0, 0.0),
+            ("ET-008", "Inspection Charges", 0.0, 0.0, 0.0),
+            ("ET-009", "Testing Charges", 0.0, 0.0, 0.0),
+            ("ET-010", "Other Expenses", 0.0, 0.0, 0.0),
+        ];
+
+        for expense_type in sample_expense_types {
+            conn.execute(
+                "INSERT INTO expense_types (id, name, default_cgst_rate, default_sgst_rate, default_igst_rate, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+                rusqlite::params![
+                    expense_type.0, expense_type.1, expense_type.2, expense_type.3, expense_type.4, true
+                ],
+            )?;
+        }
+    }
+
+    // Insert sample service providers if table is empty
+    let count: i32 = conn.query_row("SELECT COUNT(*) FROM service_providers", [], |row| row.get(0))?;
+    if count == 0 {
+        let sample_service_providers = [
+            ("SP-001", "ABC Logistics", "GST123456789", "Maharashtra", "John Doe", "john@abclogistics.com", "9876543210"),
+            ("SP-002", "XYZ Transport", "GST987654321", "Delhi", "Jane Smith", "jane@xyztransport.com", "9876543211"),
+            ("SP-003", "Global Freight", "GST456789123", "Karnataka", "Mike Johnson", "mike@globalfreight.com", "9876543212"),
+            ("SP-004", "Express Cargo", "GST789123456", "Tamil Nadu", "Sarah Wilson", "sarah@expresscargo.com", "9876543213"),
+            ("SP-005", "Fast Track Logistics", "GST321654987", "Gujarat", "David Brown", "david@fasttrack.com", "9876543214"),
+        ];
+
+        for service_provider in sample_service_providers {
+            conn.execute(
+                "INSERT INTO service_providers (id, name, gstin, state, contact_person, contact_email, contact_phone) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+                rusqlite::params![
+                    service_provider.0, service_provider.1, service_provider.2, service_provider.3,
+                    service_provider.4, service_provider.5, service_provider.6
                 ],
             )?;
         }

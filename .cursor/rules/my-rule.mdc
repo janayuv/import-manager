@@ -1,0 +1,117 @@
+---
+alwaysApply: true
+---
+# ===============================
+# Global Rules
+# ===============================
+- "Always use strict TypeScript. Never use 'any'; prefer proper types or zod schemas."
+- "Code must compile without TypeScript errors or ESLint warnings."
+- "Follow existing project structure—do not create new folders unless necessary."
+- "Use consistent formatting (Prettier + ESLint rules)."
+- "Write self-documenting code with meaningful names and comments where needed."
+
+# ===============================
+# React / Frontend (src/)
+# ===============================
+[src/**/*.{ts,tsx}]:
+  - "Use functional React components with hooks only."
+  - "Always prefer shadcn/ui + Tailwind for UI; do not use inline CSS."
+  - "Use controlled inputs with react-hook-form where possible."
+  - "Use TanStack Query (React Query) for async data fetching and caching."
+  - "Validate all data received from Tauri (Rust) with zod before using it in components."
+  - "Avoid unnecessary re-renders by memoization or proper state management."
+  - "Keep components small, modular, and reusable."
+
+# ===============================
+# Rust / Tauri (src-tauri/)
+# ===============================
+[src-tauri/**/*.rs]:
+  - "All Tauri commands must use serde for safe serialization/deserialization."
+  - "Never use unwrap() or expect() without clear error handling."
+  - "Prefer Result<T, E> with proper error messages over panics."
+  - "Do not use unsafe Rust code unless absolutely necessary and documented."
+  - "All input/output from the OS or filesystem must be validated and sanitized."
+  - "Log critical events, but never log sensitive data (like API keys or personal info)."
+  - "All Rust code must pass `cargo clippy` and `cargo test` without warnings."
+
+# ===============================
+# Database / Data Handling
+# ===============================
+[src/lib/db/*]:
+  - "Use Prisma (or chosen ORM) consistently for database operations."
+  - "Always validate and sanitize external data before inserting into DB."
+  - "No raw SQL unless absolutely required, and document if used."
+  - "Ensure all relations and constraints are defined in schema."
+
+# ===============================
+# Security & Error Handling
+# ===============================
+- "Never hardcode secrets or credentials in code; use .env files (not committed)."
+- "Handle errors gracefully with proper user feedback (toast, modal, etc.)."
+- "Always sanitize file paths and user-provided data before processing."
+- "Follow the principle of least privilege for all local operations."
+
+# ===============================
+# Documentation & Maintainability
+# ===============================
+- "All public functions and major modules must have clear doc comments."
+- "Provide usage examples in README or inline comments where appropriate."
+- "Keep function size small and avoid deeply nested logic."
+- "Prefer composition over duplication—reuse utilities where possible."
+# ===============================
+# Global Rules
+# ===============================
+- "Always use strict TypeScript. Never use 'any'; prefer proper types or zod schemas."
+- "Code must compile without TypeScript errors or ESLint warnings."
+- "Follow existing project structure—do not create new folders unless necessary."
+- "Use consistent formatting (Prettier + ESLint rules)."
+- "Write self-documenting code with meaningful names and comments where needed."
+
+# ===============================
+# React / Frontend (src/)
+# ===============================
+[src/**/*.{ts,tsx}]:
+  - "Use functional React components with hooks only."
+  - "Always prefer shadcn/ui + Tailwind for UI; do not use inline CSS."
+  - "Use controlled inputs with react-hook-form where possible."
+  - "Use TanStack Query (React Query) for async data fetching and caching."
+  - "Validate all data received from Tauri (Rust) with zod before using it in components."
+  - "Avoid unnecessary re-renders by memoization or proper state management."
+  - "Keep components small, modular, and reusable."
+
+# ===============================
+# Rust / Tauri (src-tauri/)
+# ===============================
+[src-tauri/**/*.rs]:
+  - "All Tauri commands must use serde for safe serialization/deserialization."
+  - "Never use unwrap() or expect() without clear error handling."
+  - "Prefer Result<T, E> with proper error messages over panics."
+  - "Do not use unsafe Rust code unless absolutely necessary and documented."
+  - "All input/output from the OS or filesystem must be validated and sanitized."
+  - "Log critical events, but never log sensitive data (like API keys or personal info)."
+  - "All Rust code must pass `cargo clippy` and `cargo test` without warnings."
+
+# ===============================
+# Database / Data Handling
+# ===============================
+[src/lib/db/*]:
+  - "Use Prisma (or chosen ORM) consistently for database operations."
+  - "Always validate and sanitize external data before inserting into DB."
+  - "No raw SQL unless absolutely required, and document if used."
+  - "Ensure all relations and constraints are defined in schema."
+
+# ===============================
+# Security & Error Handling
+# ===============================
+- "Never hardcode secrets or credentials in code; use .env files (not committed)."
+- "Handle errors gracefully with proper user feedback (toast, modal, etc.)."
+- "Always sanitize file paths and user-provided data before processing."
+- "Follow the principle of least privilege for all local operations."
+
+# ===============================
+# Documentation & Maintainability
+# ===============================
+- "All public functions and major modules must have clear doc comments."
+- "Provide usage examples in README or inline comments where appropriate."
+- "Keep function size small and avoid deeply nested logic."
+- "Prefer composition over duplication—reuse utilities where possible."

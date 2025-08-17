@@ -86,7 +86,8 @@ function SidebarProvider({
   // This makes it easier to style the sidebar with Tailwind classes.
   const state = open ? 'expanded' : 'collapsed'
 
-  const contextValue = React.useMemo<SidebarContextProps>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const contextValue = React.useMemo<any>(
     () => ({
       state,
       open,

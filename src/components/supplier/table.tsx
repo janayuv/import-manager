@@ -39,7 +39,7 @@ export function SupplierDataTable<TData, TValue>({ columns, data }: DataTablePro
   // Filter columns based on visibility settings
   const visibleColumns = columns.filter((column) => {
     if (column.id === 'select') return true // Always show select column
-    const isVisible = column.meta?.visible !== false
+    const isVisible = (column.meta as { visible?: boolean })?.visible !== false
     return isVisible
   })
 

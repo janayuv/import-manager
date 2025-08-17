@@ -9,6 +9,7 @@ This directory contains GitHub Actions workflows for continuous integration and 
 Runs on every push to `main`/`develop` branches and on pull requests to `main`.
 
 **Jobs:**
+
 - **test-frontend**: Runs linting, testing, and building of the React frontend
 - **test-tauri**: Builds and tests the Tauri application on Windows, macOS, and Ubuntu
 - **security-audit**: Runs security audits for both npm and Cargo dependencies
@@ -18,6 +19,7 @@ Runs on every push to `main`/`develop` branches and on pull requests to `main`.
 Triggers on Git tags starting with `v` (e.g., `v1.0.0`) or manual workflow dispatch.
 
 **Features:**
+
 - Builds production releases for Windows, macOS, and Ubuntu
 - Creates GitHub releases with downloadable assets
 - Supports code signing (when configured)
@@ -34,6 +36,7 @@ To use the release workflow with code signing, add these secrets to your GitHub 
 ### Repository Secrets (Settings → Secrets and variables → Actions)
 
 1. **TAURI_PRIVATE_KEY**: Your Tauri private key for code signing
+
    ```bash
    # Generate a new keypair
    npm run tauri signer generate -- -w ~/.tauri/myapp.key
@@ -52,6 +55,7 @@ To use the release workflow with code signing, add these secrets to your GitHub 
 ### 2. Package.json Scripts
 
 Ensure your `package.json` includes these scripts:
+
 ```json
 {
   "scripts": {
@@ -69,6 +73,7 @@ Ensure your `package.json` includes these scripts:
 For production releases, set up code signing:
 
 #### Generate Tauri Signing Keys
+
 ```bash
 # Install Tauri CLI if not already installed
 npm install -g @tauri-apps/cli
@@ -82,7 +87,9 @@ npm run tauri signer generate -- -w ~/.tauri/import-manager.key
 ```
 
 #### Add Public Key to Tauri Config
+
 Add the public key to your `src-tauri/tauri.conf.json`:
+
 ```json
 {
   "tauri": {
@@ -101,12 +108,14 @@ Add the public key to your `src-tauri/tauri.conf.json`:
 To create a new release:
 
 1. **Using Git Tags:**
+
    ```bash
    git tag v1.0.0
    git push origin v1.0.0
    ```
 
 2. **Using GitHub CLI:**
+
    ```bash
    gh release create v1.0.0 --title "Release v1.0.0" --notes "Release notes here"
    ```
@@ -162,6 +171,7 @@ You can customize the workflows by:
 4. **Configuring different release channels** (stable, beta, alpha)
 
 For more advanced configurations, refer to:
+
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
 - [Tauri Action Documentation](https://github.com/tauri-apps/tauri-action)
 - [Tauri Building Documentation](https://tauri.app/v1/guides/building/)

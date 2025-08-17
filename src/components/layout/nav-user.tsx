@@ -15,7 +15,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { SidebarMenu, SidebarMenuButton, useSidebar } from '@/components/ui/sidebar'
+import { SidebarMenu, SidebarMenuButton } from '@/components/ui/sidebar'
+import { useSidebar } from '@/components/ui/use-sidebar'
 
 export function NavUser({
   user,

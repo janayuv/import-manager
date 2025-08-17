@@ -57,20 +57,20 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
           <tbody>
             {rows.map((r, i) => (
               <tr key={i}>
-                <td className="border px-2 py-1">{r.supplier}</td>
-                <td className="border px-2 py-1">{r.invoice_no}</td>
-                <td className="border px-2 py-1">{r.invoice_date}</td>
-                <td className="border px-2 py-1">{r.part_no}</td>
-                <td className="border px-2 py-1">{r.description}</td>
-                <td className="border px-2 py-1">{r.unit}</td>
-                <td className="border px-2 py-1 text-right">{r.qty}</td>
-                <td className="border px-2 py-1 text-right">{r.unit_price}</td>
-                <td className="border px-2 py-1 text-right">{r.assessable_value}</td>
-                <td className="border px-2 py-1 text-right">{r.bcd_amount}</td>
-                <td className="border px-2 py-1 text-right">{r.sws_amount}</td>
-                <td className="border px-2 py-1 text-right">{r.igst_amount}</td>
-                <td className="border px-2 py-1 text-right">{r.expenses_total}</td>
-                <td className="border px-2 py-1 text-right">{r.ldc_per_qty}</td>
+                <td className="border px-2 py-1">{String(r.supplier)}</td>
+                <td className="border px-2 py-1">{String(r.invoice_no)}</td>
+                <td className="border px-2 py-1">{String(r.invoice_date)}</td>
+                <td className="border px-2 py-1">{String(r.part_no)}</td>
+                <td className="border px-2 py-1">{String(r.description)}</td>
+                <td className="border px-2 py-1">{String(r.unit)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.qty)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.unit_price)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.assessable_value)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.bcd_amount)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.sws_amount)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.igst_amount)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.expenses_total)}</td>
+                <td className="border px-2 py-1 text-right">{String(r.ldc_per_qty)}</td>
               </tr>
             ))}
           </tbody>

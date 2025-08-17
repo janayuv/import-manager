@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import {
   Select,
   SelectContent,
@@ -10,29 +10,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import { Plus, Trash2, X } from 'lucide-react'
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Plus, Trash2, X, AlertTriangle, Calculator } from 'lucide-react'
 import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
-import type { ServiceProvider, ExpenseType } from '@/types/expense'
+import type {
+  ServiceProvider,
+  ExpenseType,
+  ExpenseLine,
+  ExpenseInvoicePayload,
+  ExpenseInvoicePreview,
+} from '@/types/expense'
 
 interface ExpenseMultilineFormProps {
   shipmentId: string
   onSuccess: () => void
   onCancel: () => void
-}
-
-interface ExpenseLine {
-  id: string
-  expenseTypeId: string
-  serviceProviderId: string
-  invoiceNo: string
-  invoiceDate: string
-  amount: number
-  cgstRate: number
-  sgstRate: number
-  igstRate: number
-  tdsRate: number
-  remarks: string
 }
 
 export function ExpenseMultilineForm({
@@ -43,27 +36,55 @@ export function ExpenseMultilineForm({
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([])
   const [expenseTypes, setExpenseTypes] = useState<ExpenseType[]>([])
   const [loading, setLoading] = useState(false)
+  const [previewLoading, setPreviewLoading] = useState(false)
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null)
+  const [showPreview, setShowPreview] = useState(false)
+  const [preview, setPreview] = useState<ExpenseInvoicePreview | null>(null)
 
-  // Form state
+  // Form state - using the new production-grade structure
+  // Tax rates are now stored as percentages (9 = 9%) instead of basis points
   const [expenseLines, setExpenseLines] = useState<ExpenseLine[]>([
     {
-      id: '1',
-      expenseTypeId: '',
-      serviceProviderId: '',
-      invoiceNo: '',
-      invoiceDate: '',
-      amount: 0,
-      cgstRate: 0,
-      sgstRate: 0,
-      igstRate: 0,
-      tdsRate: 0,
+      expense_type_id: '',
+      amount_paise: 0,
+      cgst_rate: 0, // Now stored as percentage (9 = 9%)
+      sgst_rate: 0, // Now stored as percentage (9 = 9%)
+      igst_rate: 0, // Now stored as percentage (9 = 9%)
+      tds_rate: 0, // Now stored as percentage (9 = 9%)
       remarks: '',
     },
   ])
 
+  // Invoice header state
+  const [invoiceHeader, setInvoiceHeader] = useState({
+    service_provider_id: '',
+    invoice_number: '',
+    invoice_date: new Date().toISOString().split('T')[0],
+    currency: 'INR',
+  })
+
   useEffect(() => {
     loadData()
   }, [])
+
+  // Check for duplicate expense types
+  useEffect(() => {
+    const expenseTypeIds = expenseLines
+      .map((line) => line.expense_type_id)
+      .filter((id) => id !== '')
+
+    const uniqueIds = new Set(expenseTypeIds)
+
+    if (expenseTypeIds.length !== uniqueIds.size) {
+      const duplicates = expenseTypeIds.filter((id, index) => expenseTypeIds.indexOf(id) !== index)
+      const duplicateType = expenseTypes.find((type) => type.id === duplicates[0])
+      setDuplicateWarning(
+        `Duplicate expense type "${duplicateType?.name}" detected. Consider combining amounts or using different expense types.`
+      )
+    } else {
+      setDuplicateWarning(null)
+    }
+  }, [expenseLines, expenseTypes])
 
   const loadData = async () => {
     try {
@@ -71,6 +92,7 @@ export function ExpenseMultilineForm({
         invoke<ServiceProvider[]>('get_service_providers'),
         invoke<ExpenseType[]>('get_expense_types'),
       ])
+
       setServiceProviders(providers)
       setExpenseTypes(types)
     } catch (error) {
@@ -80,34 +102,68 @@ export function ExpenseMultilineForm({
   }
 
   const addExpenseLine = () => {
-    const newId = (expenseLines.length + 1).toString()
     setExpenseLines([
       ...expenseLines,
       {
-        id: newId,
-        expenseTypeId: '',
-        serviceProviderId: '',
-        invoiceNo: '',
-        invoiceDate: '',
-        amount: 0,
-        cgstRate: 0,
-        sgstRate: 0,
-        igstRate: 0,
-        tdsRate: 0,
+        expense_type_id: '',
+        amount_paise: 0,
+        cgst_rate: 0, // Now stored as percentage (9 = 9%)
+        sgst_rate: 0, // Now stored as percentage (9 = 9%)
+        igst_rate: 0, // Now stored as percentage (9 = 9%)
+        tds_rate: 0, // Now stored as percentage (9 = 9%)
         remarks: '',
       },
     ])
   }
 
-  const removeExpenseLine = (id: string) => {
+  const removeExpenseLine = (index: number) => {
     if (expenseLines.length > 1) {
-      setExpenseLines(expenseLines.filter((line) => line.id !== id))
+      setExpenseLines(expenseLines.filter((_, i) => i !== index))
     }
   }
 
-  const updateExpenseLine = (id: string, field: keyof ExpenseLine, value: string | number) => {
-    setExpenseLines(
-      expenseLines.map((line) => (line.id === id ? { ...line, [field]: value } : line))
+  const combineDuplicateExpenseTypes = () => {
+    const expenseTypeGroups = new Map<string, ExpenseLine[]>()
+
+    // Group expense lines by expense type
+    expenseLines.forEach((line) => {
+      if (line.expense_type_id) {
+        const existing = expenseTypeGroups.get(line.expense_type_id) || []
+        expenseTypeGroups.set(line.expense_type_id, [...existing, line])
+      }
+    })
+
+    // Create new expense lines with combined amounts
+    const combinedLines: ExpenseLine[] = []
+    expenseTypeGroups.forEach((lines, expenseTypeId) => {
+      if (lines.length === 1) {
+        combinedLines.push(lines[0])
+      } else {
+        // Combine multiple lines of the same type
+        const combinedLine: ExpenseLine = {
+          expense_type_id: expenseTypeId,
+          amount_paise: lines.reduce((sum, line) => sum + line.amount_paise, 0),
+          cgst_rate: lines[0].cgst_rate, // Use first line's rates (now percentages)
+          sgst_rate: lines[0].sgst_rate,
+          igst_rate: lines[0].igst_rate,
+          tds_rate: lines[0].tds_rate,
+          remarks:
+            lines
+              .map((line) => line.remarks)
+              .filter(Boolean)
+              .join('; ') || '',
+        }
+        combinedLines.push(combinedLine)
+      }
+    })
+
+    setExpenseLines(combinedLines)
+    toast.success('Duplicate expense types have been combined')
+  }
+
+  const updateExpenseLine = (index: number, field: keyof ExpenseLine, value: string | number) => {
+    setExpenseLines((prevLines) =>
+      prevLines.map((line, i) => (i === index ? { ...line, [field]: value } : line))
     )
   }
 
@@ -115,300 +171,548 @@ export function ExpenseMultilineForm({
     const expenseType = expenseTypes.find((et) => et.id === expenseTypeId)
     if (expenseType) {
       return {
-        cgstRate: expenseType.defaultCgstRate,
-        sgstRate: expenseType.defaultSgstRate,
-        igstRate: expenseType.defaultIgstRate,
+        cgst_rate: expenseType.defaultCgstRate / 100, // Convert from basis points to percentage (e.g., 900 -> 9)
+        sgst_rate: expenseType.defaultSgstRate / 100,
+        igst_rate: expenseType.defaultIgstRate / 100,
       }
     }
-    return { cgstRate: 0, sgstRate: 0, igstRate: 0 }
+    return { cgst_rate: 0, sgst_rate: 0, igst_rate: 0 }
   }
 
-  const handleExpenseTypeChange = (id: string, expenseTypeId: string) => {
+  const handleExpenseTypeChange = (index: number, expenseTypeId: string) => {
     const defaults = getExpenseTypeDefaults(expenseTypeId)
-    updateExpenseLine(id, 'expenseTypeId', expenseTypeId)
-    updateExpenseLine(id, 'cgstRate', defaults.cgstRate)
-    updateExpenseLine(id, 'sgstRate', defaults.sgstRate)
-    updateExpenseLine(id, 'igstRate', defaults.igstRate)
-  }
-
-  const calculateLineTotal = (line: ExpenseLine) => {
-    const amount = line.amount || 0
-    const cgst = (amount * (line.cgstRate || 0)) / 100
-    const sgst = (amount * (line.sgstRate || 0)) / 100
-    const igst = (amount * (line.igstRate || 0)) / 100
-    const tds = (amount * (line.tdsRate || 0)) / 100
-    return amount + cgst + sgst + igst - tds
-  }
-
-  const calculateGrandTotal = () => {
-    return expenseLines.reduce((total, line) => total + calculateLineTotal(line), 0)
+    setExpenseLines((prevLines) =>
+      prevLines.map((line, i) =>
+        i === index
+          ? {
+              ...line,
+              expense_type_id: expenseTypeId,
+              cgst_rate: defaults.cgst_rate,
+              sgst_rate: defaults.sgst_rate,
+              igst_rate: defaults.igst_rate,
+            }
+          : line
+      )
+    )
   }
 
   const validateForm = () => {
+    // Validate invoice header
+    if (
+      !invoiceHeader.service_provider_id ||
+      !invoiceHeader.invoice_number ||
+      !invoiceHeader.invoice_date
+    ) {
+      return false
+    }
+
+    // Validate expense lines
     for (const line of expenseLines) {
-      if (
-        !line.expenseTypeId ||
-        !line.serviceProviderId ||
-        !line.invoiceNo ||
-        !line.invoiceDate ||
-        line.amount <= 0
-      ) {
+      if (!line.expense_type_id || line.amount_paise <= 0) {
         return false
       }
     }
+
     return true
+  }
+
+  const handlePreview = async () => {
+    if (!validateForm()) {
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    setPreviewLoading(true)
+    try {
+      // Convert percentage rates to basis points for backend
+      const linesWithBasisPoints = expenseLines.map((line) => ({
+        ...line,
+        cgst_rate: Math.round(line.cgst_rate * 100), // Convert percentage to basis points
+        sgst_rate: Math.round(line.sgst_rate * 100),
+        igst_rate: Math.round(line.igst_rate * 100),
+        tds_rate: Math.round(line.tds_rate * 100),
+      }))
+
+      const payload: ExpenseInvoicePayload = {
+        shipment_id: shipmentId,
+        service_provider_id: invoiceHeader.service_provider_id,
+        invoice_number: invoiceHeader.invoice_number,
+        invoice_date: invoiceHeader.invoice_date,
+        currency: invoiceHeader.currency,
+        idempotency_key: undefined, // No idempotency for preview
+        lines: linesWithBasisPoints,
+      }
+
+      const previewResult = await invoke<ExpenseInvoicePreview>('preview_expense_invoice', {
+        payload,
+      })
+      setPreview(previewResult)
+      setShowPreview(true)
+      toast.success('Preview calculated successfully')
+    } catch (error) {
+      console.error('Failed to preview invoice:', error)
+      toast.error('Failed to preview invoice calculations')
+    } finally {
+      setPreviewLoading(false)
+    }
   }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     if (!validateForm()) {
-      toast.error('Please fill in all required fields for all expense lines')
+      toast.error('Please fill in all required fields')
+      return
+    }
+
+    // Check for duplicate expense types
+    const expenseTypeIds = expenseLines.map((line) => line.expense_type_id)
+    const uniqueIds = new Set(expenseTypeIds)
+
+    if (expenseTypeIds.length !== uniqueIds.size) {
+      const duplicates = expenseTypeIds.filter((id, index) => expenseTypeIds.indexOf(id) !== index)
+      const duplicateType = expenseTypes.find((type) => type.id === duplicates[0])
+      toast.error(
+        `Cannot submit: Duplicate expense type "${duplicateType?.name}" found. Please combine amounts or use different expense types.`
+      )
       return
     }
 
     setLoading(true)
     try {
-      // Create expense invoice with multiple expenses
-      const payload = {
-        shipmentId,
-        serviceProviderId: expenseLines[0].serviceProviderId, // Use first line's service provider
-        invoiceNo: expenseLines[0].invoiceNo, // Use first line's invoice number
-        invoiceDate: expenseLines[0].invoiceDate, // Use first line's invoice date
-        remarks: '', // Can be enhanced to include remarks
-        expenses: expenseLines.map((line) => ({
-          expenseTypeId: line.expenseTypeId,
-          amount: line.amount,
-          cgstRate: line.cgstRate,
-          sgstRate: line.sgstRate,
-          igstRate: line.igstRate,
-          tdsRate: line.tdsRate,
-          remarks: line.remarks || undefined,
-        })),
+      // Convert percentage rates to basis points for backend
+      const linesWithBasisPoints = expenseLines.map((line) => ({
+        ...line,
+        cgst_rate: Math.round(line.cgst_rate * 100), // Convert percentage to basis points
+        sgst_rate: Math.round(line.sgst_rate * 100),
+        igst_rate: Math.round(line.igst_rate * 100),
+        tds_rate: Math.round(line.tds_rate * 100),
+      }))
+
+      // Create expense invoice using the new production-grade module
+      const payload: ExpenseInvoicePayload = {
+        shipment_id: shipmentId,
+        service_provider_id: invoiceHeader.service_provider_id,
+        invoice_number: invoiceHeader.invoice_number,
+        invoice_date: invoiceHeader.invoice_date,
+        currency: invoiceHeader.currency,
+        idempotency_key: crypto.randomUUID(), // Generate unique idempotency key
+        lines: linesWithBasisPoints,
       }
 
-      await invoke('add_expense_invoice_with_expenses', { payload })
-      toast.success('Expense invoice with multiple lines created successfully')
+      await invoke('create_expense_invoice', { payload })
+      toast.success('Expense invoice created successfully')
       onSuccess()
     } catch (error) {
       console.error('Failed to create expense invoice:', error)
-      toast.error('Failed to create expense invoice')
+
+      // Provide more specific error messages
+      const errorMessage = error as string
+      if (errorMessage.includes('Optimistic lock conflict')) {
+        toast.error('The invoice was modified by another user. Please refresh and try again.')
+      } else if (errorMessage.includes('Duplicate idempotency key')) {
+        toast.error('This invoice has already been created. Please check your records.')
+      } else if (errorMessage.includes('Validation error')) {
+        toast.error('Please check your input data and try again.')
+      } else {
+        toast.error('Failed to create expense invoice')
+      }
     } finally {
       setLoading(false)
     }
   }
 
+  const formatCurrency = (paise: number) => {
+    return new Intl.NumberFormat('en-IN', {
+      style: 'currency',
+      currency: 'INR',
+      minimumFractionDigits: 2,
+    }).format(paise / 100)
+  }
+
+  const formatPercentage = (basisPoints: number) => {
+    return `${(basisPoints / 100).toFixed(2)}%`
+  }
+
   return (
-    <Card className="mx-auto w-full max-w-6xl">
-      <CardHeader>
-        <CardTitle className="flex items-center justify-between">
+    <Card className="mx-auto w-full max-w-7xl">
+      <CardHeader className="border-b bg-gray-50/50">
+        <CardTitle className="flex items-center justify-between text-xl">
           <span>Add Multiple Expenses</span>
           <Button variant="ghost" size="sm" onClick={onCancel}>
             <X className="h-4 w-4" />
           </Button>
         </CardTitle>
+        <CardDescription>
+          Create expense invoice with multiple expense lines and automatic tax calculations
+        </CardDescription>
       </CardHeader>
-      <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Expense Lines */}
+      <CardContent className="p-6">
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Duplicate Warning */}
+          {duplicateWarning && (
+            <Alert className="border-yellow-200 bg-yellow-50">
+              <AlertTriangle className="h-4 w-4 text-yellow-600" />
+              <AlertDescription className="text-yellow-800">
+                <div className="flex items-center justify-between">
+                  <span>{duplicateWarning}</span>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={combineDuplicateExpenseTypes}
+                    className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                  >
+                    Combine Duplicates
+                  </Button>
+                </div>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Invoice Header Section */}
           <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <div className="h-6 w-1 rounded-full bg-blue-600"></div>
+              <h3 className="text-lg font-semibold text-gray-900">Invoice Details</h3>
+            </div>
+            <div className="grid grid-cols-1 gap-6 rounded-lg border bg-gray-500/50 p-6 md:grid-cols-2 lg:grid-cols-4">
+              <div className="space-y-2">
+                <Label htmlFor="service-provider" className="text-sm font-medium">
+                  Service Provider *
+                </Label>
+                <Select
+                  value={invoiceHeader.service_provider_id}
+                  onValueChange={(value) =>
+                    setInvoiceHeader((prev) => ({
+                      ...prev,
+                      service_provider_id: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select service provider" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {serviceProviders.map((provider) => (
+                      <SelectItem key={provider.id} value={provider.id}>
+                        {provider.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice-number" className="text-sm font-medium">
+                  Invoice Number *
+                </Label>
+                <Input
+                  id="invoice-number"
+                  value={invoiceHeader.invoice_number}
+                  onChange={(e) =>
+                    setInvoiceHeader((prev) => ({
+                      ...prev,
+                      invoice_number: e.target.value,
+                    }))
+                  }
+                  placeholder="Enter invoice number"
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="invoice-date" className="text-sm font-medium">
+                  Invoice Date *
+                </Label>
+                <Input
+                  id="invoice-date"
+                  type="date"
+                  value={invoiceHeader.invoice_date}
+                  onChange={(e) =>
+                    setInvoiceHeader((prev) => ({
+                      ...prev,
+                      invoice_date: e.target.value,
+                    }))
+                  }
+                  className="h-10"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="currency" className="text-sm font-medium">
+                  Currency
+                </Label>
+                <Select
+                  value={invoiceHeader.currency}
+                  onValueChange={(value) =>
+                    setInvoiceHeader((prev) => ({
+                      ...prev,
+                      currency: value,
+                    }))
+                  }
+                >
+                  <SelectTrigger className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="INR">INR</SelectItem>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+
+          {/* Expense Lines Section */}
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <Label className="text-lg font-semibold">Expense Lines</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addExpenseLine}>
-                <Plus className="mr-2 h-4 w-4" />
-                Add Expense Line
-              </Button>
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-1 rounded-full bg-green-600"></div>
+                <h3 className="text-lg font-semibold text-gray-900">Expense Lines</h3>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePreview}
+                  disabled={previewLoading}
+                  className="h-9"
+                >
+                  <Calculator className="mr-2 h-4 w-4" />
+                  {previewLoading ? 'Calculating...' : 'Preview'}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={addExpenseLine}
+                  className="h-9"
+                >
+                  <Plus className="mr-2 h-4 w-4" />
+                  Add Line
+                </Button>
+              </div>
             </div>
 
             {expenseLines.map((line, index) => (
-              <Card key={line.id} className="border-2 p-4">
-                <div className="mb-4 flex items-center justify-between">
-                  <h4 className="text-lg font-medium">Expense Line {index + 1}</h4>
+              <div key={index} className="space-y-6 rounded-lg border bg-gray-600 p-6 shadow-sm">
+                <div className="flex items-center justify-between border-b pb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
+                      {index + 1}
+                    </div>
+                    <h4 className="font-semibold text-gray-900">Expense Line {index + 1}</h4>
+                  </div>
                   {expenseLines.length > 1 && (
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      onClick={() => removeExpenseLine(line.id)}
-                      className="text-red-500 hover:text-red-700"
+                      onClick={() => removeExpenseLine(index)}
+                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   )}
                 </div>
 
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {/* Expense Type */}
+                {/* Basic Details Row */}
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                   <div className="space-y-2">
-                    <Label>Expense Type *</Label>
+                    <Label className="text-sm font-medium">Expense Type *</Label>
                     <Select
-                      value={line.expenseTypeId}
-                      onValueChange={(value) => handleExpenseTypeChange(line.id, value)}
+                      value={line.expense_type_id}
+                      onValueChange={(value) => handleExpenseTypeChange(index, value)}
                     >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select type" />
+                      <SelectTrigger className="h-10">
+                        <SelectValue placeholder="Select expense type" />
                       </SelectTrigger>
                       <SelectContent>
-                        {expenseTypes.map((type_) => (
-                          <SelectItem key={type_.id} value={type_.id}>
-                            {type_.name}
+                        {expenseTypes.map((type) => (
+                          <SelectItem key={type.id} value={type.id}>
+                            {type.name}
                           </SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   </div>
 
-                  {/* Service Provider */}
                   <div className="space-y-2">
-                    <Label>Service Provider *</Label>
-                    <Select
-                      value={line.serviceProviderId}
-                      onValueChange={(value) =>
-                        updateExpenseLine(line.id, 'serviceProviderId', value)
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select provider" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {serviceProviders.map((provider) => (
-                          <SelectItem key={provider.id} value={provider.id}>
-                            {provider.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {/* Invoice Number */}
-                  <div className="space-y-2">
-                    <Label>Invoice Number *</Label>
-                    <Input
-                      value={line.invoiceNo}
-                      onChange={(e) => updateExpenseLine(line.id, 'invoiceNo', e.target.value)}
-                      placeholder="Invoice number"
-                    />
-                  </div>
-
-                  {/* Invoice Date */}
-                  <div className="space-y-2">
-                    <Label>Invoice Date *</Label>
-                    <Input
-                      type="date"
-                      value={line.invoiceDate}
-                      onChange={(e) => updateExpenseLine(line.id, 'invoiceDate', e.target.value)}
-                    />
-                  </div>
-
-                  {/* Amount */}
-                  <div className="space-y-2">
-                    <Label>Amount *</Label>
+                    <Label className="text-sm font-medium">Amount (₹) *</Label>
                     <Input
                       type="number"
                       step="0.01"
-                      value={line.amount}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'amount', parseFloat(e.target.value) || 0)
-                      }
+                      value={line.amount_paise / 100}
+                      onChange={(e) => {
+                        const rupees = parseFloat(e.target.value) || 0
+                        updateExpenseLine(index, 'amount_paise', Math.round(rupees * 100))
+                      }}
                       placeholder="0.00"
+                      className="h-10"
                     />
                   </div>
 
-                  {/* CGST Rate */}
                   <div className="space-y-2">
-                    <Label>CGST Rate (%)</Label>
+                    <Label className="text-sm font-medium">Remarks</Label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      value={line.cgstRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'cgstRate', parseFloat(e.target.value) || 0)
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* SGST Rate */}
-                  <div className="space-y-2">
-                    <Label>SGST Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={line.sgstRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'sgstRate', parseFloat(e.target.value) || 0)
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* IGST Rate */}
-                  <div className="space-y-2">
-                    <Label>IGST Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={line.igstRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'igstRate', parseFloat(e.target.value) || 0)
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* TDS Rate */}
-                  <div className="space-y-2">
-                    <Label>TDS Rate (%)</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      value={line.tdsRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'tdsRate', parseFloat(e.target.value) || 0)
-                      }
-                      placeholder="0.00"
-                    />
-                  </div>
-
-                  {/* Remarks */}
-                  <div className="space-y-2 lg:col-span-2 xl:col-span-4">
-                    <Label>Remarks</Label>
-                    <Input
-                      value={line.remarks}
-                      onChange={(e) => updateExpenseLine(line.id, 'remarks', e.target.value)}
+                      value={line.remarks || ''}
+                      onChange={(e) => updateExpenseLine(index, 'remarks', e.target.value)}
                       placeholder="Optional remarks"
-                    />
-                  </div>
-
-                  {/* Line Total */}
-                  <div className="space-y-2 lg:col-span-2 xl:col-span-4">
-                    <Label>Line Total</Label>
-                    <Input
-                      value={`₹${calculateLineTotal(line).toFixed(2)}`}
-                      readOnly
-                      className="font-semibold text-green-600"
+                      className="h-10"
                     />
                   </div>
                 </div>
-              </Card>
+
+                {/* Tax Rates Row */}
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium text-gray-700">Tax Rates (%)</Label>
+                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600">CGST Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={line.cgst_rate}
+                        onChange={(e) => {
+                          const percentage = parseFloat(e.target.value) || 0
+                          updateExpenseLine(index, 'cgst_rate', percentage)
+                        }}
+                        placeholder="9"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600">SGST Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={line.sgst_rate}
+                        onChange={(e) => {
+                          const percentage = parseFloat(e.target.value) || 0
+                          updateExpenseLine(index, 'sgst_rate', percentage)
+                        }}
+                        placeholder="9"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600">IGST Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={line.igst_rate}
+                        onChange={(e) => {
+                          const percentage = parseFloat(e.target.value) || 0
+                          updateExpenseLine(index, 'igst_rate', percentage)
+                        }}
+                        placeholder="0"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-gray-600">TDS Rate (%)</Label>
+                      <Input
+                        type="number"
+                        step="1"
+                        value={line.tds_rate}
+                        onChange={(e) => {
+                          const percentage = parseFloat(e.target.value) || 0
+                          updateExpenseLine(index, 'tds_rate', percentage)
+                        }}
+                        placeholder="2"
+                        className="h-9 text-sm"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
             ))}
           </div>
 
-          {/* Grand Total */}
-          <div className="bg-muted flex items-center justify-between rounded-lg p-4">
-            <span className="text-lg font-semibold">Grand Total:</span>
-            <span className="text-2xl font-bold text-green-600">
-              ₹{calculateGrandTotal().toFixed(2)}
-            </span>
-          </div>
+          {/* Preview Section */}
+          {showPreview && preview && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <div className="h-6 w-1 rounded-full bg-purple-600"></div>
+                <h3 className="text-lg font-semibold text-gray-900">Calculation Preview</h3>
+              </div>
+              <div className="rounded-lg border bg-gray-50/50 p-6">
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                  <div>
+                    <h4 className="mb-2 font-medium text-blue-800">Line Details</h4>
+                    <div className="space-y-2">
+                      {preview.lines.map((line, index) => (
+                        <div key={index} className="rounded border bg-white p-2">
+                          <div className="text-sm font-medium">{line.expense_type_name}</div>
+                          <div className="text-xs text-gray-600">
+                            Amount: {formatCurrency(line.amount_paise)} | CGST:{' '}
+                            {formatCurrency(line.cgst_amount_paise)} (
+                            {formatPercentage(line.cgst_rate)}) | SGST:{' '}
+                            {formatCurrency(line.sgst_amount_paise)} (
+                            {formatPercentage(line.sgst_rate)}) | IGST:{' '}
+                            {formatCurrency(line.igst_amount_paise)} (
+                            {formatPercentage(line.igst_rate)}) | TDS:{' '}
+                            {formatCurrency(line.tds_amount_paise)} (
+                            {formatPercentage(line.tds_rate)})
+                          </div>
+                          <div className="text-xs font-medium text-green-600">
+                            Total: {formatCurrency(line.total_amount_paise)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h4 className="mb-2 font-medium text-blue-800">Invoice Summary</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex justify-between">
+                        <span>Total Amount:</span>
+                        <span className="font-medium">
+                          {formatCurrency(preview.total_amount_paise)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total CGST:</span>
+                        <span>{formatCurrency(preview.total_cgst_amount_paise)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total SGST:</span>
+                        <span>{formatCurrency(preview.total_sgst_amount_paise)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total IGST:</span>
+                        <span>{formatCurrency(preview.total_igst_amount_paise)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Total TDS:</span>
+                        <span>{formatCurrency(preview.total_tds_amount_paise)}</span>
+                      </div>
+                      <div className="flex justify-between border-t pt-2 font-semibold">
+                        <span>Net Amount:</span>
+                        <span className="text-green-600">
+                          {formatCurrency(preview.net_amount_paise)}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
-          {/* Submit Button */}
-          <div className="flex justify-end space-x-2">
+          {/* Action Buttons */}
+          <div className="flex justify-end gap-4 border-t pt-6">
             <Button type="button" variant="outline" onClick={onCancel}>
               Cancel
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? 'Creating...' : 'Create Expense Invoice'}
+              {loading ? 'Creating...' : 'Create Invoice'}
             </Button>
           </div>
         </form>

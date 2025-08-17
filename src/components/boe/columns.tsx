@@ -70,7 +70,7 @@ export const getBoeColumns = ({
       header: 'Location',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'location')
-        const globalCase = settings.textFormat?.case || 'sentencecase'
+        const globalCase = settings?.textFormat?.case || 'sentencecase'
         const fieldCase = fieldConfig?.case || 'sentencecase'
 
         // If global case is 'uppercase', it should override field-specific case
@@ -88,7 +88,7 @@ export const getBoeColumns = ({
       header: 'Total Assessment Value',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'totalAssessmentValue')
-        return formatNumber(row.getValue('totalAssessmentValue'), settings.numberFormat, {
+        return formatNumber(row.getValue('totalAssessmentValue'), settings?.numberFormat, {
           numberFormat: fieldConfig?.numberFormat || 'currency',
           precision: fieldConfig?.precision, // Let formatNumber use global setting if not specified
           showSign: fieldConfig?.showSign || false,
@@ -100,7 +100,7 @@ export const getBoeColumns = ({
       header: 'Duty Amount',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'dutyAmount')
-        return formatNumber(row.getValue('dutyAmount'), settings.numberFormat, {
+        return formatNumber(row.getValue('dutyAmount'), settings?.numberFormat, {
           numberFormat: fieldConfig?.numberFormat || 'currency',
           precision: fieldConfig?.precision, // Let formatNumber use global setting if not specified
           showSign: fieldConfig?.showSign || false,
@@ -119,7 +119,7 @@ export const getBoeColumns = ({
       header: 'Duty Paid',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'dutyPaid')
-        return formatNumber(row.getValue('dutyPaid'), settings.numberFormat, {
+        return formatNumber(row.getValue('dutyPaid'), settings?.numberFormat, {
           numberFormat: fieldConfig?.numberFormat || 'currency',
           precision: fieldConfig?.precision, // Let formatNumber use global setting if not specified
           showSign: fieldConfig?.showSign || false,
@@ -193,7 +193,7 @@ export const getBoeColumns = ({
   ]
 
   // Filter columns based on visibility settings and sort by order
-  const boeFields = settings.modules.boe.fields
+  const boeFields = settings?.modules?.boe?.fields || {}
   const visibleColumns = allColumns.filter((column) => {
     // Always show actions column
     if (column.id === 'actions') {
