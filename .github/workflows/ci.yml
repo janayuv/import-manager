@@ -1,14 +1,16 @@
-name: Continuous Integration
+name: CI
 
 on:
-  pull_request:
-    branches: [main]
   push:
-    branches: [main]
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
 
 jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
+  check-code:
+    name: Check Code Quality
+    runs-on: windows-latest
+    
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -19,29 +21,98 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install Rust stable
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          components: clippy
 
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
+      - name: Install Rust target for Windows
+        run: rustup target add x86_64-pc-windows-msvc
 
-      - name: Install Dependencies
+      - name: Install frontend dependencies
         run: npm ci
 
-      - name: Code Quality Checks
-        run: |
-          # Frontend linting
-          npm run lint -- --max-warnings=0
+      - name: Run frontend linting
+        run: npm run lint
 
-          # Backend formatting and linting
-          cd src-tauri
-          cargo fmt -- --check
-          cargo clippy -- -D warnings
-          cd ..
+      - name: Type check frontend
+        run: npm run type-check
 
-      - name: Run Tests
+      - name: Format check frontend
+        run: npm run format:check
+
+      - name: Rust format check
+        run: cargo fmt --all -- --check
+
+      - name: Rust clippy check
+        run: cargo clippy --all-targets --all-features -- -D warnings
+
+      - name: Security audit (Rust)
+        run: cargo audit --deny warnings
+
+      - name: Security audit (npm)
+        run: npm audit --audit-level=moderate
+
+  build:
+    name: Build Application
+    runs-on: windows-latest
+    needs: check-code
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Rust target for Windows
+        run: rustup target add x86_64-pc-windows-msvc
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install Tauri CLI
+        run: npm install -g @tauri-apps/cli
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri app
+        run: npm run tauri build
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-build
+          path: src-tauri/target/release/bundle
+
+  test:
+    name: Run Tests
+    runs-on: windows-latest
+    needs: check-code
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Run frontend tests
         run: npm test
+
+      - name: Run Rust tests
+        run: cargo test
