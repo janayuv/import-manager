@@ -71,6 +71,7 @@ export default function ExpenseImport({
   const [progress, setProgress] = useState(0)
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const [previewMode, setPreviewMode] = useState(false)
+  void onImportSuccess
 
   // Validation function
   const validateImportData = useCallback(
@@ -347,20 +348,55 @@ export default function ExpenseImport({
     setProgress(0)
 
     try {
-      // TODO: Implement backend import logic here
-      // For now, simulate the import process
-      for (let i = 0; i < importData.length; i++) {
-        setProgress((i / importData.length) * 100)
-        await new Promise((resolve) => setTimeout(resolve, 100)) // Simulate processing
+      const selectedShipmentData = shipments.find((s) => s.id === selectedShipment)
+      if (!selectedShipmentData) {
+        throw new Error('Selected shipment not found')
       }
 
-      toast.success(`Successfully imported ${importData.length} expenses`)
+      // Find a service provider for the invoice (use the first one from the import data)
+      const firstServiceProviderName = importData[0]?.serviceProviderName
+      const serviceProvider = serviceProviders.find(
+        (sp) => sp.name.toLowerCase() === firstServiceProviderName?.toLowerCase()
+      )
+
+      if (!serviceProvider) {
+        throw new Error(`Service provider "${firstServiceProviderName}" not found`)
+      }
+
+      // Prepare bulk expense payload
+      const bulkPayload = {
+        shipmentId: selectedShipment,
+        serviceProviderId: serviceProvider.id,
+        invoiceNumber: importData[0]?.invoiceNo || `EXP-${Date.now()}`,
+        invoiceDate: importData[0]?.invoiceDate || new Date().toISOString().split('T')[0],
+        currency: selectedShipmentData.invoiceCurrency || 'INR',
+        expenses: importData.map((row) => ({
+          expenseTypeName: row.expenseTypeName,
+          amount: row.amount,
+          cgstAmount: row.cgstAmount,
+          sgstAmount: row.sgstAmount,
+          igstAmount: row.igstAmount,
+          tdsAmount: row.tdsAmount,
+          remarks: row.remarks || null,
+        })),
+      }
+
+      setProgress(50)
+
+      // Call the backend bulk import function
+      const { invoke } = await import('@tauri-apps/api/core')
+      const invoiceId = await invoke('add_expenses_bulk', { payload: bulkPayload })
+
+      setProgress(100)
+      toast.success(
+        `Successfully imported ${importData.length} expenses (Invoice ID: ${invoiceId})`
+      )
       setImportData([])
       setSelectedShipment('')
       onImportSuccess()
     } catch (error) {
       console.error('Import error:', error)
-      toast.error('Failed to import expenses. Please try again.')
+      toast.error(`Failed to import expenses: ${error}`)
     } finally {
       setIsProcessing(false)
       setProgress(0)
@@ -502,6 +538,10 @@ export default function ExpenseImport({
                     <TableHead>Invoice No</TableHead>
                     <TableHead>Invoice Date</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead className="text-right">CGST</TableHead>
+                    <TableHead className="text-right">SGST</TableHead>
+                    <TableHead className="text-right">IGST</TableHead>
+                    <TableHead className="text-right">TDS</TableHead>
                     <TableHead className="text-right">Total Amount</TableHead>
                     <TableHead>Remarks</TableHead>
                   </TableRow>
@@ -517,6 +557,18 @@ export default function ExpenseImport({
                         ₹{row.amount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="text-right">
+                        ₹{row.cgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₹{row.sgstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₹{row.igstAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ₹{row.tdsAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right">
                         ₹{row.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </TableCell>
                       <TableCell className="max-w-xs truncate" title={row.remarks}>
@@ -526,7 +578,7 @@ export default function ExpenseImport({
                   ))}
                   {importData.length > 10 && (
                     <TableRow>
-                      <TableCell colSpan={7} className="text-muted-foreground text-center">
+                      <TableCell colSpan={11} className="text-muted-foreground text-center">
                         ... and {importData.length - 10} more records
                       </TableCell>
                     </TableRow>

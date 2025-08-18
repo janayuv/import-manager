@@ -1436,117 +1436,103 @@ pub fn fix_expense_types(state: State<DbState>) -> Result<String, String> {
 #[tauri::command]
 pub fn fix_existing_expenses(state: State<DbState>) -> Result<String, String> {
     let conn = state.db.lock().unwrap();
-    
-    let mut result = String::new();
-    
-    // First, let's see what expenses we have with incorrect rates
-    let mut stmt = conn
-        .prepare("SELECT id, expense_type_id, cgst_rate, sgst_rate, igst_rate, tds_rate FROM expense_lines WHERE cgst_rate > 1000 OR sgst_rate > 1000 OR igst_rate > 1000 OR tds_rate > 1000")
-        .map_err(|e| e.to_string())?;
-    
-    let incorrect_expenses: Vec<(String, String, i32, i32, i32, i32)> = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get(5)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-    
-    result.push_str(&format!("Found {} expense lines with incorrect rates\n", incorrect_expenses.len()));
-    
-    let mut fixed_count = 0;
-    
-    for (id, expense_type_id, cgst_rate, sgst_rate, igst_rate, _tds_rate) in incorrect_expenses {
-        // Get the correct rates from expense_types table
-        let correct_rates: Option<(i32, i32, i32)> = conn
-            .query_row(
-                "SELECT default_cgst_rate_bp, default_sgst_rate_bp, default_igst_rate_bp FROM expense_types WHERE id = ?",
-                [&expense_type_id],
-                |row| {
-                    Ok((
-                        row.get(0)?,
-                        row.get(1)?,
-                        row.get(2)?,
-                    ))
-                }
-            )
-            .ok();
-        
-        if let Some((correct_cgst, correct_sgst, correct_igst)) = correct_rates {
-            // Update the expense line with correct rates
-            conn.execute(
-                "UPDATE expense_lines SET 
-                    cgst_rate = ?, 
-                    sgst_rate = ?, 
-                    igst_rate = ?,
-                    tds_rate = ?
-                 WHERE id = ?",
-                rusqlite::params![correct_cgst, correct_sgst, correct_igst, 200, id], // TDS rate 2% = 200 basis points
+
+    // Determine schema: legacy (amount, decimal percent) vs new (amount_paise, basis points)
+    let has_amount_paise: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('expenses') WHERE name = 'amount_paise'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+
+    let mut report = String::new();
+
+    if has_amount_paise > 0 {
+        // New schema: basis points stored as integers
+        // Find expenses with out-of-range rates
+        let mut stmt = conn
+            .prepare(
+                "SELECT id, expense_type_id, amount_paise, cgst_rate, sgst_rate, igst_rate, tds_rate
+                 FROM expenses
+                 WHERE cgst_rate > 10000 OR sgst_rate > 10000 OR igst_rate > 10000 OR tds_rate > 10000
+                    OR cgst_rate < 0 OR sgst_rate < 0 OR igst_rate < 0 OR tds_rate < 0",
             )
             .map_err(|e| e.to_string())?;
-            
-            result.push_str(&format!("Fixed expense {}: CGST {}%->{}%, SGST {}%->{}%, IGST {}%->{}%\n", 
-                id, cgst_rate/100, correct_cgst/100, sgst_rate/100, correct_sgst/100, igst_rate/100, correct_igst/100));
-            fixed_count += 1;
+
+        let rows: Vec<(String, String, i64, i32, i32, i32, i32)> = stmt
+            .query_map([], |row| {
+                Ok((
+                    row.get(0)?,
+                    row.get(1)?,
+                    row.get(2)?,
+                    row.get(3)?,
+                    row.get(4)?,
+                    row.get(5)?,
+                    row.get(6)?,
+                ))
+            })
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+
+        report.push_str(&format!("Found {} expenses to fix (new schema)\n", rows.len()));
+
+        let mut fixed = 0;
+        for (id, expense_type_id, amount_paise, _cgst, _sgst, _igst, _tds) in rows {
+            // Get defaults (basis points)
+            if let Ok((dc, ds, di)) = conn.query_row(
+                "SELECT default_cgst_rate_bp, default_sgst_rate_bp, default_igst_rate_bp FROM expense_types WHERE id = ?",
+                [&expense_type_id],
+                |row| Ok((row.get::<_, i32>(0)?, row.get::<_, i32>(1)?, row.get::<_, i32>(2)?)),
+            ) {
+                let cgst_amount = (amount_paise * dc as i64) / 10000;
+                let sgst_amount = (amount_paise * ds as i64) / 10000;
+                let igst_amount = (amount_paise * di as i64) / 10000;
+                let tds_rate = 0i32; // leave zero unless you handle defaults later
+                let tds_amount = (amount_paise * tds_rate as i64) / 10000;
+                let total_amount = amount_paise + cgst_amount + sgst_amount + igst_amount;
+                let net_amount = total_amount - tds_amount;
+
+                conn.execute(
+                    "UPDATE expenses SET 
+                        cgst_rate = ?, sgst_rate = ?, igst_rate = ?, tds_rate = ?,
+                        cgst_amount_paise = ?, sgst_amount_paise = ?, igst_amount_paise = ?, tds_amount_paise = ?,
+                        total_amount_paise = ?, net_amount_paise = ?
+                     WHERE id = ?",
+                    rusqlite::params![
+                        dc, ds, di, tds_rate,
+                        cgst_amount, sgst_amount, igst_amount, tds_amount,
+                        total_amount, net_amount,
+                        id,
+                    ],
+                )
+                .map_err(|e| e.to_string())?;
+
+                fixed += 1;
+            }
         }
+
+        report.push_str(&format!("Fixed {} expenses (new schema)\n", fixed));
+    } else {
+        // Legacy schema: percent decimals in rates, generated amount columns
+        // Fix rows that have basis points accidentally stored in percent columns (>100)
+        let updated = conn
+            .execute(
+                "UPDATE expenses SET 
+                    cgst_rate = (SELECT default_cgst_rate_bp FROM expense_types et WHERE et.id = expenses.expense_type_id) / 100.0,
+                    sgst_rate = (SELECT default_sgst_rate_bp FROM expense_types et WHERE et.id = expenses.expense_type_id) / 100.0,
+                    igst_rate = (SELECT default_igst_rate_bp FROM expense_types et WHERE et.id = expenses.expense_type_id) / 100.0
+                 WHERE cgst_rate > 100 OR sgst_rate > 100 OR igst_rate > 100",
+                [],
+            )
+            .map_err(|e| e.to_string())?;
+
+        report.push_str(&format!("Normalized {} legacy expenses to percent\n", updated));
+        // Amount columns are generated in legacy schema; no recomputation needed
     }
-    
-    result.push_str(&format!("\nTotal expense lines fixed: {fixed_count}\n"));
-    
-    // Now recalculate all expense amounts
-    let mut stmt = conn
-        .prepare("SELECT id, amount_paise, cgst_rate, sgst_rate, igst_rate, tds_rate FROM expense_lines")
-        .map_err(|e| e.to_string())?;
-    
-    let all_expenses: Vec<(String, i64, i32, i32, i32, i32)> = stmt
-        .query_map([], |row| {
-            Ok((
-                row.get(0)?,
-                row.get(1)?,
-                row.get(2)?,
-                row.get(3)?,
-                row.get(4)?,
-                row.get(5)?,
-            ))
-        })
-        .map_err(|e| e.to_string())?
-        .collect::<Result<Vec<_>, _>>()
-        .map_err(|e| e.to_string())?;
-    
-    let mut recalculated_count = 0;
-    
-    for (id, amount_paise, cgst_rate, sgst_rate, igst_rate, tds_rate) in all_expenses {
-        let cgst_amount = (amount_paise * cgst_rate as i64) / 10000;
-        let sgst_amount = (amount_paise * sgst_rate as i64) / 10000;
-        let igst_amount = (amount_paise * igst_rate as i64) / 10000;
-        let tds_amount = (amount_paise * tds_rate as i64) / 10000;
-        let total_amount = amount_paise + cgst_amount + sgst_amount + igst_amount - tds_amount;
-        
-        conn.execute(
-            "UPDATE expense_lines SET 
-                cgst_amount_paise = ?, 
-                sgst_amount_paise = ?, 
-                igst_amount_paise = ?, 
-                tds_amount_paise = ?,
-                total_amount_paise = ?
-             WHERE id = ?",
-            rusqlite::params![cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, id],
-        )
-        .map_err(|e| e.to_string())?;
-        
-        recalculated_count += 1;
-    }
-    
-    result.push_str(&format!("Recalculated amounts for {recalculated_count} expense lines\n"));
-    
-    Ok(result)
+
+    Ok(report)
 }
 
 #[allow(dead_code)]
@@ -1784,7 +1770,7 @@ pub fn get_expenses_for_shipment(shipment_id: String, state: State<DbState>) -> 
 }
 
 // NEW: Expense Payload for individual expenses within an invoice
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ExpensePayload {
     pub expense_invoice_id: String,
@@ -1794,6 +1780,29 @@ pub struct ExpensePayload {
     pub sgst_rate: Option<f64>,
     pub igst_rate: Option<f64>,
     pub tds_rate: Option<f64>,
+    pub remarks: Option<String>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkExpensePayload {
+    pub shipment_id: String,
+    pub service_provider_id: String,
+    pub invoice_number: String,
+    pub invoice_date: String,
+    pub currency: String,
+    pub expenses: Vec<BulkExpenseItem>,
+}
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkExpenseItem {
+    pub expense_type_name: String,
+    pub amount: f64,
+    pub cgst_amount: f64,
+    pub sgst_amount: f64,
+    pub igst_amount: f64,
+    pub tds_amount: f64,
     pub remarks: Option<String>,
 }
 
@@ -2629,4 +2638,154 @@ pub fn check_supplier_exists(state: State<DbState>, supplier_id: String) -> Resu
     ).map_err(|e| e.to_string())?;
     
     Ok(exists)
+}
+
+#[tauri::command]
+pub fn add_expenses_bulk(payload: BulkExpensePayload, state: State<DbState>) -> Result<String, String> {
+    let mut conn = state.db.lock().unwrap();
+    let tx = conn.transaction().map_err(|e| e.to_string())?;
+
+    // Create invoice id
+    let invoice_id = generate_id("EXP-INV");
+
+    // Aggregate totals from rows (amount + taxes; TDS reduces net only)
+    let mut total_basic = 0.0f64;
+    let mut total_cgst = 0.0f64;
+    let mut total_sgst = 0.0f64;
+    let mut total_igst = 0.0f64;
+    let mut total_tds = 0.0f64;
+
+    for row in &payload.expenses {
+        total_basic += row.amount;
+        total_cgst += row.cgst_amount;
+        total_sgst += row.sgst_amount;
+        total_igst += row.igst_amount;
+        total_tds += row.tds_amount;
+    }
+
+    let total_amount = total_basic + total_cgst + total_sgst + total_igst;
+    let net_amount = total_amount - total_tds;
+
+    // Also compute paise totals for new module compatibility
+    let total_amount_paise = (total_amount * 100.0).round() as i64;
+    let total_cgst_amount_paise = (total_cgst * 100.0).round() as i64;
+    let total_sgst_amount_paise = (total_sgst * 100.0).round() as i64;
+    let total_igst_amount_paise = (total_igst * 100.0).round() as i64;
+    let total_tds_amount_paise = (total_tds * 100.0).round() as i64;
+    let net_amount_paise = (net_amount * 100.0).round() as i64;
+
+    // Insert expense invoice (write to legacy columns plus new columns where available)
+    tx.execute(
+        "INSERT INTO expense_invoices (
+            id, shipment_id, service_provider_id, invoice_no, invoice_date,
+            total_amount, total_cgst_amount, total_sgst_amount, total_igst_amount,
+            total_amount_paise, total_cgst_amount_paise, total_sgst_amount_paise, total_igst_amount_paise,
+            total_tds_amount_paise, net_amount_paise, currency, invoice_number
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params![
+            &invoice_id,
+            &payload.shipment_id,
+            &payload.service_provider_id,
+            &payload.invoice_number, // store in legacy column for compatibility
+            &payload.invoice_date,
+            total_amount,
+            total_cgst,
+            total_sgst,
+            total_igst,
+            total_amount_paise,
+            total_cgst_amount_paise,
+            total_sgst_amount_paise,
+            total_igst_amount_paise,
+            total_tds_amount_paise,
+            net_amount_paise,
+            &payload.currency,
+            &payload.invoice_number,
+        ],
+    ).map_err(|e| e.to_string())?;
+
+    // Insert individual expenses
+    for row in &payload.expenses {
+        let expense_id = generate_id("EXP");
+
+        // Map type name -> id (case-insensitive)
+        let expense_type_id: String = tx
+            .query_row(
+                "SELECT id FROM expense_types WHERE lower(name) = lower(?)",
+                params![&row.expense_type_name],
+                |r| r.get(0),
+            )
+            .map_err(|e| format!("Expense type '{}' not found: {}", row.expense_type_name, e))?;
+
+        // Derive percentage rates from amounts; guard divide-by-zero
+        let (cgst_rate, sgst_rate, igst_rate, tds_rate) = if row.amount > 0.0 {
+            (
+                (row.cgst_amount / row.amount) * 100.0,
+                (row.sgst_amount / row.amount) * 100.0,
+                (row.igst_amount / row.amount) * 100.0,
+                (row.tds_amount / row.amount) * 100.0,
+            )
+        } else {
+            (0.0, 0.0, 0.0, 0.0)
+        };
+
+        // Paise and basis points for new module
+        let amount_paise = (row.amount * 100.0).round() as i64;
+        let cgst_rate_bp = (cgst_rate * 100.0).round() as i32;
+        let sgst_rate_bp = (sgst_rate * 100.0).round() as i32;
+        let igst_rate_bp = (igst_rate * 100.0).round() as i32;
+        let tds_rate_bp = (tds_rate * 100.0).round() as i32;
+
+        // Insert into legacy decimal columns (generated amounts will compute from rates)
+        tx.execute(
+            "INSERT INTO expenses (
+                id, expense_invoice_id, shipment_id, service_provider_id, invoice_no, invoice_date,
+                expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks,
+                amount_paise, cgst_amount_paise, sgst_amount_paise, igst_amount_paise, tds_amount_paise, total_amount_paise, net_amount_paise
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0, 0, 0)",
+            params![
+                &expense_id,
+                &invoice_id,
+                &payload.shipment_id,
+                &payload.service_provider_id,
+                &payload.invoice_number,
+                &payload.invoice_date,
+                &expense_type_id,
+                row.amount,
+                cgst_rate,
+                sgst_rate,
+                igst_rate,
+                tds_rate,
+                &row.remarks,
+                amount_paise,
+            ],
+        ).map_err(|e| e.to_string())?;
+
+        // Update paise totals for this line using calculator: amount + taxes (based on rates)
+        // Compute taxes in paise with round-half-away-from-zero style
+        let cgst_amount_paise = (amount_paise as i128 * cgst_rate_bp as i128 / 10000) as i64;
+        let sgst_amount_paise = (amount_paise as i128 * sgst_rate_bp as i128 / 10000) as i64;
+        let igst_amount_paise = (amount_paise as i128 * igst_rate_bp as i128 / 10000) as i64;
+        let tds_amount_paise = (amount_paise as i128 * tds_rate_bp as i128 / 10000) as i64;
+        let total_amount_paise_line = amount_paise + cgst_amount_paise + sgst_amount_paise + igst_amount_paise;
+        let net_amount_paise_line = total_amount_paise_line - tds_amount_paise;
+
+        tx.execute(
+            "UPDATE expenses SET 
+                cgst_amount_paise = ?, sgst_amount_paise = ?, igst_amount_paise = ?, tds_amount_paise = ?,
+                total_amount_paise = ?, net_amount_paise = ?
+             WHERE id = ?",
+            params![
+                cgst_amount_paise,
+                sgst_amount_paise,
+                igst_amount_paise,
+                tds_amount_paise,
+                total_amount_paise_line,
+                net_amount_paise_line,
+                &expense_id,
+            ],
+        ).map_err(|e| e.to_string())?;
+    }
+
+    tx.commit().map_err(|e| e.to_string())?;
+    Ok(invoice_id)
 }

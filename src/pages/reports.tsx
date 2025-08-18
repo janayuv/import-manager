@@ -69,7 +69,7 @@ export default function ReportsPage() {
       'BCD',
       'SWS',
       'IGST',
-      'Expenses',
+      'Expenses (Basic)',
       'LDC per qty',
     ]
     const csvRows = [header.join(',')]
@@ -116,7 +116,13 @@ export default function ReportsPage() {
       header: 'Date',
       cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
         const date = row.getValue('invoice_date')
-        return date ? format(new Date(date as string), 'dd/MM/yyyy') : ''
+        if (!date) return ''
+        try {
+          return format(new Date(date as string), 'dd/MM/yyyy')
+        } catch {
+          console.warn('Invalid date value:', date)
+          return String(date)
+        }
       },
     },
     { accessorKey: 'part_no', header: 'Part No' },
@@ -172,7 +178,7 @@ export default function ReportsPage() {
     },
     {
       accessorKey: 'expenses_total',
-      header: 'Expenses',
+      header: 'Expenses (Basic)',
       cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
         const amount = row.getValue('expenses_total')
         return amount ? Number(amount).toFixed(2) : '0.00'
@@ -320,7 +326,7 @@ export default function ReportsPage() {
                 <p className="text-2xl font-bold">{totals.igst_amount?.toFixed(2) || '0.00'}</p>
               </div>
               <div>
-                <Label className="text-sm font-medium">Total Expenses</Label>
+                <Label className="text-sm font-medium">Total Expenses (Basic)</Label>
                 <p className="text-2xl font-bold">{totals.expenses_total?.toFixed(2) || '0.00'}</p>
               </div>
             </div>

@@ -887,7 +887,9 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             JOIN json_each(json_extract(bc.calculation_result_json, '$.calculatedItems')) AS item
         ),
         shipment_expenses AS (
-            SELECT ei.shipment_id, SUM(e.total_amount) AS shipment_expenses_total
+            SELECT ei.shipment_id, 
+                   SUM(e.amount) AS shipment_expenses_basic,
+                   SUM(e.total_amount) AS shipment_expenses_total
             FROM expense_invoices ei
             JOIN expenses e ON e.expense_invoice_id = ei.id
             GROUP BY ei.shipment_id
@@ -911,13 +913,13 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
             bi.boe_bcd_amount AS bcd_amount,
             bi.boe_sws_amount AS sws_amount,
             bi.boe_igst_amount AS igst_amount,
-            -- Expense allocation proportional by BOE assessable value per shipment
-            COALESCE(se.shipment_expenses_total, 0.0) * 
+            -- Expense allocation proportional by BOE assessable value per shipment (BASIC VALUE - excluding GST)
+            COALESCE(se.shipment_expenses_basic, 0.0) * 
               (bi.boe_assessable_value / NULLIF(ba.shipment_boe_assessable_total, 0)) AS expenses_total,
-            -- LDC per qty: (assessable + bcd + sws + expenses) / qty
+            -- LDC per qty: (assessable + bcd + sws + expenses_basic) / qty
             (
               (bi.boe_assessable_value + bi.boe_bcd_amount + bi.boe_sws_amount
-               + (COALESCE(se.shipment_expenses_total, 0.0) * (bi.boe_assessable_value / NULLIF(ba.shipment_boe_assessable_total, 0))))
+               + (COALESCE(se.shipment_expenses_basic, 0.0) * (bi.boe_assessable_value / NULLIF(ba.shipment_boe_assessable_total, 0))))
             ) / NULLIF(ili.quantity, 0) AS ldc_per_qty
         FROM boe_items bi
         JOIN shipments s ON s.id = bi.shipment_id

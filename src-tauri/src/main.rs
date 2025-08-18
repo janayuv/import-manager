@@ -121,6 +121,7 @@ fn main() {
             commands::update_expense,
             commands::delete_expense,
             commands::attach_invoice_to_expense,
+            commands::add_expenses_bulk,
             commands::generate_shipment_expense_report,
             commands::generate_monthly_gst_summary,
             

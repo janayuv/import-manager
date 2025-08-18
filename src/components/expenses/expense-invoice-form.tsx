@@ -106,10 +106,12 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
   const getExpenseTypeDefaults = (expenseTypeId: string) => {
     const expenseType = expenseTypes.find((et) => et.id === expenseTypeId)
     if (expenseType) {
+      // Normalize to percentages. Backend provides basis points (e.g., 900 => 9)
+      const normalizeToPercent = (raw: number) => (raw > 100 ? raw / 100 : raw)
       return {
-        cgstRate: expenseType.defaultCgstRate,
-        sgstRate: expenseType.defaultSgstRate,
-        igstRate: expenseType.defaultIgstRate,
+        cgstRate: normalizeToPercent(expenseType.defaultCgstRate),
+        sgstRate: normalizeToPercent(expenseType.defaultSgstRate),
+        igstRate: normalizeToPercent(expenseType.defaultIgstRate),
       }
     }
     return { cgstRate: 0, sgstRate: 0, igstRate: 0 }

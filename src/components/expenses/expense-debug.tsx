@@ -161,7 +161,7 @@ export function ExpenseDebug() {
             </div>
 
             {debugInfo && (
-              <div className="rounded-lg bg-gray-100 p-4">
+              <div className="rounded-lg bg-gray-700 p-4">
                 <h3 className="mb-2 font-semibold">Debug Information:</h3>
                 <pre className="text-sm whitespace-pre-wrap">{debugInfo}</pre>
               </div>

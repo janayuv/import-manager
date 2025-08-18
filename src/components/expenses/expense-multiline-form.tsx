@@ -170,10 +170,12 @@ export function ExpenseMultilineForm({
   const getExpenseTypeDefaults = (expenseTypeId: string) => {
     const expenseType = expenseTypes.find((et) => et.id === expenseTypeId)
     if (expenseType) {
+      // Normalize incoming rates that may be in basis points (900 => 9) or already in percentage (9 => 9)
+      const normalizeToPercent = (raw: number) => (raw > 100 ? raw / 100 : raw)
       return {
-        cgst_rate: expenseType.defaultCgstRate / 100, // Convert from basis points to percentage (e.g., 900 -> 9)
-        sgst_rate: expenseType.defaultSgstRate / 100,
-        igst_rate: expenseType.defaultIgstRate / 100,
+        cgst_rate: normalizeToPercent(expenseType.defaultCgstRate),
+        sgst_rate: normalizeToPercent(expenseType.defaultSgstRate),
+        igst_rate: normalizeToPercent(expenseType.defaultIgstRate),
       }
     }
     return { cgst_rate: 0, sgst_rate: 0, igst_rate: 0 }

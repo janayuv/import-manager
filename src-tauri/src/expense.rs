@@ -373,6 +373,7 @@ impl ExpenseService {
         let tx = conn.transaction()?;
         
         // Get all expense lines for this invoice
+        let using_old_columns = Self::has_old_expense_columns(&tx)?;
         let grouped_lines: GroupedExpenseLines = {
             let mut stmt = tx.prepare(
                 "SELECT expense_type_id, amount_paise, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks
@@ -385,10 +386,17 @@ impl ExpenseService {
             while let Some(row) = rows.next()? {
                 let expense_type_id: String = row.get(0)?;
                 let amount_paise: i64 = row.get(1)?;
-                let cgst_rate: i32 = row.get(2)?;
-                let sgst_rate: i32 = row.get(3)?;
-                let igst_rate: i32 = row.get(4)?;
-                let tds_rate: i32 = row.get(5)?;
+                let mut cgst_rate: i32 = row.get(2)?;
+                let mut sgst_rate: i32 = row.get(3)?;
+                let mut igst_rate: i32 = row.get(4)?;
+                let mut tds_rate: i32 = row.get(5)?;
+                if using_old_columns {
+                    // Legacy percentages -> basis points for calculations
+                    cgst_rate *= 100;
+                    sgst_rate *= 100;
+                    igst_rate *= 100;
+                    tds_rate *= 100;
+                }
                 let remarks: Option<String> = row.get(6)?;
                 
                 grouped_lines
@@ -812,10 +820,10 @@ impl ExpenseService {
                         &payload.invoice_date,
                         &line.expense_type_id,
                         (line.amount_paise as f64) / 100.0, // Convert paise to rupees for old column
-                        line.cgst_rate,
-                        line.sgst_rate,
-                        line.igst_rate,
-                        line.tds_rate,
+                        (line.cgst_rate as f64) / 100.0,
+                        (line.sgst_rate as f64) / 100.0,
+                        (line.igst_rate as f64) / 100.0,
+                        (line.tds_rate as f64) / 100.0,
                         &line.remarks,
                         Option::<String>::None, // created_by
                     ],

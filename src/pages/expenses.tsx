@@ -1,4 +1,5 @@
 import { useCallback, useState, useEffect } from 'react'
+import { invoke } from '@tauri-apps/api/core'
 
 import ExpenseForm from '@/components/expenses/expense-form'
 import { ExpenseMultilineForm } from '@/components/expenses/expense-multiline-form'
@@ -13,7 +14,6 @@ import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
-import { getExpenseTypes, getServiceProviders, getShipments } from '@/lib/mock-expense-data'
 import type { ExpenseType, ServiceProvider, ExpenseWithInvoice } from '@/types/expense'
 import type { Shipment } from '@/types/shipment'
 
@@ -61,14 +61,14 @@ const ExpensesPage = () => {
     setShowMultilineForm(false)
   }
 
-  // Load mock data for import functionality
+  // Load real data from backend
   useEffect(() => {
     const loadData = async () => {
       try {
         const [shipmentsData, expenseTypesData, serviceProvidersData] = await Promise.all([
-          getShipments(),
-          getExpenseTypes(),
-          getServiceProviders(),
+          invoke<Shipment[]>('get_shipments'),
+          invoke<ExpenseType[]>('get_expense_types'),
+          invoke<ServiceProvider[]>('get_service_providers'),
         ])
 
         setShipments(shipmentsData)
