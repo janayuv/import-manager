@@ -35,8 +35,11 @@ export default tseslint.config([
     },
     rules: {
       'prettier/prettier': 'warn',
-      // React refresh rule - allow context files to export non-components
-      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // React refresh rule - allow context files to export non-components and constants
+      'react-refresh/only-export-components': ['warn', { 
+        allowConstantExport: true,
+        allowExportNames: ['useTheme', 'useUser', 'useSettings', 'useSidebar']
+      }],
       // Security rules (disabled for legitimate use cases)
       'security/detect-object-injection': 'off', // Too many false positives with TypeScript
       'security/detect-non-literal-regexp': 'error',

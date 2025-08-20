@@ -51,7 +51,7 @@ const sampleCsvData = [
 export const ValidationTest = () => {
   const [activeTab, setActiveTab] = useState('basic')
   const [testResults, setTestResults] = useState<{
-    [key: string]: { success: boolean; message: string; details?: any }
+    [key: string]: { success: boolean; message: string; details?: unknown }
   }>({})
 
   // ============================================================================
@@ -60,10 +60,14 @@ export const ValidationTest = () => {
 
   const BasicValidationTests = () => {
     const [testInput, setTestInput] = useState('')
-    const [validationResult, setValidationResult] = useState<any>(null)
+    const [validationResult, setValidationResult] = useState<{
+      success: boolean
+      error?: string
+    } | null>(null)
 
     const runBasicTests = () => {
-      const results: { [key: string]: { success: boolean; message: string; details?: any } } = {}
+      const results: { [key: string]: { success: boolean; message: string; details?: unknown } } =
+        {}
 
       // Test 1: Valid email
       const emailResult = validateUserInput('test@example.com', {
@@ -231,7 +235,7 @@ export const ValidationTest = () => {
     })
 
     const handleSupplierSubmit = async () => {
-      const success = await supplierValidation.submit(async (data: any) => {
+      const success = await supplierValidation.submit(async (data: Record<string, string>) => {
         console.log('Supplier data:', data)
         toast.success('Supplier validation successful!')
       })
@@ -242,7 +246,7 @@ export const ValidationTest = () => {
     }
 
     const handleShipmentSubmit = async () => {
-      const success = await shipmentValidation.submit(async (data: any) => {
+      const success = await shipmentValidation.submit(async (data: Record<string, string>) => {
         console.log('Shipment data:', data)
         toast.success('Shipment validation successful!')
       })
@@ -253,7 +257,7 @@ export const ValidationTest = () => {
     }
 
     const handleItemSubmit = async () => {
-      const success = await itemValidation.submit(async (data: any) => {
+      const success = await itemValidation.submit(async (data: Record<string, string>) => {
         console.log('Item data:', data)
         toast.success('Item validation successful!')
       })
@@ -596,7 +600,11 @@ export const ValidationTest = () => {
       showToast: true,
     })
 
-    const [fileValidationResult, setFileValidationResult] = useState<any>(null)
+    const [fileValidationResult, setFileValidationResult] = useState<{
+      success: boolean
+      file?: File
+      error?: string
+    } | null>(null)
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
@@ -664,7 +672,10 @@ export const ValidationTest = () => {
 
   const CsvValidationTests = () => {
     const { validateCsv } = useCsvValidation(supplierSchema)
-    const [csvValidationResult, setCsvValidationResult] = useState<any>(null)
+    const [csvValidationResult, setCsvValidationResult] = useState<{
+      valid: Record<string, string>[]
+      invalid: { index: number; errors: string[] }[]
+    } | null>(null)
 
     const testCsvValidation = () => {
       const result = validateCsv(sampleCsvData)
@@ -705,11 +716,13 @@ export const ValidationTest = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {csvValidationResult.valid.map((record: any, index: number) => (
-                          <div key={index} className="text-sm">
-                            <strong>{record.partNumber}</strong> - {record.itemDescription}
-                          </div>
-                        ))}
+                        {csvValidationResult.valid.map(
+                          (record: Record<string, string>, index: number) => (
+                            <div key={index} className="text-sm">
+                              <strong>{record.partNumber}</strong> - {record.itemDescription}
+                            </div>
+                          )
+                        )}
                       </div>
                     </CardContent>
                   </Card>
@@ -722,16 +735,18 @@ export const ValidationTest = () => {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {csvValidationResult.invalid.map((record: any, index: number) => (
-                          <div key={index} className="text-sm">
-                            <strong>Row {record.index + 1}:</strong>
-                            <ul className="ml-4 text-red-500">
-                              {record.errors.map((error: string, errorIndex: number) => (
-                                <li key={errorIndex}>{error}</li>
-                              ))}
-                            </ul>
-                          </div>
-                        ))}
+                        {csvValidationResult.invalid.map(
+                          (record: { index: number; errors: string[] }, index: number) => (
+                            <div key={index} className="text-sm">
+                              <strong>Row {record.index + 1}:</strong>
+                              <ul className="ml-4 text-red-500">
+                                {record.errors.map((error: string, errorIndex: number) => (
+                                  <li key={errorIndex}>{error}</li>
+                                ))}
+                              </ul>
+                            </div>
+                          )
+                        )}
                       </div>
                     </CardContent>
                   </Card>

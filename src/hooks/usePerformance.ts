@@ -140,7 +140,7 @@ export function useCachedData<T>(
 // Optimized data fetching for Tauri commands
 export function useTauriData<T>(
   command: string,
-  params: Record<string, any> = {},
+  params: Record<string, unknown> = {},
   options: {
     ttl?: number
     cacheType?: 'memory' | 'session' | 'persistent' | 'smart'
@@ -165,7 +165,11 @@ export function useTauriData<T>(
 
 // Optimized list data with pagination and filtering
 export function useOptimizedList<T>(
-  fetchFn: (params: { page: number; pageSize: number; filters?: any }) => Promise<{
+  fetchFn: (params: {
+    page: number
+    pageSize: number
+    filters?: Record<string, unknown>
+  }) => Promise<{
     data: T[]
     total: number
     page: number
@@ -174,7 +178,7 @@ export function useOptimizedList<T>(
   options: {
     initialPage?: number
     initialPageSize?: number
-    initialFilters?: any
+    initialFilters?: Record<string, unknown>
     ttl?: number
     cacheType?: 'memory' | 'session' | 'persistent' | 'smart'
   } = {}
@@ -228,7 +232,7 @@ export function useOptimizedList<T>(
     }
   }, [fetchFn, page, pageSize, filters, cacheInstance, ttl])
 
-  const updateFilters = useCallback((newFilters: any) => {
+  const updateFilters = useCallback((newFilters: Record<string, unknown>) => {
     setFilters(newFilters)
     setPage(1) // Reset to first page when filters change
   }, [])
@@ -263,7 +267,7 @@ export function useOptimizedList<T>(
 }
 
 // Optimized form state with debounced updates
-export function useOptimizedForm<T extends Record<string, any>>(
+export function useOptimizedForm<T extends Record<string, unknown>>(
   initialData: T,
   options: {
     debounceMs?: number
@@ -358,8 +362,8 @@ export function useOptimizedTable<T>(
 ) {
   const { storageKey = 'table-state', initialPageSize = 50, enableCaching = true } = options
 
-  const [sorting, setSorting] = useState<any[]>([])
-  const [columnFilters, setColumnFilters] = useState<any[]>([])
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
+  const [columnFilters, setColumnFilters] = useState<Array<{ id: string; value: unknown }>>([])
   const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({})
   const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
   const [globalFilter, setGlobalFilter] = useState('')
@@ -370,8 +374,8 @@ export function useOptimizedTable<T>(
     if (!enableCaching) return
 
     const cached = cache.session.get<{
-      sorting: any[]
-      columnFilters: any[]
+      sorting: Array<{ id: string; desc: boolean }>
+      columnFilters: Array<{ id: string; value: unknown }>
       columnVisibility: Record<string, boolean>
       pageSize: number
     }>(`${storageKey}:state`)

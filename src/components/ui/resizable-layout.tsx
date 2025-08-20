@@ -147,7 +147,7 @@ export function useLayoutPreferences(storageKey: string) {
     }
   })
 
-  const savePreferences = (newPreferences: Record<string, any>) => {
+  const savePreferences = (newPreferences: Record<string, unknown>) => {
     const updated = { ...preferences, ...newPreferences }
     setPreferences(updated)
     try {

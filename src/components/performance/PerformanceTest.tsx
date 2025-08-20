@@ -45,7 +45,7 @@ export const PerformanceTest = () => {
   usePerformanceMonitor('PerformanceTest')
 
   const [activeTab, setActiveTab] = useState('caching')
-  const [testResults, setTestResults] = useState<Record<string, any>>({})
+  const [testResults, setTestResults] = useState<Record<string, number | string>>({})
   const [isRunning, setIsRunning] = useState(false)
 
   // Performance monitoring
@@ -120,7 +120,7 @@ export const PerformanceTest = () => {
   // Performance tests
   const runPerformanceTests = useCallback(async () => {
     setIsRunning(true)
-    const results: Record<string, any> = {}
+    const results: Record<string, number | string> = {}
 
     try {
       // Cache performance test
@@ -368,11 +368,11 @@ export const PerformanceTest = () => {
                   items={sampleData.slice(0, 10)}
                   renderItem={(item) => (
                     <div
-                      key={(item as any).id}
+                      key={(item as { id: string }).id}
                       className="flex items-center justify-between rounded border p-2"
                     >
-                      <span>{(item as any).name}</span>
-                      <span>{(item as any).value.toFixed(2)}</span>
+                      <span>{(item as { name: string }).name}</span>
+                      <span>{(item as { value: number }).value.toFixed(2)}</span>
                     </div>
                   )}
                   containerHeight={200}
@@ -396,7 +396,7 @@ export const PerformanceTest = () => {
                   <OptimizedSkeleton count={3} height="h-8" />
                 </OptimizedGrid>
 
-                <div ref={intersectionRef as any}>
+                <div ref={intersectionRef}>
                   <OptimizedCard title="Intersection Observer Test">
                     <p>This card is {isIntersecting ? 'visible' : 'not visible'} in the viewport</p>
                   </OptimizedCard>

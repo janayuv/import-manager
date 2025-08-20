@@ -224,7 +224,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       setLoading(true)
 
       // Get the current report data based on the active report type
-      let data: any[] = []
+      let data: Record<string, string | number>[] = []
       let filename = `expense-report-${new Date().toISOString().split('T')[0]}`
 
       switch (reportType) {
@@ -339,7 +339,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   }
 
   // CSV Export function
-  const exportToCsv = async (data: any[], filename: string) => {
+  const exportToCsv = async (data: Record<string, string | number>[], filename: string) => {
     const Papa = (await import('papaparse')).default
     const csv = Papa.unparse(data)
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
@@ -354,7 +354,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   }
 
   // Excel Export function
-  const exportToExcel = async (data: any[], filename: string) => {
+  const exportToExcel = async (data: Record<string, string | number>[], filename: string) => {
     const ExcelJS = (await import('exceljs')).default
     const workbook = new ExcelJS.Workbook()
     const worksheet = workbook.addWorksheet('Expense Report')
@@ -382,7 +382,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
     // Auto-fit columns
     worksheet.columns.forEach((column) => {
       if (column.values) {
-        const maxLength = Math.max(...column.values.map((v: any) => (v ? v.toString().length : 0)))
+        const maxLength = Math.max(
+          ...column.values.map((v: unknown) => (v ? v.toString().length : 0))
+        )
         column.width = Math.min(maxLength + 2, 50)
       }
     })
@@ -403,7 +405,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   }
 
   // PDF Export function
-  const exportToPdf = async (data: any[], filename: string) => {
+  const exportToPdf = async (data: Record<string, string | number>[], filename: string) => {
     // For now, we'll create a simple HTML-based PDF
     // In a production environment, you might want to use a proper PDF library like jsPDF
     const htmlContent = `

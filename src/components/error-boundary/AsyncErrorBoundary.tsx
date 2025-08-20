@@ -103,21 +103,24 @@ export function AsyncErrorBoundary({
     }
   }, [resetKey, defaultShowDetails])
 
-  const logError = (error: Error, source: string) => {
-    const errorData = {
-      message: error.message,
-      stack: error.stack,
-      timestamp: new Date().toISOString(),
-      componentName: componentName || 'Unknown',
-      url: window.location.href,
-      userAgent: navigator.userAgent,
-      source,
-    }
+  const logError = useCallback(
+    (error: Error, source: string) => {
+      const errorData = {
+        message: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+        componentName: componentName || 'Unknown',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        source,
+      }
 
-    console.error('Async Error Details:', errorData)
+      console.error('Async Error Details:', errorData)
 
-    // In a production app, you might want to send this to an error reporting service
-  }
+      // In a production app, you might want to send this to an error reporting service
+    },
+    [componentName]
+  )
 
   const handleReset = () => {
     setState({

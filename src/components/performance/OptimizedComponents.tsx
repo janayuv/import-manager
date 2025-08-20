@@ -157,7 +157,11 @@ export const OptimizedList = memo(
 // Optimized table component
 interface OptimizedTableProps<T> {
   data: T[]
-  columns: any[]
+  columns: Array<{
+    key: string
+    header: string
+    cell?: (item: T) => React.ReactNode
+  }>
   loading?: boolean
   error?: string | null
   emptyMessage?: string
@@ -203,7 +207,7 @@ export const OptimizedTable = memo(
 
 // Optimized chart component
 interface OptimizedChartProps {
-  data: any[]
+  data: Array<Record<string, string | number>>
   loading?: boolean
   error?: string | null
   className?: string

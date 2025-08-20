@@ -45,7 +45,7 @@ export class PerformanceObserver {
 
   private observeLargestContentfulPaint() {
     if ('PerformanceObserver' in window) {
-      const observer = new (window as any).PerformanceObserver((list: any) => {
+      const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
         const lastEntry = entries[entries.length - 1]
         this.metrics.largestContentfulPaint = lastEntry.startTime
@@ -57,10 +57,11 @@ export class PerformanceObserver {
 
   private observeFirstInputDelay() {
     if ('PerformanceObserver' in window) {
-      const observer = new (window as any).PerformanceObserver((list: any) => {
+      const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
-        entries.forEach((entry: any) => {
-          this.metrics.firstInputDelay = entry.processingStart - entry.startTime
+        entries.forEach((entry: PerformanceEntry) => {
+          this.metrics.firstInputDelay =
+            (entry as { processingStart: number }).processingStart - entry.startTime
         })
       })
       observer.observe({ entryTypes: ['first-input'] })
@@ -71,11 +72,11 @@ export class PerformanceObserver {
   private observeCumulativeLayoutShift() {
     if ('PerformanceObserver' in window) {
       let clsValue = 0
-      const observer = new (window as any).PerformanceObserver((list: any) => {
+      const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
-        entries.forEach((entry: any) => {
-          if (!entry.hadRecentInput) {
-            clsValue += entry.value
+        entries.forEach((entry: PerformanceEntry) => {
+          if (!(entry as { hadRecentInput: boolean }).hadRecentInput) {
+            clsValue += (entry as { value: number }).value
           }
         })
         this.metrics.cumulativeLayoutShift = clsValue
@@ -87,7 +88,9 @@ export class PerformanceObserver {
 
   private observeMemoryUsage() {
     if ('memory' in performance) {
-      const memory = (performance as any).memory
+      const memory = (
+        performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
+      ).memory
       this.metrics.memoryUsage = memory.usedJSHeapSize
       this.metrics.memoryLimit = memory.jsHeapSizeLimit
     }
@@ -163,10 +166,10 @@ export class BundleAnalyzer {
 // Code splitting utility
 export class CodeSplitter {
   private static loadedChunks: Set<string> = new Set()
-  private static loadingChunks: Map<string, Promise<any>> = new Map()
+  private static loadingChunks: Map<string, Promise<unknown>> = new Map()
 
   // Dynamic import with caching
-  static async loadChunk(chunkName: string, importFn: () => Promise<any>) {
+  static async loadChunk(chunkName: string, importFn: () => Promise<unknown>) {
     // Check if already loaded
     if (this.loadedChunks.has(chunkName)) {
       return
@@ -189,7 +192,7 @@ export class CodeSplitter {
   }
 
   // Preload chunk
-  static preloadChunk(chunkName: string, importFn: () => Promise<any>) {
+  static preloadChunk(chunkName: string, importFn: () => Promise<unknown>) {
     if (!this.loadedChunks.has(chunkName) && !this.loadingChunks.has(chunkName)) {
       this.loadChunk(chunkName, importFn)
     }
@@ -282,7 +285,9 @@ export class MemoryManager {
   // Check memory usage and trigger cleanup if needed
   static checkMemoryUsage() {
     if ('memory' in performance) {
-      const memory = (performance as any).memory
+      const memory = (
+        performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
+      ).memory
       const usageRatio = memory.usedJSHeapSize / memory.jsHeapSizeLimit
 
       if (usageRatio > this.memoryThreshold) {
@@ -311,7 +316,11 @@ export class MemoryManager {
   // Get memory usage
   static getMemoryUsage() {
     if ('memory' in performance) {
-      const memory = (performance as any).memory
+      const memory = (
+        performance as {
+          memory: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number }
+        }
+      ).memory
       return {
         used: memory.usedJSHeapSize,
         total: memory.totalJSHeapSize,
@@ -358,7 +367,7 @@ export class PerformanceReporter {
         renderCount: (acc.renderCount || 0) + report.renderCount,
         renderTime: (acc.renderTime || 0) + report.renderTime,
       }),
-      {} as any
+      {} as Partial<PerformanceMetrics>
     )
 
     const count = this.reports.length
@@ -388,7 +397,7 @@ export class PerformanceReporter {
 // Performance optimization utilities
 export const performanceUtils = {
   // Debounce function
-  debounce<T extends (...args: any[]) => any>(
+  debounce<T extends (...args: unknown[]) => unknown>(
     func: T,
     wait: number
   ): (...args: Parameters<T>) => void {
@@ -400,7 +409,7 @@ export const performanceUtils = {
   },
 
   // Throttle function
-  throttle<T extends (...args: any[]) => any>(
+  throttle<T extends (...args: unknown[]) => unknown>(
     func: T,
     limit: number
   ): (...args: Parameters<T>) => void {
