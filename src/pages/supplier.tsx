@@ -332,21 +332,7 @@ const SupplierPage = () => {
             <Upload className="mr-2 h-4 w-4" />
             Import
           </Button>
-          <Button
-            variant="destructive"
-            onClick={async () => {
-              try {
-                await invoke('clear_suppliers')
-                toast.success('Database cleared')
-                fetchSuppliers()
-              } catch (error) {
-                console.error('Failed to clear suppliers:', error)
-                toast.error('Failed to clear suppliers')
-              }
-            }}
-          >
-            Clear DB
-          </Button>
+
           <AddSupplierForm onAdd={handleAdd} />
         </div>
       </div>

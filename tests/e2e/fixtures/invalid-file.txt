@@ -1,0 +1,3 @@
+This is an invalid file for testing error handling
+It should not be parsed as CSV or Excel
+The import should fail gracefully

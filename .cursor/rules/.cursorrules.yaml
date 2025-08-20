@@ -1,0 +1,106 @@
+# ================================================================
+# Cursor Rules for Import Manager (Tauri + React + SQLite)
+# Hybrid version: Enforceable rules + inline audit context
+# ================================================================
+# Reference: High-priority audit prompt (Security & Ops)
+# Main areas:
+# A. Tauri signing & secure auto-update
+# B. SQLite encryption (SQLCipher) & migration
+# C. Embedded migrations & schema handling
+# D. CI secrets & signing keys
+# E. Windows-only platform enforcement
+# ================================================================
+
+rules:
+  - name: 'Tauri Signing & Secure Auto-update'
+    description: 'All release builds must be signed and updates verified.'
+    patterns:
+      - 'src-tauri/tauri.conf.json'
+      - '.github/workflows/*.yml'
+    actions:
+      - enforce: 'Public signing key file must exist (e.g., RELEASES/public_key.pem)'
+      - enforce: 'Private signing key must never be committed — only loaded from GitHub Secrets'
+      - enforce: 'Release workflows must sign artifacts using CI secret key'
+      - enforce: 'Updater config must verify signatures against public key'
+      - audit: 'Check for missing pubkey field in updater config'
+      - audit: 'Check workflows for plain-text private key or token leakage'
+
+  - name: 'SQLite Encryption (SQLCipher)'
+    description: 'Local data must be encrypted at rest using SQLCipher.'
+    patterns:
+      - 'src/db/**/*.ts'
+      - 'src-tauri/src/**/*.rs'
+    actions:
+      - enforce: 'DB connections must require PRAGMA key before queries'
+      - enforce: 'Unencrypted SQLite must not be opened in production builds'
+      - enforce: 'Keys must be retrieved via OS keychain or passphrase KDF (PBKDF2/Argon2)'
+      - audit: "Detect raw 'sqlite3(' usage without PRAGMA key"
+      - audit: 'Check if migrations preserve encryption after backup/migrate'
+
+  - name: 'Database Schema Migrations'
+    description: 'Schema drift must be handled with embedded migrations.'
+    patterns:
+      - 'migrations/*.sql'
+      - 'src-tauri/src/**/*.rs'
+    actions:
+      - enforce: 'Migrations must be stored in migrations/ folder and versioned'
+      - enforce: 'Startup code must run pending migrations before DB use'
+      - enforce: 'Backup DB before applying migrations'
+      - enforce: 'CI must fail if migrations folder is missing or not applied'
+      - audit: 'Check for missing checksum verification in migrations'
+      - audit: 'Check for schema drift vs migrations folder'
+
+  - name: 'CI Secrets & Security'
+    description: 'Protect sensitive keys and enforce safe workflows.'
+    patterns:
+      - '.github/workflows/*.yml'
+    actions:
+      - enforce: 'Never hardcode secrets in workflows'
+      - enforce: 'Signing must use secrets.TAURI_SIGNING_PRIVATE_KEY'
+      - enforce: 'Do not echo or print secrets in CI logs'
+      - enforce: 'Protected branches (e.g., main) must require passing CI checks'
+      - audit: 'Check for base64 or hex blobs that look like keys/tokens'
+      - audit: 'Ensure branch protection is documented in SECURITY.md'
+
+  - name: 'Windows-only Platform Restriction'
+    description: 'This project is Windows-only. Do not configure or attempt builds for Linux/macOS.'
+    patterns:
+      - 'src-tauri/tauri.conf.json'
+      - '.github/workflows/*.yml'
+      - 'docs/**/*.md'
+    actions:
+      - enforce: 'Tauri build target must always be Windows (msi/exe)'
+      - enforce: 'CI workflows must restrict OS to windows-latest'
+      - enforce: "Docs and README must clearly state: 'This project supports only Windows'"
+      - audit: 'Flag any macOS/Linux build targets in tauri.conf.json'
+      - audit: 'Check workflows for non-Windows runners'
+      - audit: 'Flag docs suggesting cross-platform builds'
+
+# ================================================================
+# Security Audit Report Template
+# ================================================================
+report:
+  format: |
+    # 🔒 Security Audit Report
+
+    ## ✅ Summary
+    - Status: {status}
+    - Files Checked: {files}
+    - Rules Enforced: {rules}
+
+    ## 🚨 Issues Detected
+    {issues}
+
+    ## 📋 Details
+    Each issue is shown with:
+    - **File/Line**: {file}:{line}
+    - **Issue**: {description}
+    - **Risk**: {risk}
+    - **Suggested Fix**: {fix}
+
+    ## 🎯 Recommendations
+    - Strengthen enforcement by adding missing security rules.
+    - Review CI/CD and ensure secrets are never committed.
+    - Ensure SQLite encryption is enabled before production release.
+    - Confirm updater signing key is present and verified.
+    - Keep platform scope Windows-only (no cross-platform builds).

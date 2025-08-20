@@ -50,6 +50,11 @@ export const navItems = [
     title: 'Expenses',
     url: '/expenses',
     icon: CircleDollarSign,
+    items: [
+      { title: 'Manage Expenses', url: '/expenses' },
+      { title: 'Expense Reports', url: '/expense-reports' },
+      { title: 'Data Manager', url: '/expense-data-manager' },
+    ],
   },
   {
     title: 'Report',

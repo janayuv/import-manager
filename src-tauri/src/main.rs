@@ -3,8 +3,36 @@
 mod db;
 mod commands;
 mod expense;
+mod encryption;
+mod migrations;
+
 extern crate paste;
 use tauri::Manager;
+use hex;
+
+fn create_new_encrypted_database(db_path: &std::path::Path, encryption: &encryption::DatabaseEncryption) -> rusqlite::Connection {
+    // Generate a new encryption key
+    let key = encryption::DatabaseEncryption::generate_key();
+    encryption.store_key(&key).expect("Failed to store encryption key");
+    
+    // Create the encrypted database
+    let conn = rusqlite::Connection::open(db_path).expect("Failed to create database file");
+    
+    // Enable encryption with SQLCipher
+    conn.execute_batch(&format!(
+        "PRAGMA cipher_page_size = 4096;
+         PRAGMA kdf_iter = 256000;
+         PRAGMA cipher_hmac_algorithm = HMAC_SHA512;
+         PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA512;
+         PRAGMA key = \"x'{}'\";",
+        hex::encode(&key)
+    )).expect("Failed to enable encryption");
+    
+    // Initialize the database schema
+    db::init_schema(&conn).expect("Failed to initialize database schema");
+    
+    conn
+}
 
 fn main() {
     tauri::Builder::default()
@@ -16,8 +44,94 @@ fn main() {
             if !data_dir.exists() {
                 std::fs::create_dir_all(&data_dir).expect("Failed to create app data dir");
             }
+            
             let db_path = data_dir.join("import-manager.db");
-            let db_connection = db::init(&db_path).expect("Database initialization failed");
+            let encryption = encryption::DatabaseEncryption::new();
+            
+            // Check if database exists and needs migration
+            if db_path.exists() {
+                match encryption::DatabaseEncryption::is_encrypted(&db_path) {
+                    Ok(false) => {
+                        // Database exists but is not encrypted - migrate it
+                        let backup_path = data_dir.join("import-manager.db.backup");
+                        std::fs::copy(&db_path, &backup_path).expect("Failed to create backup");
+                        
+                        let encrypted_path = data_dir.join("import-manager.db.encrypted");
+                        encryption.migrate_to_encrypted(&db_path, &encrypted_path)
+                            .expect("Failed to migrate database to encrypted");
+                        
+                        // Replace original with encrypted version
+                        std::fs::remove_file(&db_path).expect("Failed to remove plaintext database");
+                        std::fs::rename(&encrypted_path, &db_path).expect("Failed to rename encrypted database");
+                        
+                        log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
+                    }
+                    Ok(true) => {
+                        // Database is already encrypted
+                        log::info!("Using existing encrypted database");
+                    }
+                    Err(_) => {
+                        // Database might be corrupted, start fresh
+                        log::warn!("Database appears corrupted, starting fresh");
+                        if db_path.exists() {
+                            std::fs::remove_file(&db_path).expect("Failed to remove corrupted database");
+                        }
+                    }
+                }
+            }
+            
+            // Initialize database (will create encrypted if new)
+            let mut db_connection = if db_path.exists() {
+                // Database exists, check if it's encrypted
+                match encryption::DatabaseEncryption::is_encrypted(&db_path) {
+                    Ok(true) => {
+                        // Database is encrypted, try to open it
+                        match encryption.open_encrypted(&db_path) {
+                            Ok(conn) => conn,
+                            Err(e) => {
+                                log::warn!("Failed to open encrypted database: {}. Starting fresh.", e);
+                                // Remove the corrupted/encrypted database and start fresh
+                                std::fs::remove_file(&db_path).expect("Failed to remove corrupted database");
+                                create_new_encrypted_database(&db_path, &encryption)
+                            }
+                        }
+                    }
+                    Ok(false) => {
+                        // Database exists but is plaintext - migrate it
+                        let backup_path = data_dir.join("import-manager.db.backup");
+                        std::fs::copy(&db_path, &backup_path).expect("Failed to create backup");
+                        
+                        let encrypted_path = data_dir.join("import-manager.db.encrypted");
+                        encryption.migrate_to_encrypted(&db_path, &encrypted_path)
+                            .expect("Failed to migrate database to encrypted");
+                        
+                        // Replace original with encrypted version
+                        std::fs::remove_file(&db_path).expect("Failed to remove plaintext database");
+                        std::fs::rename(&encrypted_path, &db_path).expect("Failed to rename encrypted database");
+                        
+                        log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
+                        
+                        // Open the newly encrypted database
+                        encryption.open_encrypted(&db_path).expect("Failed to open migrated encrypted database")
+                    }
+                    Err(_) => {
+                        // Database might be corrupted, start fresh
+                        log::warn!("Database appears corrupted, starting fresh");
+                        if db_path.exists() {
+                            std::fs::remove_file(&db_path).expect("Failed to remove corrupted database");
+                        }
+                        create_new_encrypted_database(&db_path, &encryption)
+                    }
+                }
+            } else {
+                // No database exists, create a new encrypted one
+                create_new_encrypted_database(&db_path, &encryption)
+            };
+            
+            // Run migrations
+            migrations::DatabaseMigrations::run_migrations(&mut db_connection)
+                .expect("Failed to run database migrations");
+            
             app.manage(db::DbState { db: std::sync::Mutex::new(db_connection) });
 
             Ok(())
@@ -27,9 +141,7 @@ fn main() {
             commands::get_suppliers,
             commands::add_supplier,
             commands::update_supplier,
-            commands::add_suppliers_bulk,
-            commands::clear_suppliers,
-            
+                        commands::add_suppliers_bulk,            
             // Shipment commands
             commands::get_shipments,
             commands::get_active_shipments,
@@ -112,6 +224,9 @@ fn main() {
             commands::fix_expense_types,
             commands::fix_existing_expenses,
             commands::fix_lcl_charges_rate,
+            commands::clear_expense_data,
+            commands::debug_expense_data,
+            commands::cleanup_orphaned_expenses,
             commands::get_expense_invoices_for_shipment,
             commands::get_expenses_for_invoice,
             commands::get_expenses_for_shipment,
@@ -122,6 +237,8 @@ fn main() {
             commands::delete_expense,
             commands::attach_invoice_to_expense,
             commands::add_expenses_bulk,
+            commands::delete_expense_invoice,
+            commands::cleanup_orphaned_expense_invoices,
             commands::generate_shipment_expense_report,
             commands::generate_monthly_gst_summary,
             
@@ -130,6 +247,16 @@ fn main() {
             expense::preview_expense_invoice,
             expense::combine_expense_duplicates,
             expense::get_expense_invoice,
+            
+            // Expense Reporting Commands
+            commands::generate_expense_report,
+            commands::generate_expense_summary_by_type,
+            commands::generate_expense_summary_by_provider,
+            commands::generate_expense_summary_by_shipment,
+            commands::generate_expense_summary_by_month,
+            // --- User Context ---
+            commands::get_current_user_info,
+            commands::get_user_context,
             // --- Reports ---
             commands::get_report,
             // Freeze shipment
@@ -139,6 +266,8 @@ fn main() {
             // Validation commands
             commands::validate_shipment_import,
             commands::check_supplier_exists,
+            
+
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

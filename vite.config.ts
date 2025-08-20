@@ -28,5 +28,53 @@ export default defineConfig({
     minify: !process.env.TAURI_DEBUG ? 'esbuild' : false,
     // 6. produce sourcemaps for debug builds
     sourcemap: !!process.env.TAURI_DEBUG,
+    // Performance optimizations
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          // Vendor chunks for better caching
+          vendor: ['react', 'react-dom'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
+          utils: ['date-fns', 'clsx', 'tailwind-merge'],
+          charts: ['recharts'],
+          tauri: ['@tauri-apps/api'],
+        },
+        // Optimize chunk naming for better caching
+        chunkFileNames: () => {
+          return `js/[name]-[hash].js`
+        },
+        entryFileNames: 'js/[name]-[hash].js',
+        assetFileNames: (assetInfo) => {
+          const info = assetInfo.name?.split('.') || []
+          const ext = info[info.length - 1]
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
+            return `images/[name]-[hash][extname]`
+          }
+          if (/css/i.test(ext)) {
+            return `css/[name]-[hash][extname]`
+          }
+          return `assets/[name]-[hash][extname]`
+        },
+      },
+    },
+    // Enable chunk size warnings
+    chunkSizeWarningLimit: 1000,
+  },
+  // Performance optimizations for development
+  optimizeDeps: {
+    include: [
+      'react',
+      'react-dom',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-select',
+      'date-fns',
+      'clsx',
+      'tailwind-merge',
+    ],
+  },
+  // CSS optimizations
+  css: {
+    devSourcemap: true,
   },
 })

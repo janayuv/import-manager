@@ -2,6 +2,9 @@
 
 A comprehensive desktop application for managing import/export operations, built with Tauri, React, and TypeScript.
 
+> **⚠️ Platform Restriction: Windows Only**  
+> This application is designed exclusively for Windows and is not compatible with Linux or macOS. The app depends on Windows-specific integrations and is not intended for cross-platform use.
+
 ## 🚀 Features
 
 ### Core Functionality
@@ -35,6 +38,7 @@ A comprehensive desktop application for managing import/export operations, built
 
 ## 📋 Prerequisites
 
+- **Windows 10/11** (64-bit)
 - **Node.js** 18+
 - **Rust** (latest stable)
 - **Git**

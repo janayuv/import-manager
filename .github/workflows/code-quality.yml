@@ -8,7 +8,7 @@ on:
 
 jobs:
   lint-and-format:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code
@@ -36,7 +36,7 @@ jobs:
         run: npm run build
 
   security:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
 
     steps:
       - name: Checkout code

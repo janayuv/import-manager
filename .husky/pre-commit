@@ -1,1 +1,18 @@
-npx --no-install lint-staged
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔒 Running security checks..."
+
+# Run ESLint with security rules
+echo "Running ESLint security checks..."
+npx eslint . --ext .ts,.tsx,.js,.jsx,.yml,.yaml --max-warnings 0
+
+# Run custom security checks
+echo "Running custom security checks..."
+node scripts/security-check.js
+
+# Run security audit
+echo "Running security audit..."
+npm audit --audit-level=moderate
+
+echo "✅ Security checks passed!"

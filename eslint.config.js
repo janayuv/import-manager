@@ -5,9 +5,18 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import tseslint from 'typescript-eslint'
 import { globalIgnores } from 'eslint/config'
 import prettier from 'eslint-plugin-prettier'
+import security from 'eslint-plugin-security'
 
 export default tseslint.config([
-  globalIgnores(['dist']),
+  globalIgnores([
+    'dist',
+    'src-tauri/target',
+    'test-results',
+    '.cursor',
+    '.github',
+    'playwright-report',
+    'node_modules'
+  ]),
   {
     files: ['**/*.{ts,tsx}'],
     extends: [
@@ -22,9 +31,61 @@ export default tseslint.config([
     },
     plugins: {
       prettier,
+      security,
     },
     rules: {
       'prettier/prettier': 'warn',
+      // React refresh rule - allow context files to export non-components
+      'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
+      // Security rules (disabled for legitimate use cases)
+      'security/detect-object-injection': 'off', // Too many false positives with TypeScript
+      'security/detect-non-literal-regexp': 'error',
+      'security/detect-unsafe-regex': 'off', // Needed for validation patterns
+      'security/detect-buffer-noassert': 'error',
+      'security/detect-child-process': 'error',
+      'security/detect-disable-mustache-escape': 'error',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-no-csrf-before-method-override': 'error',
+      'security/detect-non-literal-fs-filename': 'error',
+      'security/detect-non-literal-require': 'error',
+      'security/detect-possible-timing-attacks': 'error',
+      'security/detect-pseudoRandomBytes': 'error',
+      // Custom security rules
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'CallExpression[callee.object.name="sqlite3"][callee.property.name="Database"]',
+          message: 'Use SQLCipher with PRAGMA key for encrypted SQLite databases',
+        },
+        {
+          selector: 'NewExpression[callee.object.name="sqlite3"][callee.property.name="Database"]',
+          message: 'Use SQLCipher with PRAGMA key for encrypted SQLite databases',
+        },
+      ],
+    },
+  },
+  {
+    files: ['**/*.{yml,yaml}'],
+    languageOptions: {
+      ecmaVersion: 2020,
+    },
+    rules: {
+      // YAML-specific security rules
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: 'Literal[value*="-----BEGIN PRIVATE KEY-----"]',
+          message: 'Do not hardcode private keys in YAML files. Use GitHub Secrets instead.',
+        },
+        {
+          selector: 'Literal[value*="TAURI_SIGNING_PRIVATE_KEY"]',
+          message: 'Use secrets.TAURI_SIGNING_PRIVATE_KEY instead of hardcoding the key.',
+        },
+        {
+          selector: 'Literal[value*="Bearer "]',
+          message: 'Do not hardcode Bearer tokens. Use GitHub Secrets instead.',
+        },
+      ],
     },
   },
 ])

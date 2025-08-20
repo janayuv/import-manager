@@ -16,15 +16,24 @@ import {
 import { navItems } from './nav-data'
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
-
-// Placeholder user data
-const userData = {
-  name: 'Admin User',
-  email: 'admin@importmanager.com',
-  avatar: '/avatars/placeholder.jpg',
-}
+import { useUser } from '@/lib/user-context'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  const { user } = useUser()
+
+  // Fallback user data if no user is logged in
+  const userData = user
+    ? {
+        name: user.name,
+        email: user.email,
+        avatar: user.avatar || '/avatars/placeholder.jpg',
+      }
+    : {
+        name: 'Guest User',
+        email: 'guest@importmanager.com',
+        avatar: '/avatars/placeholder.jpg',
+      }
+
   return (
     <Sidebar className="h-full" {...props}>
       <SidebarHeader>

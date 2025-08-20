@@ -958,7 +958,9 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial
       !Array.isArray(source[key])
     ) {
       const targetValue = (target[key] as Record<string, unknown>) || {}
+
       const sourceValue = source[key] as Record<string, unknown>
+
       result[key] = deepMerge(targetValue, sourceValue) as T[Extract<keyof T, string>]
     } else if (source[key] !== undefined) {
       result[key] = source[key] as T[Extract<keyof T, string>]
@@ -1405,6 +1407,7 @@ export function formatText(
 // Module settings helpers
 export function getModuleSettings(moduleName: keyof AppSettings['modules']): ModuleSettings {
   const settings = loadSettings()
+
   return settings.modules[moduleName]
 }
 
@@ -1470,6 +1473,7 @@ export function getFieldConfig(
   fieldName: string
 ): ModuleFieldSettings | undefined {
   const moduleSettings = getModuleSettings(moduleName)
+
   return moduleSettings.fields[fieldName]
 }
 

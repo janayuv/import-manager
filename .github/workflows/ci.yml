@@ -10,7 +10,7 @@ jobs:
   check-code:
     name: Check Code Quality
     runs-on: windows-latest
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
     name: Build Application
     runs-on: windows-latest
     needs: check-code
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -94,7 +94,7 @@ jobs:
     name: Run Tests
     runs-on: windows-latest
     needs: check-code
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

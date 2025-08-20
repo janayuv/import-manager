@@ -79,6 +79,7 @@ const getFieldDisplayName = (fieldName: string) => {
     actualDuty: 'Actual Duty',
     savings: 'Savings',
   }
+
   return fieldMap[fieldName] || fieldName
 }
 
@@ -296,7 +297,11 @@ async function exportXlsx(params: {
     const headers = Object.keys(itemsRows[0])
     itemsSheet.addRow(headers)
     itemsRows.forEach((row) => {
-      itemsSheet.addRow(headers.map((header) => row[header]))
+      itemsSheet.addRow(
+        headers.map((header) => {
+          return row[header]
+        })
+      )
     })
   }
 
@@ -349,6 +354,7 @@ function printReport(params: {
         const cells = orderedFields
           .map((fieldName) => {
             const displayName = getFieldDisplayName(fieldName)
+
             const value = r[displayName] ?? '-'
             const isNumeric = [
               'assessableValue',
@@ -1017,11 +1023,13 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                     onClick={async () => {
                       const idx = savedBoes.findIndex((b) => b.id === selectedData.savedBoe!.id)
                       if (idx < 0) return
+
                       const old = savedBoes[idx]
                       const next = {
                         ...old,
                         status: pendingStatus as SavedBoe['status'],
                       } as SavedBoe
+
                       savedBoes[idx] = next
                       setIsUpdatingStatus(true)
                       const toastId = toast.loading('Updating status...')
@@ -1149,6 +1157,7 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                             ...current,
                             attachments: [...(current.attachments ?? []), att],
                           } as SavedBoe
+
                           savedBoes[idx] = next
 
                           console.log('💾 Saving attachment to database...')

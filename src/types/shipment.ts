@@ -7,16 +7,16 @@ export interface Shipment {
   invoiceValue: number
   invoiceCurrency: string
   incoterm: string
-  shipmentMode: string
-  shipmentType: string
-  blAwbNumber: string
-  blAwbDate: string
-  vesselName: string
+  shipmentMode?: string
+  shipmentType?: string
+  blAwbNumber?: string
+  blAwbDate?: string
+  vesselName?: string
   containerNumber?: string
-  grossWeightKg: number
-  etd: string
-  eta: string
-  status: string
+  grossWeightKg?: number
+  etd?: string
+  eta?: string
+  status?: string
   dateOfDelivery?: string
   isFrozen: boolean
 }

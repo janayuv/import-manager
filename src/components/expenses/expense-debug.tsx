@@ -133,6 +133,20 @@ export function ExpenseDebug() {
     }
   }
 
+  const cleanupOrphanedExpenseInvoices = async () => {
+    setLoading(true)
+    try {
+      const result = await invoke<string>('cleanup_orphaned_expense_invoices')
+      setDebugInfo(result)
+      toast.success('Cleaned up orphaned expense invoices')
+    } catch (error) {
+      console.error('Failed to cleanup orphaned expense invoices:', error)
+      toast.error('Failed to cleanup orphaned expense invoices')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   return (
     <div className="space-y-6 p-6">
       <Card>
@@ -157,6 +171,13 @@ export function ExpenseDebug() {
               </Button>
               <Button onClick={fixLclChargesRate} disabled={loading} variant="destructive">
                 Fix LCL Charges Rate
+              </Button>
+              <Button
+                onClick={cleanupOrphanedExpenseInvoices}
+                disabled={loading}
+                variant="destructive"
+              >
+                Cleanup Orphaned Invoices
               </Button>
             </div>
 

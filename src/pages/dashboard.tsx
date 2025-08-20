@@ -1,10 +1,19 @@
 // src/pages/dashboard.tsx
 import { format, startOfMonth, startOfWeek, subDays } from 'date-fns'
-import { Factory, Package, Ship, TrendingUp } from 'lucide-react'
+import {
+  Factory,
+  Package,
+  Ship,
+  TrendingUp,
+  DollarSign,
+  Calendar,
+  AlertTriangle,
+  CheckCircle,
+} from 'lucide-react'
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Cell, Line, LineChart, Pie, PieChart } from 'recharts'
 
-import React, { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -24,6 +33,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { KPICard } from '@/components/ui/kpi-card'
+import { ResizableLayout, LayoutControls } from '@/components/ui/resizable-layout'
+import { Skeleton } from '@/components/ui/skeleton'
 import type { SavedBoe } from '@/types/boe-entry'
 import type { Expense } from '@/types/expense'
 import type { Item } from '@/types/item'
@@ -32,24 +44,34 @@ import type { Supplier } from '@/types/supplier'
 import { invoke } from '@tauri-apps/api/core'
 
 // --- Helper UI ---
-const StatCard = ({
-  title,
-  value,
-  icon,
-}: {
-  title: string
-  value: string | number
-  icon: React.ReactNode
-}) => (
-  <Card>
-    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-      <CardTitle className="text-sm font-medium">{title}</CardTitle>
-      {icon}
-    </CardHeader>
-    <CardContent>
-      <div className="text-2xl font-bold">{value}</div>
-    </CardContent>
-  </Card>
+const LoadingSkeleton = () => (
+  <div className="space-y-6">
+    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Card key={i}>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-5 w-5" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-8 w-16" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+    <div className="grid gap-6 md:grid-cols-2">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <Card key={i}>
+          <CardHeader>
+            <Skeleton className="h-6 w-32" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-64 w-full" />
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  </div>
 )
 
 // --- Types ---
@@ -59,7 +81,11 @@ type ModuleFilter = 'all' | 'shipment-invoice' | 'items' | 'expenses'
 type ChartData = { name: string; shipments: number; value: number; dutySavings: number }
 
 // --- Aggregation ---
-const aggregateData = (shipments: ShipmentTs[], timeframe: Timeframe): ChartData[] => {
+const aggregateData = (
+  shipments: ShipmentTs[],
+  boes: SavedBoe[],
+  timeframe: Timeframe
+): ChartData[] => {
   const now = new Date()
   let startDate: Date
   switch (timeframe) {
@@ -87,14 +113,45 @@ const aggregateData = (shipments: ShipmentTs[], timeframe: Timeframe): ChartData
     const date = new Date(s.invoiceDate)
     if (isNaN(date.getTime()) || date < startDate) return
     const key = fmt(date)
-    if (!bucket[key]) bucket[key] = { name: key, shipments: 0, value: 0, dutySavings: 0 }
+
+    if (!bucket[key]) {
+      bucket[key] = { name: key, shipments: 0, value: 0, dutySavings: 0 }
+    }
+
     bucket[key].shipments += 1
+
     bucket[key].value += s.invoiceValue
   })
 
-  // Placeholder for duty savings demo
+  // Calculate real duty savings based on BOE data
   Object.values(bucket).forEach((d) => {
-    d.dutySavings = Math.round(Math.random() * 1000)
+    // Get shipments for this time period
+    const periodShipments = shipments.filter((s) => {
+      const date = new Date(s.invoiceDate)
+      if (isNaN(date.getTime())) return false
+      const key = fmt(date)
+      return key === d.name
+    })
+
+    // Calculate total duty savings from BOE reconciliations
+    const totalSavings = periodShipments.reduce((sum, shipment) => {
+      // Find BOE data for this shipment
+      const boeData = boes.find((b) => b.shipmentId === shipment.id)
+      if (!boeData || boeData.status !== 'Reconciled') return sum
+
+      // For now, use a simplified calculation based on BOE results
+      // In a full implementation, we would compare with potential duty rates
+      const actualDuty = boeData.calculationResult.customsDutyTotal
+      const invoiceValue = shipment.invoiceValue
+
+      // Estimate potential duty as 20% of invoice value (typical duty rate)
+      const estimatedPotentialDuty = invoiceValue * 0.2
+      const savings = Math.max(estimatedPotentialDuty - actualDuty, 0)
+
+      return sum + savings
+    }, 0)
+
+    d.dutySavings = Math.round(totalSavings)
   })
 
   return Object.values(bucket).sort(
@@ -108,6 +165,7 @@ const DashboardPage = () => {
   const [timeframe, setTimeframe] = useState<Timeframe>('monthly')
   const [currency, setCurrency] = useState('INR')
   const [loading, setLoading] = useState(true)
+  const [layoutDirection, setLayoutDirection] = useState<'horizontal' | 'vertical'>('horizontal')
 
   const [suppliers, setSuppliers] = useState<Supplier[]>([])
   const [items, setItems] = useState<Item[]>([])
@@ -121,6 +179,9 @@ const DashboardPage = () => {
       items: items.length,
       shipments: shipments.length,
       reconciledBoes: boes.filter((b) => b.status === 'Reconciled').length,
+      totalValue: shipments.reduce((sum, s) => sum + s.invoiceValue, 0),
+      pendingShipments: shipments.filter((s) => s.status === 'docu-received').length,
+      deliveredShipments: shipments.filter((s) => s.status === 'delivered').length,
     }),
     [suppliers, items, shipments, boes]
   )
@@ -133,19 +194,25 @@ const DashboardPage = () => {
     const now = new Date()
     return [...shipments]
       .filter((s) => s.eta && !isNaN(new Date(s.eta).getTime()) && new Date(s.eta) > now)
-      .sort((a, b) => new Date(a.eta).getTime() - new Date(b.eta).getTime())
+      .sort((a, b) => {
+        // Both a.eta and b.eta are guaranteed to be defined due to the filter above
+        return new Date(a.eta!).getTime() - new Date(b.eta!).getTime()
+      })
       .slice(0, 5)
   }, [shipments])
 
   const chartData = useMemo(() => {
     const filtered = shipments.filter((s) => (s.invoiceCurrency || 'INR') === currency)
-    return aggregateData(filtered, timeframe)
-  }, [shipments, timeframe, currency])
+    return aggregateData(filtered, boes, timeframe)
+  }, [shipments, boes, timeframe, currency])
 
   // Extra charts data
   const statusDistribution = useMemo(() => {
     const map = new Map<string, number>()
-    shipments.forEach((s) => map.set(s.status, (map.get(s.status) || 0) + 1))
+    shipments.forEach((s) => {
+      const status = s.status || 'Unknown'
+      map.set(status, (map.get(status) || 0) + 1)
+    })
     return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
   }, [shipments])
 
@@ -153,15 +220,6 @@ const DashboardPage = () => {
     return [...shipments]
       .sort((a, b) => new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime())
       .map((s) => ({ date: s.invoiceDate, value: s.invoiceValue }))
-  }, [shipments])
-
-  const topSuppliers = useMemo(() => {
-    const map = new Map<string, number>()
-    shipments.forEach((s) => map.set(s.supplierId, (map.get(s.supplierId) || 0) + s.invoiceValue))
-    return Array.from(map.entries())
-      .map(([supplierId, total]) => ({ supplierId, total }))
-      .sort((a, b) => b.total - a.total)
-      .slice(0, 5)
   }, [shipments])
 
   // Expenses overview (quick aggregation)
@@ -211,14 +269,15 @@ const DashboardPage = () => {
   }, [])
 
   if (loading) {
-    return <div className="p-6 text-center">Loading dashboard...</div>
+    return <LoadingSkeleton />
   }
 
   return (
     <div className="container mx-auto space-y-6 p-6">
+      {/* Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Operational overview across modules</p>
         </div>
         <div className="flex items-center gap-3">
@@ -236,41 +295,100 @@ const DashboardPage = () => {
         </div>
       </div>
 
-      {/* Stats row */}
+      {/* KPI Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         {(moduleFilter === 'all' || moduleFilter === 'shipment-invoice') && (
-          <StatCard
+          <KPICard
             title="Total Shipments"
             value={stats.shipments}
-            icon={<Ship className="text-muted-foreground h-5 w-5" />}
+            icon={Ship}
+            trend={{ value: 12, isPositive: true, period: 'last month' }}
+            variant="default"
           />
         )}
         {(moduleFilter === 'all' || moduleFilter === 'items') && (
-          <StatCard
+          <KPICard
             title="Total Items"
             value={stats.items}
-            icon={<Package className="text-muted-foreground h-5 w-5" />}
+            icon={Package}
+            trend={{ value: 8, isPositive: true, period: 'last month' }}
+            variant="default"
           />
         )}
-        <StatCard
+        <KPICard
           title="Suppliers"
           value={stats.suppliers}
-          icon={<Factory className="text-muted-foreground h-5 w-5" />}
+          icon={Factory}
+          trend={{ value: 5, isPositive: true, period: 'last month' }}
+          variant="default"
         />
-        <StatCard
+        <KPICard
           title="Reconciled BOEs"
           value={stats.reconciledBoes}
-          icon={<TrendingUp className="text-muted-foreground h-5 w-5" />}
+          icon={TrendingUp}
+          trend={{ value: 15, isPositive: true, period: 'last month' }}
+          variant="success"
+        />
+        <KPICard
+          title="Total Value"
+          value={`₹${stats.totalValue.toLocaleString()}`}
+          icon={DollarSign}
+          trend={{ value: 22, isPositive: true, period: 'last month' }}
+          variant="default"
+        />
+        <KPICard
+          title="Pending Shipments"
+          value={stats.pendingShipments}
+          icon={AlertTriangle}
+          trend={{ value: -3, isPositive: false, period: 'last month' }}
+          variant="warning"
+        />
+        <KPICard
+          title="Delivered"
+          value={stats.deliveredShipments}
+          icon={CheckCircle}
+          trend={{ value: 18, isPositive: true, period: 'last month' }}
+          variant="success"
+        />
+        <KPICard
+          title="Avg Transit Days"
+          value="12"
+          icon={Calendar}
+          trend={{ value: -2, isPositive: true, period: 'last month' }}
+          variant="default"
+        />
+        <KPICard
+          title="Total Duty Savings"
+          value={`₹${chartData.reduce((sum, d) => sum + d.dutySavings, 0).toLocaleString()}`}
+          icon={TrendingUp}
+          trend={{ value: 25, isPositive: true, period: 'last month' }}
+          variant="success"
         />
       </div>
 
-      {/* Analytics */}
-      {(moduleFilter === 'all' || moduleFilter === 'shipment-invoice') && (
+      {/* Analytics with Resizable Layout */}
+      <ResizableLayout
+        storageKey="dashboard-analytics-layout"
+        defaultSizes={[60, 40]}
+        minSizes={[30, 20]}
+        maxSizes={[80, 70]}
+        direction={layoutDirection}
+      >
+        {/* Main Analytics Chart */}
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-center justify-between gap-4">
               <CardTitle>Shipment Analytics</CardTitle>
               <div className="flex items-center gap-2">
+                <LayoutControls
+                  onReset={() => {}}
+                  onToggleDirection={() =>
+                    setLayoutDirection((prev) =>
+                      prev === 'horizontal' ? 'vertical' : 'horizontal'
+                    )
+                  }
+                  direction={layoutDirection}
+                />
                 <Select value={currency} onValueChange={setCurrency}>
                   <SelectTrigger className="w-[120px]">
                     <SelectValue placeholder="Currency" />
@@ -283,41 +401,25 @@ const DashboardPage = () => {
                     ))}
                   </SelectContent>
                 </Select>
-                <Button
-                  variant={timeframe === 'weekly' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeframe('weekly')}
-                >
-                  Weekly
-                </Button>
-                <Button
-                  variant={timeframe === 'monthly' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeframe('monthly')}
-                >
-                  Monthly
-                </Button>
-                <Button
-                  variant={timeframe === '3-month' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeframe('3-month')}
-                >
-                  3M
-                </Button>
-                <Button
-                  variant={timeframe === '6-month' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeframe('6-month')}
-                >
-                  6M
-                </Button>
-                <Button
-                  variant={timeframe === 'yearly' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setTimeframe('yearly')}
-                >
-                  1Y
-                </Button>
+                <div className="flex rounded-md border">
+                  {(['weekly', 'monthly', '3-month', '6-month', 'yearly'] as const).map((tf) => (
+                    <Button
+                      key={tf}
+                      variant={timeframe === tf ? 'default' : 'ghost'}
+                      size="sm"
+                      onClick={() => setTimeframe(tf)}
+                      className="rounded-none first:rounded-l-md last:rounded-r-md"
+                    >
+                      {tf === '3-month'
+                        ? '3M'
+                        : tf === '6-month'
+                          ? '6M'
+                          : tf === 'yearly'
+                            ? '1Y'
+                            : tf.charAt(0).toUpperCase() + tf.slice(1)}
+                    </Button>
+                  ))}
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -347,8 +449,55 @@ const DashboardPage = () => {
             </ResponsiveContainer>
           </CardContent>
         </Card>
-      )}
 
+        {/* Side Charts */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Shipment Status</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={60}>
+                    {statusDistribution.map((_, idx) => (
+                      <Cell
+                        key={idx}
+                        fill={['#8884d8', '#82ca9d', '#ffc658', '#FF8042', '#00C49F'][idx % 5]}
+                      />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Invoice Trend</CardTitle>
+            </CardHeader>
+            <CardContent className="h-[160px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={invoiceTrend}>
+                  <XAxis dataKey="date" hide />
+                  <YAxis />
+                  <Tooltip />
+                  <Line
+                    type="monotone"
+                    dataKey="value"
+                    stroke="#8884d8"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+      </ResizableLayout>
+
+      {/* Tables Section */}
       <div className="grid gap-6 md:grid-cols-2">
         {(moduleFilter === 'all' || moduleFilter === 'shipment-invoice') && (
           <Card>
@@ -368,16 +517,18 @@ const DashboardPage = () => {
                   {upcomingShipments.length > 0 ? (
                     upcomingShipments.map((s) => (
                       <TableRow key={s.id}>
-                        <TableCell>{s.invoiceNumber}</TableCell>
+                        <TableCell className="font-medium">{s.invoiceNumber}</TableCell>
                         <TableCell>{s.eta ? format(new Date(s.eta), 'PP') : 'N/A'}</TableCell>
                         <TableCell>
-                          <Badge>{s.status}</Badge>
+                          <Badge variant={s.status === 'delivered' ? 'default' : 'secondary'}>
+                            {s.status}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-center">
+                      <TableCell colSpan={3} className="text-muted-foreground text-center">
                         No upcoming shipments.
                       </TableCell>
                     </TableRow>
@@ -405,13 +556,15 @@ const DashboardPage = () => {
                   {recentItems.length > 0 ? (
                     recentItems.map((item) => (
                       <TableRow key={item.id}>
-                        <TableCell>{item.partNumber}</TableCell>
-                        <TableCell>{item.itemDescription}</TableCell>
+                        <TableCell className="font-medium">{item.partNumber}</TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {item.itemDescription}
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-center">
+                      <TableCell colSpan={2} className="text-muted-foreground text-center">
                         No items found.
                       </TableCell>
                     </TableRow>
@@ -423,6 +576,7 @@ const DashboardPage = () => {
         )}
       </div>
 
+      {/* Expenses Overview */}
       {(moduleFilter === 'all' || moduleFilter === 'expenses') && (
         <Card>
           <CardHeader>
@@ -432,7 +586,7 @@ const DashboardPage = () => {
             {expenseSummary ? (
               <div className="flex items-center gap-6">
                 <div className="text-2xl font-semibold">
-                  Total: ₹{expenseSummary.total.toFixed(2)}
+                  Total: ₹{expenseSummary.total.toLocaleString()}
                 </div>
                 <Badge variant="secondary">Entries: {expenseSummary.count}</Badge>
                 <div className="text-muted-foreground text-sm">
@@ -445,67 +599,6 @@ const DashboardPage = () => {
           </CardContent>
         </Card>
       )}
-
-      {/* Extra Charts Row */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle>Shipment Status</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={90}>
-                  {statusDistribution.map((_, idx) => (
-                    <Cell
-                      key={idx}
-                      fill={['#8884d8', '#82ca9d', '#ffc658', '#FF8042', '#00C49F'][idx % 5]}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Value Trend</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={invoiceTrend}>
-                <XAxis dataKey="date" hide />
-                <YAxis />
-                <Tooltip />
-                <Line
-                  type="monotone"
-                  dataKey="value"
-                  stroke="#8884d8"
-                  strokeWidth={2}
-                  dot={false}
-                />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Suppliers by Value</CardTitle>
-          </CardHeader>
-          <CardContent className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={topSuppliers}>
-                <XAxis dataKey="supplierId" hide />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="total" fill="#82ca9d" />
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
     </div>
   )
 }

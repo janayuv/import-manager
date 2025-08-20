@@ -1,21 +1,49 @@
-import { Moon, SidebarIcon, Sun } from 'lucide-react'
+import { Moon, SidebarIcon, Sun, Monitor } from 'lucide-react'
 
 import { useTheme } from '@/components/layout/theme-context'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
 import { useSidebar } from '@/components/ui/use-sidebar'
+import { Breadcrumb } from '@/components/ui/breadcrumb'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar()
-  const { theme, setTheme } = useTheme()
+  const { theme, setTheme, toggleMode } = useTheme()
 
-  const toggleThemeMode = () => {
-    const newMode = theme.mode === 'light' ? 'dark' : 'light'
-    setTheme({ ...theme, mode: newMode })
+  const getThemeIcon = () => {
+    switch (theme.mode) {
+      case 'light':
+        return <Sun className="h-4 w-4" />
+      case 'dark':
+        return <Moon className="h-4 w-4" />
+      case 'system':
+        return <Monitor className="h-4 w-4" />
+      default:
+        return <Sun className="h-4 w-4" />
+    }
+  }
+
+  const getThemeLabel = () => {
+    switch (theme.mode) {
+      case 'light':
+        return 'Light'
+      case 'dark':
+        return 'Dark'
+      case 'system':
+        return 'System'
+      default:
+        return 'Light'
+    }
   }
 
   return (
-    <header className="bg-background sticky top-0 z-40 flex w-full items-center border-b">
+    <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex w-full items-center border-b backdrop-blur">
       <div className="flex h-14 w-full items-center gap-2 px-4">
         <Button className="h-8 w-8" variant="ghost" size="icon" onClick={toggleSidebar}>
           <SidebarIcon className="size-5" />
@@ -23,13 +51,47 @@ export function SiteHeader() {
         </Button>
         <Separator orientation="vertical" className="mr-2 h-6" />
 
-        {/* MODIFIED: Changed text size for a cleaner look */}
-        <h1 className="text-lg font-semibold tracking-tight">Import Manager</h1>
+        {/* App Title */}
+        <div className="flex items-center gap-2">
+          <h1 className="text-lg font-semibold tracking-tight">Import Manager</h1>
+          <Separator orientation="vertical" className="h-4" />
+          <Breadcrumb className="hidden sm:flex" />
+        </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <Button variant="ghost" size="icon" onClick={toggleThemeMode}>
-            <Sun className="h-[1.2rem] w-[1.2rem] scale-100 rotate-0 transition-all dark:scale-0 dark:-rotate-90" />
-            <Moon className="absolute h-[1.2rem] w-[1.2rem] scale-0 rotate-90 transition-all dark:scale-100 dark:rotate-0" />
+          {/* Theme Toggle */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" className="h-8 w-8">
+                {getThemeIcon()}
+                <span className="sr-only">Toggle theme</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setTheme({ ...theme, mode: 'light' })}>
+                <Sun className="mr-2 h-4 w-4" />
+                <span>Light</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme({ ...theme, mode: 'dark' })}>
+                <Moon className="mr-2 h-4 w-4" />
+                <span>Dark</span>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme({ ...theme, mode: 'system' })}>
+                <Monitor className="mr-2 h-4 w-4" />
+                <span>System</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Quick Theme Toggle for mobile */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 sm:hidden"
+            onClick={toggleMode}
+            title={`Current: ${getThemeLabel()}`}
+          >
+            {getThemeIcon()}
             <span className="sr-only">Toggle theme</span>
           </Button>
         </div>

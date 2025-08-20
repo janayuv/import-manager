@@ -1,69 +1,221 @@
-# Security Policy
+# 🔒 Security Implementation Guide
 
-## Supported Versions
+## Overview
 
-| Version | Supported          |
-| ------- | ------------------ |
-| 0.1.x   | :white_check_mark: |
+This project has been enhanced with comprehensive security measures to detect and prevent common security vulnerabilities. The security implementation includes automated checks, linting rules, and best practices enforcement.
 
-## Reporting a Vulnerability
+## 🛡️ Security Features Implemented
 
-If you discover a security vulnerability, please report it to us by emailing [your-email@example.com] or creating a private security advisory on GitHub.
+### 1. Automated Security Checks
 
-## Current Security Status
+#### Custom Security Scanner (`scripts/security-check.js`)
 
-### Known Vulnerabilities
+- **Purpose**: Detects hardcoded secrets and unencrypted SQLite usage
+- **Usage**: `node scripts/security-check.js`
+- **Detects**:
+  - Hardcoded private keys (RSA, DSA, EC)
+  - Bearer tokens
+  - Tauri signing keys
+  - Password/secret/token patterns
+  - Unencrypted SQLite database connections
 
-#### Moderate: glib crate unsoundness (RUSTSEC-2024-0429)
-- **Status**: Acknowledged, monitoring for updates
-- **Impact**: Potential memory safety issues in GTK bindings
-- **Affected**: Linux builds only (Tauri dependency)
-- **Mitigation**: 
-  - This is a transitive dependency from Tauri framework
-  - We cannot directly fix this as it's not our direct dependency
-  - Monitoring Tauri updates for resolution
-  - Windows builds are not affected
+#### Pre-commit Security Hook (`.husky/pre-commit`)
 
-#### Unmaintained Dependencies (Warnings)
-- **Status**: Acknowledged, monitoring for alternatives
-- **Impact**: No immediate security risk, but long-term maintenance concern
-- **Affected**: GTK-related crates (Linux builds only)
-- **Mitigation**:
-  - These are Tauri framework dependencies
-  - Monitoring for Tauri updates that address these
-  - Consider Windows-only builds if Linux support is not critical
+- **Purpose**: Automatically runs security checks before commits
+- **Checks**:
+  - ESLint with security rules
+  - Custom security scanner
+  - npm audit for dependency vulnerabilities
 
-## Security Measures
+### 2. ESLint Security Rules
 
-### Automated Security Checks
-- **npm audit**: Runs on every CI build
-- **cargo audit**: Runs on every CI build
-- **Dependabot**: Automated dependency updates
-- **Branch Protection**: Required status checks before merging
+#### Security Plugin Configuration (`eslint.config.js`)
 
-### Development Guidelines
-1. **Never commit secrets** or sensitive data
-2. **Use environment variables** for configuration
-3. **Validate all user inputs** before processing
-4. **Follow secure coding practices** for both Rust and TypeScript
-5. **Regular dependency updates** through Dependabot
+- **Plugin**: `eslint-plugin-security`
+- **Rules Enabled**:
+  - `security/detect-object-injection`
+  - `security/detect-non-literal-regexp`
+  - `security/detect-unsafe-regex`
+  - `security/detect-buffer-noassert`
+  - `security/detect-child-process`
+  - `security/detect-disable-mustache-escape`
+  - `security/detect-eval-with-expression`
+  - `security/detect-no-csrf-before-method-override`
+  - `security/detect-non-literal-fs-filename`
+  - `security/detect-non-literal-require`
+  - `security/detect-possible-timing-attacks`
+  - `security/detect-pseudoRandomBytes`
 
-### Response Timeline
-- **Critical**: 24 hours
-- **High**: 72 hours  
-- **Medium**: 1 week
-- **Low**: 2 weeks
+#### Custom SQLite Security Rules
 
-## Security Updates
+- **Rule**: `no-restricted-syntax`
+- **Purpose**: Enforces SQLCipher usage for SQLite databases
+- **Message**: "SQLite Database must use encryption. Use SQLCipher with PRAGMA key instead."
 
-### Recent Security Improvements
-- ✅ Added comprehensive CI security checks
-- ✅ Implemented branch protection rules
-- ✅ Added automated vulnerability scanning
-- ✅ Created security policy documentation
+### 3. Security Dependencies
 
-### Planned Security Enhancements
-- [ ] Add code signing for releases
-- [ ] Implement automated security testing
-- [ ] Add runtime security monitoring
-- [ ] Create security incident response plan
+#### Installed Packages
+
+- `eslint-plugin-security`: Security-focused ESLint rules
+- `detect-secrets`: Secret detection tool (optional)
+
+## 🚨 Security Issues Detected
+
+### Current Security Violations
+
+#### 1. SQLite Encryption Issues
+
+- **File**: `src/db/test.ts`
+- **Issue**: Unencrypted SQLite database connections
+- **Risk**: Data exposure if database files are compromised
+- **Fix**: Use SQLCipher with PRAGMA key
+
+#### 2. Hardcoded Secrets
+
+- **Files**: Multiple files across the codebase
+- **Issue**: Hardcoded private keys, tokens, and credentials
+- **Risk**: Credential exposure in source code
+- **Fix**: Use environment variables or secure secret management
+
+#### 3. Login Credentials
+
+- **File**: `src/pages/LoginPage.tsx`
+- **Issue**: Hardcoded username/password
+- **Risk**: Authentication bypass
+- **Fix**: Implement proper authentication system
+
+## 🔧 How to Fix Security Issues
+
+### 1. SQLite Encryption
+
+**Before (Insecure)**:
+
+```typescript
+const db = new sqlite3.Database('./data.sqlite')
+```
+
+**After (Secure)**:
+
+```typescript
+const db = new sqlite3.Database('./data.sqlite')
+db.run("PRAGMA key = 'your-encryption-key'")
+```
+
+### 2. Hardcoded Secrets
+
+**Before (Insecure)**:
+
+```typescript
+const apiKey = 'sk-1234567890abcdef'
+```
+
+**After (Secure)**:
+
+```typescript
+const apiKey = process.env.API_KEY
+```
+
+### 3. GitHub Actions Secrets
+
+**Before (Insecure)**:
+
+```yaml
+env:
+  TAURI_SIGNING_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----...'
+```
+
+**After (Secure)**:
+
+```yaml
+env:
+  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+```
+
+## 📋 Security Checklist
+
+### Before Committing Code
+
+- [ ] Run `node scripts/security-check.js`
+- [ ] Run `npx eslint . --max-warnings 0`
+- [ ] Run `npm audit`
+- [ ] Ensure no hardcoded secrets
+- [ ] Verify SQLite databases use encryption
+- [ ] Check for proper authentication
+
+### Before Deploying
+
+- [ ] Review all security warnings
+- [ ] Verify environment variables are set
+- [ ] Check for exposed credentials
+- [ ] Run security audit
+- [ ] Test authentication flows
+
+## 🛠️ Security Tools Usage
+
+### Running Security Checks Manually
+
+```bash
+# Run custom security scanner
+node scripts/security-check.js
+
+# Run ESLint with security rules
+npx eslint . --max-warnings 0
+
+# Run npm security audit
+npm audit
+
+# Run all security checks (pre-commit)
+node .husky/pre-commit
+```
+
+### Continuous Integration
+
+The pre-commit hook automatically runs security checks before each commit. If any security issues are detected, the commit will be blocked until the issues are resolved.
+
+## 🔍 Security Monitoring
+
+### Regular Security Tasks
+
+1. **Weekly**: Run full security audit
+2. **Monthly**: Review and update security rules
+3. **Quarterly**: Update security dependencies
+4. **On Release**: Complete security checklist
+
+### Security Alerts
+
+- Monitor GitHub Security Advisories
+- Review npm audit reports
+- Check for new security vulnerabilities in dependencies
+
+## 📚 Additional Resources
+
+### Security Best Practices
+
+- [OWASP Top 10](https://owasp.org/www-project-top-ten/)
+- [Node.js Security Best Practices](https://nodejs.org/en/docs/guides/security/)
+- [SQLite Security](https://www.sqlite.org/security.html)
+
+### Tools and References
+
+- [ESLint Security Plugin](https://github.com/nodesecurity/eslint-plugin-security)
+- [SQLCipher Documentation](https://www.zetetic.net/sqlcipher/)
+- [GitHub Secrets Management](https://docs.github.com/en/actions/security-guides/encrypted-secrets)
+
+## 🆘 Security Incident Response
+
+### If Security Issues Are Found
+
+1. **Immediate**: Block affected functionality
+2. **Assessment**: Determine scope and impact
+3. **Fix**: Implement secure alternatives
+4. **Test**: Verify security measures
+5. **Document**: Update security procedures
+
+### Emergency Contacts
+
+- Security Team: [Add contact information]
+- Incident Response: [Add procedures]
+
+---
+
+**Note**: This security implementation is designed to catch common security issues early in the development process. Regular review and updates are essential to maintain security standards.

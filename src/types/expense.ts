@@ -179,3 +179,149 @@ export interface ExpenseLinePreview {
 export interface CombineDuplicatesRequest {
   separator?: string
 }
+
+// ============================================================================
+// EXPENSE REPORTING TYPES
+// ============================================================================
+
+/**
+ * Filters for expense reports
+ */
+export interface ExpenseReportFilters {
+  shipmentId?: string
+  serviceProviderId?: string
+  expenseTypeId?: string
+  dateFrom?: string
+  dateTo?: string
+  currency?: string
+  minAmount?: number // in paise
+  maxAmount?: number // in paise
+  includeInactive?: boolean
+}
+
+/**
+ * Individual row in expense report
+ */
+export interface ExpenseReportRow {
+  invoice_id: string
+  invoice_number: string
+  invoice_date: string
+  shipment_id: string
+  shipment_number?: string
+  service_provider_id: string
+  service_provider_name: string
+  expense_type_id: string
+  expense_type_name: string
+  amount_paise: number
+  cgst_amount_paise: number
+  sgst_amount_paise: number
+  igst_amount_paise: number
+  tds_amount_paise: number
+  total_amount_paise: number
+  net_amount_paise: number
+  currency: string
+  remarks?: string
+  created_at: string
+}
+
+/**
+ * Totals for expense report
+ */
+export interface ExpenseReportTotals {
+  total_amount_paise: number
+  total_cgst_amount_paise: number
+  total_sgst_amount_paise: number
+  total_igst_amount_paise: number
+  total_tds_amount_paise: number
+  total_net_amount_paise: number
+  invoice_count: number
+  expense_line_count: number
+}
+
+/**
+ * Complete expense report response
+ */
+export interface ExpenseReportResponse {
+  rows: ExpenseReportRow[]
+  totals: ExpenseReportTotals
+  filtersApplied: ExpenseReportFilters
+}
+
+/**
+ * Summary grouped by expense type
+ */
+export interface ExpenseSummaryByType {
+  expense_type_id: string
+  expense_type_name: string
+  total_amount_paise: number
+  total_cgst_amount_paise: number
+  total_sgst_amount_paise: number
+  total_igst_amount_paise: number
+  total_tds_amount_paise: number
+  total_net_amount_paise: number
+  line_count: number
+}
+
+/**
+ * Summary grouped by service provider
+ */
+export interface ExpenseSummaryByProvider {
+  service_provider_id: string
+  service_provider_name: string
+  total_amount_paise: number
+  total_cgst_amount_paise: number
+  total_sgst_amount_paise: number
+  total_igst_amount_paise: number
+  total_tds_amount_paise: number
+  total_net_amount_paise: number
+  invoice_count: number
+  line_count: number
+}
+
+/**
+ * Summary grouped by shipment
+ */
+export interface ExpenseSummaryByShipment {
+  shipment_id: string
+  shipment_number?: string
+  total_amount_paise: number
+  total_cgst_amount_paise: number
+  total_sgst_amount_paise: number
+  total_igst_amount_paise: number
+  total_tds_amount_paise: number
+  total_net_amount_paise: number
+  invoice_count: number
+  line_count: number
+}
+
+/**
+ * Summary grouped by month
+ */
+export interface ExpenseSummaryByMonth {
+  year: number
+  month: number
+  month_name: string
+  total_amount_paise: number
+  total_cgst_amount_paise: number
+  total_sgst_amount_paise: number
+  total_igst_amount_paise: number
+  total_tds_amount_paise: number
+  total_net_amount_paise: number
+  invoice_count: number
+  line_count: number
+}
+
+/**
+ * Report type options
+ */
+export type ExpenseReportType =
+  | 'detailed'
+  | 'summary-by-type'
+  | 'summary-by-provider'
+  | 'summary-by-shipment'
+  | 'summary-by-month'
+
+/**
+ * Export format options
+ */
+export type ExpenseExportFormat = 'csv' | 'excel' | 'pdf'

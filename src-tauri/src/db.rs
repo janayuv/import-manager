@@ -41,16 +41,16 @@ pub struct Shipment {
     pub invoice_value: f64, // Use f64 for floating point numbers
     pub invoice_currency: String,
     pub incoterm: String,
-    pub shipment_mode: String,
-    pub shipment_type: String,
-    pub bl_awb_number: String,
-    pub bl_awb_date: String,
-    pub vessel_name: String,
+    pub shipment_mode: Option<String>,
+    pub shipment_type: Option<String>,
+    pub bl_awb_number: Option<String>,
+    pub bl_awb_date: Option<String>,
+    pub vessel_name: Option<String>,
     pub container_number: Option<String>,
-    pub gross_weight_kg: f64,
-    pub etd: String,
-    pub eta: String,
-    pub status: String,
+    pub gross_weight_kg: Option<f64>,
+    pub etd: Option<String>,
+    pub eta: Option<String>,
+    pub status: Option<String>,
     pub date_of_delivery: Option<String>,
     pub is_frozen: bool,
 }
@@ -399,14 +399,18 @@ pub struct ExpenseWithInvoice {
     pub invoice_date: String,
 }
 
+// --- INVOICE UPLOAD STRUCTS ---
+// Simplified structures for invoice upload functionality
+
 
 pub struct DbState {
     pub db: Mutex<Connection>,
 }
 
-// Database initialization function
-pub fn init(db_path: &std::path::Path) -> Result<Connection> {
-    let conn = Connection::open(db_path)?;
+
+
+// Database schema initialization function (for use with existing connections)
+pub fn init_schema(conn: &Connection) -> Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS suppliers (
             id TEXT PRIMARY KEY,
@@ -1129,53 +1133,17 @@ pub fn init(db_path: &std::path::Path) -> Result<Connection> {
         }
     }
 
-    // Insert sample expense types if table is empty
-    let count: i32 = conn.query_row("SELECT COUNT(*) FROM expense_types", [], |row| row.get(0))?;
-    if count == 0 {
-        let sample_expense_types = [
-            ("ET-001", "Freight Charges", 0.0, 0.0, 0.0),
-            ("ET-002", "Customs Duty", 0.0, 0.0, 0.0),
-            ("ET-003", "Insurance", 0.0, 0.0, 0.0),
-            ("ET-004", "Handling Charges", 0.0, 0.0, 0.0),
-            ("ET-005", "Storage Charges", 0.0, 0.0, 0.0),
-            ("ET-006", "Transportation", 0.0, 0.0, 0.0),
-            ("ET-007", "Documentation", 0.0, 0.0, 0.0),
-            ("ET-008", "Inspection Charges", 0.0, 0.0, 0.0),
-            ("ET-009", "Testing Charges", 0.0, 0.0, 0.0),
-            ("ET-010", "Other Expenses", 0.0, 0.0, 0.0),
-        ];
+    // Sample expense types removed - will be entered manually
+    // let count: i32 = conn.query_row("SELECT COUNT(*) FROM expense_types", [], |row| row.get(0))?;
+    // if count == 0 {
+    //     // Sample data removed - expense types will be entered manually
+    // }
 
-        for expense_type in sample_expense_types {
-            conn.execute(
-                "INSERT INTO expense_types (id, name, default_cgst_rate, default_sgst_rate, default_igst_rate, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-                rusqlite::params![
-                    expense_type.0, expense_type.1, expense_type.2, expense_type.3, expense_type.4, true
-                ],
-            )?;
-        }
-    }
+    // Sample service providers removed - will be entered manually
+    // let count: i32 = conn.query_row("SELECT COUNT(*) FROM service_providers", [], |row| row.get(0))?;
+    // if count == 0 {
+    //     // Sample data removed - service providers will be entered manually
+    // }
 
-    // Insert sample service providers if table is empty
-    let count: i32 = conn.query_row("SELECT COUNT(*) FROM service_providers", [], |row| row.get(0))?;
-    if count == 0 {
-        let sample_service_providers = [
-            ("SP-001", "ABC Logistics", "GST123456789", "Maharashtra", "John Doe", "john@abclogistics.com", "9876543210"),
-            ("SP-002", "XYZ Transport", "GST987654321", "Delhi", "Jane Smith", "jane@xyztransport.com", "9876543211"),
-            ("SP-003", "Global Freight", "GST456789123", "Karnataka", "Mike Johnson", "mike@globalfreight.com", "9876543212"),
-            ("SP-004", "Express Cargo", "GST789123456", "Tamil Nadu", "Sarah Wilson", "sarah@expresscargo.com", "9876543213"),
-            ("SP-005", "Fast Track Logistics", "GST321654987", "Gujarat", "David Brown", "david@fasttrack.com", "9876543214"),
-        ];
-
-        for service_provider in sample_service_providers {
-            conn.execute(
-                "INSERT INTO service_providers (id, name, gstin, state, contact_person, contact_email, contact_phone) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-                rusqlite::params![
-                    service_provider.0, service_provider.1, service_provider.2, service_provider.3,
-                    service_provider.4, service_provider.5, service_provider.6
-                ],
-            )?;
-        }
-    }
-
-    Ok(conn)
+    Ok(())
 }

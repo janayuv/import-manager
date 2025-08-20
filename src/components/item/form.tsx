@@ -146,7 +146,9 @@ export function ItemForm({
       'unitPrice',
       'hsnCode',
     ]
-    const missingFields = mandatoryFields.filter((field) => !formData[field])
+    const missingFields = mandatoryFields.filter((field) => {
+      return !formData[field]
+    })
     if (missingFields.length > 0) {
       toast.error(`Please fill all mandatory fields: ${missingFields.join(', ')}`)
       return

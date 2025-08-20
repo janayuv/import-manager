@@ -1,0 +1,92 @@
+name: Branch Protection
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  security-checks:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for secrets in code
+        run: |
+          echo "Checking for potential secrets in code..."
+
+          # Check for common secret patterns
+          if Select-String -Path "src" -Pattern "password|secret|key|token" -Exclude "*.md" | Where-Object { $_.Line -notmatch "//|#" -and $_.Line -notmatch "test|example|dummy" }; then
+            echo "WARNING: Potential secrets found in code"
+            exit 1
+          fi
+
+          # Check for hardcoded API keys
+          if Select-String -Path "src" -Pattern "sk_live|pk_live|AKIA|ghp_" -Exclude "*.md"; then
+            echo "ERROR: Live API keys found in code"
+            exit 1
+          fi
+
+          echo "No secrets found in code"
+
+      - name: Check for large files
+        run: |
+          echo "Checking for large files..."
+
+          # Find files larger than 10MB
+          Get-ChildItem -Recurse -File | Where-Object { $_.Length -gt 10MB } | ForEach-Object {
+            echo "WARNING: Large file found: $($_.FullName)"
+          }
+
+      - name: Validate dependencies
+        run: |
+          echo "Validating dependencies..."
+
+          # Check for known vulnerable dependencies
+          if (Get-Command cargo-audit -ErrorAction SilentlyContinue) { 
+            cd src-tauri
+            cargo audit
+          }
+
+          # Check npm dependencies
+          if (Test-Path "package.json") {
+            npm audit --audit-level=moderate
+          }
+
+  code-quality:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Run linting
+        run: |
+          # TypeScript/JavaScript linting
+          npm ci
+          npm run lint
+
+          # Rust linting
+          cd src-tauri
+          cargo clippy -- -D warnings
+
+      - name: Run tests
+        run: |
+          # Frontend tests
+          npm test
+
+          # Backend tests
+          cd src-tauri
+          cargo test

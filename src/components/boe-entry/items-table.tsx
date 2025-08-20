@@ -31,6 +31,7 @@ interface ItemsTableProps {
 export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTableProps) {
   const handleInputChange = (index: number, field: keyof BoeItemInput, value: string | number) => {
     const updatedInputs = [...itemInputs]
+
     updatedInputs[index] = {
       ...updatedInputs[index],
       [field]: value,
@@ -62,6 +63,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
       const discrepancies = items
         .map((item, index) => {
           const actualBcd = item.actualBcdRate
+
           const boeBcd = itemInputs[index]?.boeBcdRate || 0
           return {
             partNo: item.partNo,
@@ -104,6 +106,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
         <TableBody>
           {items.map((item, index) => {
             const actualBcd = item.actualBcdRate
+
             const boeBcd = itemInputs[index]?.boeBcdRate || 0
             const hasBcdDiscrepancy = boeBcd > 0 && boeBcd > actualBcd
 
@@ -177,6 +180,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
       {/* BCD Discrepancy Summary */}
       {items.some((item, index) => {
         const actualBcd = item.actualBcdRate
+
         const boeBcd = itemInputs[index]?.boeBcdRate || 0
         return boeBcd > 0 && boeBcd > actualBcd
       }) && (

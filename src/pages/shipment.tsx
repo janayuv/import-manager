@@ -399,6 +399,7 @@ const ShipmentPage = () => {
       status: setStatuses,
       currency: setCurrencies,
     }
+
     stateUpdater[type]((prev) => [...prev, correctlyCasedOption])
     try {
       await invoke('add_option', { optionType: type, option: correctlyCasedOption })
@@ -406,6 +407,7 @@ const ShipmentPage = () => {
     } catch (error) {
       console.error(`Failed to save new ${type}:`, error)
       toast.error(`Failed to save new ${type}.`)
+
       stateUpdater[type]((prev) => prev.filter((opt) => opt.value !== correctlyCasedOption.value))
     }
   }

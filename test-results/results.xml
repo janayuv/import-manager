@@ -1,0 +1,186 @@
+<testsuites id="" name="" tests="51" failures="1" skipped="0" errors="0" time="80.08559">
+<testsuite name="basic-navigation.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="1" skipped="0" time="64.841" errors="0">
+<testcase name="Basic Navigation › should load the application and navigate to different pages" classname="basic-navigation.spec.ts" time="21.448">
+<failure message="basic-navigation.spec.ts:4:3 should load the application and navigate to different pages" type="FAILURE">
+<![CDATA[  [chromium] › basic-navigation.spec.ts:4:3 › Basic Navigation › should load the application and navigate to different pages 
+
+    Error: Timed out 5000ms waiting for expect(locator).toBeVisible()
+
+    Locator: locator('#root')
+    Expected: visible
+    Received: hidden
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('#root')
+        7 × locator resolved to <div id="root"></div>
+          - unexpected value "hidden"
+        - locator resolved to <div id="root">…</div>
+        - unexpected value "hidden"
+
+
+      10 |     
+      11 |     // Check if main content is visible
+    > 12 |     await expect(page.locator('#root')).toBeVisible()
+         |                                         ^
+      13 |     
+      14 |     // Wait for the app to load
+      15 |     await page.waitForTimeout(2000)
+        at D:\Import-Manager\tests\e2e\basic-navigation.spec.ts:12:41
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\..\test-results\basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\..\test-results\basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\..\test-results\basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\video.webm]]
+
+[[ATTACHMENT|basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Basic Navigation › should handle page refresh gracefully" classname="basic-navigation.spec.ts" time="22.395">
+</testcase>
+<testcase name="Basic Navigation › should have basic app structure" classname="basic-navigation.spec.ts" time="20.998">
+</testcase>
+</testsuite>
+<testsuite name="dashboard.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="62.418" errors="0">
+<testcase name="Dashboard › should load dashboard page successfully" classname="dashboard.spec.ts" time="21.229">
+</testcase>
+<testcase name="Dashboard › should display dashboard content" classname="dashboard.spec.ts" time="20.556">
+</testcase>
+<testcase name="Dashboard › should have basic app functionality" classname="dashboard.spec.ts" time="20.633">
+</testcase>
+</testsuite>
+<testsuite name="expenses.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="9.357" errors="0">
+<testcase name="Expenses Module › should load expenses page successfully" classname="expenses.spec.ts" time="3.063">
+</testcase>
+<testcase name="Expenses Module › should display expenses content" classname="expenses.spec.ts" time="3.091">
+</testcase>
+<testcase name="Expenses Module › should have basic app functionality" classname="expenses.spec.ts" time="3.203">
+</testcase>
+</testsuite>
+<testsuite name="simple-app.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="17.304" errors="0">
+<testcase name="Simple App Tests › should load the application" classname="simple-app.spec.ts" time="4.045">
+</testcase>
+<testcase name="Simple App Tests › should load different pages" classname="simple-app.spec.ts" time="9.449">
+</testcase>
+<testcase name="Simple App Tests › should have basic HTML structure" classname="simple-app.spec.ts" time="3.81">
+</testcase>
+</testsuite>
+<testsuite name="smoke.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="2" failures="0" skipped="0" time="1.966" errors="0">
+<testcase name="Smoke Tests › should load the application" classname="smoke.spec.ts" time="0.989">
+</testcase>
+<testcase name="Smoke Tests › should have basic navigation structure" classname="smoke.spec.ts" time="0.977">
+</testcase>
+</testsuite>
+<testsuite name="user-workflow.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="19.606" errors="0">
+<testcase name="User Workflow › should navigate between main pages" classname="user-workflow.spec.ts" time="9.714">
+</testcase>
+<testcase name="User Workflow › should handle basic app functionality" classname="user-workflow.spec.ts" time="2.96">
+</testcase>
+<testcase name="User Workflow › should maintain app state during navigation" classname="user-workflow.spec.ts" time="6.932">
+</testcase>
+</testsuite>
+<testsuite name="basic-navigation.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="22.087" errors="0">
+<testcase name="Basic Navigation › should load the application and navigate to different pages" classname="basic-navigation.spec.ts" time="6.362">
+</testcase>
+<testcase name="Basic Navigation › should handle page refresh gracefully" classname="basic-navigation.spec.ts" time="9.284">
+</testcase>
+<testcase name="Basic Navigation › should have basic app structure" classname="basic-navigation.spec.ts" time="6.441">
+</testcase>
+</testsuite>
+<testsuite name="dashboard.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="18.885" errors="0">
+<testcase name="Dashboard › should load dashboard page successfully" classname="dashboard.spec.ts" time="6.886">
+</testcase>
+<testcase name="Dashboard › should display dashboard content" classname="dashboard.spec.ts" time="6.564">
+</testcase>
+<testcase name="Dashboard › should have basic app functionality" classname="dashboard.spec.ts" time="5.435">
+</testcase>
+</testsuite>
+<testsuite name="expenses.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="17.274" errors="0">
+<testcase name="Expenses Module › should load expenses page successfully" classname="expenses.spec.ts" time="6.355">
+</testcase>
+<testcase name="Expenses Module › should display expenses content" classname="expenses.spec.ts" time="5.27">
+</testcase>
+<testcase name="Expenses Module › should have basic app functionality" classname="expenses.spec.ts" time="5.649">
+</testcase>
+</testsuite>
+<testsuite name="simple-app.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="29.268" errors="0">
+<testcase name="Simple App Tests › should load the application" classname="simple-app.spec.ts" time="6.271">
+</testcase>
+<testcase name="Simple App Tests › should load different pages" classname="simple-app.spec.ts" time="16.514">
+</testcase>
+<testcase name="Simple App Tests › should have basic HTML structure" classname="simple-app.spec.ts" time="6.483">
+</testcase>
+</testsuite>
+<testsuite name="smoke.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="2" failures="0" skipped="0" time="6.673" errors="0">
+<testcase name="Smoke Tests › should load the application" classname="smoke.spec.ts" time="3.302">
+</testcase>
+<testcase name="Smoke Tests › should have basic navigation structure" classname="smoke.spec.ts" time="3.371">
+</testcase>
+</testsuite>
+<testsuite name="user-workflow.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="38.245" errors="0">
+<testcase name="User Workflow › should navigate between main pages" classname="user-workflow.spec.ts" time="17.795">
+</testcase>
+<testcase name="User Workflow › should handle basic app functionality" classname="user-workflow.spec.ts" time="5.738">
+</testcase>
+<testcase name="User Workflow › should maintain app state during navigation" classname="user-workflow.spec.ts" time="14.712">
+</testcase>
+</testsuite>
+<testsuite name="basic-navigation.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="15.591" errors="0">
+<testcase name="Basic Navigation › should load the application and navigate to different pages" classname="basic-navigation.spec.ts" time="4.08">
+</testcase>
+<testcase name="Basic Navigation › should handle page refresh gracefully" classname="basic-navigation.spec.ts" time="7.133">
+</testcase>
+<testcase name="Basic Navigation › should have basic app structure" classname="basic-navigation.spec.ts" time="4.378">
+</testcase>
+</testsuite>
+<testsuite name="dashboard.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="11.893" errors="0">
+<testcase name="Dashboard › should load dashboard page successfully" classname="dashboard.spec.ts" time="4.256">
+</testcase>
+<testcase name="Dashboard › should display dashboard content" classname="dashboard.spec.ts" time="4.403">
+</testcase>
+<testcase name="Dashboard › should have basic app functionality" classname="dashboard.spec.ts" time="3.234">
+</testcase>
+</testsuite>
+<testsuite name="expenses.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="12.02" errors="0">
+<testcase name="Expenses Module › should load expenses page successfully" classname="expenses.spec.ts" time="4.205">
+</testcase>
+<testcase name="Expenses Module › should display expenses content" classname="expenses.spec.ts" time="4.085">
+</testcase>
+<testcase name="Expenses Module › should have basic app functionality" classname="expenses.spec.ts" time="3.73">
+</testcase>
+</testsuite>
+<testsuite name="simple-app.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="20.815" errors="0">
+<testcase name="Simple App Tests › should load the application" classname="simple-app.spec.ts" time="4.504">
+</testcase>
+<testcase name="Simple App Tests › should load different pages" classname="simple-app.spec.ts" time="11.574">
+</testcase>
+<testcase name="Simple App Tests › should have basic HTML structure" classname="simple-app.spec.ts" time="4.737">
+</testcase>
+</testsuite>
+<testsuite name="smoke.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="2" failures="0" skipped="0" time="3.567" errors="0">
+<testcase name="Smoke Tests › should load the application" classname="smoke.spec.ts" time="1.889">
+</testcase>
+<testcase name="Smoke Tests › should have basic navigation structure" classname="smoke.spec.ts" time="1.678">
+</testcase>
+</testsuite>
+<testsuite name="user-workflow.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="22.699" errors="0">
+<testcase name="User Workflow › should navigate between main pages" classname="user-workflow.spec.ts" time="11.184">
+</testcase>
+<testcase name="User Workflow › should handle basic app functionality" classname="user-workflow.spec.ts" time="3.23">
+</testcase>
+<testcase name="User Workflow › should maintain app state during navigation" classname="user-workflow.spec.ts" time="8.285">
+</testcase>
+</testsuite>
+</testsuites>

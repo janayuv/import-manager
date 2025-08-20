@@ -81,6 +81,121 @@ pub struct CombineDuplicatesRequest {
 }
 
 // ============================================================================
+// EXPENSE REPORTING TYPES
+// ============================================================================
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseReportFilters {
+    pub shipment_id: Option<String>,
+    pub service_provider_id: Option<String>,
+    pub expense_type_id: Option<String>,
+    pub date_from: Option<String>,
+    pub date_to: Option<String>,
+    pub currency: Option<String>,
+    pub min_amount: Option<i64>, // in paise
+    pub max_amount: Option<i64>, // in paise
+    pub include_inactive: Option<bool>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseReportRow {
+    pub invoice_id: String,
+    pub invoice_number: String,
+    pub invoice_date: String,
+    pub shipment_id: String,
+    pub shipment_number: Option<String>,
+    pub service_provider_id: String,
+    pub service_provider_name: String,
+    pub expense_type_id: String,
+    pub expense_type_name: String,
+    pub amount_paise: i64,
+    pub cgst_amount_paise: i64,
+    pub sgst_amount_paise: i64,
+    pub igst_amount_paise: i64,
+    pub tds_amount_paise: i64,
+    pub total_amount_paise: i64,
+    pub net_amount_paise: i64,
+    pub currency: String,
+    pub remarks: Option<String>,
+    pub created_at: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseReportTotals {
+    pub total_amount_paise: i64,
+    pub total_cgst_amount_paise: i64,
+    pub total_sgst_amount_paise: i64,
+    pub total_igst_amount_paise: i64,
+    pub total_tds_amount_paise: i64,
+    pub total_net_amount_paise: i64,
+    pub invoice_count: i64,
+    pub expense_line_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseReportResponse {
+    pub rows: Vec<ExpenseReportRow>,
+    pub totals: ExpenseReportTotals,
+    pub filters_applied: ExpenseReportFilters,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseSummaryByType {
+    pub expense_type_id: String,
+    pub expense_type_name: String,
+    pub total_amount_paise: i64,
+    pub total_cgst_amount_paise: i64,
+    pub total_sgst_amount_paise: i64,
+    pub total_igst_amount_paise: i64,
+    pub total_tds_amount_paise: i64,
+    pub total_net_amount_paise: i64,
+    pub line_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseSummaryByProvider {
+    pub service_provider_id: String,
+    pub service_provider_name: String,
+    pub total_amount_paise: i64,
+    pub total_cgst_amount_paise: i64,
+    pub total_sgst_amount_paise: i64,
+    pub total_igst_amount_paise: i64,
+    pub total_tds_amount_paise: i64,
+    pub total_net_amount_paise: i64,
+    pub invoice_count: i64,
+    pub line_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseSummaryByShipment {
+    pub shipment_id: String,
+    pub shipment_number: Option<String>,
+    pub total_amount_paise: i64,
+    pub total_cgst_amount_paise: i64,
+    pub total_sgst_amount_paise: i64,
+    pub total_igst_amount_paise: i64,
+    pub total_tds_amount_paise: i64,
+    pub total_net_amount_paise: i64,
+    pub invoice_count: i64,
+    pub line_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ExpenseSummaryByMonth {
+    pub year: i32,
+    pub month: i32,
+    pub month_name: String,
+    pub total_amount_paise: i64,
+    pub total_cgst_amount_paise: i64,
+    pub total_sgst_amount_paise: i64,
+    pub total_igst_amount_paise: i64,
+    pub total_tds_amount_paise: i64,
+    pub total_net_amount_paise: i64,
+    pub invoice_count: i64,
+    pub line_count: i64,
+}
+
+// ============================================================================
 // Error Types
 // ============================================================================
 
@@ -640,7 +755,500 @@ impl ExpenseService {
         
         Ok(invoice)
     }
+
+    // ============================================================================
+    // EXPENSE REPORTING FUNCTIONS
+    // ============================================================================
+
+    /// Generate detailed expense report with filters
+    pub fn generate_expense_report(
+        conn: &Connection,
+        filters: &ExpenseReportFilters,
+    ) -> Result<ExpenseReportResponse, ExpenseError> {
+        println!("🔍 [DEBUG] Generating expense report with filters: {:?}", filters);
+        
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        // Build WHERE conditions based on filters
+        if let Some(ref shipment_id) = filters.shipment_id {
+            conditions.push("ei.shipment_id = ?".to_string());
+            params.push(Box::new(shipment_id.clone()));
+        }
+
+        if let Some(ref service_provider_id) = filters.service_provider_id {
+            conditions.push("ei.service_provider_id = ?".to_string());
+            params.push(Box::new(service_provider_id.clone()));
+        }
+
+        if let Some(ref expense_type_id) = filters.expense_type_id {
+            conditions.push("e.expense_type_id = ?".to_string());
+            params.push(Box::new(expense_type_id.clone()));
+        }
+
+        if let Some(ref date_from) = filters.date_from {
+            conditions.push("ei.invoice_date >= ?".to_string());
+            params.push(Box::new(date_from.clone()));
+        }
+
+        if let Some(ref date_to) = filters.date_to {
+            conditions.push("ei.invoice_date <= ?".to_string());
+            params.push(Box::new(date_to.clone()));
+        }
+
+        if let Some(ref currency) = filters.currency {
+            conditions.push("ei.currency = ?".to_string());
+            params.push(Box::new(currency.clone()));
+        }
+
+        if let Some(min_amount) = filters.min_amount {
+            conditions.push("e.amount_paise >= ?".to_string());
+            params.push(Box::new(min_amount));
+        }
+
+        if let Some(max_amount) = filters.max_amount {
+            conditions.push("e.amount_paise <= ?".to_string());
+            params.push(Box::new(max_amount));
+        }
+
+        if !filters.include_inactive.unwrap_or(false) {
+            conditions.push("et.is_active = 1".to_string());
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        println!("🔍 [DEBUG] Where clause: {}", where_clause);
+
+        // Build the main query - handle both old and new data formats
+        let query = format!(
+            "SELECT 
+                ei.id as invoice_id,
+                COALESCE(ei.invoice_number, ei.invoice_no) as invoice_number,
+                ei.invoice_date,
+                ei.shipment_id,
+                s.invoice_number as shipment_number,
+                ei.service_provider_id,
+                sp.name as service_provider_name,
+                e.expense_type_id,
+                et.name as expense_type_name,
+                COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER)) as amount_paise,
+                COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER)) as cgst_amount_paise,
+                COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER)) as sgst_amount_paise,
+                COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER)) as igst_amount_paise,
+                COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER)) as tds_amount_paise,
+                COALESCE(e.total_amount_paise, CAST(e.total_amount * 100 AS INTEGER)) as total_amount_paise,
+                COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER)) as net_amount_paise,
+                COALESCE(ei.currency, 'INR') as currency,
+                e.remarks,
+                COALESCE(e.created_at, e.updated_at) as created_at
+            FROM expense_invoices ei
+            JOIN expenses e ON ei.id = e.expense_invoice_id
+            JOIN expense_types et ON e.expense_type_id = et.id
+            JOIN service_providers sp ON ei.service_provider_id = sp.id
+            LEFT JOIN shipments s ON ei.shipment_id = s.id
+            {}
+            ORDER BY ei.invoice_date DESC, COALESCE(ei.invoice_number, ei.invoice_no), e.created_at",
+            where_clause
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            Ok(ExpenseReportRow {
+                invoice_id: row.get(0)?,
+                invoice_number: row.get(1)?,
+                invoice_date: row.get(2)?,
+                shipment_id: row.get(3)?,
+                shipment_number: row.get(4)?,
+                service_provider_id: row.get(5)?,
+                service_provider_name: row.get(6)?,
+                expense_type_id: row.get(7)?,
+                expense_type_name: row.get(8)?,
+                amount_paise: row.get(9)?,
+                cgst_amount_paise: row.get(10)?,
+                sgst_amount_paise: row.get(11)?,
+                igst_amount_paise: row.get(12)?,
+                tds_amount_paise: row.get(13)?,
+                total_amount_paise: row.get(14)?,
+                net_amount_paise: row.get(15)?,
+                currency: row.get(16)?,
+                remarks: row.get(17)?,
+                created_at: row.get(18)?,
+            })
+        })?;
+
+        let mut report_rows = Vec::new();
+        let mut totals = ExpenseReportTotals {
+            total_amount_paise: 0,
+            total_cgst_amount_paise: 0,
+            total_sgst_amount_paise: 0,
+            total_igst_amount_paise: 0,
+            total_tds_amount_paise: 0,
+            total_net_amount_paise: 0,
+            invoice_count: 0,
+            expense_line_count: 0,
+        };
+
+        let mut seen_invoices = std::collections::HashSet::new();
+
+        let mut row_count = 0;
+        for row in rows {
+            let row = row?;
+            row_count += 1;
+            
+            println!("🔍 [DEBUG] Row {}: amount_paise={}, cgst_paise={}, invoice_number={}", 
+                row_count, row.amount_paise, row.cgst_amount_paise, row.invoice_number);
+            
+            totals.total_amount_paise += row.amount_paise;
+            totals.total_cgst_amount_paise += row.cgst_amount_paise;
+            totals.total_sgst_amount_paise += row.sgst_amount_paise;
+            totals.total_igst_amount_paise += row.igst_amount_paise;
+            totals.total_tds_amount_paise += row.tds_amount_paise;
+            totals.total_net_amount_paise += row.net_amount_paise;
+            totals.expense_line_count += 1;
+
+            if !seen_invoices.contains(&row.invoice_id) {
+                seen_invoices.insert(row.invoice_id.clone());
+                totals.invoice_count += 1;
+            }
+
+            report_rows.push(row);
+        }
+        
+        println!("🔍 [DEBUG] Total rows processed: {}", row_count);
+        println!("🔍 [DEBUG] Final totals: amount_paise={}, cgst_paise={}, line_count={}", 
+            totals.total_amount_paise, totals.total_cgst_amount_paise, totals.expense_line_count);
+
+        Ok(ExpenseReportResponse {
+            rows: report_rows,
+            totals,
+            filters_applied: filters.clone(),
+        })
+    }
+
+    /// Generate summary report grouped by expense type
+    pub fn generate_summary_by_type(
+        conn: &Connection,
+        filters: &ExpenseReportFilters,
+    ) -> Result<Vec<ExpenseSummaryByType>, ExpenseError> {
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        // Build WHERE conditions (same as detailed report)
+        if let Some(ref shipment_id) = filters.shipment_id {
+            conditions.push("ei.shipment_id = ?".to_string());
+            params.push(Box::new(shipment_id.clone()));
+        }
+
+        if let Some(ref service_provider_id) = filters.service_provider_id {
+            conditions.push("ei.service_provider_id = ?".to_string());
+            params.push(Box::new(service_provider_id.clone()));
+        }
+
+        if let Some(ref date_from) = filters.date_from {
+            conditions.push("ei.invoice_date >= ?".to_string());
+            params.push(Box::new(date_from.clone()));
+        }
+
+        if let Some(ref date_to) = filters.date_to {
+            conditions.push("ei.invoice_date <= ?".to_string());
+            params.push(Box::new(date_to.clone()));
+        }
+
+        if let Some(ref currency) = filters.currency {
+            conditions.push("ei.currency = ?".to_string());
+            params.push(Box::new(currency.clone()));
+        }
+
+        if !filters.include_inactive.unwrap_or(false) {
+            conditions.push("et.is_active = 1".to_string());
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        let query = format!(
+            "SELECT 
+                e.expense_type_id,
+                et.name as expense_type_name,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
+                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                COUNT(*) as line_count
+            FROM expense_invoices ei
+            JOIN expenses e ON ei.id = e.expense_invoice_id
+            JOIN expense_types et ON e.expense_type_id = et.id
+            {}
+            GROUP BY e.expense_type_id, et.name
+            ORDER BY total_amount_paise DESC",
+            where_clause
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            Ok(ExpenseSummaryByType {
+                expense_type_id: row.get(0)?,
+                expense_type_name: row.get(1)?,
+                total_amount_paise: row.get(2)?,
+                total_cgst_amount_paise: row.get(3)?,
+                total_sgst_amount_paise: row.get(4)?,
+                total_igst_amount_paise: row.get(5)?,
+                total_tds_amount_paise: row.get(6)?,
+                total_net_amount_paise: row.get(7)?,
+                line_count: row.get(8)?,
+            })
+        })?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+    }
+
+    /// Generate summary report grouped by service provider
+    pub fn generate_summary_by_provider(
+        conn: &Connection,
+        filters: &ExpenseReportFilters,
+    ) -> Result<Vec<ExpenseSummaryByProvider>, ExpenseError> {
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        // Build WHERE conditions
+        if let Some(ref shipment_id) = filters.shipment_id {
+            conditions.push("ei.shipment_id = ?".to_string());
+            params.push(Box::new(shipment_id.clone()));
+        }
+
+        if let Some(ref expense_type_id) = filters.expense_type_id {
+            conditions.push("e.expense_type_id = ?".to_string());
+            params.push(Box::new(expense_type_id.clone()));
+        }
+
+        if let Some(ref date_from) = filters.date_from {
+            conditions.push("ei.invoice_date >= ?".to_string());
+            params.push(Box::new(date_from.clone()));
+        }
+
+        if let Some(ref date_to) = filters.date_to {
+            conditions.push("ei.invoice_date <= ?".to_string());
+            params.push(Box::new(date_to.clone()));
+        }
+
+        if let Some(ref currency) = filters.currency {
+            conditions.push("ei.currency = ?".to_string());
+            params.push(Box::new(currency.clone()));
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        let query = format!(
+            "SELECT 
+                ei.service_provider_id,
+                sp.name as service_provider_name,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
+                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                COUNT(DISTINCT ei.id) as invoice_count,
+                COUNT(*) as line_count
+            FROM expense_invoices ei
+            JOIN expenses e ON ei.id = e.expense_invoice_id
+            JOIN service_providers sp ON ei.service_provider_id = sp.id
+            {}
+            GROUP BY ei.service_provider_id, sp.name
+            ORDER BY total_amount_paise DESC",
+            where_clause
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            Ok(ExpenseSummaryByProvider {
+                service_provider_id: row.get(0)?,
+                service_provider_name: row.get(1)?,
+                total_amount_paise: row.get(2)?,
+                total_cgst_amount_paise: row.get(3)?,
+                total_sgst_amount_paise: row.get(4)?,
+                total_igst_amount_paise: row.get(5)?,
+                total_tds_amount_paise: row.get(6)?,
+                total_net_amount_paise: row.get(7)?,
+                invoice_count: row.get(8)?,
+                line_count: row.get(9)?,
+            })
+        })?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+    }
+
+    /// Generate summary report grouped by shipment
+    pub fn generate_summary_by_shipment(
+        conn: &Connection,
+        filters: &ExpenseReportFilters,
+    ) -> Result<Vec<ExpenseSummaryByShipment>, ExpenseError> {
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        // Build WHERE conditions
+        if let Some(ref service_provider_id) = filters.service_provider_id {
+            conditions.push("ei.service_provider_id = ?".to_string());
+            params.push(Box::new(service_provider_id.clone()));
+        }
+
+        if let Some(ref expense_type_id) = filters.expense_type_id {
+            conditions.push("e.expense_type_id = ?".to_string());
+            params.push(Box::new(expense_type_id.clone()));
+        }
+
+        if let Some(ref date_from) = filters.date_from {
+            conditions.push("ei.invoice_date >= ?".to_string());
+            params.push(Box::new(date_from.clone()));
+        }
+
+        if let Some(ref date_to) = filters.date_to {
+            conditions.push("ei.invoice_date <= ?".to_string());
+            params.push(Box::new(date_to.clone()));
+        }
+
+        if let Some(ref currency) = filters.currency {
+            conditions.push("ei.currency = ?".to_string());
+            params.push(Box::new(currency.clone()));
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        let query = format!(
+            "SELECT 
+                ei.shipment_id,
+                s.invoice_number as shipment_number,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
+                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                COUNT(DISTINCT ei.id) as invoice_count,
+                COUNT(*) as line_count
+            FROM expense_invoices ei
+            JOIN expenses e ON ei.id = e.expense_invoice_id
+            LEFT JOIN shipments s ON ei.shipment_id = s.id
+            {}
+            GROUP BY ei.shipment_id, s.invoice_number
+            ORDER BY total_amount_paise DESC",
+            where_clause
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            Ok(ExpenseSummaryByShipment {
+                shipment_id: row.get(0)?,
+                shipment_number: row.get(1)?,
+                total_amount_paise: row.get(2)?,
+                total_cgst_amount_paise: row.get(3)?,
+                total_sgst_amount_paise: row.get(4)?,
+                total_igst_amount_paise: row.get(5)?,
+                total_tds_amount_paise: row.get(6)?,
+                total_net_amount_paise: row.get(7)?,
+                invoice_count: row.get(8)?,
+                line_count: row.get(9)?,
+            })
+        })?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+    }
+
+    /// Generate summary report grouped by month
+    pub fn generate_summary_by_month(
+        conn: &Connection,
+        filters: &ExpenseReportFilters,
+    ) -> Result<Vec<ExpenseSummaryByMonth>, ExpenseError> {
+        let mut conditions = Vec::new();
+        let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        // Build WHERE conditions
+        if let Some(ref shipment_id) = filters.shipment_id {
+            conditions.push("ei.shipment_id = ?".to_string());
+            params.push(Box::new(shipment_id.clone()));
+        }
+
+        if let Some(ref service_provider_id) = filters.service_provider_id {
+            conditions.push("ei.service_provider_id = ?".to_string());
+            params.push(Box::new(service_provider_id.clone()));
+        }
+
+        if let Some(ref expense_type_id) = filters.expense_type_id {
+            conditions.push("e.expense_type_id = ?".to_string());
+            params.push(Box::new(expense_type_id.clone()));
+        }
+
+        if let Some(ref currency) = filters.currency {
+            conditions.push("ei.currency = ?".to_string());
+            params.push(Box::new(currency.clone()));
+        }
+
+        let where_clause = if conditions.is_empty() {
+            String::new()
+        } else {
+            format!("WHERE {}", conditions.join(" AND "))
+        };
+
+        let query = format!(
+            "SELECT 
+                CAST(strftime('%Y', ei.invoice_date) AS INTEGER) as year,
+                CAST(strftime('%m', ei.invoice_date) AS INTEGER) as month,
+                strftime('%Y-%m', ei.invoice_date) as month_name,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
+                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                COUNT(DISTINCT ei.id) as invoice_count,
+                COUNT(*) as line_count
+            FROM expense_invoices ei
+            JOIN expenses e ON ei.id = e.expense_invoice_id
+            {}
+            GROUP BY year, month, month_name
+            ORDER BY year DESC, month DESC",
+            where_clause
+        );
+
+        let mut stmt = conn.prepare(&query)?;
+        let rows = stmt.query_map(rusqlite::params_from_iter(params.iter()), |row| {
+            Ok(ExpenseSummaryByMonth {
+                year: row.get(0)?,
+                month: row.get(1)?,
+                month_name: row.get(2)?,
+                total_amount_paise: row.get(3)?,
+                total_cgst_amount_paise: row.get(4)?,
+                total_sgst_amount_paise: row.get(5)?,
+                total_igst_amount_paise: row.get(6)?,
+                total_tds_amount_paise: row.get(7)?,
+                total_net_amount_paise: row.get(8)?,
+                invoice_count: row.get(9)?,
+                line_count: row.get(10)?,
+            })
+        })?;
+
+        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+    }
 }
+
+
 
 // ============================================================================
 // Private Helper Methods
@@ -960,7 +1568,7 @@ impl ExpenseService {
                     total_amount_paise,
                     net_amount_paise,
                     line.remarks,
-                    "system", // TODO: Get actual user
+                    "admin-001", // TODO: Get actual user from frontend context
                 ],
             )
             .map_err(ExpenseError::Database)?;

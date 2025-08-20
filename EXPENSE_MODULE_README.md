@@ -5,6 +5,7 @@ A complete, production-ready Rust module for handling multiline expense invoices
 ## Features
 
 ### ✅ Core Functionality
+
 - **Transactional Invoice Management**: Create and update expense invoices with full transaction safety
 - **Idempotency Support**: Prevents duplicate invoices using idempotency keys
 - **Optimistic Locking**: Prevents concurrent modification conflicts
@@ -14,6 +15,7 @@ A complete, production-ready Rust module for handling multiline expense invoices
 - **Tax Calculation**: Precise tax calculations using basis points (paise precision)
 
 ### ✅ Production Features
+
 - **Error Handling**: Comprehensive error types with detailed messages
 - **Audit Trail**: Version tracking for all invoice changes
 - **Database Safety**: Parameterized queries prevent SQL injection
@@ -51,17 +53,20 @@ pub struct ExpenseInvoicePayload {
 ### Core Services
 
 #### ExpenseService
+
 - `create_or_update_invoice()`: Main upsert function with idempotency
 - `preview_invoice()`: Calculate totals without persistence
 - `combine_duplicates()`: Merge duplicate expense lines
 - `get_invoice()`: Retrieve invoice details
 
 #### TaxCalculator
+
 - `calculate_tax_amount()`: Precise tax calculation using basis points
 - `calculate_total_amount()`: Sum of amount + taxes
 - `calculate_net_amount()`: Amount + taxes - TDS
 
 #### ExpenseValidator
+
 - `validate_payload()`: Comprehensive input validation
 - `validate_expense_line()`: Per-line validation
 
@@ -103,6 +108,7 @@ pub async fn get_expense_invoice(
 ### Request/Response Examples
 
 #### Create Invoice
+
 ```json
 {
   "shipment_id": "shipment-123",
@@ -135,6 +141,7 @@ pub async fn get_expense_invoice(
 ```
 
 #### Response
+
 ```json
 {
   "invoice_id": "uuid-generated",
@@ -150,11 +157,13 @@ pub async fn get_expense_invoice(
 ## Tax Calculation Policy
 
 ### Basis Points System
+
 - **10000 basis points = 100%**
 - **900 basis points = 9%**
 - **1800 basis points = 18%**
 
 ### Calculation Formula
+
 ```rust
 // Tax amount calculation
 tax_amount = (amount_paise * rate_basis_points) / 10000
@@ -164,6 +173,7 @@ tax_amount = (100000 * 900) / 10000 = 9000 paise = 90 rupees
 ```
 
 ### Rounding Policy
+
 - All calculations use integer arithmetic
 - Rounding is done per line, not aggregated
 - Small amounts may round to zero (e.g., 1 paise with 9% tax = 0)
@@ -171,6 +181,7 @@ tax_amount = (100000 * 900) / 10000 = 9000 paise = 90 rupees
 ## Error Handling
 
 ### Error Types
+
 ```rust
 pub enum ExpenseError {
     Database(rusqlite::Error),
@@ -185,6 +196,7 @@ pub enum ExpenseError {
 ```
 
 ### Common Error Scenarios
+
 - **Validation Errors**: Invalid amounts, tax rates, or missing required fields
 - **Optimistic Lock Conflicts**: Concurrent updates to same invoice
 - **Idempotency Conflicts**: Duplicate idempotency keys
@@ -193,6 +205,7 @@ pub enum ExpenseError {
 ## Testing
 
 ### Test Coverage (9 Tests)
+
 1. **Tax Calculator Rounding**: Edge cases with small amounts
 2. **Tax Calculator Totals**: Sum invariants and calculations
 3. **Validation**: Input validation for all fields
@@ -204,6 +217,7 @@ pub enum ExpenseError {
 9. **Optimistic Locking**: Concurrent update handling
 
 ### Running Tests
+
 ```bash
 cd src-tauri
 cargo test
@@ -212,6 +226,7 @@ cargo test
 ## Database Schema
 
 ### Required Tables
+
 ```sql
 -- Expense types with default tax rates
 CREATE TABLE expense_types (
@@ -272,31 +287,33 @@ CREATE TABLE expenses (
 ## Frontend Integration
 
 ### TypeScript Interfaces
+
 ```typescript
 interface ExpenseLine {
-  expense_type_id: string;
-  amount_paise: number;
-  cgst_rate: number;
-  sgst_rate: number;
-  igst_rate: number;
-  tds_rate: number;
-  remarks?: string;
+  expense_type_id: string
+  amount_paise: number
+  cgst_rate: number
+  sgst_rate: number
+  igst_rate: number
+  tds_rate: number
+  remarks?: string
 }
 
 interface ExpenseInvoicePayload {
-  shipment_id: string;
-  service_provider_id: string;
-  invoice_number: string;
-  invoice_date: string;
-  currency: string;
-  idempotency_key?: string;
-  lines: ExpenseLine[];
+  shipment_id: string
+  service_provider_id: string
+  invoice_number: string
+  invoice_date: string
+  currency: string
+  idempotency_key?: string
+  lines: ExpenseLine[]
 }
 ```
 
 ### Usage Example
+
 ```typescript
-import { invoke } from '@tauri-apps/api/tauri';
+import { invoke } from '@tauri-apps/api/tauri'
 
 // Create invoice
 const response = await invoke('create_expense_invoice', {
@@ -315,37 +332,40 @@ const response = await invoke('create_expense_invoice', {
         sgst_rate: 900,
         igst_rate: 0,
         tds_rate: 0,
-        remarks: 'Import customs duty'
-      }
-    ]
-  }
-});
+        remarks: 'Import customs duty',
+      },
+    ],
+  },
+})
 
 // Preview calculations
-const preview = await invoke('preview_expense_invoice', { payload });
+const preview = await invoke('preview_expense_invoice', { payload })
 
 // Combine duplicates
 const combined = await invoke('combine_expense_duplicates', {
   invoice_id: 'invoice-uuid',
-  request: { separator: '; ' }
-});
+  request: { separator: '; ' },
+})
 ```
 
 ## Best Practices
 
 ### Security
+
 - ✅ Parameterized queries prevent SQL injection
 - ✅ Input validation on all fields
 - ✅ No sensitive data in logs
 - ✅ Proper error handling without information leakage
 
 ### Performance
+
 - ✅ Transactional operations for data consistency
 - ✅ Efficient database queries with proper indexing
 - ✅ Minimal memory allocations
 - ✅ Optimistic locking for concurrency
 
 ### Maintainability
+
 - ✅ Comprehensive error types
 - ✅ Extensive test coverage
 - ✅ Clear separation of concerns
@@ -353,6 +373,7 @@ const combined = await invoke('combine_expense_duplicates', {
 - ✅ Type-safe interfaces
 
 ### Reliability
+
 - ✅ Idempotent operations
 - ✅ Transaction rollback on errors
 - ✅ Version tracking for audit trails
@@ -361,17 +382,20 @@ const combined = await invoke('combine_expense_duplicates', {
 ## Deployment
 
 ### Prerequisites
+
 - Rust 1.70+ with Cargo
 - SQLite 3.x
 - Tauri framework
 
 ### Build
+
 ```bash
 cd src-tauri
 cargo build --release
 ```
 
 ### Dependencies
+
 ```toml
 [dependencies]
 rusqlite = "0.31"
@@ -384,6 +408,7 @@ tauri = "2.0"
 ## Status: ✅ Complete
 
 This module is **production-ready** with:
+
 - ✅ All core functions implemented and tested
 - ✅ Comprehensive error handling
 - ✅ Full test coverage (9 tests passing)

@@ -220,6 +220,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
         placeholder="Select a shipment..."
         searchPlaceholder="Search by invoice, BL/AWB..."
         emptyText="No shipments found."
+        size="sm"
       />
       {selectedShipment && (
         <div className="bg-muted/50 mt-3 rounded-md border p-3">

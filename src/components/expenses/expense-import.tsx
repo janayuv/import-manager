@@ -7,13 +7,7 @@ import * as ExcelJS from 'exceljs'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Combobox } from '@/components/ui/combobox'
 import {
   Table,
   TableBody,
@@ -353,32 +347,35 @@ export default function ExpenseImport({
         throw new Error('Selected shipment not found')
       }
 
-      // Find a service provider for the invoice (use the first one from the import data)
-      const firstServiceProviderName = importData[0]?.serviceProviderName
-      const serviceProvider = serviceProviders.find(
-        (sp) => sp.name.toLowerCase() === firstServiceProviderName?.toLowerCase()
-      )
-
-      if (!serviceProvider) {
-        throw new Error(`Service provider "${firstServiceProviderName}" not found`)
-      }
-
-      // Prepare bulk expense payload
+      // Prepare bulk expense payload with individual invoice details for each row
       const bulkPayload = {
         shipmentId: selectedShipment,
-        serviceProviderId: serviceProvider.id,
-        invoiceNumber: importData[0]?.invoiceNo || `EXP-${Date.now()}`,
-        invoiceDate: importData[0]?.invoiceDate || new Date().toISOString().split('T')[0],
         currency: selectedShipmentData.invoiceCurrency || 'INR',
-        expenses: importData.map((row) => ({
-          expenseTypeName: row.expenseTypeName,
-          amount: row.amount,
-          cgstAmount: row.cgstAmount,
-          sgstAmount: row.sgstAmount,
-          igstAmount: row.igstAmount,
-          tdsAmount: row.tdsAmount,
-          remarks: row.remarks || null,
-        })),
+        expenses: await Promise.all(
+          importData.map(async (row) => {
+            // Find service provider for this specific row
+            const serviceProvider = serviceProviders.find(
+              (sp) => sp.name.toLowerCase() === row.serviceProviderName?.toLowerCase()
+            )
+
+            if (!serviceProvider) {
+              throw new Error(`Service provider "${row.serviceProviderName}" not found`)
+            }
+
+            return {
+              expenseTypeName: row.expenseTypeName,
+              serviceProviderId: serviceProvider.id,
+              invoiceNo: row.invoiceNo,
+              invoiceDate: row.invoiceDate,
+              amount: row.amount,
+              cgstAmount: row.cgstAmount,
+              sgstAmount: row.sgstAmount,
+              igstAmount: row.igstAmount,
+              tdsAmount: row.tdsAmount,
+              remarks: row.remarks || null,
+            }
+          })
+        ),
       }
 
       setProgress(50)
@@ -433,25 +430,20 @@ export default function ExpenseImport({
           {/* Shipment Selection */}
           <div className="space-y-2">
             <Label htmlFor="shipment-select">Select Shipment *</Label>
-            <Select value={selectedShipment} onValueChange={setSelectedShipment}>
-              <SelectTrigger id="shipment-select">
-                <SelectValue placeholder="Choose a shipment to import expenses for" />
-              </SelectTrigger>
-              <SelectContent>
-                {shipments.map((shipment) => (
-                  <SelectItem key={shipment.id} value={shipment.id}>
-                    <div className="flex flex-col">
-                      <span className="font-medium">
-                        {formatText(shipment.invoiceNumber, settings.textFormat)}
-                      </span>
-                      <span className="text-muted-foreground text-xs">
-                        BL/AWB: {formatText(shipment.blAwbNumber, settings.textFormat)}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <div className="max-w-md">
+              <Combobox
+                options={shipments.map((shipment) => ({
+                  value: shipment.id,
+                  label: `${formatText(shipment.invoiceNumber, settings.textFormat)} - ${formatText(shipment.blAwbNumber, settings.textFormat)}`,
+                }))}
+                value={selectedShipment}
+                onChange={setSelectedShipment}
+                placeholder="Choose a shipment to import expenses for"
+                searchPlaceholder="Search by invoice number or BL/AWB..."
+                emptyText="No shipments found."
+                size="xs"
+              />
+            </div>
             {selectedShipmentData && (
               <div className="mt-2">
                 <Badge variant="outline">

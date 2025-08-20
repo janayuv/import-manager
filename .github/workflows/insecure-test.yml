@@ -1,0 +1,34 @@
+name: Insecure Test Workflow
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build Tauri App
+        run: |
+          npm install
+          npm run tauri build
+        env:
+          # This should trigger the secrets rule - hardcoded private key!
+          TAURI_SIGNING_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg1234567890abcdef\n-----END PRIVATE KEY-----"
+          TAURI_PRIVATE_KEY: 'super-secret-key-12345'
+
+      - name: Upload Release
+        run: |
+          echo "Uploading with hardcoded credentials..."
+          # This should also trigger the rule
+          curl -H "Authorization: Bearer hardcoded-token-12345" \
+               -F "file=@dist/app.zip" \
+               https://api.example.com/upload

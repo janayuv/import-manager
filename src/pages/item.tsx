@@ -99,7 +99,9 @@ export function ItemMasterPage() {
 
       Object.keys(optionConfigs).forEach((key, index) => {
         const configKey = key as keyof typeof optionConfigs
+
         const setterName = optionConfigs[configKey].setter
+
         const setter = stateSetters[setterName]
         if (setter) {
           setter(allOptions[index])
@@ -242,9 +244,52 @@ export function ItemMasterPage() {
       })
       if (typeof selectedPath === 'string') {
         const content = await readTextFile(selectedPath)
-        const { newItems, skippedCount } = importItemsFromCsv(content, items, suppliers)
 
-        if (skippedCount > 0) toast.warning(`${skippedCount} duplicate items were skipped.`)
+        // Use enhanced CSV import with validation
+        const { newItems, skippedCount, validationResult } = importItemsFromCsv(
+          content,
+          items,
+          suppliers
+        )
+
+        // Show validation results
+        if (!validationResult.isValid) {
+          const errorMessage = validationResult.errors
+            .map((e) => `Row ${e.row}, Column ${e.column}: ${e.message}`)
+            .join('\n')
+
+          toast.error(`CSV validation failed:\n${errorMessage}`, {
+            duration: 10000,
+            style: {
+              whiteSpace: 'pre-line',
+              maxWidth: '600px',
+              maxHeight: '400px',
+              overflow: 'auto',
+            },
+          })
+          return
+        }
+
+        // Show warnings if any
+        if (validationResult.warnings.length > 0) {
+          const warningMessage = validationResult.warnings
+            .map((w) => `Row ${w.row}, Column ${w.column}: ${w.message}`)
+            .join('\n')
+
+          toast.warning(`CSV imported with warnings:\n${warningMessage}`, {
+            duration: 8000,
+            style: {
+              whiteSpace: 'pre-line',
+              maxWidth: '600px',
+              maxHeight: '400px',
+              overflow: 'auto',
+            },
+          })
+        }
+
+        if (skippedCount > 0) {
+          toast.warning(`${skippedCount} duplicate items were skipped.`)
+        }
 
         if (newItems.length > 0) {
           const itemsForBackend = newItems.map((item) => ({
