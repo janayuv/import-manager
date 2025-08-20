@@ -22,7 +22,7 @@ export interface CacheStats {
 }
 
 // Memory Cache Implementation
-class MemoryCache<T = any> {
+class MemoryCache<T = unknown> {
   private cache = new Map<string, CacheItem<T>>()
   private stats = { hits: 0, misses: 0, size: 0, maxSize: 1000 }
   private config: Required<CacheConfig>
@@ -115,7 +115,7 @@ class MemoryCache<T = any> {
 }
 
 // Storage Cache Implementation (localStorage/sessionStorage)
-class StorageCache<T = any> {
+class StorageCache<T = unknown> {
   private storage: Storage
   private config: Required<CacheConfig>
 
@@ -365,7 +365,7 @@ export const cache = new CacheManager()
 // Utility functions for common caching patterns
 export const cacheUtils = {
   // Cache with automatic key generation
-  withKey: <T>(prefix: string, params: Record<string, any>, data: T, ttl?: number) => {
+  withKey: <T>(prefix: string, params: Record<string, unknown>, data: T, ttl?: number) => {
     const key = `${prefix}:${JSON.stringify(params)}`
     cache.memory.set(key, data, ttl)
     return key

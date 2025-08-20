@@ -170,7 +170,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
     if (filters.dateFrom && filters.dateTo) {
       generateReport()
     }
-  }, [filters, reportType])
+  }, [filters, reportType, generateReport])
 
   // Chart data for summaries
   const chartData = useMemo(() => {

@@ -96,11 +96,11 @@ export const sanitizedString = (minLength?: number, maxLength?: number) => {
   let schema = baseSanitizedString
 
   if (minLength) {
-    schema = schema.pipe(z.string().min(minLength, messages.minLength(minLength))) as any
+    schema = schema.pipe(z.string().min(minLength, messages.minLength(minLength)))
   }
 
   if (maxLength) {
-    schema = schema.pipe(z.string().max(maxLength, messages.maxLength(maxLength))) as any
+    schema = schema.pipe(z.string().max(maxLength, messages.maxLength(maxLength)))
   }
 
   return schema
@@ -344,9 +344,7 @@ export function validateData<T>(
     return { success: true, data: validatedData }
   } catch (error) {
     if (error instanceof z.ZodError) {
-      const errors = (error as any).errors.map(
-        (err: any) => `${err.path.join('.')}: ${err.message}`
-      )
+      const errors = error.errors.map((err) => `${err.path.join('.')}: ${err.message}`)
       return { success: false, errors }
     }
     return { success: false, errors: ['Unknown validation error'] }

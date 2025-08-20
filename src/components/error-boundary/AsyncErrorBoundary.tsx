@@ -90,7 +90,7 @@ export function AsyncErrorBoundary({
       window.removeEventListener('unhandledrejection', handleUnhandledRejection)
       window.removeEventListener('error', handleError)
     }
-  }, [onError, defaultShowDetails])
+  }, [onError, defaultShowDetails, logError])
 
   // Reset error state when resetKey changes
   useEffect(() => {

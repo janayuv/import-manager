@@ -94,7 +94,7 @@ export function useCachedData<T>(
         setLoading(false)
       }
     },
-    [key, fetchFn, ttl, cacheType, enabled, onSuccess, onError]
+    [key, fetchFn, ttl, enabled, onSuccess, onError, cacheInstance]
   )
 
   const refetch = useCallback(() => fetchData(true), [fetchData])
@@ -605,11 +605,14 @@ export function useOptimizedIntersectionObserver(
       setEntry(entry)
     }, options)
 
-    observer.observe(elementRef.current)
+    const element = elementRef.current
+    if (element) {
+      observer.observe(element)
+    }
 
     return () => {
-      if (elementRef.current) {
-        observer.unobserve(elementRef.current)
+      if (element) {
+        observer.unobserve(element)
       }
     }
   }, [options])

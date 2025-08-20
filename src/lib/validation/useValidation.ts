@@ -27,7 +27,7 @@ interface UseValidationReturn<T> {
 
   // Actions
   setData: (data: Partial<T>) => void
-  setField: (field: keyof T, value: any) => void
+  setField: (field: keyof T, value: T[keyof T]) => void
   setTouched: (field: keyof T, touched: boolean) => void
   validate: () => boolean
   validateField: (field: keyof T) => boolean
@@ -40,7 +40,7 @@ interface UseValidationReturn<T> {
   isFieldTouched: (field: keyof T) => boolean
 }
 
-export function useValidation<T extends Record<string, any>>({
+export function useValidation<T extends Record<string, unknown>>({
   schema,
   initialData = {},
   onValidationSuccess,
@@ -86,7 +86,7 @@ export function useValidation<T extends Record<string, any>>({
 
   // Set individual field
   const setField = useCallback(
-    (field: keyof T, value: any) => {
+    (field: keyof T, value: T[keyof T]) => {
       setData({ ...data, [field]: value })
     },
     [data, setData]
@@ -101,7 +101,7 @@ export function useValidation<T extends Record<string, any>>({
         validateField(field)
       }
     },
-    [validateOnBlur]
+    [validateOnBlur, validateField]
   )
 
   // Validate entire form
@@ -326,7 +326,7 @@ export function useRealTimeValidation<T>(
   )
 
   const validateRealTime = useCallback(
-    (field: keyof T, value: any) => {
+    (field: keyof T, value: T[keyof T]) => {
       const fieldData = { [field]: value }
       // Create a simple field validation
       const result = validateData(schema, fieldData)

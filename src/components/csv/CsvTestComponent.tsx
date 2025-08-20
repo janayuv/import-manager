@@ -227,7 +227,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 <select
                   id="data-type"
                   value={selectedDataType}
-                  onChange={(e) => setSelectedDataType(e.target.value as any)}
+                  onChange={(e) =>
+                    setSelectedDataType(e.target.value as 'items' | 'suppliers' | 'shipments')
+                  }
                   className="rounded border px-3 py-1"
                 >
                   <option value="items">Items</option>

@@ -26,7 +26,7 @@ export interface PerformanceMetrics {
 export class PerformanceObserver {
   private static instance: PerformanceObserver | null = null
   private metrics: Partial<PerformanceMetrics> = {}
-  private observers: Map<string, any> = new Map()
+  private observers: Map<string, globalThis.PerformanceObserver> = new Map()
 
   static getInstance(): PerformanceObserver {
     if (!PerformanceObserver.instance) {
