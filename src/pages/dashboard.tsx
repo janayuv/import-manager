@@ -1,15 +1,15 @@
 // src/pages/dashboard.tsx
+import { invoke } from '@tauri-apps/api/core'
 import { format, startOfMonth, startOfWeek, subDays } from 'date-fns'
-import { formatDateForDisplay } from '@/lib/date-format'
 import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  DollarSign,
   Factory,
   Package,
   Ship,
   TrendingUp,
-  DollarSign,
-  Calendar,
-  AlertTriangle,
-  CheckCircle,
 } from 'lucide-react'
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Cell, Line, LineChart, Pie, PieChart } from 'recharts'
@@ -19,6 +19,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { KPICard } from '@/components/ui/kpi-card'
+import { LayoutControls, ResizableLayout } from '@/components/ui/resizable-layout'
 import {
   Select,
   SelectContent,
@@ -26,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import {
   Table,
   TableBody,
@@ -34,15 +37,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import { KPICard } from '@/components/ui/kpi-card'
-import { ResizableLayout, LayoutControls } from '@/components/ui/resizable-layout'
-import { Skeleton } from '@/components/ui/skeleton'
+import { formatDateForDisplay } from '@/lib/date-format'
 import type { SavedBoe } from '@/types/boe-entry'
 import type { Expense } from '@/types/expense'
 import type { Item } from '@/types/item'
 import type { Shipment as ShipmentTs } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
-import { invoke } from '@tauri-apps/api/core'
 
 // --- Helper UI ---
 const LoadingSkeleton = () => (

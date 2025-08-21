@@ -1,4 +1,7 @@
 // src/pages/boe/index.tsx (MODIFIED)
+import { invoke } from '@tauri-apps/api/core'
+import { open, save } from '@tauri-apps/plugin-dialog'
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { Download, Loader2, Plus, Upload } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
@@ -22,9 +25,6 @@ import {
 import { Button } from '@/components/ui/button'
 import { useSettings } from '@/lib/use-settings'
 import type { BoeDetails } from '@/types/boe'
-import { invoke } from '@tauri-apps/api/core'
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
 const BoePage = () => {
   const { settings } = useSettings()

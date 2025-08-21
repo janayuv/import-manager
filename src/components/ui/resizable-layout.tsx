@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Panel, PanelGroup, PanelResizeHandle, type PanelGroupProps } from 'react-resizable-panels'
+
+import { Panel, PanelGroup, type PanelGroupProps, PanelResizeHandle } from 'react-resizable-panels'
 
 import { cn } from '@/lib/utils'
 

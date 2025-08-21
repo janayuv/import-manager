@@ -1,16 +1,16 @@
-import { Moon, SidebarIcon, Sun, Monitor } from 'lucide-react'
+import { Monitor, Moon, SidebarIcon, Sun } from 'lucide-react'
 
 import { useTheme } from '@/components/layout/theme-context'
-import { Button } from '@/components/ui/button'
-import { Separator } from '@/components/ui/separator'
-import { useSidebar } from '@/components/ui/use-sidebar'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
+import { Button } from '@/components/ui/button'
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { Separator } from '@/components/ui/separator'
+import { useSidebar } from '@/components/ui/use-sidebar'
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar()

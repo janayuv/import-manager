@@ -1,5 +1,16 @@
 // src/components/shipment/table.tsx (MODIFIED)
 // Re-using the same data table component structure.
+import {
+  type ColumnDef,
+  type SortingState,
+  flexRender,
+  getCoreRowModel,
+  getFilteredRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  useReactTable,
+} from '@tanstack/react-table'
+
 import * as React from 'react'
 
 import { Input } from '@/components/ui/input'
@@ -11,16 +22,6 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import {
-  type ColumnDef,
-  type SortingState,
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-} from '@tanstack/react-table'
 
 import { DataTablePagination } from './pagination'
 

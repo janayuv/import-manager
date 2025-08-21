@@ -1,6 +1,8 @@
-import { useState, useEffect, useCallback } from 'react'
 import { invoke } from '@tauri-apps/api/core'
-import type { ReportRow, ReportTotals, ReportFilters, ReportResponse } from '../types/report'
+
+import { useCallback, useEffect, useState } from 'react'
+
+import type { ReportFilters, ReportResponse, ReportRow, ReportTotals } from '../types/report'
 
 export function useReport() {
   const [data, setData] = useState<ReportRow[]>([])

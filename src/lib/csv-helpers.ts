@@ -1,7 +1,7 @@
 // src/lib/csv-helpers.ts (ENHANCED)
 // Comprehensive CSV import/export with edge case handling and robustness
-import Papa from 'papaparse'
 import DOMPurify from 'dompurify'
+import Papa from 'papaparse'
 
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'

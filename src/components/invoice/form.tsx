@@ -1,4 +1,6 @@
 // src/components/invoice/form.tsx (MODIFIED - Correctly applies supplier-based part filtering)
+import { open, save } from '@tauri-apps/plugin-dialog'
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { Download, Loader2, Plus, Upload, X } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
@@ -38,15 +40,13 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Invoice, InvoiceLineItem } from '@/types/invoice'
+import type { Item } from '@/types/item'
+import type { Shipment } from '@/types/shipment'
 
 // Extended type for form handling with isNew flag
 interface FormInvoiceLineItem extends InvoiceLineItem {
   isNew?: boolean
 }
-import type { Item } from '@/types/item'
-import type { Shipment } from '@/types/shipment'
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
 interface InvoiceFormProps {
   isOpen: boolean

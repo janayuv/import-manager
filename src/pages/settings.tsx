@@ -2,8 +2,11 @@
 'use client'
 
 import { toast } from 'sonner'
+
 import * as React from 'react'
 
+import { ModuleSettings } from '@/components/module-settings'
+import { ModuleSettingsDemo } from '@/components/module-settings-demo'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -17,17 +20,22 @@ import {
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
-  loadSettings,
-  clearSettings,
   type AppSettings,
-  formatNumber,
+  clearSettings,
   formatCurrency,
   formatDate,
+  formatNumber,
   formatText,
+  loadSettings,
 } from '@/lib/settings'
-import { ModuleSettings } from '@/components/module-settings'
-import { ModuleSettingsDemo } from '@/components/module-settings-demo'
 import { useSettings } from '@/lib/use-settings'
+
+// src/pages/settings.tsx
+
+// src/pages/settings.tsx
+
+// src/pages/settings.tsx
+
 export default function SettingsPage() {
   const { settings, updateSettings, updateNumberSettings, updateDateSettings, updateTextSettings } =
     useSettings()

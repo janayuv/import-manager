@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+
 import { buildReportCsv } from '@/lib/financial'
 
 describe('Report CSV', () => {

@@ -1,4 +1,5 @@
 import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@radix-ui/react-icons'
+
 import type { ComponentType } from 'react'
 
 import { cn } from '@/lib/utils'

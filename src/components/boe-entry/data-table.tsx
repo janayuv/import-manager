@@ -9,16 +9,6 @@
 */
 'use client'
 
-import * as React from 'react'
-
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -34,7 +24,48 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 
+import * as React from 'react'
+
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+
 import { DataTablePagination } from './data-table-pagination'
+
+/*
+================================================================================
+| FILE: src/components/data-table.tsx                                          |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| The main reusable data table component. It uses the tanstack/react-table     |
+| library to provide sorting, filtering, and pagination.                       |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/components/data-table.tsx                                          |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| The main reusable data table component. It uses the tanstack/react-table     |
+| library to provide sorting, filtering, and pagination.                       |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/components/data-table.tsx                                          |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| The main reusable data table component. It uses the tanstack/react-table     |
+| library to provide sorting, filtering, and pagination.                       |
+================================================================================
+*/
 
 /*
 ================================================================================

@@ -1,21 +1,23 @@
 // src/components/csv/CsvTestComponent.tsx
 // Comprehensive CSV import/export test component with edge case handling
+import { AlertCircle, AlertTriangle, CheckCircle, FileText, Info, Upload, X } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { useState } from 'react'
+
+import { Alert, AlertDescription } from '@/components/ui/alert'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Badge } from '@/components/ui/badge'
-import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
-import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Separator } from '@/components/ui/separator'
-import { FileText, Upload, AlertTriangle, CheckCircle, Info, X, AlertCircle } from 'lucide-react'
-import { toast } from 'sonner'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Textarea } from '@/components/ui/textarea'
 import {
-  validateCsvContent,
+  type CsvValidationResult,
   generateCsvTemplate,
   normalizeCsvEncoding,
-  type CsvValidationResult,
+  validateCsvContent,
 } from '@/lib/csv-helpers'
 
 interface TestResult {

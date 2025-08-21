@@ -1,15 +1,4 @@
 // src/components/ui/data-table.tsx (MODIFIED)
-import * as React from 'react'
-
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   type ColumnDef,
   type SortingState,
@@ -23,7 +12,18 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 
+import * as React from 'react'
+
 import { DataTablePagination } from '@/components/shared/data-table-pagination'
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]

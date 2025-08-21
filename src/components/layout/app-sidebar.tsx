@@ -12,11 +12,11 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar'
+import { useUser } from '@/lib/user-context'
 
 import { navItems } from './nav-data'
 import { NavMain } from './nav-main'
 import { NavUser } from './nav-user'
-import { useUser } from '@/lib/user-context'
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useUser()

@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
 
 import { useEffect, useState } from 'react'
@@ -13,7 +14,6 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import type { Shipment } from '@/types/shipment'
-import { invoke } from '@tauri-apps/api/core'
 
 const FrozenShipmentsPage = () => {
   const [shipments, setShipments] = useState<Shipment[]>([])

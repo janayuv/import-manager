@@ -1,11 +1,12 @@
 // src/components/item/columns.tsx (MODIFIED - Added module-specific settings)
+import type { ColumnDef } from '@tanstack/react-table'
+
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
+import type { AppSettings } from '@/lib/settings'
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'
-import type { ColumnDef } from '@tanstack/react-table'
-import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
-import type { AppSettings } from '@/lib/settings'
 
 import { ItemActions } from './actions'
 

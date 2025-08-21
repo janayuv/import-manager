@@ -1,4 +1,6 @@
 // src/components/invoice/view.tsx (MODIFIED - Formats tax numbers as percentages)
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { Download } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
@@ -25,8 +27,6 @@ import type { Invoice } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
 
 interface ViewDialogProps {
   isOpen: boolean

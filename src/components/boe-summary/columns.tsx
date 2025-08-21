@@ -1,8 +1,9 @@
 'use client'
 
-import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
-import type { AppSettings } from '@/lib/settings'
 import { type ColumnDef } from '@tanstack/react-table'
+
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
+import type { AppSettings } from '@/lib/settings'
 
 // Interface for BOE Summary item data
 export interface BoeSummaryItem {

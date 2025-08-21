@@ -1,4 +1,8 @@
 // src/pages/supplier.tsx
+import type { Column, ColumnDef } from '@tanstack/react-table'
+import { invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
+import { readTextFile } from '@tauri-apps/plugin-fs'
 import { ArrowDown, ArrowUp, ArrowUpDown, Download, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -12,13 +16,9 @@ import { ViewSupplierDialog } from '@/components/supplier/view'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
-import type { Supplier } from '@/types/supplier'
-import type { Column, ColumnDef } from '@tanstack/react-table'
-import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
-import { readTextFile } from '@tauri-apps/plugin-fs'
-import { useSettings } from '@/lib/use-settings'
 import { formatText } from '@/lib/settings'
+import { useSettings } from '@/lib/use-settings'
+import type { Supplier } from '@/types/supplier'
 
 const SupplierPage = () => {
   const { settings } = useSettings()

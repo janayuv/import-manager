@@ -1,11 +1,13 @@
+import { AlertTriangle, Bug, Copy, Home, RefreshCw, X } from 'lucide-react'
+import { toast } from 'sonner'
+
 import { Component, type ErrorInfo, type ReactNode } from 'react'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, RefreshCw, Home, Bug, Copy, X } from 'lucide-react'
-import { toast } from 'sonner'
 
 interface Props {
   children: ReactNode

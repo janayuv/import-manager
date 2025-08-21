@@ -116,7 +116,7 @@ src-tauri/src/
 #### Basic Form Validation
 
 ```tsx
-import { useValidation, supplierSchema } from '@/lib/validation'
+import { supplierSchema, useValidation } from '@/lib/validation'
 
 const SupplierForm = () => {
   const validation = useValidation({
@@ -186,7 +186,7 @@ const FileUpload = () => {
 #### CSV Validation
 
 ```tsx
-import { useCsvValidation, itemSchema } from '@/lib/validation'
+import { itemSchema, useCsvValidation } from '@/lib/validation'
 
 const CsvImport = () => {
   const { validateCsv } = useCsvValidation(itemSchema)

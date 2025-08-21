@@ -9,9 +9,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
-import type { Supplier } from '@/types/supplier'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
+import type { Supplier } from '@/types/supplier'
 
 interface ViewSupplierProps {
   isOpen: boolean

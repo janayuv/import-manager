@@ -1,16 +1,5 @@
 // src/pages/supplier/table.tsx
 // The main data table component. Now includes global filtering.
-import * as React from 'react'
-
-import { Input } from '@/components/ui/input'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
 import {
   type ColumnDef,
   type SortingState,
@@ -22,8 +11,20 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 
-import { DataTablePagination } from './pagination'
+import * as React from 'react'
+
+import { Input } from '@/components/ui/input'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useSettings } from '@/lib/use-settings'
+
+import { DataTablePagination } from './pagination'
 
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]

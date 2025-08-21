@@ -54,6 +54,36 @@ import { CalculationResults } from './calculation-results'
 ================================================================================
 */
 
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/view-boe-dialog.tsx (NEW)       |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| A new component that displays the details of a saved BOE in a dialog box.    |
+| It reuses the `CalculationResults` component for a consistent UI.            |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/view-boe-dialog.tsx (NEW)       |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| A new component that displays the details of a saved BOE in a dialog box.    |
+| It reuses the `CalculationResults` component for a consistent UI.            |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/view-boe-dialog.tsx (NEW)       |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| A new component that displays the details of a saved BOE in a dialog box.    |
+| It reuses the `CalculationResults` component for a consistent UI.            |
+================================================================================
+*/
+
 interface ViewBoeDialogProps {
   boe: SavedBoe
   onClose: () => void

@@ -1,8 +1,9 @@
-import React, { memo, Suspense, lazy, useMemo, useCallback, forwardRef } from 'react'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
+import React, { Suspense, forwardRef, lazy, memo, useCallback, useMemo } from 'react'
+
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { usePerformanceMonitor } from '@/hooks/usePerformance'
 
 // Lazy-loaded components

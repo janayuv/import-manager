@@ -1,4 +1,5 @@
 import { Page } from '@playwright/test'
+
 import { TestUtils } from '../utils/test-utils'
 
 export class DashboardPage {

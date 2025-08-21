@@ -6,7 +6,7 @@
 | Provides the sample shipment data for the frontend prototype.                |
 ================================================================================
 */
-import type { Shipment, InvoiceItem } from '@/types/boe-entry'
+import type { InvoiceItem, Shipment } from '@/types/boe-entry'
 
 export const dummyShipments: Shipment[] = [
   {

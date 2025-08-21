@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
 
 import React, { useCallback, useEffect, useState } from 'react'
@@ -23,8 +24,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
-import type { ExpenseType, ServiceProvider, ExpenseWithInvoice } from '@/types/expense'
-import { invoke } from '@tauri-apps/api/core'
+import type { ExpenseType, ExpenseWithInvoice, ServiceProvider } from '@/types/expense'
 
 interface ExpenseListProps {
   shipmentId: string

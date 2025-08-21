@@ -10,9 +10,11 @@
 */
 'use client'
 
+import { zodResolver } from '@hookform/resolvers/zod'
 import * as z from 'zod'
 
 import * as React from 'react'
+
 import { useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
@@ -44,7 +46,39 @@ import {
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import type { Shipment } from '@/types/boe-entry'
-import { zodResolver } from '@hookform/resolvers/zod'
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/import-dialog.tsx (MODIFIED)    |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| This file has been corrected to fix the persistent `react-hook-form` type    |
+| errors by letting the `useForm` hook infer its type from the Zod resolver.   |
+| Also added the missing `key` prop to the `<SelectItem>` components.          |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/import-dialog.tsx (MODIFIED)    |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| This file has been corrected to fix the persistent `react-hook-form` type    |
+| errors by letting the `useForm` hook infer its type from the Zod resolver.   |
+| Also added the missing `key` prop to the `<SelectItem>` components.          |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/import-dialog.tsx (MODIFIED)    |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| This file has been corrected to fix the persistent `react-hook-form` type    |
+| errors by letting the `useForm` hook infer its type from the Zod resolver.   |
+| Also added the missing `key` prop to the `<SelectItem>` components.          |
+================================================================================
+*/
 
 /*
 ================================================================================

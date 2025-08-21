@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-
-import fs from 'fs'
 import { execSync } from 'child_process'
+import fs from 'fs'
 
 console.log('🔒 Testing Security Implementation...\n')
 

@@ -1,5 +1,6 @@
-import { useCallback, useRef } from 'react'
 import { toast } from 'sonner'
+
+import { useCallback, useRef } from 'react'
 
 interface ErrorHandlerOptions {
   showToast?: boolean

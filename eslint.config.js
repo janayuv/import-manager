@@ -1,11 +1,11 @@
 import js from '@eslint/js'
-import globals from 'globals'
+import prettier from 'eslint-plugin-prettier'
 import reactHooks from 'eslint-plugin-react-hooks'
 import reactRefresh from 'eslint-plugin-react-refresh'
-import tseslint from 'typescript-eslint'
-import { globalIgnores } from 'eslint/config'
-import prettier from 'eslint-plugin-prettier'
 import security from 'eslint-plugin-security'
+import { globalIgnores } from 'eslint/config'
+import globals from 'globals'
+import tseslint from 'typescript-eslint'
 
 export default tseslint.config([
   globalIgnores([
@@ -15,7 +15,7 @@ export default tseslint.config([
     '.cursor',
     '.github',
     'playwright-report',
-    'node_modules'
+    'node_modules',
   ]),
   {
     files: ['**/*.{ts,tsx}'],

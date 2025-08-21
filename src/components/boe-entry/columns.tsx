@@ -8,11 +8,39 @@
 */
 'use client'
 
-import { Badge } from '@/components/ui/badge'
-import type { Shipment } from '@/types/shipment'
 import type { ColumnDef } from '@tanstack/react-table'
 
+import { Badge } from '@/components/ui/badge'
+import type { Shipment } from '@/types/shipment'
+
 import { DataTableRowActions } from './actions'
+
+/*
+================================================================================
+| FILE: src/app/dashboard/shipments/columns.tsx                                |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| Defines the columns for the shipments data table.                            |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/shipments/columns.tsx                                |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| Defines the columns for the shipments data table.                            |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/shipments/columns.tsx                                |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| Defines the columns for the shipments data table.                            |
+================================================================================
+*/
 
 /*
 ================================================================================

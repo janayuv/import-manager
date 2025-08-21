@@ -1,14 +1,15 @@
 'use client'
 
 import * as React from 'react'
+
 import {
+  type AppSettings,
+  type ModuleFieldSettings,
+  type ModuleSettings,
   loadSettings,
   saveSettings,
-  updateModuleSettings,
   updateModuleField,
-  type AppSettings,
-  type ModuleSettings,
-  type ModuleFieldSettings,
+  updateModuleSettings,
 } from './settings'
 import { SettingsContext } from './settings-context-definition'
 

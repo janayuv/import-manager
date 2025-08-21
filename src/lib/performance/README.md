@@ -58,7 +58,7 @@ src/
 ### Cache Configuration
 
 ```typescript
-import { cache, CACHE_TTL } from '@/lib/cache'
+import { CACHE_TTL, cache } from '@/lib/cache'
 
 // Configure cache with custom settings
 const customCache = new CacheManager({

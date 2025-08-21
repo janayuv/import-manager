@@ -1,4 +1,5 @@
 // src/components/boe/columns.tsx (MODIFIED - Added module-specific settings)
+import { type ColumnDef } from '@tanstack/react-table'
 import { MoreHorizontal } from 'lucide-react'
 
 import { Button } from '@/components/ui/button'
@@ -10,10 +11,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { formatDateForDisplay } from '@/lib/date-format'
-import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
 import type { AppSettings } from '@/lib/settings'
 import type { BoeDetails } from '@/types/boe'
-import { type ColumnDef } from '@tanstack/react-table'
 
 interface GetBoeColumnsProps {
   onView: (boe: BoeDetails) => void

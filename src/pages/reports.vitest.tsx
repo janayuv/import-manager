@@ -1,6 +1,8 @@
 // lightweight render to avoid extra deps
-import { createElement } from 'react'
 import { describe, it } from 'vitest'
+
+import { createElement } from 'react'
+
 import ReportsPage from './reports'
 
 describe('ReportsPage', () => {

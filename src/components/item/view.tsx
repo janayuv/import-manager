@@ -1,4 +1,6 @@
 // --- FILE: src/components/item/view.tsx ---
+import { convertFileSrc } from '@tauri-apps/api/core'
+
 import { Badge } from '@/components/ui/badge'
 import {
   Dialog,
@@ -10,7 +12,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'
-import { convertFileSrc } from '@tauri-apps/api/core'
 
 interface ViewItemProps {
   isOpen: boolean

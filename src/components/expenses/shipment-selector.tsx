@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core'
 import { toast } from 'sonner'
 
 import React, { useEffect, useState } from 'react'
@@ -16,11 +17,10 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox'
-import { formatText, formatNumber } from '@/lib/settings'
+import { formatNumber, formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import type { Expense } from '@/types/expense'
 import type { Shipment } from '@/types/shipment'
-import { invoke } from '@tauri-apps/api/core'
 
 interface ShipmentSelectorProps {
   selectedShipment: Shipment | null

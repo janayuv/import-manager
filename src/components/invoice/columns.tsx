@@ -1,12 +1,13 @@
 // src/components/invoice/columns.tsx (MODIFIED - Formats tax numbers as percentages)
-import { Badge } from '@/components/ui/badge'
-import { formatDateForDisplay } from '@/lib/date-format'
-import type { FlattenedInvoiceLine } from '@/types/invoice'
 import type { ColumnDef } from '@tanstack/react-table'
 
-import { InvoiceLineActions } from './actions'
-import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
+import { Badge } from '@/components/ui/badge'
+import { formatDateForDisplay } from '@/lib/date-format'
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
 import type { AppSettings } from '@/lib/settings'
+import type { FlattenedInvoiceLine } from '@/types/invoice'
+
+import { InvoiceLineActions } from './actions'
 
 interface GetInvoiceColumnsProps {
   onView: (invoiceId: string) => void

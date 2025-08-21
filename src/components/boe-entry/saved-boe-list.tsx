@@ -51,6 +51,36 @@ import type { SavedBoe } from '@/types/boe-entry'
 ================================================================================
 */
 
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
+| which will be used to trigger the view dialog from the parent page.          |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
+| which will be used to trigger the view dialog from the parent page.          |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
+| which will be used to trigger the view dialog from the parent page.          |
+================================================================================
+*/
+
 interface SavedBoeListProps {
   savedBoes: SavedBoe[]
   onView: (boeId: string) => void

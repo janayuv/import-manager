@@ -1,8 +1,7 @@
 #!/usr/bin/env node
-
+import { execSync } from 'child_process'
 import fs from 'fs'
 import path from 'path'
-import { execSync } from 'child_process'
 
 console.log('🔒 Running custom security checks...')
 
@@ -63,7 +62,7 @@ const IGNORE_PATTERNS = [
 let hasIssues = false
 
 function shouldIgnoreFile(filePath) {
-  return IGNORE_PATTERNS.some(pattern => pattern.test(filePath))
+  return IGNORE_PATTERNS.some((pattern) => pattern.test(filePath))
 }
 
 function checkFile(filePath) {
@@ -107,7 +106,11 @@ function walkDir(dir) {
 
     if (stat.isDirectory() && !shouldIgnoreFile(filePath)) {
       walkDir(filePath)
-    } else if (stat.isFile() && /\.(ts|tsx|js|jsx|yml|yaml|json)$/.test(file) && !shouldIgnoreFile(filePath)) {
+    } else if (
+      stat.isFile() &&
+      /\.(ts|tsx|js|jsx|yml|yaml|json)$/.test(file) &&
+      !shouldIgnoreFile(filePath)
+    ) {
       checkFile(filePath)
     }
   })

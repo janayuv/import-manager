@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 
 test.describe('Basic Navigation', () => {
   test('should load the application and navigate to different pages', async ({ page }) => {

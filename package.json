@@ -12,8 +12,9 @@
     "build": "tsc -b && vite build",
     "build:tauri": "powershell -ExecutionPolicy Bypass -File scripts\\fix-installer-issues.ps1 && npm run tauri build",
     "lint": "eslint .",
-    "format": "prettier --write \"{src,public}/**/*.{ts,tsx,js,jsx,css,html,md}\"",
-    "format:check": "prettier --check \"{src,public}/**/*.{ts,tsx,js,jsx,css,html,md}\"",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "format:fix": "prettier --write .",
     "type-check": "tsc --noEmit",
     "prepare": "husky",
     "preview": "vite preview",
@@ -26,7 +27,7 @@
     "tauri": "tauri"
   },
   "lint-staged": {
-    "{src,public}/**/*.{ts,tsx,js,jsx,css,html,md}": [
+    "*.{ts,tsx,js,jsx,css,html,md,json}": [
       "prettier --write"
     ],
     "src/**/*.{ts,tsx,js,jsx}": [

@@ -1,14 +1,15 @@
 // src/components/shipment/columns.tsx (MODIFIED)
 // Using the new date formatter for display in the table and adding a custom sorting function.
+import type { ColumnDef, Row } from '@tanstack/react-table'
+
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { formatDateForDisplay } from '@/lib/date-format'
-import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
 import type { AppSettings } from '@/lib/settings'
 import type { Option } from '@/types/options'
 import type { Shipment } from '@/types/shipment'
-import type { ColumnDef, Row } from '@tanstack/react-table'
 
 import { ShipmentActions } from './actions'
 import { SortIndicator } from './sort-indicator'

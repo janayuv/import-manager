@@ -47,6 +47,33 @@ import type { SavedBoe } from '@/types/boe-entry'
 ================================================================================
 */
 
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/delete-confirm-dialog.tsx (NEW) |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| A confirmation dialog to prevent accidental deletion of saved BOE records.   |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/delete-confirm-dialog.tsx (NEW) |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| A confirmation dialog to prevent accidental deletion of saved BOE records.   |
+================================================================================
+*/
+
+/*
+================================================================================
+| FILE: src/app/dashboard/boe-entry/components/delete-confirm-dialog.tsx (NEW) |
+|------------------------------------------------------------------------------|
+| DESCRIPTION:                                                                 |
+| A confirmation dialog to prevent accidental deletion of saved BOE records.   |
+================================================================================
+*/
+
 interface DeleteConfirmDialogProps {
   boe: SavedBoe
   onConfirm: () => void

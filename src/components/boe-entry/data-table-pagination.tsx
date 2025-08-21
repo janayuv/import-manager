@@ -6,6 +6,14 @@
 | A reusable pagination component for any data table.                          |
 ================================================================================
 */
+import {
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DoubleArrowLeftIcon,
+  DoubleArrowRightIcon,
+} from '@radix-ui/react-icons'
+import type { Table } from '@tanstack/react-table'
+
 import { Button } from '@/components/ui/button'
 import {
   Select,
@@ -14,13 +22,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  ChevronLeftIcon,
-  ChevronRightIcon,
-  DoubleArrowLeftIcon,
-  DoubleArrowRightIcon,
-} from '@radix-ui/react-icons'
-import type { Table } from '@tanstack/react-table'
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>

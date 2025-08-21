@@ -1,6 +1,7 @@
 // src/pages/boe-entry/index.tsx (FIXED)
 'use client'
 
+import { invoke } from '@tauri-apps/api/core'
 import { Toaster, toast } from 'sonner'
 
 import * as React from 'react'
@@ -13,7 +14,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Skeleton } from '@/components/ui/skeleton'
 import type { BoeDetails } from '@/types/boe'
 import type { SavedBoe, Shipment } from '@/types/boe-entry'
-import { invoke } from '@tauri-apps/api/core'
+
+// src/pages/boe-entry/index.tsx (FIXED)
+
+// src/pages/boe-entry/index.tsx (FIXED)
+
+// src/pages/boe-entry/index.tsx (FIXED)
 
 // src/pages/boe-entry/index.tsx (FIXED)
 

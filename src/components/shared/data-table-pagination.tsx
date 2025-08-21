@@ -1,4 +1,5 @@
 // src/components/ui/data-table-pagination.tsx
+import type { Table } from '@tanstack/react-table'
 import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 
 import * as React from 'react'
@@ -13,7 +14,6 @@ import {
 } from '@/components/ui/select'
 import { getModuleSettings } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
-import type { Table } from '@tanstack/react-table'
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>

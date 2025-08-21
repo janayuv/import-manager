@@ -1,4 +1,6 @@
 // src/components/item/form.tsx (MODIFIED - Tax values are now handled as strings)
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
+import { open } from '@tauri-apps/plugin-dialog'
 import { toast } from 'sonner'
 
 import * as React from 'react'
@@ -20,8 +22,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'
-import { convertFileSrc, invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
 
 interface ItemFormProps {
   isOpen: boolean

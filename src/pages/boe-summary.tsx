@@ -1,14 +1,14 @@
 'use client'
 
+import { invoke } from '@tauri-apps/api/core'
+
 import * as React from 'react'
 
 import { BoeSummaryClient } from '@/components/boe-summary/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
-
 import type { BoeDetails } from '@/types/boe'
 import type { SavedBoe, Shipment } from '@/types/boe-entry'
-import { invoke } from '@tauri-apps/api/core'
 
 export default function BoeSummaryPage() {
   const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([])

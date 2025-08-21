@@ -21,7 +21,6 @@ A class-based error boundary that catches React component errors and provides re
 
 ```tsx
 import { ErrorBoundary } from '@/components/error-boundary'
-
 ;<ErrorBoundary
   componentName="MyComponent"
   showDetails={process.env.NODE_ENV === 'development'}
@@ -49,7 +48,6 @@ A functional error boundary that catches asynchronous errors and unhandled promi
 
 ```tsx
 import { AsyncErrorBoundary } from '@/components/error-boundary'
-
 ;<AsyncErrorBoundary
   componentName="MyAsyncComponent"
   onError={(error) => {
@@ -76,7 +74,6 @@ A specialized error boundary for individual modules/pages with module-specific e
 
 ```tsx
 import { ModuleErrorBoundary } from '@/components/error-boundary'
-
 ;<ModuleErrorBoundary
   moduleName="Expenses"
   showDetails={process.env.NODE_ENV === 'development'}
@@ -105,7 +102,7 @@ A custom hook that provides consistent error handling patterns throughout the ap
 **Usage:**
 
 ```tsx
-import { useErrorHandler, ErrorContexts } from '@/components/error-boundary'
+import { ErrorContexts, useErrorHandler } from '@/components/error-boundary'
 
 const MyComponent = () => {
   const { handleError, handleAsyncError, wrapAsyncFunction } = useErrorHandler({
@@ -170,7 +167,7 @@ export const ErrorContexts = {
 
 ```tsx
 // src/App.tsx
-import { ErrorBoundary, AsyncErrorBoundary } from '@/components/error-boundary'
+import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary'
 
 function App() {
   return (
@@ -204,7 +201,7 @@ const ExpensesPage = () => {
 
 ```tsx
 // src/components/expenses/expense-form.tsx
-import { useErrorHandler, ErrorContexts } from '@/components/error-boundary'
+import { ErrorContexts, useErrorHandler } from '@/components/error-boundary'
 
 const ExpenseForm = () => {
   const { handleAsyncError } = useErrorHandler({

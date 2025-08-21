@@ -1,9 +1,12 @@
+import { AlertTriangle, Bug, Database, FileText, Network, Zap } from 'lucide-react'
+
 import { useState } from 'react'
+
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Separator } from '@/components/ui/separator'
-import { AlertTriangle, Bug, Zap, Database, FileText, Network } from 'lucide-react'
-import { ErrorBoundary, ModuleErrorBoundary, useErrorHandler, ErrorContexts } from './index'
+
+import { ErrorBoundary, ErrorContexts, ModuleErrorBoundary, useErrorHandler } from './index'
 
 // Component that throws a synchronous error
 const SyncErrorComponent = ({ shouldError }: { shouldError: boolean }) => {

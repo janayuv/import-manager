@@ -1,8 +1,8 @@
 // sort-indicator.tsx
+import type { Column } from '@tanstack/react-table'
 import { ArrowDown, ArrowUp, ArrowUpDown } from 'lucide-react'
 
 import type { Shipment } from '@/types/shipment'
-import type { Column } from '@tanstack/react-table'
 
 export const SortIndicator = ({ column }: { column: Column<Shipment, unknown> }) => {
   const sorted = column.getIsSorted()

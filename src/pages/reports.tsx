@@ -1,12 +1,14 @@
+import type { Row } from '@tanstack/react-table'
+import { format } from 'date-fns'
+
 import { useState } from 'react'
+
+import { DataTable } from '@/components/shared/data-table'
 import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { DataTable } from '@/components/shared/data-table'
 import { useReport } from '@/hooks/useReport'
-import { format } from 'date-fns'
-import type { Row } from '@tanstack/react-table'
 
 export default function ReportsPage() {
   const { data, totals, loading, error, updateFilters } = useReport()

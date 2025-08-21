@@ -1,5 +1,6 @@
 import * as React from 'react'
-import type { AppSettings, ModuleSettings, ModuleFieldSettings } from './settings'
+
+import type { AppSettings, ModuleFieldSettings, ModuleSettings } from './settings'
 
 export type SettingsContextType = {
   settings: AppSettings

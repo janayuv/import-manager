@@ -1,7 +1,9 @@
 'use client'
 
-import { toast } from 'sonner'
+import { convertFileSrc, invoke } from '@tauri-apps/api/core'
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
 import * as ExcelJS from 'exceljs'
+import { toast } from 'sonner'
 
 import * as React from 'react'
 
@@ -29,14 +31,11 @@ import {
   computePerUnitDuty,
   computeSavingsFromActualVsBoe,
 } from '@/lib/financial'
+import { formatCurrency as formatCurrencyWithSettings, loadSettings } from '@/lib/settings'
 import type { BoeDetails } from '@/types/boe'
 import type { CalculatedDutyItem, SavedBoe, Shipment } from '@/types/boe-entry'
-import { convertFileSrc, invoke } from '@tauri-apps/api/core'
-import { open as openDialog } from '@tauri-apps/plugin-dialog'
 
 import { StatusBadge } from './status-badge'
-
-import { formatCurrency as formatCurrencyWithSettings, loadSettings } from '@/lib/settings'
 
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount === null || amount === undefined) return '-'

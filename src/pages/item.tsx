@@ -1,4 +1,8 @@
 // src/pages/item/index.tsx
+// react-table imports were unused in this refactored page
+import { invoke } from '@tauri-apps/api/core'
+import { open, save } from '@tauri-apps/plugin-dialog'
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 import { Download, FileOutput, Loader2, Plus, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -15,10 +19,6 @@ import { useSettings } from '@/lib/use-settings'
 import type { Item } from '@/types/item'
 import type { Option } from '@/types/options'
 import type { Supplier } from '@/types/supplier'
-// react-table imports were unused in this refactored page
-import { invoke } from '@tauri-apps/api/core'
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
 
 // A map to help manage option types, their state setters, and backend commands
 const optionConfigs = {

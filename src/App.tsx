@@ -1,31 +1,31 @@
 import React from 'react'
+
 import { Navigate, Outlet, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
 
+import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary'
 import { AppLayout } from '@/components/layout/AppLayout'
 import { ThemeProvider } from '@/components/layout/theme-provider'
 // Corrected import name
 import { Toaster } from '@/components/ui/sonner'
-import { ErrorBoundary, AsyncErrorBoundary } from '@/components/error-boundary'
 import { initializePerformanceMonitoring } from '@/lib/performance'
+import { SettingsProvider } from '@/lib/settings-context'
+import { UserProvider } from '@/lib/user-context'
 import { LoginPage } from '@/pages/LoginPage'
 import { AccountDetailsPage, AccountPasswordPage, AccountUpdatePage } from '@/pages/account'
 import BOEPage from '@/pages/boe'
 import BOEEntrypage from '@/pages/boe-entry'
 import BoeSummaryPage from '@/pages/boe-summary'
 import DashboardPage from '@/pages/dashboard'
-import ReportsPage from '@/pages/reports'
-import ExpensesPage from '@/pages/expenses'
-import ExpenseReportsPage from '@/pages/expense-reports'
 import ExpenseDataManagerPage from '@/pages/expense-data-manager'
+import ExpenseReportsPage from '@/pages/expense-reports'
+import ExpensesPage from '@/pages/expenses'
 import FrozenShipmentsPage from '@/pages/frozen-shipments'
 import InvoicePage from '@/pages/invoice'
-
 import ItemMasterPage from '@/pages/item'
+import ReportsPage from '@/pages/reports'
+import SettingsPage from '@/pages/settings'
 import ShipmentPage from '@/pages/shipment'
 import SupplierPage from '@/pages/supplier'
-import SettingsPage from '@/pages/settings'
-import { SettingsProvider } from '@/lib/settings-context'
-import { UserProvider } from '@/lib/user-context'
 
 const ProtectedRoute = () => {
   const isAuthenticated = localStorage.getItem('isAuthenticated')

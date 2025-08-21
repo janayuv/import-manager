@@ -1,24 +1,25 @@
 'use client'
 
-import { toast } from 'sonner'
-import * as React from 'react'
 import {
   DndContext,
-  closestCenter,
+  type DragEndEvent,
   KeyboardSensor,
   PointerSensor,
+  closestCenter,
   useSensor,
   useSensors,
-  type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  arrayMove,
   SortableContext,
+  arrayMove,
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
+import { toast } from 'sonner'
+
+import * as React from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -32,7 +33,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
-import { type ModuleSettings, type ModuleFieldSettings, type AppSettings } from '@/lib/settings'
+import { type AppSettings, type ModuleFieldSettings, type ModuleSettings } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 
 interface ModuleSettingsProps {

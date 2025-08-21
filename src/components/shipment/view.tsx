@@ -9,7 +9,7 @@ import {
 } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { formatDateForDisplay } from '@/lib/date-format'
-import { formatText, formatNumber, getFieldConfig } from '@/lib/settings'
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import type { Option } from '@/types/options'
 import type { Shipment } from '@/types/shipment'

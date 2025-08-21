@@ -1,31 +1,32 @@
-import { useState, useCallback } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { useCallback, useState } from 'react'
+
 import {
-  usePerformanceMonitor,
-  useCachedData,
-  useOptimizedList,
-  useOptimizedForm,
-  useOptimizedImage,
-  useOptimizedScroll,
-  useOptimizedWindowSize,
-  useOptimizedIntersectionObserver,
-} from '@/hooks/usePerformance'
-import {
-  OptimizedList,
   OptimizedButton,
   OptimizedCard,
-  OptimizedImage,
   OptimizedContainer,
   OptimizedGrid,
+  OptimizedImage,
+  OptimizedList,
   OptimizedSkeleton,
 } from '@/components/performance/OptimizedComponents'
-import { cache, CACHE_TTL } from '@/lib/cache'
+import { Badge } from '@/components/ui/badge'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import {
-  PerformanceObserver,
+  useCachedData,
+  useOptimizedForm,
+  useOptimizedImage,
+  useOptimizedIntersectionObserver,
+  useOptimizedList,
+  useOptimizedScroll,
+  useOptimizedWindowSize,
+  usePerformanceMonitor,
+} from '@/hooks/usePerformance'
+import { CACHE_TTL, cache } from '@/lib/cache'
+import {
   BundleAnalyzer,
   MemoryManager,
+  PerformanceObserver,
   PerformanceReporter,
   performanceUtils,
 } from '@/lib/performance'
