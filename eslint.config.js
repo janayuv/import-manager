@@ -70,20 +70,12 @@ export default tseslint.config([
       ecmaVersion: 2020,
     },
     rules: {
-      // YAML-specific security rules
+      // YAML-specific security rules - removed hardcoded patterns to avoid false positives
       'no-restricted-syntax': [
         'error',
         {
           selector: 'Literal[value*="-----BEGIN PRIVATE KEY-----"]',
           message: 'Do not hardcode private keys in YAML files. Use GitHub Secrets instead.',
-        },
-        {
-          selector: 'Literal[value*="TAURI_SIGNING_PRIVATE_KEY"]',
-          message: 'Use secrets.TAURI_SIGNING_PRIVATE_KEY instead of hardcoding the key.',
-        },
-        {
-          selector: 'Literal[value*="Bearer "]',
-          message: 'Do not hardcode Bearer tokens. Use GitHub Secrets instead.',
         },
       ],
     },

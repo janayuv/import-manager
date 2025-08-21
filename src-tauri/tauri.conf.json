@@ -47,7 +47,7 @@
     "fs": null,
     "updater": {
       "active": true,
-      "pubkey": "LS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0NCk1Db3dCUVlESzJWd0F5RUE4dC9CTjNucTlRQmF3ZU94UTZqNC8wQkxLVUtmN29VVjZhRC9jZXRuZGRrPQ0KLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tDQo=",
+      "pubkey": "${TAURI_SIGNING_PUBLIC_KEY}",
       "endpoints": [
         "https://github.com/janayuv/import-manager/releases/latest/download/{{target}}/{{current_version}}"
       ]
