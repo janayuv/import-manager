@@ -1,23 +1,34 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-mod db;
 mod commands;
-mod expense;
+mod db;
 mod encryption;
+mod expense;
 mod migrations;
 
-extern crate paste;
+use crate::commands::{
+    boe::*, expenses::*, invoices::*, items::*, options::*, reports::*, shipments::*, suppliers::*,
+    utils::*,
+};
+use crate::db::DbState;
+use rusqlite::{Connection, Result as SqliteResult};
+use std::sync::Mutex;
 use tauri::Manager;
-use hex;
+use tauri::State;
 
-fn create_new_encrypted_database(db_path: &std::path::Path, encryption: &encryption::DatabaseEncryption) -> rusqlite::Connection {
+fn create_new_encrypted_database(
+    db_path: &std::path::Path,
+    encryption: &encryption::DatabaseEncryption,
+) -> rusqlite::Connection {
     // Generate a new encryption key
     let key = encryption::DatabaseEncryption::generate_key();
-    encryption.store_key(&key).expect("Failed to store encryption key");
-    
+    encryption
+        .store_key(&key)
+        .expect("Failed to store encryption key");
+
     // Create the encrypted database
     let conn = rusqlite::Connection::open(db_path).expect("Failed to create database file");
-    
+
     // Enable encryption with SQLCipher
     conn.execute_batch(&format!(
         "PRAGMA cipher_page_size = 4096;
@@ -26,11 +37,12 @@ fn create_new_encrypted_database(db_path: &std::path::Path, encryption: &encrypt
          PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA512;
          PRAGMA key = \"x'{}'\";",
         hex::encode(&key)
-    )).expect("Failed to enable encryption");
-    
+    ))
+    .expect("Failed to enable encryption");
+
     // Initialize the database schema
     db::init_schema(&conn).expect("Failed to initialize database schema");
-    
+
     conn
 }
 
@@ -226,6 +238,8 @@ fn main() {
             commands::fix_lcl_charges_rate,
             commands::clear_expense_data,
             commands::debug_expense_data,
+            commands::debug_expense_data_counts,
+            commands::create_test_expense_data,
             commands::cleanup_orphaned_expenses,
             commands::get_expense_invoices_for_shipment,
             commands::get_expenses_for_invoice,
@@ -249,11 +263,13 @@ fn main() {
             expense::get_expense_invoice,
             
             // Expense Reporting Commands
-            commands::generate_expense_report,
+            commands::generate_detailed_expense_report,
             commands::generate_expense_summary_by_type,
             commands::generate_expense_summary_by_provider,
             commands::generate_expense_summary_by_shipment,
             commands::generate_expense_summary_by_month,
+            commands::debug_expense_report_filters,
+            commands::debug_expense_dates,
             // --- User Context ---
             commands::get_current_user_info,
             commands::get_user_context,

@@ -1,6 +1,6 @@
 use crate::db::DbState;
+use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
-use rusqlite::{Connection, params};
 use std::collections::HashMap;
 use tauri::State;
 use uuid::Uuid;
@@ -85,6 +85,7 @@ pub struct CombineDuplicatesRequest {
 // ============================================================================
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ExpenseReportFilters {
     pub shipment_id: Option<String>,
     pub service_provider_id: Option<String>,
@@ -203,26 +204,26 @@ pub struct ExpenseSummaryByMonth {
 pub enum ExpenseError {
     #[error("Database error: {0}")]
     Database(#[from] rusqlite::Error),
-    
+
     #[error("Validation error: {0}")]
     Validation(String),
-    
+
     #[error("Invoice not found: {0}")]
     NotFound(String),
-    
+
     #[error("Optimistic lock conflict: expected version {expected}, got {actual}")]
     OptimisticLockConflict { expected: i32, actual: i32 },
-    
+
     #[error("Duplicate idempotency key: {0}")]
     #[allow(dead_code)]
     DuplicateIdempotencyKey(String),
-    
+
     #[error("No expense lines provided")]
     NoExpenseLines,
-    
+
     #[error("Invalid tax rate: {0}")]
     InvalidTaxRate(String),
-    
+
     #[error("Invalid amount: {0}")]
     InvalidAmount(String),
 }
@@ -239,15 +240,15 @@ impl TaxCalculator {
         if rate_basis_points == 0 {
             return 0;
         }
-        
+
         // Calculate: amount * rate / 10000
         let amount = amount_paise as i128;
         let rate = rate_basis_points as i128;
         let result = (amount * rate) / 10000;
-        
+
         result as i64
     }
-    
+
     /// Calculate net amount (amount + taxes - TDS)
     pub fn calculate_net_amount(
         amount_paise: i64,
@@ -258,7 +259,7 @@ impl TaxCalculator {
     ) -> i64 {
         amount_paise + cgst_amount_paise + sgst_amount_paise + igst_amount_paise - tds_amount_paise
     }
-    
+
     /// Calculate total amount (amount + taxes)
     pub fn calculate_total_amount(
         amount_paise: i64,
@@ -281,36 +282,42 @@ impl ExpenseValidator {
         if payload.lines.is_empty() {
             return Err(ExpenseError::NoExpenseLines);
         }
-        
+
         if payload.invoice_number.trim().is_empty() {
-            return Err(ExpenseError::Validation("Invoice number is required".to_string()));
+            return Err(ExpenseError::Validation(
+                "Invoice number is required".to_string(),
+            ));
         }
-        
+
         if payload.service_provider_id.trim().is_empty() {
-            return Err(ExpenseError::Validation("Service provider is required".to_string()));
+            return Err(ExpenseError::Validation(
+                "Service provider is required".to_string(),
+            ));
         }
-        
+
         // Validate each line
         for (index, line) in payload.lines.iter().enumerate() {
             Self::validate_expense_line(line, index)?;
         }
-        
+
         Ok(())
     }
-    
+
     pub fn validate_expense_line(line: &ExpenseLine, index: usize) -> Result<(), ExpenseError> {
         if line.amount_paise <= 0 {
-            return Err(ExpenseError::InvalidAmount(
-                format!("Line {}: Amount must be positive", index + 1)
-            ));
+            return Err(ExpenseError::InvalidAmount(format!(
+                "Line {}: Amount must be positive",
+                index + 1
+            )));
         }
-        
+
         if line.expense_type_id.trim().is_empty() {
-            return Err(ExpenseError::Validation(
-                format!("Line {}: Expense type is required", index + 1)
-            ));
+            return Err(ExpenseError::Validation(format!(
+                "Line {}: Expense type is required",
+                index + 1
+            )));
         }
-        
+
         // Validate tax rates (0-10000 basis points = 0-100%)
         let rates = [
             ("CGST", line.cgst_rate),
@@ -318,15 +325,17 @@ impl ExpenseValidator {
             ("IGST", line.igst_rate),
             ("TDS", line.tds_rate),
         ];
-        
+
         for (name, rate) in rates {
             if !(0..=10000).contains(&rate) {
-                return Err(ExpenseError::InvalidTaxRate(
-                    format!("Line {}: {} rate must be between 0 and 10000 basis points", index + 1, name)
-                ));
+                return Err(ExpenseError::InvalidTaxRate(format!(
+                    "Line {}: {} rate must be between 0 and 10000 basis points",
+                    index + 1,
+                    name
+                )));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -345,36 +354,38 @@ impl ExpenseService {
     ) -> Result<ExpenseInvoiceResponse, ExpenseError> {
         // Validate payload
         ExpenseValidator::validate_payload(&payload)?;
-        
+
         // Check idempotency key if provided
         if let Some(ref key) = payload.idempotency_key {
             if let Some(existing) = Self::find_by_idempotency_key(conn, key)? {
                 return Ok(existing);
             }
         }
-        
+
         // Check if invoice exists by service provider + invoice number
         let existing_invoice = Self::find_by_service_provider_and_invoice(
             conn,
             &payload.service_provider_id,
             &payload.invoice_number,
         )?;
-        
+
         let tx = conn.transaction()?;
-        
+
         let result = if let Some(_existing) = existing_invoice {
             // Update not implemented - return error for now
-            return Err(ExpenseError::Validation("Update not implemented".to_string()));
+            return Err(ExpenseError::Validation(
+                "Update not implemented".to_string(),
+            ));
         } else {
             // Create new invoice
             Self::create_invoice_in_transaction(&tx, &payload)?
         };
-        
+
         tx.commit()?;
-        
+
         Ok(result)
     }
-    
+
     /// Preview invoice calculations without persisting
     pub fn preview_invoice(
         conn: &Connection,
@@ -382,30 +393,34 @@ impl ExpenseService {
     ) -> Result<ExpenseInvoicePreview, ExpenseError> {
         // Validate payload
         ExpenseValidator::validate_payload(payload)?;
-        
+
         // Get expense type names
         let expense_type_names = Self::get_expense_type_names(conn, &payload.lines)?;
-        
+
         let mut lines = Vec::new();
         let mut total_amount_paise = 0;
         let mut total_cgst_amount_paise = 0;
         let mut total_sgst_amount_paise = 0;
         let mut total_igst_amount_paise = 0;
         let mut total_tds_amount_paise = 0;
-        
+
         for line in &payload.lines {
-            let cgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
-            let sgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
-            let igst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
-            let tds_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
-            
+            let cgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
+            let sgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
+            let igst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
+            let tds_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
+
             let total_amount = TaxCalculator::calculate_total_amount(
                 line.amount_paise,
                 cgst_amount_paise,
                 sgst_amount_paise,
                 igst_amount_paise,
             );
-            
+
             let net_amount = TaxCalculator::calculate_net_amount(
                 line.amount_paise,
                 cgst_amount_paise,
@@ -413,12 +428,12 @@ impl ExpenseService {
                 igst_amount_paise,
                 tds_amount_paise,
             );
-            
+
             let expense_type_name = expense_type_names
                 .get(&line.expense_type_id)
                 .cloned()
                 .unwrap_or_else(|| "Unknown".to_string());
-            
+
             lines.push(ExpenseLinePreview {
                 expense_type_id: line.expense_type_id.clone(),
                 expense_type_name,
@@ -435,14 +450,14 @@ impl ExpenseService {
                 net_amount_paise: net_amount,
                 remarks: line.remarks.clone(),
             });
-            
+
             total_amount_paise += line.amount_paise;
             total_cgst_amount_paise += cgst_amount_paise;
             total_sgst_amount_paise += sgst_amount_paise;
             total_igst_amount_paise += igst_amount_paise;
             total_tds_amount_paise += tds_amount_paise;
         }
-        
+
         let net_amount_paise = TaxCalculator::calculate_net_amount(
             total_amount_paise,
             total_cgst_amount_paise,
@@ -450,7 +465,7 @@ impl ExpenseService {
             total_igst_amount_paise,
             total_tds_amount_paise,
         );
-        
+
         Ok(ExpenseInvoicePreview {
             lines,
             total_amount_paise,
@@ -461,7 +476,7 @@ impl ExpenseService {
             net_amount_paise,
         })
     }
-    
+
     /// Combine duplicate expense lines by expense type
     pub fn combine_duplicates(
         conn: &mut Connection,
@@ -469,10 +484,16 @@ impl ExpenseService {
         separator: &str,
     ) -> Result<ExpenseInvoiceResponse, ExpenseError> {
         // Verify invoice exists and get version and other details
-        let (current_version, shipment_id, service_provider_id, invoice_number, invoice_date): (i32, String, String, String, String) = {
+        let (current_version, shipment_id, service_provider_id, invoice_number, invoice_date): (
+            i32,
+            String,
+            String,
+            String,
+            String,
+        ) = {
             let mut stmt = conn.prepare(
                 "SELECT version, shipment_id, service_provider_id, invoice_number, invoice_date 
-                 FROM expense_invoices WHERE id = ?"
+                 FROM expense_invoices WHERE id = ?",
             )?;
             stmt.query_row(params![invoice_id], |row| {
                 Ok((
@@ -482,11 +503,12 @@ impl ExpenseService {
                     row.get(3)?,
                     row.get(4)?,
                 ))
-            }).map_err(|_| ExpenseError::NotFound(format!("Invoice {invoice_id} not found")))?
+            })
+            .map_err(|_| ExpenseError::NotFound(format!("Invoice {invoice_id} not found")))?
         };
-        
+
         let tx = conn.transaction()?;
-        
+
         // Get all expense lines for this invoice
         let using_old_columns = Self::has_old_expense_columns(&tx)?;
         let grouped_lines: GroupedExpenseLines = {
@@ -494,10 +516,10 @@ impl ExpenseService {
                 "SELECT expense_type_id, amount_paise, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks
                  FROM expenses WHERE expense_invoice_id = ? ORDER BY expense_type_id"
             )?;
-            
+
             let mut rows = stmt.query(params![invoice_id])?;
             let mut grouped_lines: GroupedExpenseLines = HashMap::new();
-            
+
             while let Some(row) = rows.next()? {
                 let expense_type_id: String = row.get(0)?;
                 let amount_paise: i64 = row.get(1)?;
@@ -513,36 +535,43 @@ impl ExpenseService {
                     tds_rate *= 100;
                 }
                 let remarks: Option<String> = row.get(6)?;
-                
-                grouped_lines
-                    .entry(expense_type_id)
-                    .or_default()
-                    .push((amount_paise, cgst_rate, sgst_rate, igst_rate, tds_rate, remarks));
+
+                grouped_lines.entry(expense_type_id).or_default().push((
+                    amount_paise,
+                    cgst_rate,
+                    sgst_rate,
+                    igst_rate,
+                    tds_rate,
+                    remarks,
+                ));
             }
-            
+
             grouped_lines
         };
-        
+
         // Delete existing lines
-        tx.execute("DELETE FROM expenses WHERE expense_invoice_id = ?", params![invoice_id])?;
-        
+        tx.execute(
+            "DELETE FROM expenses WHERE expense_invoice_id = ?",
+            params![invoice_id],
+        )?;
+
         // Create combined lines
         let mut total_amount_paise = 0;
         let mut total_cgst_amount_paise = 0;
         let mut total_sgst_amount_paise = 0;
         let mut total_igst_amount_paise = 0;
         let mut total_tds_amount_paise = 0;
-        
+
         for (expense_type_id, lines) in grouped_lines {
             if lines.is_empty() {
                 continue;
             }
-            
+
             // Sum amounts, use rates from first line, concatenate remarks
             let mut combined_amount_paise = 0;
             let (_, cgst_rate, sgst_rate, igst_rate, tds_rate, _) = lines[0]; // Use rates from first line
             let mut combined_remarks = Vec::new();
-            
+
             for (amount, _, _, _, _, remarks) in lines {
                 combined_amount_paise += amount;
                 if let Some(remark) = remarks {
@@ -551,26 +580,30 @@ impl ExpenseService {
                     }
                 }
             }
-            
+
             let combined_remarks_str = if combined_remarks.is_empty() {
                 None
             } else {
                 Some(combined_remarks.join(separator))
             };
-            
+
             // Calculate taxes for combined line
-            let cgst_amount_paise = TaxCalculator::calculate_tax_amount(combined_amount_paise, cgst_rate);
-            let sgst_amount_paise = TaxCalculator::calculate_tax_amount(combined_amount_paise, sgst_rate);
-            let igst_amount_paise = TaxCalculator::calculate_tax_amount(combined_amount_paise, igst_rate);
-            let tds_amount_paise = TaxCalculator::calculate_tax_amount(combined_amount_paise, tds_rate);
-            
+            let cgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(combined_amount_paise, cgst_rate);
+            let sgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(combined_amount_paise, sgst_rate);
+            let igst_amount_paise =
+                TaxCalculator::calculate_tax_amount(combined_amount_paise, igst_rate);
+            let tds_amount_paise =
+                TaxCalculator::calculate_tax_amount(combined_amount_paise, tds_rate);
+
             let total_amount = TaxCalculator::calculate_total_amount(
                 combined_amount_paise,
                 cgst_amount_paise,
                 sgst_amount_paise,
                 igst_amount_paise,
             );
-            
+
             let net_amount = TaxCalculator::calculate_net_amount(
                 combined_amount_paise,
                 cgst_amount_paise,
@@ -578,11 +611,11 @@ impl ExpenseService {
                 igst_amount_paise,
                 tds_amount_paise,
             );
-            
+
             // Insert combined line (handle both old and new column scenarios)
             let has_old_expense_columns = Self::has_old_expense_columns(&tx)?;
             let line_id = Uuid::new_v4().to_string();
-            
+
             if has_old_expense_columns {
                 // Insert with old columns for backward compatibility (excluding generated columns)
                 tx.execute(
@@ -591,7 +624,7 @@ impl ExpenseService {
                         invoice_no, invoice_date, expense_type_id, amount,
                         cgst_rate, sgst_rate, igst_rate, tds_rate,
                         remarks, created_by
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     params![
                         &line_id,
                         invoice_id,
@@ -643,14 +676,14 @@ impl ExpenseService {
                     ],
                 )?;
             }
-            
+
             total_amount_paise += combined_amount_paise;
             total_cgst_amount_paise += cgst_amount_paise;
             total_sgst_amount_paise += sgst_amount_paise;
             total_igst_amount_paise += igst_amount_paise;
             total_tds_amount_paise += tds_amount_paise;
         }
-        
+
         let net_amount_paise = TaxCalculator::calculate_net_amount(
             total_amount_paise,
             total_cgst_amount_paise,
@@ -658,10 +691,10 @@ impl ExpenseService {
             total_igst_amount_paise,
             total_tds_amount_paise,
         );
-        
+
         // Update invoice totals (handle both old and new column scenarios)
         let has_old_columns = Self::has_old_columns(&tx)?;
-        
+
         let rows_affected = if has_old_columns {
             // Update with old columns for backward compatibility
             tx.execute(
@@ -708,16 +741,16 @@ impl ExpenseService {
                 ],
             )?
         };
-        
+
         if rows_affected == 0 {
             return Err(ExpenseError::OptimisticLockConflict {
                 expected: current_version,
                 actual: current_version,
             });
         }
-        
+
         tx.commit()?;
-        
+
         Ok(ExpenseInvoiceResponse {
             invoice_id: invoice_id.to_string(),
             total_amount_paise,
@@ -728,7 +761,7 @@ impl ExpenseService {
             version: current_version + 1,
         })
     }
-    
+
     /// Get invoice with all details
     pub fn get_invoice(
         conn: &Connection,
@@ -738,21 +771,23 @@ impl ExpenseService {
         let mut stmt = conn.prepare(
             "SELECT id, total_amount_paise, total_cgst_amount_paise, total_sgst_amount_paise,
                     total_igst_amount_paise, total_tds_amount_paise, version
-             FROM expense_invoices WHERE id = ?"
+             FROM expense_invoices WHERE id = ?",
         )?;
-        
-        let invoice = stmt.query_row(params![invoice_id], |row| {
-            Ok(ExpenseInvoiceResponse {
-                invoice_id: row.get(0)?,
-                total_amount_paise: row.get(1)?,
-                total_cgst_amount_paise: row.get(2)?,
-                total_sgst_amount_paise: row.get(3)?,
-                total_igst_amount_paise: row.get(4)?,
-                total_tds_amount_paise: row.get(5)?,
-                version: row.get(6)?,
+
+        let invoice = stmt
+            .query_row(params![invoice_id], |row| {
+                Ok(ExpenseInvoiceResponse {
+                    invoice_id: row.get(0)?,
+                    total_amount_paise: row.get(1)?,
+                    total_cgst_amount_paise: row.get(2)?,
+                    total_sgst_amount_paise: row.get(3)?,
+                    total_igst_amount_paise: row.get(4)?,
+                    total_tds_amount_paise: row.get(5)?,
+                    version: row.get(6)?,
+                })
             })
-        }).map_err(|_| ExpenseError::NotFound(format!("Invoice {invoice_id} not found")))?;
-        
+            .map_err(|_| ExpenseError::NotFound(format!("Invoice {invoice_id} not found")))?;
+
         Ok(invoice)
     }
 
@@ -765,8 +800,84 @@ impl ExpenseService {
         conn: &Connection,
         filters: &ExpenseReportFilters,
     ) -> Result<ExpenseReportResponse, ExpenseError> {
-        println!("🔍 [DEBUG] Generating expense report with filters: {:?}", filters);
-        
+        println!(
+            "🔍 [DEBUG] Generating expense report with filters: {:?}",
+            filters
+        );
+        println!("🔍 [DEBUG] Filter values breakdown:");
+        println!(
+            "  - shipment_id: {:?} (type: {})",
+            filters.shipment_id,
+            if filters.shipment_id.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - service_provider_id: {:?} (type: {})",
+            filters.service_provider_id,
+            if filters.service_provider_id.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - expense_type_id: {:?} (type: {})",
+            filters.expense_type_id,
+            if filters.expense_type_id.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - date_from: {:?} (type: {})",
+            filters.date_from,
+            if filters.date_from.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - date_to: {:?} (type: {})",
+            filters.date_to,
+            if filters.date_to.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - currency: {:?} (type: {})",
+            filters.currency,
+            if filters.currency.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - min_amount: {:?} (type: {})",
+            filters.min_amount,
+            if filters.min_amount.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+        println!(
+            "  - max_amount: {:?} (type: {})",
+            filters.max_amount,
+            if filters.max_amount.is_some() {
+                "Some"
+            } else {
+                "None"
+            }
+        );
+
         let mut conditions = Vec::new();
         let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
@@ -787,11 +898,21 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
+            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            println!(
+                "🔍 [DEBUG] Date from type: {}",
+                std::any::type_name_of_val(date_from)
+            );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
         }
 
         if let Some(ref date_to) = filters.date_to {
+            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            println!(
+                "🔍 [DEBUG] Date to type: {}",
+                std::any::type_name_of_val(date_to)
+            );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
         }
@@ -802,12 +923,16 @@ impl ExpenseService {
         }
 
         if let Some(min_amount) = filters.min_amount {
-            conditions.push("e.amount_paise >= ?".to_string());
+            conditions.push(
+                "COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) >= ?".to_string(),
+            );
             params.push(Box::new(min_amount));
         }
 
         if let Some(max_amount) = filters.max_amount {
-            conditions.push("e.amount_paise <= ?".to_string());
+            conditions.push(
+                "COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) <= ?".to_string(),
+            );
             params.push(Box::new(max_amount));
         }
 
@@ -822,8 +947,9 @@ impl ExpenseService {
         };
 
         println!("🔍 [DEBUG] Where clause: {}", where_clause);
+        println!("🔍 [DEBUG] Number of parameters: {}", params.len());
 
-        // Build the main query - handle both old and new data formats
+        // Build the main query - handle both old and new data formats robustly
         let query = format!(
             "SELECT 
                 ei.id as invoice_id,
@@ -835,13 +961,13 @@ impl ExpenseService {
                 sp.name as service_provider_name,
                 e.expense_type_id,
                 et.name as expense_type_name,
-                COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER)) as amount_paise,
-                COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER)) as cgst_amount_paise,
-                COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER)) as sgst_amount_paise,
-                COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER)) as igst_amount_paise,
-                COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER)) as tds_amount_paise,
-                COALESCE(e.total_amount_paise, CAST(e.total_amount * 100 AS INTEGER)) as total_amount_paise,
-                COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER)) as net_amount_paise,
+                COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) as amount_paise,
+                COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0) as cgst_amount_paise,
+                COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0) as sgst_amount_paise,
+                COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0) as igst_amount_paise,
+                COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0) as tds_amount_paise,
+                COALESCE(e.total_amount_paise, CAST(e.total_amount * 100 AS INTEGER), 0) as total_amount_paise,
+                COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) as net_amount_paise,
                 COALESCE(ei.currency, 'INR') as currency,
                 e.remarks,
                 COALESCE(e.created_at, e.updated_at) as created_at
@@ -898,10 +1024,29 @@ impl ExpenseService {
         for row in rows {
             let row = row?;
             row_count += 1;
-            
-            println!("🔍 [DEBUG] Row {}: amount_paise={}, cgst_paise={}, invoice_number={}", 
-                row_count, row.amount_paise, row.cgst_amount_paise, row.invoice_number);
-            
+
+            println!("🔍 [DEBUG] Row {}: invoice_date={}, amount_paise={}, cgst_paise={}, invoice_number={}",
+                row_count, row.invoice_date, row.amount_paise, row.cgst_amount_paise, row.invoice_number);
+
+            // Debug: Check if the date is within the filter range
+            if let Some(ref date_from) = filters.date_from {
+                if let Some(ref date_to) = filters.date_to {
+                    println!(
+                        "🔍 [DEBUG] Date comparison: row_date='{}', date_from='{}', date_to='{}'",
+                        row.invoice_date, date_from, date_to
+                    );
+                    println!(
+                        "🔍 [DEBUG] Date comparison result: '{}' >= '{}' = {}, '{}' <= '{}' = {}",
+                        row.invoice_date,
+                        date_from,
+                        row.invoice_date.as_str() >= date_from.as_str(),
+                        row.invoice_date,
+                        date_to,
+                        row.invoice_date.as_str() <= date_to.as_str()
+                    );
+                }
+            }
+
             totals.total_amount_paise += row.amount_paise;
             totals.total_cgst_amount_paise += row.cgst_amount_paise;
             totals.total_sgst_amount_paise += row.sgst_amount_paise;
@@ -917,10 +1062,12 @@ impl ExpenseService {
 
             report_rows.push(row);
         }
-        
+
         println!("🔍 [DEBUG] Total rows processed: {}", row_count);
-        println!("🔍 [DEBUG] Final totals: amount_paise={}, cgst_paise={}, line_count={}", 
-            totals.total_amount_paise, totals.total_cgst_amount_paise, totals.expense_line_count);
+        println!(
+            "🔍 [DEBUG] Final totals: amount_paise={}, cgst_paise={}, line_count={}",
+            totals.total_amount_paise, totals.total_cgst_amount_paise, totals.expense_line_count
+        );
 
         Ok(ExpenseReportResponse {
             rows: report_rows,
@@ -948,12 +1095,27 @@ impl ExpenseService {
             params.push(Box::new(service_provider_id.clone()));
         }
 
+        if let Some(ref expense_type_id) = filters.expense_type_id {
+            conditions.push("e.expense_type_id = ?".to_string());
+            params.push(Box::new(expense_type_id.clone()));
+        }
+
         if let Some(ref date_from) = filters.date_from {
+            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            println!(
+                "🔍 [DEBUG] Date from type: {}",
+                std::any::type_name_of_val(date_from)
+            );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
         }
 
         if let Some(ref date_to) = filters.date_to {
+            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            println!(
+                "🔍 [DEBUG] Date to type: {}",
+                std::any::type_name_of_val(date_to)
+            );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
         }
@@ -961,6 +1123,20 @@ impl ExpenseService {
         if let Some(ref currency) = filters.currency {
             conditions.push("ei.currency = ?".to_string());
             params.push(Box::new(currency.clone()));
+        }
+
+        if let Some(min_amount) = filters.min_amount {
+            conditions.push(
+                "COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) >= ?".to_string(),
+            );
+            params.push(Box::new(min_amount));
+        }
+
+        if let Some(max_amount) = filters.max_amount {
+            conditions.push(
+                "COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) <= ?".to_string(),
+            );
+            params.push(Box::new(max_amount));
         }
 
         if !filters.include_inactive.unwrap_or(false) {
@@ -977,12 +1153,12 @@ impl ExpenseService {
             "SELECT 
                 e.expense_type_id,
                 et.name as expense_type_name,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
-                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(*) as line_count
             FROM expense_invoices ei
             JOIN expenses e ON ei.id = e.expense_invoice_id
@@ -1008,7 +1184,8 @@ impl ExpenseService {
             })
         })?;
 
-        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(ExpenseError::from)
     }
 
     /// Generate summary report grouped by service provider
@@ -1031,11 +1208,21 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
+            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            println!(
+                "🔍 [DEBUG] Date from type: {}",
+                std::any::type_name_of_val(date_from)
+            );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
         }
 
         if let Some(ref date_to) = filters.date_to {
+            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            println!(
+                "🔍 [DEBUG] Date to type: {}",
+                std::any::type_name_of_val(date_to)
+            );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
         }
@@ -1055,17 +1242,18 @@ impl ExpenseService {
             "SELECT 
                 ei.service_provider_id,
                 sp.name as service_provider_name,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
-                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(DISTINCT ei.id) as invoice_count,
                 COUNT(*) as line_count
             FROM expense_invoices ei
             JOIN expenses e ON ei.id = e.expense_invoice_id
             JOIN service_providers sp ON ei.service_provider_id = sp.id
+            JOIN expense_types et ON e.expense_type_id = et.id
             {}
             GROUP BY ei.service_provider_id, sp.name
             ORDER BY total_amount_paise DESC",
@@ -1088,7 +1276,8 @@ impl ExpenseService {
             })
         })?;
 
-        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(ExpenseError::from)
     }
 
     /// Generate summary report grouped by shipment
@@ -1111,11 +1300,21 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
+            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            println!(
+                "🔍 [DEBUG] Date from type: {}",
+                std::any::type_name_of_val(date_from)
+            );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
         }
 
         if let Some(ref date_to) = filters.date_to {
+            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            println!(
+                "🔍 [DEBUG] Date to type: {}",
+                std::any::type_name_of_val(date_to)
+            );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
         }
@@ -1135,16 +1334,17 @@ impl ExpenseService {
             "SELECT 
                 ei.shipment_id,
                 s.invoice_number as shipment_number,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
-                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(DISTINCT ei.id) as invoice_count,
                 COUNT(*) as line_count
             FROM expense_invoices ei
             JOIN expenses e ON ei.id = e.expense_invoice_id
+            JOIN expense_types et ON e.expense_type_id = et.id
             LEFT JOIN shipments s ON ei.shipment_id = s.id
             {}
             GROUP BY ei.shipment_id, s.invoice_number
@@ -1168,7 +1368,8 @@ impl ExpenseService {
             })
         })?;
 
-        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(ExpenseError::from)
     }
 
     /// Generate summary report grouped by month
@@ -1195,9 +1396,47 @@ impl ExpenseService {
             params.push(Box::new(expense_type_id.clone()));
         }
 
+        if let Some(ref date_from) = filters.date_from {
+            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            println!(
+                "🔍 [DEBUG] Date from type: {}",
+                std::any::type_name_of_val(date_from)
+            );
+            conditions.push("ei.invoice_date >= ?".to_string());
+            params.push(Box::new(date_from.clone()));
+        }
+
+        if let Some(ref date_to) = filters.date_to {
+            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            println!(
+                "🔍 [DEBUG] Date to type: {}",
+                std::any::type_name_of_val(date_to)
+            );
+            conditions.push("ei.invoice_date <= ?".to_string());
+            params.push(Box::new(date_to.clone()));
+        }
+
         if let Some(ref currency) = filters.currency {
             conditions.push("ei.currency = ?".to_string());
             params.push(Box::new(currency.clone()));
+        }
+
+        if let Some(min_amount) = filters.min_amount {
+            conditions.push(
+                "COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) >= ?".to_string(),
+            );
+            params.push(Box::new(min_amount));
+        }
+
+        if let Some(max_amount) = filters.max_amount {
+            conditions.push(
+                "COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) <= ?".to_string(),
+            );
+            params.push(Box::new(max_amount));
+        }
+
+        if !filters.include_inactive.unwrap_or(false) {
+            conditions.push("et.is_active = 1".to_string());
         }
 
         let where_clause = if conditions.is_empty() {
@@ -1211,16 +1450,17 @@ impl ExpenseService {
                 CAST(strftime('%Y', ei.invoice_date) AS INTEGER) as year,
                 CAST(strftime('%m', ei.invoice_date) AS INTEGER) as month,
                 strftime('%Y-%m', ei.invoice_date) as month_name,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER))) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER))) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER))) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER))) as total_tds_amount_paise,
-                SUM(COALESCE(e.net_amount_paise, CAST(e.amount * 100 AS INTEGER))) as total_net_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(DISTINCT ei.id) as invoice_count,
                 COUNT(*) as line_count
             FROM expense_invoices ei
             JOIN expenses e ON ei.id = e.expense_invoice_id
+            JOIN expense_types et ON e.expense_type_id = et.id
             {}
             GROUP BY year, month, month_name
             ORDER BY year DESC, month DESC",
@@ -1244,11 +1484,10 @@ impl ExpenseService {
             })
         })?;
 
-        rows.collect::<Result<Vec<_>, _>>().map_err(ExpenseError::from)
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(ExpenseError::from)
     }
 }
-
-
 
 // ============================================================================
 // Private Helper Methods
@@ -1263,11 +1502,11 @@ impl ExpenseService {
             "SELECT id, total_amount_paise, total_cgst_amount_paise, total_sgst_amount_paise,
                     total_igst_amount_paise, total_tds_amount_paise, version
              FROM expense_invoices 
-             WHERE idempotency_key = ?"
+             WHERE idempotency_key = ?",
         )?;
-        
+
         let mut rows = stmt.query(params![key])?;
-        
+
         if let Some(row) = rows.next()? {
             Ok(Some(ExpenseInvoiceResponse {
                 invoice_id: row.get(0)?,
@@ -1282,7 +1521,7 @@ impl ExpenseService {
             Ok(None)
         }
     }
-    
+
     fn find_by_service_provider_and_invoice(
         conn: &Connection,
         service_provider_id: &str,
@@ -1292,11 +1531,11 @@ impl ExpenseService {
             "SELECT id, total_amount_paise, total_cgst_amount_paise, total_sgst_amount_paise,
                     total_igst_amount_paise, total_tds_amount_paise, version
              FROM expense_invoices 
-             WHERE service_provider_id = ? AND invoice_number = ?"
+             WHERE service_provider_id = ? AND invoice_number = ?",
         )?;
-        
+
         let mut rows = stmt.query(params![service_provider_id, invoice_number])?;
-        
+
         if let Some(row) = rows.next()? {
             Ok(Some(ExpenseInvoiceResponse {
                 invoice_id: row.get(0)?,
@@ -1311,19 +1550,19 @@ impl ExpenseService {
             Ok(None)
         }
     }
-    
+
     fn create_invoice_in_transaction(
         tx: &rusqlite::Transaction,
         payload: &ExpenseInvoicePayload,
     ) -> Result<ExpenseInvoiceResponse, ExpenseError> {
         let invoice_id = Uuid::new_v4().to_string();
-        
+
         // Calculate totals
         let preview = Self::calculate_totals(&payload.lines);
-        
+
         // Insert invoice (handle both old and new column scenarios)
         let has_old_columns = Self::has_old_columns(tx)?;
-        
+
         if has_old_columns {
             // Insert with old columns for backward compatibility
             tx.execute(
@@ -1384,24 +1623,28 @@ impl ExpenseService {
                 ],
             )?;
         }
-        
+
         // Insert expense lines (handle both old and new column scenarios)
         let has_old_expense_columns = Self::has_old_expense_columns(tx)?;
-        
+
         for line in &payload.lines {
             let line_id = Uuid::new_v4().to_string();
-            let cgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
-            let sgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
-            let igst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
-            let tds_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
-            
+            let cgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
+            let sgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
+            let igst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
+            let tds_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
+
             let total_amount = TaxCalculator::calculate_total_amount(
                 line.amount_paise,
                 cgst_amount_paise,
                 sgst_amount_paise,
                 igst_amount_paise,
             );
-            
+
             let net_amount = TaxCalculator::calculate_net_amount(
                 line.amount_paise,
                 cgst_amount_paise,
@@ -1409,7 +1652,7 @@ impl ExpenseService {
                 igst_amount_paise,
                 tds_amount_paise,
             );
-            
+
             if has_old_expense_columns {
                 // Insert with old columns for backward compatibility (excluding generated columns)
                 tx.execute(
@@ -1471,7 +1714,7 @@ impl ExpenseService {
                 )?;
             }
         }
-        
+
         Ok(ExpenseInvoiceResponse {
             invoice_id,
             total_amount_paise: preview.total_amount_paise,
@@ -1482,9 +1725,9 @@ impl ExpenseService {
             version: 1,
         })
     }
-    
-        #[allow(dead_code)]
-        fn update_invoice_in_transaction(
+
+    #[allow(dead_code)]
+    fn update_invoice_in_transaction(
         tx: &rusqlite::Transaction,
         invoice_id: &str,
         payload: &ExpenseInvoicePayload,
@@ -1498,7 +1741,7 @@ impl ExpenseService {
 
         // Update the invoice header
         let preview = ExpenseService::calculate_totals(&payload.lines);
-        
+
         tx.execute(
             "UPDATE expense_invoices SET 
                 total_amount_paise = ?, 
@@ -1522,10 +1765,14 @@ impl ExpenseService {
 
         // Insert new expense lines
         for line in &payload.lines {
-            let cgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
-            let sgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
-            let igst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
-            let tds_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
+            let cgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
+            let sgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
+            let igst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
+            let tds_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
             let total_amount_paise = TaxCalculator::calculate_total_amount(
                 line.amount_paise,
                 cgst_amount_paise,
@@ -1605,27 +1852,31 @@ impl ExpenseService {
             version,
         })
     }
-    
+
     fn calculate_totals(lines: &[ExpenseLine]) -> ExpenseInvoicePreview {
         let mut total_amount_paise = 0;
         let mut total_cgst_amount_paise = 0;
         let mut total_sgst_amount_paise = 0;
         let mut total_igst_amount_paise = 0;
         let mut total_tds_amount_paise = 0;
-        
+
         for line in lines {
-            let cgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
-            let sgst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
-            let igst_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
-            let tds_amount_paise = TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
-            
+            let cgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
+            let sgst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
+            let igst_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
+            let tds_amount_paise =
+                TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
+
             total_amount_paise += line.amount_paise;
             total_cgst_amount_paise += cgst_amount_paise;
             total_sgst_amount_paise += sgst_amount_paise;
             total_igst_amount_paise += igst_amount_paise;
             total_tds_amount_paise += tds_amount_paise;
         }
-        
+
         let net_amount_paise = TaxCalculator::calculate_net_amount(
             total_amount_paise,
             total_cgst_amount_paise,
@@ -1633,7 +1884,7 @@ impl ExpenseService {
             total_igst_amount_paise,
             total_tds_amount_paise,
         );
-        
+
         ExpenseInvoicePreview {
             lines: Vec::new(), // Not needed for totals calculation
             total_amount_paise,
@@ -1644,7 +1895,7 @@ impl ExpenseService {
             net_amount_paise,
         }
     }
-    
+
     fn has_old_columns(tx: &rusqlite::Transaction) -> Result<bool, ExpenseError> {
         // Check if the old total_amount column exists in expense_invoices
         let result = tx.query_row(
@@ -1652,58 +1903,54 @@ impl ExpenseService {
             [],
             |row| row.get::<_, i32>(0)
         );
-        
+
         match result {
             Ok(count) => Ok(count > 0),
             Err(_) => Ok(false), // If query fails, assume old columns don't exist
         }
     }
-    
+
     fn has_old_expense_columns(tx: &rusqlite::Transaction) -> Result<bool, ExpenseError> {
         // Check if the old amount column exists in expenses
         let result = tx.query_row(
             "SELECT COUNT(*) FROM pragma_table_info('expenses') WHERE name = 'amount'",
             [],
-            |row| row.get::<_, i32>(0)
+            |row| row.get::<_, i32>(0),
         );
-        
+
         match result {
             Ok(count) => Ok(count > 0),
             Err(_) => Ok(false), // If query fails, assume old columns don't exist
         }
     }
-    
+
     fn get_expense_type_names(
         conn: &Connection,
         lines: &[ExpenseLine],
     ) -> Result<HashMap<String, String>, ExpenseError> {
-        let expense_type_ids: Vec<String> = lines
-            .iter()
-            .map(|l| l.expense_type_id.clone())
-            .collect();
-        
+        let expense_type_ids: Vec<String> =
+            lines.iter().map(|l| l.expense_type_id.clone()).collect();
+
         if expense_type_ids.is_empty() {
             return Ok(HashMap::new());
         }
-        
+
         let placeholders = expense_type_ids
             .iter()
             .map(|_| "?")
             .collect::<Vec<_>>()
             .join(",");
-        
-        let query = format!(
-            "SELECT id, name FROM expense_types WHERE id IN ({placeholders})"
-        );
-        
+
+        let query = format!("SELECT id, name FROM expense_types WHERE id IN ({placeholders})");
+
         let mut stmt = conn.prepare(&query)?;
         let mut rows = stmt.query(rusqlite::params_from_iter(expense_type_ids.iter()))?;
-        
+
         let mut result = HashMap::new();
         while let Some(row) = rows.next()? {
             result.insert(row.get::<_, String>(0)?, row.get::<_, String>(1)?);
         }
-        
+
         Ok(result)
     }
 }
@@ -1718,8 +1965,7 @@ pub async fn create_expense_invoice(
     state: State<'_, DbState>,
 ) -> Result<ExpenseInvoiceResponse, String> {
     let mut conn = state.db.lock().unwrap();
-    ExpenseService::create_or_update_invoice(&mut conn, payload)
-        .map_err(|e| e.to_string())
+    ExpenseService::create_or_update_invoice(&mut conn, payload).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1728,8 +1974,7 @@ pub async fn preview_expense_invoice(
     state: State<'_, DbState>,
 ) -> Result<ExpenseInvoicePreview, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::preview_invoice(&conn, &payload)
-        .map_err(|e| e.to_string())
+    ExpenseService::preview_invoice(&conn, &payload).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1740,8 +1985,7 @@ pub async fn combine_expense_duplicates(
 ) -> Result<ExpenseInvoiceResponse, String> {
     let mut conn = state.db.lock().unwrap();
     let separator = request.separator.as_deref().unwrap_or("; ");
-    ExpenseService::combine_duplicates(&mut conn, &invoice_id, separator)
-        .map_err(|e| e.to_string())
+    ExpenseService::combine_duplicates(&mut conn, &invoice_id, separator).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1750,8 +1994,7 @@ pub async fn get_expense_invoice(
     state: State<'_, DbState>,
 ) -> Result<ExpenseInvoiceResponse, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::get_invoice(&conn, &invoice_id)
-        .map_err(|e| e.to_string())
+    ExpenseService::get_invoice(&conn, &invoice_id).map_err(|e| e.to_string())
 }
 
 // ============================================================================
@@ -1765,9 +2008,10 @@ mod tests {
 
     fn create_test_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
-        
+
         // Create tables
-        conn.execute_batch(r#"
+        conn.execute_batch(
+            r#"
             CREATE TABLE expense_types (
                 id TEXT PRIMARY KEY,
                 name TEXT NOT NULL,
@@ -1821,8 +2065,10 @@ mod tests {
                 created_by TEXT,
                 UNIQUE(expense_invoice_id, expense_type_id)
             );
-        "#).unwrap();
-        
+        "#,
+        )
+        .unwrap();
+
         // Insert test expense types
         conn.execute_batch(r#"
             INSERT INTO expense_types (id, name, default_cgst_rate, default_sgst_rate, default_igst_rate, default_tds_rate) VALUES
@@ -1830,7 +2076,7 @@ mod tests {
             ('type2', 'Freight', 0, 0, 1800, 0),
             ('type3', 'Handling', 450, 450, 0, 0);
         "#).unwrap();
-        
+
         conn
     }
 
@@ -1841,13 +2087,13 @@ mod tests {
         let rate = 900; // 9%
         let tax = TaxCalculator::calculate_tax_amount(amount, rate);
         assert_eq!(tax, 0); // Should round down to 0
-        
+
         // Test larger amount
         let amount = 100000; // 1000 rupees
         let rate = 900; // 9%
         let tax = TaxCalculator::calculate_tax_amount(amount, rate);
         assert_eq!(tax, 9000); // 90 rupees
-        
+
         // Test zero rate
         let tax = TaxCalculator::calculate_tax_amount(amount, 0);
         assert_eq!(tax, 0);
@@ -1860,10 +2106,10 @@ mod tests {
         let sgst = 4500; // 45 rupees
         let igst = 0;
         let tds = 1000; // 10 rupees
-        
+
         let total = TaxCalculator::calculate_total_amount(amount, cgst, sgst, igst);
         assert_eq!(total, 109000); // 1000 + 45 + 45 = 1090 rupees
-        
+
         let net = TaxCalculator::calculate_net_amount(amount, cgst, sgst, igst, tds);
         assert_eq!(net, 108000); // 1000 + 45 + 45 - 10 = 1080 rupees
     }
@@ -1879,9 +2125,9 @@ mod tests {
             tds_rate: 0,
             remarks: Some("Test".to_string()),
         };
-        
+
         assert!(ExpenseValidator::validate_expense_line(&valid_line, 0).is_ok());
-        
+
         // Test invalid amount
         let invalid_line = ExpenseLine {
             expense_type_id: "type1".to_string(),
@@ -1892,9 +2138,9 @@ mod tests {
             tds_rate: 0,
             remarks: None,
         };
-        
+
         assert!(ExpenseValidator::validate_expense_line(&invalid_line, 0).is_err());
-        
+
         // Test invalid tax rate
         let invalid_line = ExpenseLine {
             expense_type_id: "type1".to_string(),
@@ -1905,7 +2151,7 @@ mod tests {
             tds_rate: 0,
             remarks: None,
         };
-        
+
         assert!(ExpenseValidator::validate_expense_line(&invalid_line, 0).is_err());
     }
 
@@ -1913,7 +2159,7 @@ mod tests {
     fn test_create_invoice() {
         let conn = create_test_db();
         let mut conn = conn;
-        
+
         let payload = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
             service_provider_id: "provider1".to_string(),
@@ -1942,9 +2188,9 @@ mod tests {
                 },
             ],
         };
-        
+
         let result = ExpenseService::create_or_update_invoice(&mut conn, payload).unwrap();
-        
+
         assert!(!result.invoice_id.is_empty());
         assert_eq!(result.total_amount_paise, 150000); // 1000 + 500 = 1500 rupees
         assert_eq!(result.total_cgst_amount_paise, 9000); // 90 rupees
@@ -1957,7 +2203,7 @@ mod tests {
     fn test_idempotency() {
         let conn = create_test_db();
         let mut conn = conn;
-        
+
         let payload = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
             service_provider_id: "provider1".to_string(),
@@ -1965,25 +2211,23 @@ mod tests {
             invoice_date: "2025-01-01".to_string(),
             currency: "INR".to_string(),
             idempotency_key: Some("key2".to_string()),
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 100000,
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: None,
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 100000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: None,
+            }],
         };
-        
+
         // First call
         let result1 = ExpenseService::create_or_update_invoice(&mut conn, payload.clone()).unwrap();
-        
+
         // Second call with same idempotency key
         let result2 = ExpenseService::create_or_update_invoice(&mut conn, payload).unwrap();
-        
+
         // Should return same invoice
         assert_eq!(result1.invoice_id, result2.invoice_id);
         assert_eq!(result1.total_amount_paise, result2.total_amount_paise);
@@ -1992,7 +2236,7 @@ mod tests {
     #[test]
     fn test_preview_invoice() {
         let conn = create_test_db();
-        
+
         let payload = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
             service_provider_id: "provider1".to_string(),
@@ -2000,21 +2244,19 @@ mod tests {
             invoice_date: "2025-01-01".to_string(),
             currency: "INR".to_string(),
             idempotency_key: None,
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 100000,
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: Some("Test".to_string()),
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 100000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: Some("Test".to_string()),
+            }],
         };
-        
+
         let preview = ExpenseService::preview_invoice(&conn, &payload).unwrap();
-        
+
         assert_eq!(preview.lines.len(), 1);
         assert_eq!(preview.total_amount_paise, 100000);
         assert_eq!(preview.total_cgst_amount_paise, 9000);
@@ -2026,10 +2268,10 @@ mod tests {
     fn test_combine_duplicates() {
         let conn = create_test_db();
         let mut conn = conn;
-        
+
         // Create a test scenario where we have multiple invoices with the same expense types
         // This simulates a real-world scenario where data might be imported with duplicates
-        
+
         // First invoice
         let payload1 = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
@@ -2038,21 +2280,19 @@ mod tests {
             invoice_date: "2025-01-01".to_string(),
             currency: "INR".to_string(),
             idempotency_key: None,
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 100000,
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: Some("Customs part 1".to_string()),
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 100000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: Some("Customs part 1".to_string()),
+            }],
         };
-        
+
         let invoice1 = ExpenseService::create_or_update_invoice(&mut conn, payload1).unwrap();
-        
+
         // Second invoice with same expense type
         let payload2 = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
@@ -2061,35 +2301,38 @@ mod tests {
             invoice_date: "2025-01-01".to_string(),
             currency: "INR".to_string(),
             idempotency_key: None,
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 50000,
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: Some("Customs part 2".to_string()),
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 50000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: Some("Customs part 2".to_string()),
+            }],
         };
-        
+
         let _invoice2 = ExpenseService::create_or_update_invoice(&mut conn, payload2).unwrap();
-        
+
         // Now test combine duplicates on the first invoice
         // This should work even though there's only one line (no duplicates to combine)
-        let result = ExpenseService::combine_duplicates(&mut conn, &invoice1.invoice_id, "; ").unwrap();
-        
+        let result =
+            ExpenseService::combine_duplicates(&mut conn, &invoice1.invoice_id, "; ").unwrap();
+
         // Should have same invoice ID and same totals (no duplicates to combine)
         assert_eq!(result.invoice_id, invoice1.invoice_id);
         assert_eq!(result.total_amount_paise, 100000); // Same as original
         assert_eq!(result.version, invoice1.version + 1);
-        
+
         // Verify only 1 expense line remains (no duplicates to combine)
-        let mut stmt = conn.prepare("SELECT COUNT(*) FROM expenses WHERE expense_invoice_id = ?").unwrap();
-        let count: i32 = stmt.query_row(params![invoice1.invoice_id], |row| row.get(0)).unwrap();
+        let mut stmt = conn
+            .prepare("SELECT COUNT(*) FROM expenses WHERE expense_invoice_id = ?")
+            .unwrap();
+        let count: i32 = stmt
+            .query_row(params![invoice1.invoice_id], |row| row.get(0))
+            .unwrap();
         assert_eq!(count, 1);
-        
+
         // Test that the function works correctly when there are no duplicates
         // This is important for robustness
     }
@@ -2098,7 +2341,7 @@ mod tests {
     fn test_get_invoice() {
         let conn = create_test_db();
         let mut conn = conn;
-        
+
         let payload = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
             service_provider_id: "provider1".to_string(),
@@ -2106,22 +2349,20 @@ mod tests {
             invoice_date: "2025-01-01".to_string(),
             currency: "INR".to_string(),
             idempotency_key: None,
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 100000,
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: None,
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 100000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: None,
+            }],
         };
-        
+
         let created = ExpenseService::create_or_update_invoice(&mut conn, payload).unwrap();
         let retrieved = ExpenseService::get_invoice(&conn, &created.invoice_id).unwrap();
-        
+
         assert_eq!(created.invoice_id, retrieved.invoice_id);
         assert_eq!(created.total_amount_paise, retrieved.total_amount_paise);
         assert_eq!(created.version, retrieved.version);
@@ -2131,7 +2372,7 @@ mod tests {
     fn test_optimistic_locking() {
         let conn = create_test_db();
         let mut conn = conn;
-        
+
         let payload = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
             service_provider_id: "provider1".to_string(),
@@ -2139,29 +2380,28 @@ mod tests {
             invoice_date: "2025-01-01".to_string(),
             currency: "INR".to_string(),
             idempotency_key: None,
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 100000,
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: None,
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 100000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: None,
+            }],
         };
-        
-        let _invoice = ExpenseService::create_or_update_invoice(&mut conn, payload.clone()).unwrap();
-        
+
+        let _invoice =
+            ExpenseService::create_or_update_invoice(&mut conn, payload.clone()).unwrap();
+
         // Try to update with wrong version
         let mut wrong_payload = payload;
         wrong_payload.invoice_number = "INV-007".to_string();
-        
+
         // This should fail due to optimistic locking
         let result = ExpenseService::create_or_update_invoice(&mut conn, wrong_payload);
         assert!(result.is_ok()); // Actually, this will succeed because it's a different invoice number
-        
+
         // Let's test the actual optimistic locking by updating the same invoice
         let update_payload = ExpenseInvoicePayload {
             shipment_id: "shipment1".to_string(),
@@ -2170,19 +2410,17 @@ mod tests {
             invoice_date: "2025-01-02".to_string(),
             currency: "INR".to_string(),
             idempotency_key: None,
-            lines: vec![
-                ExpenseLine {
-                    expense_type_id: "type1".to_string(),
-                    amount_paise: 200000, // Different amount
-                    cgst_rate: 900,
-                    sgst_rate: 900,
-                    igst_rate: 0,
-                    tds_rate: 0,
-                    remarks: None,
-                },
-            ],
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 200000, // Different amount
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: None,
+            }],
         };
-        
+
         // This should fail because update is not implemented
         let result = ExpenseService::create_or_update_invoice(&mut conn, update_payload);
         assert!(result.is_err());

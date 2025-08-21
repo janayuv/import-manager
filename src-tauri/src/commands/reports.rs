@@ -1,5 +1,8 @@
 use crate::db::DbState;
-use crate::expense::{ExpenseReportFilters, ExpenseReportResponse, ExpenseSummaryByType, ExpenseSummaryByProvider, ExpenseSummaryByShipment, ExpenseSummaryByMonth, ExpenseService};
+use crate::expense::{
+    ExpenseReportFilters, ExpenseReportResponse, ExpenseService, ExpenseSummaryByMonth,
+    ExpenseSummaryByProvider, ExpenseSummaryByShipment, ExpenseSummaryByType,
+};
 
 use tauri::State;
 
@@ -43,8 +46,8 @@ pub struct ReportFilters {
     pub part_no: Option<String>,
     pub page: Option<u32>,
     pub page_size: Option<u32>,
-    pub sort_by: Option<String>,   // column name
-    pub sort_direction: Option<String>,  // asc|desc
+    pub sort_by: Option<String>,        // column name
+    pub sort_direction: Option<String>, // asc|desc
     pub include_totals: Option<bool>,
 }
 
@@ -126,13 +129,13 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
 #[tauri::command]
 pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<ReportResponse, String> {
     let conn = state.db.lock().unwrap();
-    
+
     // Debug logging
     println!("=== get_report called ===");
     println!("Filters: {filters:?}");
 
     let (where_sql, params) = build_report_where(&filters);
-    
+
     // Debug logging
     println!("Where SQL: {where_sql}");
     println!("Params: {params:?}");
@@ -153,9 +156,9 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
         Some("igst_amount") => "igst_amount",
         Some("expenses_total") => "expenses_total",
         Some("ldc_per_qty") => "ldc_per_qty",
-        _ => "invoice_date"
+        _ => "invoice_date",
     };
-    
+
     let sort_dir = if filters.sort_direction.as_deref() == Some("desc") {
         "DESC"
     } else {
@@ -173,17 +176,19 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
     // Total rows
     let count_sql = format!("SELECT COUNT(1) FROM report_view{where_sql}");
     println!("Count SQL: {count_sql}");
-    
+
     let mut count_stmt = conn.prepare(&count_sql).map_err(|e| {
         println!("Error preparing count statement: {e}");
         e.to_string()
     })?;
-    
-    let mut count_query = count_stmt.query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v))).map_err(|e| {
-        println!("Error executing count query: {e}");
-        e.to_string()
-    })?;
-    
+
+    let mut count_query = count_stmt
+        .query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v)))
+        .map_err(|e| {
+            println!("Error executing count query: {e}");
+            e.to_string()
+        })?;
+
     let total_rows: u32 = if let Some(row) = count_query.next().map_err(|e| e.to_string())? {
         let count: i64 = row.get(0).map_err(|e| e.to_string())?;
         println!("Total rows found: {count}");
@@ -212,9 +217,9 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
         params.len() + 1,
         params.len() + 2
     );
-    
+
     println!("Data SQL: {sql}");
-    
+
     let mut stmt = conn.prepare(&sql).map_err(|e| {
         println!("Error preparing data statement: {e}");
         e.to_string()
@@ -223,7 +228,7 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
     let mut param_values: Vec<String> = params.iter().map(|(_, v)| v.clone()).collect();
     param_values.push(page_size.to_string());
     param_values.push(offset.to_string());
-    
+
     println!("Final param values: {param_values:?}");
 
     let rows_iter = stmt
@@ -256,7 +261,7 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
         println!("Error collecting rows: {e}");
         e.to_string()
     })?;
-    
+
     println!("Total rows collected: {}", rows.len());
 
     // Calculate totals if requested
@@ -272,27 +277,59 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
                 printf('%.2f', SUM(expenses_total)) as total_expenses_total
             FROM report_view{where_sql}"
         );
-        
+
         println!("Totals SQL: {totals_sql}");
-        
+
         let mut totals_stmt = conn.prepare(&totals_sql).map_err(|e| e.to_string())?;
-        let mut totals_query = totals_stmt.query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v))).map_err(|e| e.to_string())?;
-        
+        let mut totals_query = totals_stmt
+            .query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v)))
+            .map_err(|e| e.to_string())?;
+
         if let Some(totals_row) = totals_query.next().map_err(|e| e.to_string())? {
             totals = Some(ReportTotals {
-                qty: totals_row.get::<_, String>(0).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
-                assessable_value: totals_row.get::<_, String>(1).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
-                bcd_amount: totals_row.get::<_, String>(2).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
-                sws_amount: totals_row.get::<_, String>(3).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
-                igst_amount: totals_row.get::<_, String>(4).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
-                expenses_total: totals_row.get::<_, String>(5).map_err(|e| e.to_string())?.parse::<f64>().unwrap_or(0.0),
+                qty: totals_row
+                    .get::<_, String>(0)
+                    .map_err(|e| e.to_string())?
+                    .parse::<f64>()
+                    .unwrap_or(0.0),
+                assessable_value: totals_row
+                    .get::<_, String>(1)
+                    .map_err(|e| e.to_string())?
+                    .parse::<f64>()
+                    .unwrap_or(0.0),
+                bcd_amount: totals_row
+                    .get::<_, String>(2)
+                    .map_err(|e| e.to_string())?
+                    .parse::<f64>()
+                    .unwrap_or(0.0),
+                sws_amount: totals_row
+                    .get::<_, String>(3)
+                    .map_err(|e| e.to_string())?
+                    .parse::<f64>()
+                    .unwrap_or(0.0),
+                igst_amount: totals_row
+                    .get::<_, String>(4)
+                    .map_err(|e| e.to_string())?
+                    .parse::<f64>()
+                    .unwrap_or(0.0),
+                expenses_total: totals_row
+                    .get::<_, String>(5)
+                    .map_err(|e| e.to_string())?
+                    .parse::<f64>()
+                    .unwrap_or(0.0),
             });
             println!("Totals calculated: {totals:?}");
         }
     }
 
     println!("=== get_report completed ===");
-    Ok(ReportResponse { rows, page, page_size, total_rows, totals })
+    Ok(ReportResponse {
+        rows,
+        page,
+        page_size,
+        total_rows,
+        totals,
+    })
 }
 
 // ============================================================================
@@ -301,13 +338,12 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
 
 /// Generate detailed expense report with filters
 #[tauri::command]
-pub fn generate_expense_report(
+pub fn generate_detailed_expense_report(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<ExpenseReportResponse, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::generate_expense_report(&conn, &filters)
-        .map_err(|e| e.to_string())
+    ExpenseService::generate_expense_report(&conn, &filters).map_err(|e| e.to_string())
 }
 
 /// Generate summary report grouped by expense type
@@ -317,8 +353,7 @@ pub fn generate_expense_summary_by_type(
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByType>, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::generate_summary_by_type(&conn, &filters)
-        .map_err(|e| e.to_string())
+    ExpenseService::generate_summary_by_type(&conn, &filters).map_err(|e| e.to_string())
 }
 
 /// Generate summary report grouped by service provider
@@ -328,8 +363,7 @@ pub fn generate_expense_summary_by_provider(
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByProvider>, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::generate_summary_by_provider(&conn, &filters)
-        .map_err(|e| e.to_string())
+    ExpenseService::generate_summary_by_provider(&conn, &filters).map_err(|e| e.to_string())
 }
 
 /// Generate summary report grouped by shipment
@@ -339,8 +373,7 @@ pub fn generate_expense_summary_by_shipment(
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByShipment>, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::generate_summary_by_shipment(&conn, &filters)
-        .map_err(|e| e.to_string())
+    ExpenseService::generate_summary_by_shipment(&conn, &filters).map_err(|e| e.to_string())
 }
 
 /// Generate summary report grouped by month
@@ -350,6 +383,74 @@ pub fn generate_expense_summary_by_month(
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByMonth>, String> {
     let conn = state.db.lock().unwrap();
-    ExpenseService::generate_summary_by_month(&conn, &filters)
-        .map_err(|e| e.to_string())
+    ExpenseService::generate_summary_by_month(&conn, &filters).map_err(|e| e.to_string())
+}
+
+/// Debug command to test expense report filtering
+#[tauri::command]
+pub fn debug_expense_report_filters(
+    filters: ExpenseReportFilters,
+    state: State<DbState>,
+) -> Result<String, String> {
+    let conn = state.db.lock().unwrap();
+
+    println!("🔍 [DEBUG] Testing expense report filters: {:?}", filters);
+
+    // Test the detailed report generation
+    match ExpenseService::generate_expense_report(&conn, &filters) {
+        Ok(response) => {
+            let result = format!(
+                "✅ Success! Found {} rows, {} invoices, total amount: {} paise",
+                response.rows.len(),
+                response.totals.invoice_count,
+                response.totals.total_amount_paise
+            );
+            println!("🔍 [DEBUG] {}", result);
+            Ok(result)
+        }
+        Err(e) => {
+            let error_msg = format!("❌ Error: {}", e);
+            println!("🔍 [DEBUG] {}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
+
+/// Debug command to check dates in the database
+#[tauri::command]
+pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
+    let conn = state.db.lock().unwrap();
+
+    println!("🔍 [DEBUG] Checking expense dates in database...");
+
+    let query = "
+        SELECT DISTINCT ei.invoice_date, COUNT(*) as count
+        FROM expense_invoices ei
+        JOIN expenses e ON ei.id = e.expense_invoice_id
+        ORDER BY ei.invoice_date DESC
+        LIMIT 10
+    ";
+
+    let mut stmt = conn
+        .prepare(query)
+        .map_err(|e| format!("❌ Error preparing date query: {}", e))?;
+    let mut rows = stmt
+        .query([])
+        .map_err(|e| format!("❌ Error querying dates: {}", e))?;
+
+    let mut result = String::from("🔍 [DEBUG] Sample dates in database:\n");
+    while let Some(row) = rows
+        .next()
+        .map_err(|e| format!("❌ Error reading row: {}", e))?
+    {
+        let date: String = row
+            .get(0)
+            .map_err(|e| format!("❌ Error reading date: {}", e))?;
+        let count: i64 = row
+            .get(1)
+            .map_err(|e| format!("❌ Error reading count: {}", e))?;
+        result.push_str(&format!("  {}: {} records\n", date, count));
+    }
+    println!("{}", result);
+    Ok(result)
 }

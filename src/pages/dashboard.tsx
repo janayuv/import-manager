@@ -1,5 +1,6 @@
 // src/pages/dashboard.tsx
 import { format, startOfMonth, startOfWeek, subDays } from 'date-fns'
+import { formatDateForDisplay } from '@/lib/date-format'
 import {
   Factory,
   Package,
@@ -518,7 +519,7 @@ const DashboardPage = () => {
                     upcomingShipments.map((s) => (
                       <TableRow key={s.id}>
                         <TableCell className="font-medium">{s.invoiceNumber}</TableCell>
-                        <TableCell>{s.eta ? format(new Date(s.eta), 'PP') : 'N/A'}</TableCell>
+                        <TableCell>{s.eta ? formatDateForDisplay(s.eta) : 'N/A'}</TableCell>
                         <TableCell>
                           <Badge variant={s.status === 'delivered' ? 'default' : 'secondary'}>
                             {s.status}

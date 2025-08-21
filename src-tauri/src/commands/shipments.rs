@@ -5,18 +5,35 @@ use tauri::State;
 #[tauri::command]
 pub fn get_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT * FROM shipments").map_err(|e| e.to_string())?;
-    let shipment_iter = stmt.query_map([], |row| {
-        Ok(Shipment {
-            id: row.get(0)?, supplier_id: row.get(1)?, invoice_number: row.get(2)?,
-            invoice_date: row.get(3)?, goods_category: row.get(4)?, invoice_value: row.get(5)?,
-            invoice_currency: row.get(6)?, incoterm: row.get(7)?, shipment_mode: row.get(8)?,
-            shipment_type: row.get(9)?, bl_awb_number: row.get(10)?, bl_awb_date: row.get(11)?,
-            vessel_name: row.get(12)?, container_number: row.get(13)?, gross_weight_kg: row.get(14)?,
-            etd: row.get(15)?, eta: row.get(16)?, status: row.get(17)?,
-            date_of_delivery: row.get(18)?, is_frozen: row.get(19)?,
+    let mut stmt = conn
+        .prepare("SELECT * FROM shipments")
+        .map_err(|e| e.to_string())?;
+    let shipment_iter = stmt
+        .query_map([], |row| {
+            Ok(Shipment {
+                id: row.get(0)?,
+                supplier_id: row.get(1)?,
+                invoice_number: row.get(2)?,
+                invoice_date: row.get(3)?,
+                goods_category: row.get(4)?,
+                invoice_value: row.get(5)?,
+                invoice_currency: row.get(6)?,
+                incoterm: row.get(7)?,
+                shipment_mode: row.get(8)?,
+                shipment_type: row.get(9)?,
+                bl_awb_number: row.get(10)?,
+                bl_awb_date: row.get(11)?,
+                vessel_name: row.get(12)?,
+                container_number: row.get(13)?,
+                gross_weight_kg: row.get(14)?,
+                etd: row.get(15)?,
+                eta: row.get(16)?,
+                status: row.get(17)?,
+                date_of_delivery: row.get(18)?,
+                is_frozen: row.get(19)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
 
     let mut shipments = Vec::new();
     for shipment in shipment_iter {
@@ -28,21 +45,40 @@ pub fn get_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
 #[tauri::command]
 pub fn get_active_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT * FROM shipments WHERE is_frozen = 0").map_err(|e| e.to_string())?;
-    let shipments = stmt.query_map([], |row| {
-        Ok(Shipment {
-            id: row.get(0)?, supplier_id: row.get(1)?, invoice_number: row.get(2)?,
-            invoice_date: row.get(3)?, goods_category: row.get(4)?, invoice_value: row.get(5)?,
-            invoice_currency: row.get(6)?, incoterm: row.get(7)?, shipment_mode: row.get(8)?,
-            shipment_type: row.get(9)?, bl_awb_number: row.get(10)?, bl_awb_date: row.get(11)?,
-            vessel_name: row.get(12)?, container_number: row.get(13)?, gross_weight_kg: row.get(14)?,
-            etd: row.get(15)?, eta: row.get(16)?, status: row.get(17)?,
-            date_of_delivery: row.get(18)?, is_frozen: row.get(19)?,
+    let mut stmt = conn
+        .prepare("SELECT * FROM shipments WHERE is_frozen = 0")
+        .map_err(|e| e.to_string())?;
+    let shipments = stmt
+        .query_map([], |row| {
+            Ok(Shipment {
+                id: row.get(0)?,
+                supplier_id: row.get(1)?,
+                invoice_number: row.get(2)?,
+                invoice_date: row.get(3)?,
+                goods_category: row.get(4)?,
+                invoice_value: row.get(5)?,
+                invoice_currency: row.get(6)?,
+                incoterm: row.get(7)?,
+                shipment_mode: row.get(8)?,
+                shipment_type: row.get(9)?,
+                bl_awb_number: row.get(10)?,
+                bl_awb_date: row.get(11)?,
+                vessel_name: row.get(12)?,
+                container_number: row.get(13)?,
+                gross_weight_kg: row.get(14)?,
+                etd: row.get(15)?,
+                eta: row.get(16)?,
+                status: row.get(17)?,
+                date_of_delivery: row.get(18)?,
+                is_frozen: row.get(19)?,
+            })
         })
-    }).map_err(|e| e.to_string())?;
+        .map_err(|e| e.to_string())?;
 
     let mut out = Vec::new();
-    for s in shipments { out.push(s.map_err(|e| e.to_string())?); }
+    for s in shipments {
+        out.push(s.map_err(|e| e.to_string())?);
+    }
     Ok(out)
 }
 
@@ -81,31 +117,43 @@ pub fn update_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn freeze_shipment(state: State<DbState>, shipment_id: String, frozen: bool) -> Result<(), String> {
+pub fn freeze_shipment(
+    state: State<DbState>,
+    shipment_id: String,
+    frozen: bool,
+) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
     conn.execute(
         "UPDATE shipments SET is_frozen = ?2 WHERE id = ?1",
         params![shipment_id, if frozen { 1 } else { 0 }],
-    ).map_err(|e| e.to_string())?;
+    )
+    .map_err(|e| e.to_string())?;
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_shipment_status(state: State<DbState>, shipment_id: String, status: String, date_of_delivery: Option<String>) -> Result<(), String> {
+pub fn update_shipment_status(
+    state: State<DbState>,
+    shipment_id: String,
+    status: String,
+    date_of_delivery: Option<String>,
+) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
-    
+
     if let Some(delivery_date) = date_of_delivery {
         conn.execute(
             "UPDATE shipments SET status = ?2, date_of_delivery = ?3 WHERE id = ?1",
             params![shipment_id, status, delivery_date],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
     } else {
         conn.execute(
             "UPDATE shipments SET status = ?2 WHERE id = ?1",
             params![shipment_id, status],
-        ).map_err(|e| e.to_string())?;
+        )
+        .map_err(|e| e.to_string())?;
     }
-    
+
     Ok(())
 }
 
@@ -136,96 +184,132 @@ pub fn add_shipments_bulk(state: State<DbState>, shipments: Vec<Shipment>) -> Re
 #[tauri::command]
 pub fn get_unfinalized_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare(
-        "SELECT s.* FROM shipments s
+    let mut stmt = conn
+        .prepare(
+            "SELECT s.* FROM shipments s
          LEFT JOIN invoices i ON s.id = i.shipment_id AND i.status = 'Finalized'
-         WHERE i.id IS NULL"
-    ).map_err(|e| e.to_string())?;
-    
-    let shipment_iter = stmt.query_map([], |row| {
-        Ok(Shipment {
-            id: row.get(0)?, supplier_id: row.get(1)?, invoice_number: row.get(2)?,
-            invoice_date: row.get(3)?, goods_category: row.get(4)?, invoice_value: row.get(5)?,
-            invoice_currency: row.get(6)?, incoterm: row.get(7)?, shipment_mode: row.get(8)?,
-            shipment_type: row.get(9)?, bl_awb_number: row.get(10)?, bl_awb_date: row.get(11)?,
-            vessel_name: row.get(12)?, container_number: row.get(13)?, gross_weight_kg: row.get(14)?,
-            etd: row.get(15)?, eta: row.get(16)?, status: row.get(17)?,
-            date_of_delivery: row.get(18)?, is_frozen: row.get(19)?,
-        })
-    }).map_err(|e| e.to_string())?;
+         WHERE i.id IS NULL",
+        )
+        .map_err(|e| e.to_string())?;
 
-    shipment_iter.collect::<Result<Vec<Shipment>, _>>().map_err(|e| e.to_string())
+    let shipment_iter = stmt
+        .query_map([], |row| {
+            Ok(Shipment {
+                id: row.get(0)?,
+                supplier_id: row.get(1)?,
+                invoice_number: row.get(2)?,
+                invoice_date: row.get(3)?,
+                goods_category: row.get(4)?,
+                invoice_value: row.get(5)?,
+                invoice_currency: row.get(6)?,
+                incoterm: row.get(7)?,
+                shipment_mode: row.get(8)?,
+                shipment_type: row.get(9)?,
+                bl_awb_number: row.get(10)?,
+                bl_awb_date: row.get(11)?,
+                vessel_name: row.get(12)?,
+                container_number: row.get(13)?,
+                gross_weight_kg: row.get(14)?,
+                etd: row.get(15)?,
+                eta: row.get(16)?,
+                status: row.get(17)?,
+                date_of_delivery: row.get(18)?,
+                is_frozen: row.get(19)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+
+    shipment_iter
+        .collect::<Result<Vec<Shipment>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
-pub fn validate_shipment_import(shipments: Vec<Shipment>, state: State<DbState>) -> Result<Vec<String>, String> {
+pub fn validate_shipment_import(
+    shipments: Vec<Shipment>,
+    state: State<DbState>,
+) -> Result<Vec<String>, String> {
     let conn = state.db.lock().unwrap();
     let mut errors = Vec::new();
-    
+
     for (index, shipment) in shipments.iter().enumerate() {
         let row_num = index + 1;
-        
+
         // Check for empty or invalid supplier_id
         if shipment.supplier_id.is_empty() || shipment.supplier_id == "#N/A" {
-            errors.push(format!("Row {}: Column 'supplier_id' has invalid value '{}'", row_num, shipment.supplier_id));
+            errors.push(format!(
+                "Row {}: Column 'supplier_id' has invalid value '{}'",
+                row_num, shipment.supplier_id
+            ));
         } else {
             // Check if supplier exists in database
-            let exists: bool = conn.query_row(
-                "SELECT COUNT(*) FROM suppliers WHERE id = ?",
-                params![shipment.supplier_id],
-                |row| Ok(row.get::<_, i64>(0)? > 0)
-            ).map_err(|e| e.to_string())?;
-            
+            let exists: bool = conn
+                .query_row(
+                    "SELECT COUNT(*) FROM suppliers WHERE id = ?",
+                    params![shipment.supplier_id],
+                    |row| Ok(row.get::<_, i64>(0)? > 0),
+                )
+                .map_err(|e| e.to_string())?;
+
             if !exists {
-                errors.push(format!("Row {}: Column 'supplier_id' references non-existent supplier '{}'", row_num, shipment.supplier_id));
+                errors.push(format!(
+                    "Row {}: Column 'supplier_id' references non-existent supplier '{}'",
+                    row_num, shipment.supplier_id
+                ));
             }
         }
-        
+
         // Check for empty shipment ID
         if shipment.id.is_empty() {
             errors.push(format!("Row {row_num}: Column 'id' is empty"));
         }
-        
+
         // Check for empty invoice_number
         if shipment.invoice_number.is_empty() {
             errors.push(format!("Row {row_num}: Column 'invoice_number' is empty"));
         }
-        
+
         // Check for empty invoice_date
         if shipment.invoice_date.is_empty() {
             errors.push(format!("Row {row_num}: Column 'invoice_date' is empty"));
         }
-        
+
         // Check for empty goods_category
         if shipment.goods_category.is_empty() {
             errors.push(format!("Row {row_num}: Column 'goods_category' is empty"));
         }
-        
+
         // Check for invalid invoice_value
         if shipment.invoice_value <= 0.0 {
-            errors.push(format!("Row {}: Column 'invoice_value' has invalid value '{}'", row_num, shipment.invoice_value));
+            errors.push(format!(
+                "Row {}: Column 'invoice_value' has invalid value '{}'",
+                row_num, shipment.invoice_value
+            ));
         }
-        
+
         // Check for empty invoice_currency
         if shipment.invoice_currency.is_empty() {
             errors.push(format!("Row {row_num}: Column 'invoice_currency' is empty"));
         }
-        
+
         // Check for empty incoterm
         if shipment.incoterm.is_empty() {
             errors.push(format!("Row {row_num}: Column 'incoterm' is empty"));
         }
-        
+
         // Optional fields - only validate if provided and not empty
         // For truly optional fields, we don't validate if they're None or empty strings
-        
+
         // Check for invalid gross_weight_kg (optional field - only if provided)
         if let Some(gross_weight_kg) = shipment.gross_weight_kg {
             if gross_weight_kg <= 0.0 {
-                errors.push(format!("Row {}: Column 'gross_weight_kg' has invalid value '{}'", row_num, gross_weight_kg));
+                errors.push(format!(
+                    "Row {}: Column 'gross_weight_kg' has invalid value '{}'",
+                    row_num, gross_weight_kg
+                ));
             }
         }
     }
-    
+
     Ok(errors)
 }

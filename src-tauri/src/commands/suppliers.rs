@@ -5,27 +5,31 @@ use tauri::State;
 #[tauri::command]
 pub fn get_suppliers(state: State<DbState>) -> Result<Vec<Supplier>, String> {
     let conn = state.db.lock().unwrap();
-    let mut stmt = conn.prepare("SELECT * FROM suppliers").map_err(|e| e.to_string())?;
-    let supplier_iter = stmt.query_map([], |row| {
-        let supplier = Supplier {
-            id: row.get(0)?,
-            supplier_name: row.get(1)?,
-            short_name: row.get(2)?,
-            country: row.get(3)?,
-            email: row.get(4)?,
-            phone: row.get(5)?,
-            beneficiary_name: row.get(6)?,
-            bank_name: row.get(7)?,
-            branch: row.get(8)?,
-            bank_address: row.get(9)?,
-            account_no: row.get(10)?,
-            iban: row.get(11)?,
-            swift_code: row.get(12)?,
-            is_active: row.get(13)?,
-        };
-        
-        Ok(supplier)
-    }).map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare("SELECT * FROM suppliers")
+        .map_err(|e| e.to_string())?;
+    let supplier_iter = stmt
+        .query_map([], |row| {
+            let supplier = Supplier {
+                id: row.get(0)?,
+                supplier_name: row.get(1)?,
+                short_name: row.get(2)?,
+                country: row.get(3)?,
+                email: row.get(4)?,
+                phone: row.get(5)?,
+                beneficiary_name: row.get(6)?,
+                bank_name: row.get(7)?,
+                branch: row.get(8)?,
+                bank_address: row.get(9)?,
+                account_no: row.get(10)?,
+                iban: row.get(11)?,
+                swift_code: row.get(12)?,
+                is_active: row.get(13)?,
+            };
+
+            Ok(supplier)
+        })
+        .map_err(|e| e.to_string())?;
 
     let mut suppliers = Vec::new();
     for supplier in supplier_iter {
@@ -58,8 +62,6 @@ pub fn add_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), Str
     ).map_err(|e| e.to_string())?;
     Ok(())
 }
-
-
 
 #[tauri::command]
 pub fn update_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), String> {
@@ -121,11 +123,13 @@ pub fn add_suppliers_bulk(state: State<DbState>, suppliers: Vec<Supplier>) -> Re
 #[tauri::command]
 pub fn check_supplier_exists(state: State<DbState>, supplier_id: String) -> Result<bool, String> {
     let conn = state.db.lock().unwrap();
-    let exists: bool = conn.query_row(
-        "SELECT COUNT(*) FROM suppliers WHERE id = ?",
-        params![supplier_id],
-        |row| Ok(row.get::<_, i64>(0)? > 0)
-    ).map_err(|e| e.to_string())?;
-    
+    let exists: bool = conn
+        .query_row(
+            "SELECT COUNT(*) FROM suppliers WHERE id = ?",
+            params![supplier_id],
+            |row| Ok(row.get::<_, i64>(0)? > 0),
+        )
+        .map_err(|e| e.to_string())?;
+
     Ok(exists)
 }

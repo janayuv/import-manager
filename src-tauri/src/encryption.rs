@@ -1,9 +1,9 @@
-use rusqlite::{Connection, Result};
+use base64::Engine;
 use keyring::Entry;
 use rand::Rng;
-use std::path::Path;
+use rusqlite::{Connection, Result};
 use std::io::Read;
-use base64::Engine;
+use std::path::Path;
 
 const KEYRING_SERVICE: &str = "com.jana.importmanager";
 const KEYRING_USERNAME: &str = "database_key";
@@ -43,8 +43,9 @@ impl DatabaseEncryption {
             .keyring_entry
             .get_password()
             .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))?;
-        
-        base64::engine::general_purpose::STANDARD.decode(&key_b64)
+
+        base64::engine::general_purpose::STANDARD
+            .decode(&key_b64)
             .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))
     }
 
@@ -56,7 +57,7 @@ impl DatabaseEncryption {
         let mut header = [0u8; 16];
         file.read_exact(&mut header)
             .map_err(|e| rusqlite::Error::InvalidPath(e.to_string().into()))?;
-        
+
         // Check if it's a valid SQLite header
         let sqlite_header = b"SQLite format 3";
         if header.starts_with(sqlite_header) {
@@ -69,18 +70,14 @@ impl DatabaseEncryption {
     }
 
     /// Migrate plaintext database to encrypted
-    pub fn migrate_to_encrypted(
-        &self,
-        plaintext_path: &Path,
-        encrypted_path: &Path,
-    ) -> Result<()> {
+    pub fn migrate_to_encrypted(&self, plaintext_path: &Path, encrypted_path: &Path) -> Result<()> {
         // Generate new encryption key
         let key = Self::generate_key();
         self.store_key(&key)?;
 
         // Create encrypted database
         let encrypted_conn = Connection::open(encrypted_path)?;
-        
+
         // Enable encryption with SQLCipher
         encrypted_conn.execute_batch(&format!(
             "PRAGMA cipher_page_size = 4096;
@@ -95,9 +92,9 @@ impl DatabaseEncryption {
         let plaintext_path_str = plaintext_path.to_str().unwrap();
         encrypted_conn.execute(
             "ATTACH DATABASE ?1 AS plaintext KEY ''",
-            [plaintext_path_str]
+            [plaintext_path_str],
         )?;
-        
+
         encrypted_conn.execute("SELECT sqlcipher_export('main','plaintext')", [])?;
         encrypted_conn.execute("DETACH DATABASE plaintext", [])?;
 
@@ -108,7 +105,7 @@ impl DatabaseEncryption {
     pub fn open_encrypted(&self, db_path: &Path) -> Result<Connection> {
         let key = self.retrieve_key()?;
         let conn = Connection::open(db_path)?;
-        
+
         // Enable encryption with SQLCipher
         conn.execute_batch(&format!(
             "PRAGMA cipher_page_size = 4096;

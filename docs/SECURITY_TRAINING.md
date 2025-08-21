@@ -1,4 +1,4 @@
-# 🔒 Security Training Guide
+npm run tauri dev# 🔒 Security Training Guide
 
 ## Overview
 

@@ -99,7 +99,11 @@ export const validateCsvContent = (
 
     // Encoding detection
     const encoding = detectEncoding(content)
-    if (!CSV_CONFIG.ALLOWED_ENCODINGS.includes(encoding as 'UTF-8' | 'UTF-16' | 'ISO-8859-1')) {
+    if (
+      !CSV_CONFIG.ALLOWED_ENCODINGS.includes(
+        encoding.toLowerCase() as 'utf-8' | 'utf-8-bom' | 'iso-8859-1'
+      )
+    ) {
       result.warnings.push({
         row: 0,
         column: 'encoding',

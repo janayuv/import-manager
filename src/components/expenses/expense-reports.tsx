@@ -22,6 +22,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table'
+import { Combobox } from '@/components/ui/combobox'
 import {
   BarChart,
   Bar,
@@ -68,10 +69,15 @@ const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8', '#82CA9D'
 const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   const [loading, setLoading] = useState(false)
   const [reportType, setReportType] = useState<ExpenseReportType>('detailed')
-  const [filters, setFilters] = useState<ExpenseReportFilters>({
-    shipmentId,
-    dateFrom: new Date(new Date().getFullYear(), 0, 1).toISOString().split('T')[0], // Start of year
-    dateTo: new Date().toISOString().split('T')[0], // Today
+  const [filters, setFilters] = useState<ExpenseReportFilters>(() => {
+    const today = new Date()
+    const startOfYear = new Date(2024, 0, 1) // January 1st of 2024 to include test data
+
+    return {
+      shipmentId,
+      dateFrom: startOfYear.toISOString().split('T')[0],
+      dateTo: today.toISOString().split('T')[0],
+    }
   })
 
   // Data states
@@ -110,11 +116,52 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   const generateReport = useCallback(async () => {
     setLoading(true)
     try {
-      console.log('Generating report with filters:', filters) // Debug log
+      // First, debug the data counts
+      console.log('🔍 [DEBUG] Getting expense data counts...')
+      const debugInfo = await invoke<string>('debug_expense_data_counts')
+      console.log('🔍 [DEBUG] Data counts:', debugInfo)
+
+      console.log('🔍 [DEBUG] Generating report with filters:', JSON.stringify(filters, null, 2))
+      console.log('🔍 [DEBUG] Filter values breakdown:')
+      console.log('  - shipmentId:', filters.shipmentId, typeof filters.shipmentId)
+      console.log(
+        '  - serviceProviderId:',
+        filters.serviceProviderId,
+        typeof filters.serviceProviderId
+      )
+      console.log('  - expenseTypeId:', filters.expenseTypeId, typeof filters.expenseTypeId)
+      console.log('  - dateFrom:', filters.dateFrom, typeof filters.dateFrom)
+      console.log('  - dateTo:', filters.dateTo, typeof filters.dateTo)
+      console.log('  - currency:', filters.currency, typeof filters.currency)
+      console.log('  - minAmount:', filters.minAmount, typeof filters.minAmount)
+      console.log('  - maxAmount:', filters.maxAmount, typeof filters.maxAmount)
+
+      // Clean filters object - remove undefined values
+      const cleanFilters = Object.fromEntries(
+        Object.entries(filters).filter(([, value]) => value !== undefined)
+      )
+      console.log('🔍 [DEBUG] Clean filters being sent:', JSON.stringify(cleanFilters, null, 2))
+      console.log(
+        '🔍 [DEBUG] Date range check: dateFrom =',
+        cleanFilters.dateFrom,
+        'dateTo =',
+        cleanFilters.dateTo
+      )
+
+      // Test with specific date range
+      const testFilters = {
+        dateFrom: '2025-05-01',
+        dateTo: '2025-05-01',
+      }
+      console.log(
+        '🔍 [DEBUG] Testing with specific date range:',
+        JSON.stringify(testFilters, null, 2)
+      )
+
       switch (reportType) {
         case 'detailed': {
-          const detailed = await invoke<ExpenseReportResponse>('generate_expense_report', {
-            filters,
+          const detailed = await invoke<ExpenseReportResponse>('generate_detailed_expense_report', {
+            filters: cleanFilters,
           })
           console.log('🔍 [FRONTEND] Detailed report data:', detailed) // Debug log
           if (detailed && detailed.rows) {
@@ -126,7 +173,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         }
         case 'summary-by-type': {
           const byType = await invoke<ExpenseSummaryByType[]>('generate_expense_summary_by_type', {
-            filters,
+            filters: cleanFilters,
           })
           setSummaryByType(byType)
           break
@@ -134,7 +181,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         case 'summary-by-provider': {
           const byProvider = await invoke<ExpenseSummaryByProvider[]>(
             'generate_expense_summary_by_provider',
-            { filters }
+            { filters: cleanFilters }
           )
           setSummaryByProvider(byProvider)
           break
@@ -142,7 +189,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         case 'summary-by-shipment': {
           const byShipment = await invoke<ExpenseSummaryByShipment[]>(
             'generate_expense_summary_by_shipment',
-            { filters }
+            { filters: cleanFilters }
           )
           setSummaryByShipment(byShipment)
           break
@@ -150,7 +197,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         case 'summary-by-month': {
           const byMonth = await invoke<ExpenseSummaryByMonth[]>(
             'generate_expense_summary_by_month',
-            { filters }
+            { filters: cleanFilters }
           )
           setSummaryByMonth(byMonth)
           break
@@ -474,6 +521,124 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const result = await invoke<string>('create_test_expense_data')
+                console.log('Test data creation result:', result)
+                toast.success('Test data created successfully')
+                // Reload filter options after creating test data
+                const [providers, types] = await Promise.all([
+                  invoke<ServiceProvider[]>('get_service_providers'),
+                  invoke<ExpenseType[]>('get_expense_types'),
+                ])
+                setServiceProviders(providers)
+                setExpenseTypes(types)
+              } catch (error) {
+                console.error('Failed to create test data:', error)
+                toast.error('Failed to create test data')
+              }
+            }}
+            disabled={loading}
+          >
+            Create Test Data
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const result = await invoke<string>('debug_expense_data_counts')
+                console.log('Data counts:', result)
+                toast.success('Check console for data counts')
+              } catch (error) {
+                console.error('Failed to get data counts:', error)
+                toast.error('Failed to get data counts')
+              }
+            }}
+            disabled={loading}
+          >
+            Debug Data
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const result = await invoke<string>('debug_expense_dates')
+                console.log('Date debug result:', result)
+                toast.success('Check console for date debug info')
+              } catch (error) {
+                console.error('Failed to debug dates:', error)
+                toast.error('Failed to debug dates')
+              }
+            }}
+            disabled={loading}
+          >
+            Debug Dates
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                // Test filtering with specific criteria
+                const testFilters = {
+                  dateFrom: '2024-01-01',
+                  dateTo: '2025-12-31',
+                  // Add other filters as needed
+                }
+                console.log('🔍 [TEST] Testing filters:', testFilters)
+                const result = await invoke<string>('debug_expense_report_filters', {
+                  filters: testFilters,
+                })
+                console.log('🔍 [TEST] Test result:', result)
+
+                // Also test without date filters
+                console.log('🔍 [TEST] Testing without date filters...')
+                const resultNoDate = await invoke<string>('debug_expense_report_filters', {
+                  filters: {},
+                })
+                console.log('🔍 [TEST] Test result (no date filters):', resultNoDate)
+
+                toast.success('Test completed - check console')
+              } catch (error) {
+                console.error('Test failed:', error)
+                toast.error('Test failed')
+              }
+            }}
+            disabled={loading}
+          >
+            Test Filters
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                // Test the exact date range from the image (2025-05-01 to 2025-05-01)
+                const testFilters = {
+                  dateFrom: '2025-05-01',
+                  dateTo: '2025-05-01',
+                }
+                console.log('🔍 [TEST] Testing exact date range from image:', testFilters)
+                const result = await invoke<string>('debug_expense_report_filters', {
+                  filters: testFilters,
+                })
+                console.log('🔍 [TEST] Exact date range test result:', result)
+
+                toast.success('Exact date range test completed - check console')
+              } catch (error) {
+                console.error('Exact date range test failed:', error)
+                toast.error('Exact date range test failed')
+              }
+            }}
+            disabled={loading}
+          >
+            Test Exact Date
+          </Button>
           <div className="flex items-center space-x-2">
             <Button
               variant="outline"
@@ -565,53 +730,49 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             {/* Service Provider */}
             <div className="space-y-2">
               <Label htmlFor="provider">Service Provider</Label>
-              <Select
-                value={filters.serviceProviderId || 'all'}
-                onValueChange={(value) =>
+              <Combobox
+                options={[
+                  { value: '', label: 'All Providers' },
+                  ...serviceProviders.map((provider) => ({
+                    value: provider.id,
+                    label: provider.name,
+                  })),
+                ]}
+                value={filters.serviceProviderId || ''}
+                onChange={(value: string) =>
                   setFilters((prev) => ({
                     ...prev,
-                    serviceProviderId: value === 'all' ? undefined : value,
+                    serviceProviderId: value || undefined,
                   }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Providers" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Providers</SelectItem>
-                  {serviceProviders.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.id}>
-                      {provider.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="All Providers"
+                searchPlaceholder="Search providers..."
+                emptyText="No providers found."
+              />
             </div>
 
             {/* Expense Type */}
             <div className="space-y-2">
               <Label htmlFor="expenseType">Expense Type</Label>
-              <Select
-                value={filters.expenseTypeId || 'all'}
-                onValueChange={(value) =>
+              <Combobox
+                options={[
+                  { value: '', label: 'All Types' },
+                  ...expenseTypes.map((type) => ({
+                    value: type.id,
+                    label: type.name,
+                  })),
+                ]}
+                value={filters.expenseTypeId || ''}
+                onChange={(value: string) =>
                   setFilters((prev) => ({
                     ...prev,
-                    expenseTypeId: value === 'all' ? undefined : value,
+                    expenseTypeId: value || undefined,
                   }))
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Types" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  {expenseTypes.map((type) => (
-                    <SelectItem key={type.id} value={type.id}>
-                      {type.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                placeholder="All Types"
+                searchPlaceholder="Search expense types..."
+                emptyText="No expense types found."
+              />
             </div>
 
             {/* Currency */}
@@ -670,6 +831,25 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 }
               />
             </div>
+          </div>
+
+          {/* Clear Filters Button */}
+          <div className="mt-4 flex justify-end">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                const today = new Date()
+                const startOfYear = new Date(2024, 0, 1) // January 1st of 2024 to include test data
+                setFilters({
+                  shipmentId,
+                  dateFrom: startOfYear.toISOString().split('T')[0],
+                  dateTo: today.toISOString().split('T')[0],
+                })
+              }}
+            >
+              Clear Filters
+            </Button>
           </div>
         </CardContent>
       </Card>

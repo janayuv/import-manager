@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { useEffect, useState, useCallback, type ReactNode } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -35,6 +35,25 @@ export function AsyncErrorBoundary({
     error: null,
     showDetails: defaultShowDetails,
   })
+
+  const logError = useCallback(
+    (error: Error, source: string) => {
+      const errorData = {
+        message: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+        componentName: componentName || 'Unknown',
+        url: window.location.href,
+        userAgent: navigator.userAgent,
+        source,
+      }
+
+      console.error('Async Error Details:', errorData)
+
+      // In a production app, you might want to send this to an error reporting service
+    },
+    [componentName]
+  )
 
   useEffect(() => {
     // Handle unhandled promise rejections
@@ -102,25 +121,6 @@ export function AsyncErrorBoundary({
       })
     }
   }, [resetKey, defaultShowDetails])
-
-  const logError = useCallback(
-    (error: Error, source: string) => {
-      const errorData = {
-        message: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString(),
-        componentName: componentName || 'Unknown',
-        url: window.location.href,
-        userAgent: navigator.userAgent,
-        source,
-      }
-
-      console.error('Async Error Details:', errorData)
-
-      // In a production app, you might want to send this to an error reporting service
-    },
-    [componentName]
-  )
 
   const handleReset = () => {
     setState({

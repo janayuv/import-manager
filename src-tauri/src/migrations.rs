@@ -11,23 +11,29 @@ impl DatabaseMigrations {
     /// Run all pending migrations on the database
     pub fn run_migrations(conn: &mut Connection) -> Result<()> {
         log::info!("Running database migrations...");
-        
+
         // Create a backup before running migrations
         let backup_path = Path::new("import-manager.db.backup");
         if backup_path.exists() {
             std::fs::remove_file(backup_path).expect("Failed to remove existing backup");
         }
-        
+
         // Run migrations
         match migrations::runner().run(conn) {
             Ok(applied_migrations) => {
                 if applied_migrations.applied_migrations().is_empty() {
                     log::info!("No pending migrations to apply");
                 } else {
-                    log::info!("Applied {} migrations", applied_migrations.applied_migrations().len());
-                    
+                    log::info!(
+                        "Applied {} migrations",
+                        applied_migrations.applied_migrations().len()
+                    );
+
                     // Create backup after successful migration
-                    conn.execute(&format!("VACUUM INTO '{}'", backup_path.to_str().unwrap()), [])?;
+                    conn.execute(
+                        &format!("VACUUM INTO '{}'", backup_path.to_str().unwrap()),
+                        [],
+                    )?;
                     log::info!("Database backup created at import-manager.db.backup");
                 }
                 Ok(())
@@ -70,22 +76,18 @@ impl DatabaseMigrations {
     /// Get migration status
     #[allow(dead_code)]
     pub fn get_migration_status(conn: &Connection) -> Result<Vec<(String, String)>> {
-        let mut stmt = conn.prepare(
-            "SELECT version, applied_on FROM refinery_schema_history ORDER BY version"
-        )?;
-        
+        let mut stmt = conn
+            .prepare("SELECT version, applied_on FROM refinery_schema_history ORDER BY version")?;
+
         let rows = stmt.query_map([], |row| {
-            Ok((
-                row.get::<_, String>(0)?,
-                row.get::<_, String>(1)?
-            ))
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
         })?;
 
         let mut status = Vec::new();
         for row in rows {
             status.push(row?);
         }
-        
+
         Ok(status)
     }
 }
@@ -97,16 +99,16 @@ mod tests {
     #[test]
     fn test_migration_status() {
         let mut conn = Connection::open_in_memory().unwrap();
-        
+
         // Should need migration for new database
         assert!(DatabaseMigrations::needs_migration(&conn).unwrap());
-        
+
         // Run migrations
         DatabaseMigrations::run_migrations(&mut conn).unwrap();
-        
+
         // Should not need migration after running
         assert!(!DatabaseMigrations::needs_migration(&conn).unwrap());
-        
+
         // Check status
         let status = DatabaseMigrations::get_migration_status(&conn).unwrap();
         assert!(!status.is_empty());

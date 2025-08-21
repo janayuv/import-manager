@@ -1,7 +1,7 @@
 // In src-tauri/src/db.rs
 
-use serde::{Serialize, Deserialize};
 use rusqlite::{Connection, Result}; // Removed unused 'params'
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -314,9 +314,9 @@ pub struct ServiceProvider {
 pub struct ExpenseType {
     pub id: String,
     pub name: String,
-    pub default_cgst_rate: i32,  // Now in basis points (900 = 9.00%)
-    pub default_sgst_rate: i32,  // Now in basis points (900 = 9.00%)
-    pub default_igst_rate: i32,  // Now in basis points (900 = 9.00%)
+    pub default_cgst_rate: i32, // Now in basis points (900 = 9.00%)
+    pub default_sgst_rate: i32, // Now in basis points (900 = 9.00%)
+    pub default_igst_rate: i32, // Now in basis points (900 = 9.00%)
     pub is_active: bool,
 }
 
@@ -402,12 +402,9 @@ pub struct ExpenseWithInvoice {
 // --- INVOICE UPLOAD STRUCTS ---
 // Simplified structures for invoice upload functionality
 
-
 pub struct DbState {
     pub db: Mutex<Connection>,
 }
-
-
 
 // Database schema initialization function (for use with existing connections)
 pub fn init_schema(conn: &Connection) -> Result<()> {
@@ -444,8 +441,11 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
     // Migration: add is_frozen if missing
-    let _ = conn.execute("ALTER TABLE shipments ADD COLUMN is_frozen BOOLEAN NOT NULL DEFAULT 0", []);
-    
+    let _ = conn.execute(
+        "ALTER TABLE shipments ADD COLUMN is_frozen BOOLEAN NOT NULL DEFAULT 0",
+        [],
+    );
+
     conn.execute(
         "CREATE TABLE IF NOT EXISTS items (
             id TEXT PRIMARY KEY,
@@ -493,8 +493,8 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         )",
         [],
     )?;
-   
-        conn.execute(
+
+    conn.execute(
         "CREATE TABLE IF NOT EXISTS boe_details (
             id TEXT PRIMARY KEY NOT NULL,
             be_number TEXT NOT NULL,
@@ -512,7 +512,6 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         [],
     )?;
 
-    
     // --- NEW: TABLE FOR BOE CALCULATIONS ---
     conn.execute(
         "CREATE TABLE IF NOT EXISTS boe_calculations (
@@ -533,18 +532,40 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     )?;
 
     // Attempt to migrate existing table to include new columns (no-op if already present)
-    let _ = conn.execute("ALTER TABLE boe_calculations ADD COLUMN status TEXT NOT NULL DEFAULT 'Awaiting BOE Data'", []);
-    let _ = conn.execute("ALTER TABLE boe_calculations ADD COLUMN attachments_json TEXT", []);
-    
+    let _ = conn.execute(
+        "ALTER TABLE boe_calculations ADD COLUMN status TEXT NOT NULL DEFAULT 'Awaiting BOE Data'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE boe_calculations ADD COLUMN attachments_json TEXT",
+        [],
+    );
+
     // Migration for expenses table: add expense_invoice_id column if it doesn't exist
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN expense_invoice_id TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN expense_invoice_id TEXT",
+        [],
+    );
     // Migration for expenses table: add service_provider_id column if it doesn't exist
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN service_provider_id TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN service_provider_id TEXT",
+        [],
+    );
     // MODIFIED: Create tables for all the dropdown options.
     let option_tables = vec![
-        "units", "currencies", "countries", "bcd_rates", "sws_rates",
-        "igst_rates", "categories", "end_uses", "purchase_uoms",
-        "incoterms", "shipment_modes", "shipment_types", "shipment_statuses"
+        "units",
+        "currencies",
+        "countries",
+        "bcd_rates",
+        "sws_rates",
+        "igst_rates",
+        "categories",
+        "end_uses",
+        "purchase_uoms",
+        "incoterms",
+        "shipment_modes",
+        "shipment_types",
+        "shipment_statuses",
     ];
 
     for table_name in option_tables {
@@ -558,7 +579,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             [],
         )?;
     }
-    
+
     // --- EXPENSE MODULE TABLES ---
 
     conn.execute(
@@ -660,44 +681,122 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_cgst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00", []);
     let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_sgst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00", []);
     let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_igst_amount DECIMAL(12, 2) NOT NULL DEFAULT 0.00", []);
-    
+
     // Migration: Add basis points rate columns to expense_types table for production-grade module
-    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_cgst_rate_bp INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_sgst_rate_bp INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_igst_rate_bp INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_types ADD COLUMN default_tds_rate_bp INTEGER DEFAULT 0", []);
+    let _ = conn.execute(
+        "ALTER TABLE expense_types ADD COLUMN default_cgst_rate_bp INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_types ADD COLUMN default_sgst_rate_bp INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_types ADD COLUMN default_igst_rate_bp INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_types ADD COLUMN default_tds_rate_bp INTEGER DEFAULT 0",
+        [],
+    );
 
     // Migration: Add missing columns to expenses table if they don't exist
     let _ = conn.execute("ALTER TABLE expenses ADD COLUMN shipment_id TEXT", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN service_provider_id TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN service_provider_id TEXT",
+        [],
+    );
     let _ = conn.execute("ALTER TABLE expenses ADD COLUMN invoice_no TEXT", []);
     let _ = conn.execute("ALTER TABLE expenses ADD COLUMN invoice_date DATE", []);
 
     // Migration: Add new columns for production-grade expense module
     // Add paise-based columns to expense_invoices table
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_cgst_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_sgst_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_igst_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN total_tds_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN net_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN idempotency_key TEXT", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN version INTEGER DEFAULT 1", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN currency TEXT DEFAULT 'INR'", []);
-    let _ = conn.execute("ALTER TABLE expense_invoices ADD COLUMN invoice_number TEXT", []);
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN total_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN total_cgst_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN total_sgst_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN total_igst_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN total_tds_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN net_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN idempotency_key TEXT",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN version INTEGER DEFAULT 1",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN currency TEXT DEFAULT 'INR'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expense_invoices ADD COLUMN invoice_number TEXT",
+        [],
+    );
 
     // Add paise-based columns to expenses table
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN cgst_rate INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN sgst_rate INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN igst_rate INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN tds_rate INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN cgst_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN sgst_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN igst_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN tds_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN total_amount_paise INTEGER DEFAULT 0", []);
-    let _ = conn.execute("ALTER TABLE expenses ADD COLUMN net_amount_paise INTEGER DEFAULT 0", []);
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN cgst_rate INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN sgst_rate INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN igst_rate INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN tds_rate INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN cgst_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN sgst_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN igst_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN tds_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN total_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE expenses ADD COLUMN net_amount_paise INTEGER DEFAULT 0",
+        [],
+    );
 
     // Migration: Update existing expense_invoices to have proper tax totals and handle NULL values
     let _ = conn.execute("
@@ -720,14 +819,17 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             ), 0.00)
         WHERE total_amount IS NULL OR total_cgst_amount IS NULL OR total_sgst_amount IS NULL OR total_igst_amount IS NULL
     ", []);
-    
+
     // Migration: Ensure all expense_invoices have valid total_amount values
     // This handles the case where the NOT NULL constraint is violated
-    let _ = conn.execute("
+    let _ = conn.execute(
+        "
         UPDATE expense_invoices 
         SET total_amount = 0.00
         WHERE total_amount IS NULL
-    ", []);
+    ",
+        [],
+    );
 
     // Migration: Populate missing data in existing expenses records and handle NULL values
     let _ = conn.execute("
@@ -765,7 +867,8 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     ", []);
 
     // Migration: Populate paise-based columns from existing decimal columns
-    let _ = conn.execute("
+    let _ = conn.execute(
+        "
         UPDATE expense_invoices 
         SET total_amount_paise = CASE 
             WHEN total_amount IS NOT NULL THEN CAST(total_amount * 100 AS INTEGER)
@@ -790,11 +893,12 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
         END,
         invoice_number = COALESCE(invoice_no, '')
         WHERE total_amount_paise IS NULL
-    ", []);
+    ",
+        [],
+    );
 
-
-
-    let _ = conn.execute("
+    let _ = conn.execute(
+        "
         UPDATE expenses 
         SET amount_paise = CASE 
             WHEN amount IS NOT NULL THEN CAST(amount * 100 AS INTEGER)
@@ -841,10 +945,13 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             ELSE 0
         END
         WHERE amount_paise IS NULL
-    ", []);
-    
+    ",
+        [],
+    );
+
     // Migration: Populate basis points rate columns in expense_types table
-    let _ = conn.execute("
+    let _ = conn.execute(
+        "
         UPDATE expense_types 
         SET default_cgst_rate_bp = CASE 
             WHEN default_cgst_rate IS NOT NULL THEN CAST(default_cgst_rate * 100 AS INTEGER)
@@ -863,7 +970,9 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             ELSE 0
         END
         WHERE default_cgst_rate_bp IS NULL
-    ", []);
+    ",
+        [],
+    );
 
     // ----------------------------------------------------------------------------
     // Report View: source from boe_calculations (JSON results) joined to invoices
@@ -938,8 +1047,9 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
     )?;
 
     // Insert sample data if the suppliers table is empty
-    let supplier_count: i32 = conn.query_row("SELECT COUNT(*) FROM suppliers", [], |row| row.get(0))?;
-    
+    let supplier_count: i32 =
+        conn.query_row("SELECT COUNT(*) FROM suppliers", [], |row| row.get(0))?;
+
     if supplier_count == 0 {
         // Insert sample suppliers
         let sample_suppliers = vec![
@@ -957,7 +1067,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "1234567890",
                 "KOEXKRSE",
                 "KOEXKRSE",
-                true
+                true,
             ),
             (
                 "Sup-002",
@@ -973,7 +1083,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "0987654321",
                 "CZEKCNB",
                 "CZEKCNB",
-                true
+                true,
             ),
             (
                 "Sup-003",
@@ -989,7 +1099,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "1122334455",
                 "CZEKCNB",
                 "CZEKCNB",
-                true
+                true,
             ),
             (
                 "Sup-004",
@@ -1005,7 +1115,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "5544332211",
                 "FRBNFRPP",
                 "FRBNFRPP",
-                true
+                true,
             ),
             (
                 "Sup-005",
@@ -1021,7 +1131,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "6677889900",
                 "CRLYFRPP",
                 "CRLYFRPP",
-                true
+                true,
             ),
             (
                 "Sup-006",
@@ -1037,7 +1147,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "7788990011",
                 "VNVTCBVX",
                 "VNVTCBVX",
-                true
+                true,
             ),
             (
                 "Sup-007",
@@ -1053,7 +1163,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "8899001122",
                 "CNBKCNBJ",
                 "CNBKCNBJ",
-                true
+                true,
             ),
             (
                 "Sup-008",
@@ -1069,7 +1179,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "9900112233",
                 "BNPAFRPP",
                 "BNPAFRPP",
-                true
+                true,
             ),
             (
                 "Sup-009",
@@ -1085,7 +1195,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "0011223344",
                 "ICBKCNBJ",
                 "ICBKCNBJ",
-                true
+                true,
             ),
             (
                 "Sup-010",
@@ -1101,7 +1211,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "1122334455",
                 "BARCGB22",
                 "BARCGB22",
-                true
+                true,
             ),
             (
                 "Sup-011",
@@ -1117,7 +1227,7 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
                 "2233445566",
                 "PCBCCNBJ",
                 "PCBCCNBJ",
-                true
+                true,
             ),
         ];
 
