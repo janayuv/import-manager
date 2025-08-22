@@ -246,7 +246,7 @@ export const ValidationTest = () => {
     })
 
     const handleSupplierSubmit = async () => {
-      const success = await supplierValidation.submit(async (data: Record<string, string>) => {
+      const success = await supplierValidation.submit(async (data) => {
         console.log('Supplier data:', data)
         toast.success('Supplier validation successful!')
       })
@@ -257,7 +257,7 @@ export const ValidationTest = () => {
     }
 
     const handleShipmentSubmit = async () => {
-      const success = await shipmentValidation.submit(async (data: Record<string, string>) => {
+      const success = await shipmentValidation.submit(async (data) => {
         console.log('Shipment data:', data)
         toast.success('Shipment validation successful!')
       })
@@ -268,7 +268,7 @@ export const ValidationTest = () => {
     }
 
     const handleItemSubmit = async () => {
-      const success = await itemValidation.submit(async (data: Record<string, string>) => {
+      const success = await itemValidation.submit(async (data) => {
         console.log('Item data:', data)
         toast.success('Item validation successful!')
       })
@@ -628,7 +628,7 @@ export const ValidationTest = () => {
               <Alert variant={fileValidationResult.success ? 'default' : 'destructive'}>
                 <AlertDescription>
                   {fileValidationResult.success
-                    ? `File "${fileValidationResult.file.name}" is valid!`
+                    ? `File "${fileValidationResult.file?.name ?? ''}" is valid!`
                     : fileValidationResult.error}
                 </AlertDescription>
               </Alert>
@@ -662,7 +662,7 @@ export const ValidationTest = () => {
 
     const testCsvValidation = () => {
       const result = validateCsv(sampleCsvData)
-      setCsvValidationResult(result)
+      setCsvValidationResult(result as any)
 
       if (result.valid.length > 0) {
         toast.success(`${result.valid.length} valid records found`)

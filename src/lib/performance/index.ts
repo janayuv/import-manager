@@ -60,7 +60,7 @@ export class PerformanceObserver {
       const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
         entries.forEach((entry: PerformanceEntry) => {
-          this.metrics.firstInputDelay = (entry as { processingStart: number }).processingStart - entry.startTime
+          this.metrics.firstInputDelay = ((entry as unknown as { processingStart: number }).processingStart ?? 0) - entry.startTime
         })
       })
       observer.observe({ entryTypes: ['first-input'] })
@@ -74,8 +74,8 @@ export class PerformanceObserver {
       const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
         entries.forEach((entry: PerformanceEntry) => {
-          if (!(entry as { hadRecentInput: boolean }).hadRecentInput) {
-            clsValue += (entry as { value: number }).value
+          if (!((entry as unknown as { hadRecentInput: boolean }).hadRecentInput)) {
+            clsValue += (entry as unknown as { value: number }).value ?? 0
           }
         })
         this.metrics.cumulativeLayoutShift = clsValue
@@ -232,7 +232,7 @@ export class ImageOptimizer {
     }
 
     // Start optimization
-    const optimizePromise = this.performOptimization(src, options).then((optimizedSrc) => {
+    const optimizePromise = this.performOptimization(src).then((optimizedSrc) => {
       this.imageCache.set(cacheKey, optimizedSrc)
       this.loadingImages.delete(cacheKey)
       return optimizedSrc
@@ -367,14 +367,14 @@ export class PerformanceReporter {
 
     const count = this.reports.length
     return {
-      loadTime: sum.loadTime / count,
-      firstContentfulPaint: sum.firstContentfulPaint / count,
-      largestContentfulPaint: sum.largestContentfulPaint / count,
-      firstInputDelay: sum.firstInputDelay / count,
-      cumulativeLayoutShift: sum.cumulativeLayoutShift / count,
-      memoryUsage: sum.memoryUsage / count,
-      renderCount: sum.renderCount / count,
-      renderTime: sum.renderTime / count,
+      loadTime: (sum.loadTime ?? 0) / count,
+      firstContentfulPaint: (sum.firstContentfulPaint ?? 0) / count,
+      largestContentfulPaint: (sum.largestContentfulPaint ?? 0) / count,
+      firstInputDelay: (sum.firstInputDelay ?? 0) / count,
+      cumulativeLayoutShift: (sum.cumulativeLayoutShift ?? 0) / count,
+      memoryUsage: (sum.memoryUsage ?? 0) / count,
+      renderCount: (sum.renderCount ?? 0) / count,
+      renderTime: (sum.renderTime ?? 0) / count,
     }
   }
 

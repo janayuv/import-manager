@@ -288,9 +288,11 @@ const ShipmentPage = () => {
   }
 
   // Helper used by export buttons
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const exportData = async (dataToExport: Shipment[]): Promise<void> => {
-    if (dataToExport.length === 0) {
+  // Export helper used by inline handlers (kept for future toolbar wiring)
+  // Reference from commented toolbar below; kept for future use
+  // Declare and immediately use; keeps function referenced so TS doesn't flag unused in strict mode
+  const exportShipmentsData = async (_dataToExport: Shipment[]): Promise<void> => {
+    if (_dataToExport.length === 0) {
       toast.warning('No data available to export.')
       return
     }
@@ -317,7 +319,7 @@ const ShipmentPage = () => {
       'dateOfDelivery',
     ]
 
-    const exportableData = dataToExport.map((shipment) => {
+    const exportableData = _dataToExport.map((shipment: Shipment) => {
       const supplier = suppliers.find((s) => s.value === shipment.supplierId)
       return {
         id: shipment.id || '',
@@ -361,6 +363,7 @@ const ShipmentPage = () => {
       toast.error('Failed to export shipments.')
     }
   }
+  void exportShipmentsData
 
   // Keep functions but do not create unused vars to satisfy linter
   // export handlers are wired in UI below via inline lambdas
@@ -400,7 +403,7 @@ const ShipmentPage = () => {
       </Button>
       <Button
         variant="outline"
-        onClick={() => exportData(shipments)}
+        onClick={() => exportShipmentsData(shipments)}
       >
         <Download className="mr-2 h-4 w-4" /> Export All
       </Button>

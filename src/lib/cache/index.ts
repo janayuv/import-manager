@@ -250,7 +250,7 @@ export class CacheManager {
   // Memory cache operations (fastest, but lost on page reload)
   memory = {
     set: <T>(key: string, data: T, ttl?: number) => this.memoryCache.set(key, data, ttl),
-    get: <T>(key: string): T | null => this.memoryCache.get(key),
+    get: <T>(key: string): T | null => (this.memoryCache.get(key) as unknown as T) ?? null,
     has: (key: string) => this.memoryCache.has(key),
     delete: (key: string) => this.memoryCache.delete(key),
     clear: () => this.memoryCache.clear(),
@@ -260,7 +260,7 @@ export class CacheManager {
   // Session storage cache operations (persists during session)
   session = {
     set: <T>(key: string, data: T, ttl?: number) => this.sessionStorageCache.set(key, data, ttl),
-    get: <T>(key: string): T | null => this.sessionStorageCache.get(key),
+    get: <T>(key: string): T | null => (this.sessionStorageCache.get(key) as unknown as T) ?? null,
     has: (key: string) => this.sessionStorageCache.has(key),
     delete: (key: string) => this.sessionStorageCache.delete(key),
     clear: () => this.sessionStorageCache.clear(),
@@ -269,7 +269,7 @@ export class CacheManager {
   // Local storage cache operations (persists across sessions)
   persistent = {
     set: <T>(key: string, data: T, ttl?: number) => this.localStorageCache.set(key, data, ttl),
-    get: <T>(key: string): T | null => this.localStorageCache.get(key),
+    get: <T>(key: string): T | null => (this.localStorageCache.get(key) as unknown as T) ?? null,
     has: (key: string) => this.localStorageCache.has(key),
     delete: (key: string) => this.localStorageCache.delete(key),
     clear: () => this.localStorageCache.clear(),

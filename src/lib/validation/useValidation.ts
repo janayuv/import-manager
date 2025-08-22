@@ -101,7 +101,7 @@ export function useValidation<T extends Record<string, unknown>>({
         validateField(field)
       }
     },
-    [validateOnBlur, validateField]
+    [validateOnBlur]
   )
 
   // Validate entire form

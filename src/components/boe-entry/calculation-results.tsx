@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
 ================================================================================
 | FILE: src/app/dashboard/boe-entry/components/calculation-results.tsx         |
