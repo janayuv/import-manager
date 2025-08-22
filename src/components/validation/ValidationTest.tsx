@@ -662,7 +662,12 @@ export const ValidationTest = () => {
 
     const testCsvValidation = () => {
       const result = validateCsv(sampleCsvData)
-      setCsvValidationResult(result as any)
+      setCsvValidationResult(
+        (result as unknown) as {
+          valid: Record<string, string>[]
+          invalid: { index: number; errors: string[] }[]
+        }
+      )
 
       if (result.valid.length > 0) {
         toast.success(`${result.valid.length} valid records found`)

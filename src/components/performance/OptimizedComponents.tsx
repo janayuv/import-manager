@@ -202,13 +202,11 @@ export const OptimizedTable = memo(
       <div className={className}>
         <Suspense fallback={<TableLoadingFallback />}>
           {/* Cast to satisfy DataTable generic expectations without altering runtime */}
-          {(
-            <LazyTable
-              columns={columns as unknown as any}
-              data={data as unknown as any[]}
-              storageKey={storageKey}
-            />
-          )}
+          <LazyTable
+            columns={columns as unknown as any}
+            data={data as unknown as any[]}
+            storageKey={storageKey}
+          />
         </Suspense>
       </div>
     )

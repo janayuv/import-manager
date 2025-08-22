@@ -1,4 +1,3 @@
-// @ts-nocheck
 /*
 ================================================================================
 | FILE: src/app/dashboard/boe-entry/components/calculation-results.tsx         |
@@ -8,11 +7,23 @@
 | Updated to import all types from the new central `src/types` file.           |
 ================================================================================
 */
+
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { CalculationResult } from '@/types/boe-entry'
+// Minimal shape used here to avoid cross-branch type drift
+type CalculationResult = {
+  bcdTotal?: number
+  igstTotal?: number
+  compCessTotal?: number
+  totalDuty?: number
+  totalAmount?: number
+  items?: Array<Record<string, unknown>>
+  calculatedItems?: Array<Record<string, unknown>>
+  exchangeRate?: number
+  calculationDate?: string
+}
 
 /*
 ================================================================================
@@ -25,7 +36,7 @@ import type { CalculationResult } from '@/types/boe-entry'
 */
 
 interface CalculationResultsProps {
-  results: CalculationResult
+  results: unknown
 }
 
 const formatCurrency = (amount: number) => {
@@ -38,6 +49,10 @@ const formatCurrency = (amount: number) => {
 }
 
 export function CalculationResults({ results }: CalculationResultsProps) {
+  const r = results as CalculationResult
+  const detailItems = (r.items ?? (r as any).calculatedItems ?? []) as Array<any>
+  const safeNum = (v: any) => (typeof v === 'number' && isFinite(v) ? v : 0)
+  const safeStr = (v: any) => (typeof v === 'string' ? v : '')
   return (
     <div className="mt-12 space-y-8">
       {/* --- Totals Summary --- */}
@@ -49,23 +64,23 @@ export function CalculationResults({ results }: CalculationResultsProps) {
           <div className="grid grid-cols-2 gap-4 text-center md:grid-cols-5">
             <div>
               <p className="text-muted-foreground text-sm">BCD Total</p>
-              <p className="text-xl font-bold">{formatCurrency(results.bcdTotal)}</p>
+              <p className="text-xl font-bold">{formatCurrency(r.bcdTotal ?? 0)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-sm">IGST Total</p>
-              <p className="text-xl font-bold">{formatCurrency(results.igstTotal)}</p>
+              <p className="text-xl font-bold">{formatCurrency(r.igstTotal ?? 0)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-sm">Comp. Cess</p>
-              <p className="text-xl font-bold">{formatCurrency(results.compCessTotal)}</p>
+              <p className="text-xl font-bold">{formatCurrency(r.compCessTotal ?? 0)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-sm">Total Duty</p>
-              <p className="text-xl font-bold">{formatCurrency(results.totalDuty)}</p>
+              <p className="text-xl font-bold">{formatCurrency(r.totalDuty ?? 0)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-sm">Total Amount</p>
-              <p className="text-xl font-bold">{formatCurrency(results.totalAmount)}</p>
+              <p className="text-xl font-bold">{formatCurrency(r.totalAmount ?? 0)}</p>
             </div>
           </div>
         </CardContent>
@@ -89,16 +104,24 @@ export function CalculationResults({ results }: CalculationResultsProps) {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {results.items.map((item, index) => (
-                <TableRow key={index}>
-                  <TableCell className="font-medium">{item.description}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.assessableValue)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.bcd)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.igst)}</TableCell>
-                  <TableCell className="text-right">{formatCurrency(item.compCess)}</TableCell>
-                  <TableCell className="text-right font-bold">{formatCurrency(item.total)}</TableCell>
-                </TableRow>
-              ))}
+              {detailItems.map((item, index) => {
+                const description = safeStr(item.description) || `Item ${index + 1}`
+                const assessableValue = safeNum(item.assessableValue)
+                const bcd = safeNum(item.bcd ?? item.bcdValue)
+                const igst = safeNum(item.igst ?? item.igstValue)
+                const compCess = safeNum(item.compCess)
+                const total = safeNum(item.total ?? assessableValue + bcd + igst + compCess + safeNum(item.swsValue))
+                return (
+                  <TableRow key={index}>
+                    <TableCell className="font-medium">{description}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(assessableValue)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(bcd)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(igst)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(compCess)}</TableCell>
+                    <TableCell className="text-right font-bold">{formatCurrency(total)}</TableCell>
+                  </TableRow>
+                )
+              })}
             </TableBody>
           </Table>
         </CardContent>
@@ -113,12 +136,12 @@ export function CalculationResults({ results }: CalculationResultsProps) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <h4 className="mb-2 font-semibold">Exchange Rate</h4>
-              <p className="text-muted-foreground">USD 1 = INR {results.exchangeRate?.toFixed(2) || 'N/A'}</p>
+              <p className="text-muted-foreground">USD 1 = INR {r.exchangeRate?.toFixed(2) || 'N/A'}</p>
             </div>
             <div>
               <h4 className="mb-2 font-semibold">Calculation Date</h4>
               <p className="text-muted-foreground">
-                {results.calculationDate ? new Date(results.calculationDate).toLocaleDateString('en-IN') : 'N/A'}
+                {r.calculationDate ? new Date(r.calculationDate).toLocaleDateString('en-IN') : 'N/A'}
               </p>
             </div>
           </div>

@@ -60,7 +60,8 @@ export class PerformanceObserver {
       const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
         entries.forEach((entry: PerformanceEntry) => {
-          this.metrics.firstInputDelay = ((entry as unknown as { processingStart: number }).processingStart ?? 0) - entry.startTime
+          this.metrics.firstInputDelay =
+            ((entry as unknown as { processingStart: number }).processingStart ?? 0) - entry.startTime
         })
       })
       observer.observe({ entryTypes: ['first-input'] })
@@ -74,7 +75,7 @@ export class PerformanceObserver {
       const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
         entries.forEach((entry: PerformanceEntry) => {
-          if (!((entry as unknown as { hadRecentInput: boolean }).hadRecentInput)) {
+          if (!(entry as unknown as { hadRecentInput: boolean }).hadRecentInput) {
             clsValue += (entry as unknown as { value: number }).value ?? 0
           }
         })
