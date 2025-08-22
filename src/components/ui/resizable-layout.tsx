@@ -53,9 +53,15 @@ export function ResizableLayout({
 
   return (
     <div className={cn('h-full w-full', className)}>
-      <PanelGroup onLayout={handleLayoutChange} {...props}>
+      <PanelGroup
+        onLayout={handleLayoutChange}
+        {...props}
+      >
         {children.map((child, index) => (
-          <div key={index} className="flex flex-col">
+          <div
+            key={index}
+            className="flex flex-col"
+          >
             <Panel
               defaultSize={sizes[index] || defaultSizes[index] || 50}
               minSize={minSizes[index] || 20}

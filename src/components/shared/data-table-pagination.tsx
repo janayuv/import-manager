@@ -5,13 +5,7 @@ import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-r
 import * as React from 'react'
 
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { getModuleSettings } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 
@@ -20,10 +14,7 @@ interface DataTablePaginationProps<TData> {
   storageKey?: string // Optional key to persist page size
 }
 
-export function DataTablePagination<TData>({
-  table,
-  storageKey = 'table-page-size',
-}: DataTablePaginationProps<TData>) {
+export function DataTablePagination<TData>({ table, storageKey = 'table-page-size' }: DataTablePaginationProps<TData>) {
   const { settings } = useSettings()
 
   // Effect to load the page size from localStorage or module settings on initial render
@@ -70,8 +61,7 @@ export function DataTablePagination<TData>({
   return (
     <div className="flex items-center justify-between px-2">
       <div className="text-muted-foreground flex-1 text-sm">
-        {table.getFilteredSelectedRowModel().rows.length} of{' '}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
+        {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s) selected.
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
@@ -87,7 +77,10 @@ export function DataTablePagination<TData>({
             </SelectTrigger>
             <SelectContent side="top">
               {[10, 20, 30, 40, 50].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
+                <SelectItem
+                  key={pageSize}
+                  value={`${pageSize}`}
+                >
                   {pageSize}
                 </SelectItem>
               ))}

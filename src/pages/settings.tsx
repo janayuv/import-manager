@@ -11,13 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import {
   type AppSettings,
@@ -37,8 +31,7 @@ import { useSettings } from '@/lib/use-settings'
 // src/pages/settings.tsx
 
 export default function SettingsPage() {
-  const { settings, updateSettings, updateNumberSettings, updateDateSettings, updateTextSettings } =
-    useSettings()
+  const { settings, updateSettings, updateNumberSettings, updateDateSettings, updateTextSettings } = useSettings()
   const [selectedModule, setSelectedModule] = React.useState<string | null>(null)
 
   const handleSave = () => {
@@ -74,10 +67,16 @@ export default function SettingsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Settings</h1>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleReset}>
+          <Button
+            variant="outline"
+            onClick={handleReset}
+          >
             Reset
           </Button>
-          <Button variant="destructive" onClick={handleClearSettings}>
+          <Button
+            variant="destructive"
+            onClick={handleClearSettings}
+          >
             Clear All Settings
           </Button>
           <Button onClick={handleSave}>Save Settings</Button>
@@ -134,9 +133,7 @@ export default function SettingsPage() {
                 <Label>Decimal Places</Label>
                 <Select
                   value={settings.numberFormat.decimalPlaces.toString()}
-                  onValueChange={(value) =>
-                    updateNumberSettings({ decimalPlaces: parseInt(value) })
-                  }
+                  onValueChange={(value) => updateNumberSettings({ decimalPlaces: parseInt(value) })}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -162,9 +159,7 @@ export default function SettingsPage() {
             <div className="flex items-center space-x-2">
               <Switch
                 checked={settings.numberFormat.useThousandsSeparator}
-                onCheckedChange={(checked) =>
-                  updateNumberSettings({ useThousandsSeparator: checked })
-                }
+                onCheckedChange={(checked) => updateNumberSettings({ useThousandsSeparator: checked })}
               />
               <Label>Use Thousands Separator</Label>
             </div>
@@ -190,9 +185,7 @@ export default function SettingsPage() {
               <Label>Date Format</Label>
               <Select
                 value={settings.dateFormat.format}
-                onValueChange={(value) =>
-                  updateDateSettings({ format: value as AppSettings['dateFormat']['format'] })
-                }
+                onValueChange={(value) => updateDateSettings({ format: value as AppSettings['dateFormat']['format'] })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -232,9 +225,7 @@ export default function SettingsPage() {
               <Label>Text Case</Label>
               <Select
                 value={settings.textFormat.case}
-                onValueChange={(value) =>
-                  updateTextSettings({ case: value as AppSettings['textFormat']['case'] })
-                }
+                onValueChange={(value) => updateTextSettings({ case: value as AppSettings['textFormat']['case'] })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -259,9 +250,7 @@ export default function SettingsPage() {
             {/* Preview */}
             <div className="bg-muted rounded-lg p-4">
               <h4 className="mb-2 font-medium">Preview:</h4>
-              <div className="text-sm">
-                {formatText('hello world example text', settings.textFormat)}
-              </div>
+              <div className="text-sm">{formatText('hello world example text', settings.textFormat)}</div>
             </div>
           </CardContent>
         </Card>

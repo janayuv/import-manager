@@ -203,10 +203,7 @@ export async function exampleSecureDatabaseUsage() {
     `)
 
     // Insert data
-    await db.run('INSERT INTO users (username, email) VALUES (?, ?)', [
-      'john_doe',
-      'john@example.com',
-    ])
+    await db.run('INSERT INTO users (username, email) VALUES (?, ?)', ['john_doe', 'john@example.com'])
 
     // Query data
     const users = await db.all('SELECT * FROM users')

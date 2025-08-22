@@ -1,12 +1,6 @@
 import * as React from 'react'
 
-import {
-  Controller,
-  type ControllerProps,
-  type FieldPath,
-  type FieldValues,
-  FormProvider,
-} from 'react-hook-form'
+import { Controller, type ControllerProps, type FieldPath, type FieldValues, FormProvider } from 'react-hook-form'
 
 const Form = FormProvider
 

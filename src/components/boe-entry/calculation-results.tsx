@@ -10,14 +10,7 @@
 'use client'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { CalculationResult } from '@/types/boe-entry'
 
 /*
@@ -98,15 +91,11 @@ export function CalculationResults({ results }: CalculationResultsProps) {
               {results.items.map((item, index) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium">{item.description}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(item.assessableValue)}
-                  </TableCell>
+                  <TableCell className="text-right">{formatCurrency(item.assessableValue)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(item.bcd)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(item.igst)}</TableCell>
                   <TableCell className="text-right">{formatCurrency(item.compCess)}</TableCell>
-                  <TableCell className="text-right font-bold">
-                    {formatCurrency(item.total)}
-                  </TableCell>
+                  <TableCell className="text-right font-bold">{formatCurrency(item.total)}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -123,16 +112,12 @@ export function CalculationResults({ results }: CalculationResultsProps) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <h4 className="mb-2 font-semibold">Exchange Rate</h4>
-              <p className="text-muted-foreground">
-                USD 1 = INR {results.exchangeRate?.toFixed(2) || 'N/A'}
-              </p>
+              <p className="text-muted-foreground">USD 1 = INR {results.exchangeRate?.toFixed(2) || 'N/A'}</p>
             </div>
             <div>
               <h4 className="mb-2 font-semibold">Calculation Date</h4>
               <p className="text-muted-foreground">
-                {results.calculationDate
-                  ? new Date(results.calculationDate).toLocaleDateString('en-IN')
-                  : 'N/A'}
+                {results.calculationDate ? new Date(results.calculationDate).toLocaleDateString('en-IN') : 'N/A'}
               </p>
             </div>
           </div>

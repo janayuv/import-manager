@@ -33,9 +33,7 @@ export function CsvTestComponent() {
   const [csvContent, setCsvContent] = useState('')
   const [validationResult, setValidationResult] = useState<CsvValidationResult | null>(null)
   const [testResults, setTestResults] = useState<TestResult[]>([])
-  const [selectedDataType, setSelectedDataType] = useState<
-    'items' | 'shipments' | 'suppliers' | 'boes'
-  >('items')
+  const [selectedDataType, setSelectedDataType] = useState<'items' | 'shipments' | 'suppliers' | 'boes'>('items')
 
   const addTestResult = (result: TestResult) => {
     setTestResults((prev) => [result, ...prev.slice(0, 9)]) // Keep last 10 results
@@ -198,16 +196,21 @@ ABC-005,Item with invalid email,PC,USD,10.50`
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold">CSV Import/Export Edge Cases & Robustness Test</h1>
-          <p className="text-muted-foreground">
-            Comprehensive testing of CSV functionality with edge case handling
-          </p>
+          <p className="text-muted-foreground">Comprehensive testing of CSV functionality with edge case handling</p>
         </div>
-        <Badge variant="outline" className="text-sm">
+        <Badge
+          variant="outline"
+          className="text-sm"
+        >
           Enhanced CSV System
         </Badge>
       </div>
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="validation">Validation</TabsTrigger>
           <TabsTrigger value="edge-cases">Edge Cases</TabsTrigger>
@@ -215,7 +218,10 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           <TabsTrigger value="results">Test Results</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="validation" className="space-y-4">
+        <TabsContent
+          value="validation"
+          className="space-y-4"
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -229,9 +235,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 <select
                   id="data-type"
                   value={selectedDataType}
-                  onChange={(e) =>
-                    setSelectedDataType(e.target.value as 'items' | 'suppliers' | 'shipments')
-                  }
+                  onChange={(e) => setSelectedDataType(e.target.value as 'items' | 'suppliers' | 'shipments')}
                   className="rounded border px-3 py-1"
                 >
                   <option value="items">Items</option>
@@ -239,7 +243,11 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                   <option value="suppliers">Suppliers</option>
                   <option value="boes">BOEs</option>
                 </select>
-                <Button onClick={loadTemplate} variant="outline" size="sm">
+                <Button
+                  onClick={loadTemplate}
+                  variant="outline"
+                  size="sm"
+                >
                   Load Template
                 </Button>
               </div>
@@ -256,11 +264,17 @@ ABC-005,Item with invalid email,PC,USD,10.50`
               </div>
 
               <div className="flex gap-2">
-                <Button onClick={runValidationTest} className="flex items-center gap-2">
+                <Button
+                  onClick={runValidationTest}
+                  className="flex items-center gap-2"
+                >
                   <Upload className="h-4 w-4" />
                   Run Validation
                 </Button>
-                <Button onClick={testEncodingNormalization} variant="outline">
+                <Button
+                  onClick={testEncodingNormalization}
+                  variant="outline"
+                >
                   Test Encoding
                 </Button>
               </div>
@@ -289,7 +303,10 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                         <div className="space-y-2">
                           <div className="font-semibold">Errors:</div>
                           {validationResult.errors.map((error, index) => (
-                            <div key={index} className="text-sm">
+                            <div
+                              key={index}
+                              className="text-sm"
+                            >
                               Row {error.row}, Column {error.column}: {error.message}
                             </div>
                           ))}
@@ -305,7 +322,10 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                         <div className="space-y-2">
                           <div className="font-semibold">Warnings:</div>
                           {validationResult.warnings.map((warning, index) => (
-                            <div key={index} className="text-sm">
+                            <div
+                              key={index}
+                              className="text-sm"
+                            >
                               Row {warning.row}, Column {warning.column}: {warning.message}
                             </div>
                           ))}
@@ -319,7 +339,10 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           </Card>
         </TabsContent>
 
-        <TabsContent value="edge-cases" className="space-y-4">
+        <TabsContent
+          value="edge-cases"
+          className="space-y-4"
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -329,28 +352,44 @@ ABC-005,Item with invalid email,PC,USD,10.50`
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Button onClick={testLargeFileSimulation} variant="outline" className="h-20">
+                <Button
+                  onClick={testLargeFileSimulation}
+                  variant="outline"
+                  className="h-20"
+                >
                   <div className="text-center">
                     <div className="font-semibold">Large File Test</div>
                     <div className="text-muted-foreground text-xs">Test 10MB limit</div>
                   </div>
                 </Button>
 
-                <Button onClick={testInvalidData} variant="outline" className="h-20">
+                <Button
+                  onClick={testInvalidData}
+                  variant="outline"
+                  className="h-20"
+                >
                   <div className="text-center">
                     <div className="font-semibold">Invalid Data Test</div>
                     <div className="text-muted-foreground text-xs">Test validation errors</div>
                   </div>
                 </Button>
 
-                <Button onClick={testMaliciousContent} variant="outline" className="h-20">
+                <Button
+                  onClick={testMaliciousContent}
+                  variant="outline"
+                  className="h-20"
+                >
                   <div className="text-center">
                     <div className="font-semibold">Security Test</div>
                     <div className="text-muted-foreground text-xs">Test XSS & injection</div>
                   </div>
                 </Button>
 
-                <Button onClick={testEncodingNormalization} variant="outline" className="h-20">
+                <Button
+                  onClick={testEncodingNormalization}
+                  variant="outline"
+                  className="h-20"
+                >
                   <div className="text-center">
                     <div className="font-semibold">Encoding Test</div>
                     <div className="text-muted-foreground text-xs">Test UTF-8 handling</div>
@@ -375,7 +414,10 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           </Card>
         </TabsContent>
 
-        <TabsContent value="security" className="space-y-4">
+        <TabsContent
+          value="security"
+          className="space-y-4"
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -429,7 +471,10 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           </Card>
         </TabsContent>
 
-        <TabsContent value="results" className="space-y-4">
+        <TabsContent
+          value="results"
+          className="space-y-4"
+        >
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -472,9 +517,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                         </span>
                       </div>
                       <div className="text-muted-foreground mt-1 text-sm">{result.message}</div>
-                      {result.details && (
-                        <div className="text-muted-foreground mt-1 text-xs">{result.details}</div>
-                      )}
+                      {result.details && <div className="text-muted-foreground mt-1 text-xs">{result.details}</div>}
                     </div>
                   ))}
                 </div>

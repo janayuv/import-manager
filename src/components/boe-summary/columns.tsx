@@ -26,9 +26,7 @@ interface GetBoeSummaryColumnsProps {
   settings?: AppSettings
 }
 
-export const getBoeSummaryColumns = ({
-  settings,
-}: GetBoeSummaryColumnsProps = {}): ColumnDef<BoeSummaryItem>[] => {
+export const getBoeSummaryColumns = ({ settings }: GetBoeSummaryColumnsProps = {}): ColumnDef<BoeSummaryItem>[] => {
   // Get all possible columns
   const allColumns: ColumnDef<BoeSummaryItem>[] = [
     {

@@ -58,10 +58,7 @@ export function ItemMasterPage() {
   const [endUses, setEndUses] = React.useState<Option[]>([])
   const [purchaseUoms, setPurchaseUoms] = React.useState<Option[]>([])
 
-  const stateSetters: Record<
-    string,
-    React.Dispatch<React.SetStateAction<Option[]>>
-  > = React.useMemo(
+  const stateSetters: Record<string, React.Dispatch<React.SetStateAction<Option[]>>> = React.useMemo(
     () => ({
       setUnits,
       setCurrencies,
@@ -92,9 +89,7 @@ export function ItemMasterPage() {
         }))
       )
 
-      const optionPromises = Object.values(optionConfigs).map((config) =>
-        invoke<Option[]>(config.fetcher)
-      )
+      const optionPromises = Object.values(optionConfigs).map((config) => invoke<Option[]>(config.fetcher))
       const allOptions = await Promise.all(optionPromises)
 
       Object.keys(optionConfigs).forEach((key, index) => {
@@ -246,11 +241,7 @@ export function ItemMasterPage() {
         const content = await readTextFile(selectedPath)
 
         // Use enhanced CSV import with validation
-        const { newItems, skippedCount, validationResult } = importItemsFromCsv(
-          content,
-          items,
-          suppliers
-        )
+        const { newItems, skippedCount, validationResult } = importItemsFromCsv(content, items, suppliers)
 
         // Show validation results
         if (!validationResult.isValid) {
@@ -347,11 +338,18 @@ export function ItemMasterPage() {
 
   const toolbar = (
     <div className="flex items-center gap-2">
-      <Button onClick={() => handleExport('selected')} variant="outline" disabled={true}>
+      <Button
+        onClick={() => handleExport('selected')}
+        variant="outline"
+        disabled={true}
+      >
         <FileOutput className="mr-2 h-4 w-4" />
         Export Selected
       </Button>
-      <Button onClick={() => handleExport('all')} variant="outline">
+      <Button
+        onClick={() => handleExport('all')}
+        variant="outline"
+      >
         <Download className="mr-2 h-4 w-4" />
         Export All
       </Button>
@@ -367,11 +365,17 @@ export function ItemMasterPage() {
             <Plus className="mr-2 h-4 w-4" />
             Add New
           </Button>
-          <Button onClick={handleDownloadTemplate} variant="outline">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="outline"
+          >
             <Download className="mr-2 h-4 w-4" />
             Template
           </Button>
-          <Button onClick={handleImport} variant="outline">
+          <Button
+            onClick={handleImport}
+            variant="outline"
+          >
             <Upload className="mr-2 h-4 w-4" />
             Import
           </Button>

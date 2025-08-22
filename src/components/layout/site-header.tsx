@@ -3,12 +3,7 @@ import { Monitor, Moon, SidebarIcon, Sun } from 'lucide-react'
 import { useTheme } from '@/components/layout/theme-context'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
 import { Button } from '@/components/ui/button'
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { Separator } from '@/components/ui/separator'
 import { useSidebar } from '@/components/ui/use-sidebar'
 
@@ -45,16 +40,27 @@ export function SiteHeader() {
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex w-full items-center border-b backdrop-blur">
       <div className="flex h-14 w-full items-center gap-2 px-4">
-        <Button className="h-8 w-8" variant="ghost" size="icon" onClick={toggleSidebar}>
+        <Button
+          className="h-8 w-8"
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+        >
           <SidebarIcon className="size-5" />
           <span className="sr-only">Toggle Sidebar</span>
         </Button>
-        <Separator orientation="vertical" className="mr-2 h-6" />
+        <Separator
+          orientation="vertical"
+          className="mr-2 h-6"
+        />
 
         {/* App Title */}
         <div className="flex items-center gap-2">
           <h1 className="text-lg font-semibold tracking-tight">Import Manager</h1>
-          <Separator orientation="vertical" className="h-4" />
+          <Separator
+            orientation="vertical"
+            className="h-4"
+          />
           <Breadcrumb className="hidden sm:flex" />
         </div>
 
@@ -62,7 +68,11 @@ export function SiteHeader() {
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+              >
                 {getThemeIcon()}
                 <span className="sr-only">Toggle theme</span>
               </Button>

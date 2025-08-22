@@ -5,14 +5,7 @@ import { useEffect, useState } from 'react'
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Shipment } from '@/types/shipment'
 
 const FrozenShipmentsPage = () => {
@@ -72,7 +65,10 @@ const FrozenShipmentsPage = () => {
                       <TableCell>{s.invoiceNumber}</TableCell>
                       <TableCell>{s.status}</TableCell>
                       <TableCell>
-                        <Button size="sm" onClick={() => handleUnfreeze(s.id)}>
+                        <Button
+                          size="sm"
+                          onClick={() => handleUnfreeze(s.id)}
+                        >
                           Unfreeze
                         </Button>
                       </TableCell>
@@ -80,7 +76,10 @@ const FrozenShipmentsPage = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={3} className="text-center">
+                    <TableCell
+                      colSpan={3}
+                      className="text-center"
+                    >
                       No frozen shipments
                     </TableCell>
                   </TableRow>

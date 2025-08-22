@@ -96,7 +96,10 @@ export function ViewBoeDialog({ boe, onClose }: ViewBoeDialogProps) {
   }
 
   return (
-    <Dialog open={true} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog
+      open={true}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+    >
       <DialogContent className="!max-w-4xl">
         <DialogHeader>
           <DialogTitle>View BOE Details</DialogTitle>
@@ -108,10 +111,17 @@ export function ViewBoeDialog({ boe, onClose }: ViewBoeDialogProps) {
           <CalculationResults results={boe.calculationResult} />
         </div>
         <DialogFooter className="sm:justify-between">
-          <Button variant="secondary" onClick={handleExport} className="custom-alert-action-ok">
+          <Button
+            variant="secondary"
+            onClick={handleExport}
+            className="custom-alert-action-ok"
+          >
             Export to CSV
           </Button>
-          <Button onClick={onClose} className="custom-alert-action-cancel">
+          <Button
+            onClick={onClose}
+            className="custom-alert-action-cancel"
+          >
             Close
           </Button>
         </DialogFooter>

@@ -99,11 +99,7 @@ export const validateCsvContent = (
 
     // Encoding detection
     const encoding = detectEncoding(content)
-    if (
-      !CSV_CONFIG.ALLOWED_ENCODINGS.includes(
-        encoding.toLowerCase() as 'utf-8' | 'utf-8-bom' | 'iso-8859-1'
-      )
-    ) {
+    if (!CSV_CONFIG.ALLOWED_ENCODINGS.includes(encoding.toLowerCase() as 'utf-8' | 'utf-8-bom' | 'iso-8859-1')) {
       result.warnings.push({
         row: 0,
         column: 'encoding',
@@ -391,9 +387,7 @@ export const exportItemsToCsv = (itemsToExport: Item[], suppliers: Option[]): st
         currency: sanitizeString(item.currency || ''),
         unitPrice: item.unitPrice || 0,
         hsnCode: sanitizeString(item.hsnCode || ''),
-        supplierName: supplier
-          ? sanitizeString(supplier.label)
-          : sanitizeString(item.supplierId || ''),
+        supplierName: supplier ? sanitizeString(supplier.label) : sanitizeString(item.supplierId || ''),
         isActive: item.isActive,
         countryOfOrigin: sanitizeString(item.countryOfOrigin || ''),
         bcd: item.bcd || '',
@@ -412,9 +406,7 @@ export const exportItemsToCsv = (itemsToExport: Item[], suppliers: Option[]): st
     return Papa.unparse(exportableData)
   } catch (error) {
     console.error('CSV export error:', error)
-    throw new Error(
-      `Failed to export CSV: ${error instanceof Error ? error.message : 'Unknown error'}`
-    )
+    throw new Error(`Failed to export CSV: ${error instanceof Error ? error.message : 'Unknown error'}`)
   }
 }
 
@@ -428,11 +420,7 @@ export const importItemsFromCsv = (
 ): { newItems: Item[]; skippedCount: number; validationResult: CsvValidationResult } => {
   try {
     // Validate CSV content
-    const validationResult = validateCsvContent(
-      csvContent,
-      CSV_CONFIG.REQUIRED_HEADERS.items,
-      'items'
-    )
+    const validationResult = validateCsvContent(csvContent, CSV_CONFIG.REQUIRED_HEADERS.items, 'items')
 
     if (!validationResult.isValid) {
       return { newItems: [], skippedCount: 0, validationResult }
@@ -493,9 +481,7 @@ export const importItemsFromCsv = (
       }
 
       // Find the supplierId by matching the name from the CSV
-      const supplier = suppliers.find(
-        (s) => s.label.toLowerCase() === row.supplierName?.toLowerCase()
-      )
+      const supplier = suppliers.find((s) => s.label.toLowerCase() === row.supplierName?.toLowerCase())
 
       // Sanitize and validate data before creating item
       const sanitizedPartNumber = sanitizeString(row.partNumber)
@@ -556,9 +542,7 @@ export const importItemsFromCsv = (
 /**
  * Generate CSV template with headers and sample data
  */
-export const generateCsvTemplate = (
-  dataType: 'items' | 'shipments' | 'suppliers' | 'boes'
-): string => {
+export const generateCsvTemplate = (dataType: 'items' | 'shipments' | 'suppliers' | 'boes'): string => {
   const templates = {
     items: [
       'partNumber,itemDescription,unit,currency,unitPrice,hsnCode,supplierName,isActive,countryOfOrigin,bcd,sws,igst,technicalWriteUp,category,endUse,netWeightKg,purchaseUom,grossWeightPerUomKg,photoPath',

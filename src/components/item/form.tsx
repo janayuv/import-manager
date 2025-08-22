@@ -157,7 +157,10 @@ export function ItemForm({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{itemToEdit ? 'Edit Item' : 'Add New Item'}</DialogTitle>
@@ -235,7 +238,11 @@ export function ItemForm({
                 </div>
                 <div className="space-y-2">
                   <Label>HSN Code *</Label>
-                  <Input id="hsnCode" value={formData.hsnCode || ''} onChange={handleChange} />
+                  <Input
+                    id="hsnCode"
+                    value={formData.hsnCode || ''}
+                    onChange={handleChange}
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Supplier</Label>
@@ -371,7 +378,11 @@ export function ItemForm({
                     alt="Item Preview"
                     className="h-24 w-24 rounded-md border object-cover"
                   />
-                  <Button type="button" variant="outline" onClick={handlePhotoUpload}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handlePhotoUpload}
+                  >
                     Upload Photo
                   </Button>
                 </div>
@@ -380,7 +391,10 @@ export function ItemForm({
           </div>
         </Tabs>
         <DialogFooter>
-          <Button onClick={handleSubmit} className="custom-alert-action-ok">
+          <Button
+            onClick={handleSubmit}
+            className="custom-alert-action-ok"
+          >
             Save Item
           </Button>
         </DialogFooter>

@@ -8,10 +8,7 @@ export type SettingsContextType = {
   updateNumberSettings: (updates: Partial<AppSettings['numberFormat']>) => void
   updateDateSettings: (updates: Partial<AppSettings['dateFormat']>) => void
   updateTextSettings: (updates: Partial<AppSettings['textFormat']>) => void
-  updateModuleSettings: (
-    moduleName: keyof AppSettings['modules'],
-    updates: Partial<ModuleSettings>
-  ) => void
+  updateModuleSettings: (moduleName: keyof AppSettings['modules'], updates: Partial<ModuleSettings>) => void
   updateModuleField: (
     moduleName: keyof AppSettings['modules'],
     fieldName: string,

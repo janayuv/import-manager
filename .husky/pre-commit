@@ -1,7 +1,11 @@
 #!/usr/bin/env sh
 . "$(dirname -- "$0")/_/husky.sh"
 
-echo "🔒 Running security checks..."
+echo "🔒 Running pre-commit checks..."
+
+# Run lint-staged for formatting and linting
+echo "Running lint-staged..."
+npx lint-staged
 
 # Run ESLint with security rules
 echo "Running ESLint security checks..."
@@ -15,4 +19,4 @@ node scripts/security-check.js
 echo "Running security audit..."
 npm audit --audit-level=moderate
 
-echo "✅ Security checks passed!"
+echo "✅ Pre-commit checks passed!"

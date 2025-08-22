@@ -33,22 +33,14 @@
   "bundle": {
     "active": true,
     "targets": ["msi", "exe"],
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
+    "icon": ["icons/32x32.png", "icons/128x128.png", "icons/128x128@2x.png", "icons/icon.icns", "icons/icon.ico"]
   },
   "plugins": {
     "dialog": null,
     "fs": null,
     "updater": {
       "active": true,
-      "endpoints": [
-        "https://github.com/janayuv/import-manager/releases/latest/download/{{target}}/{{current_version}}"
-      ]
+      "endpoints": ["https://github.com/janayuv/import-manager/releases/latest/download/{{target}}/{{current_version}}"]
     }
   }
 }

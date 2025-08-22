@@ -8,9 +8,7 @@ import { usePerformanceMonitor } from '@/hooks/usePerformance'
 
 // Lazy-loaded components
 const LazyChart = lazy(() => import('recharts').then((module) => ({ default: module.LineChart })))
-const LazyTable = lazy(() =>
-  import('@/components/shared/data-table').then((module) => ({ default: module.DataTable }))
-)
+const LazyTable = lazy(() => import('@/components/shared/data-table').then((module) => ({ default: module.DataTable })))
 
 // Loading fallback components
 const LoadingFallback = memo(() => (
@@ -25,7 +23,10 @@ const TableLoadingFallback = memo(() => (
   <div className="space-y-2">
     <Skeleton className="h-10 w-full" />
     {Array.from({ length: 5 }).map((_, i) => (
-      <Skeleton key={i} className="h-12 w-full" />
+      <Skeleton
+        key={i}
+        className="h-12 w-full"
+      />
     ))}
   </div>
 ))
@@ -142,13 +143,14 @@ export const OptimizedList = memo(
     }
 
     if (items.length === 0) {
-      return (
-        <div className={`text-muted-foreground p-4 text-center ${className}`}>{emptyMessage}</div>
-      )
+      return <div className={`text-muted-foreground p-4 text-center ${className}`}>{emptyMessage}</div>
     }
 
     return (
-      <div className={`overflow-auto ${className}`} style={{ height: containerHeight }}>
+      <div
+        className={`overflow-auto ${className}`}
+        style={{ height: containerHeight }}
+      >
         <div className="space-y-1">{memoizedItems}</div>
       </div>
     )
@@ -199,7 +201,11 @@ export const OptimizedTable = memo(
     return (
       <div className={className}>
         <Suspense fallback={<TableLoadingFallback />}>
-          <LazyTable columns={columns} data={data} storageKey={storageKey} />
+          <LazyTable
+            columns={columns}
+            data={data}
+            storageKey={storageKey}
+          />
         </Suspense>
       </div>
     )
@@ -217,14 +223,7 @@ interface OptimizedChartProps {
 }
 
 export const OptimizedChart = memo(
-  ({
-    data,
-    loading = false,
-    error = null,
-    className = '',
-    height = 300,
-    width = 600,
-  }: OptimizedChartProps) => {
+  ({ data, loading = false, error = null, className = '', height = 300, width = 600 }: OptimizedChartProps) => {
     usePerformanceMonitor('OptimizedChart')
 
     if (loading) {
@@ -276,18 +275,7 @@ interface OptimizedButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElem
 
 export const OptimizedButton = memo(
   forwardRef<HTMLButtonElement, OptimizedButtonProps>(
-    (
-      {
-        variant = 'default',
-        size = 'default',
-        loading = false,
-        children,
-        disabled,
-        onClick,
-        ...props
-      },
-      ref
-    ) => {
+    ({ variant = 'default', size = 'default', loading = false, children, disabled, onClick, ...props }, ref) => {
       usePerformanceMonitor('OptimizedButton')
 
       const handleClick = useCallback(
@@ -332,14 +320,7 @@ interface OptimizedCardProps {
 }
 
 export const OptimizedCard = memo(
-  ({
-    title,
-    subtitle,
-    children,
-    className = '',
-    loading = false,
-    error = null,
-  }: OptimizedCardProps) => {
+  ({ title, subtitle, children, className = '', loading = false, error = null }: OptimizedCardProps) => {
     usePerformanceMonitor('OptimizedCard')
 
     if (loading) {
@@ -349,9 +330,7 @@ export const OptimizedCard = memo(
     if (error) {
       return (
         <Card className={className}>
-          <CardHeader>
-            {title && <CardTitle className="text-destructive">{title}</CardTitle>}
-          </CardHeader>
+          <CardHeader>{title && <CardTitle className="text-destructive">{title}</CardTitle>}</CardHeader>
           <CardContent>
             <p className="text-destructive">{error}</p>
           </CardContent>
@@ -380,17 +359,18 @@ interface OptimizedBadgeProps {
   className?: string
 }
 
-export const OptimizedBadge = memo(
-  ({ children, variant = 'default', className = '' }: OptimizedBadgeProps) => {
-    usePerformanceMonitor('OptimizedBadge')
+export const OptimizedBadge = memo(({ children, variant = 'default', className = '' }: OptimizedBadgeProps) => {
+  usePerformanceMonitor('OptimizedBadge')
 
-    return (
-      <Badge variant={variant} className={className}>
-        {children}
-      </Badge>
-    )
-  }
-)
+  return (
+    <Badge
+      variant={variant}
+      className={className}
+    >
+      {children}
+    </Badge>
+  )
+})
 
 // Optimized image component
 interface OptimizedImageProps {
@@ -515,29 +495,27 @@ interface OptimizedGridProps {
   gap?: 'none' | 'sm' | 'md' | 'lg'
 }
 
-export const OptimizedGrid = memo(
-  ({ children, className = '', cols = 1, gap = 'md' }: OptimizedGridProps) => {
-    usePerformanceMonitor('OptimizedGrid')
+export const OptimizedGrid = memo(({ children, className = '', cols = 1, gap = 'md' }: OptimizedGridProps) => {
+  usePerformanceMonitor('OptimizedGrid')
 
-    const colsClass = {
-      1: 'grid-cols-1',
-      2: 'grid-cols-1 md:grid-cols-2',
-      3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-      4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
-      5: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5',
-      6: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
-    }[cols]
+  const colsClass = {
+    1: 'grid-cols-1',
+    2: 'grid-cols-1 md:grid-cols-2',
+    3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
+    5: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5',
+    6: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
+  }[cols]
 
-    const gapClass = {
-      none: '',
-      sm: 'gap-2',
-      md: 'gap-4',
-      lg: 'gap-6',
-    }[gap]
+  const gapClass = {
+    none: '',
+    sm: 'gap-2',
+    md: 'gap-4',
+    lg: 'gap-6',
+  }[gap]
 
-    return <div className={`grid ${colsClass} ${gapClass} ${className}`}>{children}</div>
-  }
-)
+  return <div className={`grid ${colsClass} ${gapClass} ${className}`}>{children}</div>
+})
 
 // Optimized skeleton component
 interface OptimizedSkeletonProps {
@@ -553,7 +531,10 @@ export const OptimizedSkeleton = memo(
 
     const skeletons = useMemo(() => {
       return Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className={`${height} ${width} ${className}`} />
+        <Skeleton
+          key={i}
+          className={`${height} ${width} ${className}`}
+        />
       ))
     }, [count, height, width, className])
 

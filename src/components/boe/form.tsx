@@ -53,13 +53,7 @@ const formatDateForInput = (dateString: string | null | undefined): string => {
   }
 }
 
-export const BoeForm: React.FC<BoeFormProps> = ({
-  isOpen,
-  onOpenChange,
-  onSubmit,
-  boeToEdit,
-  existingBoes,
-}) => {
+export const BoeForm: React.FC<BoeFormProps> = ({ isOpen, onOpenChange, onSubmit, boeToEdit, existingBoes }) => {
   const [formData, setFormData] = React.useState(initialFormState)
   const [errors, setErrors] = React.useState<{ [key: string]: string }>({})
 
@@ -101,10 +95,7 @@ export const BoeForm: React.FC<BoeFormProps> = ({
     if (!formData.location) newErrors.location = 'Location is required.'
 
     const isDuplicate = existingBoes.some(
-      (boe) =>
-        boe.beNumber === formData.beNumber &&
-        boe.beDate === formData.beDate &&
-        boe.id !== boeToEdit?.id
+      (boe) => boe.beNumber === formData.beNumber && boe.beDate === formData.beDate && boe.id !== boeToEdit?.id
     )
     if (isDuplicate) newErrors.beNumber = 'This BE Number already exists for this date.'
 
@@ -126,15 +117,19 @@ export const BoeForm: React.FC<BoeFormProps> = ({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{boeToEdit ? 'Edit BOE' : 'Add New BOE'}</DialogTitle>
-          <DialogDescription>
-            Fill in the details for the Bill of Entry. Click save when you're done.
-          </DialogDescription>
+          <DialogDescription>Fill in the details for the Bill of Entry. Click save when you're done.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleFormSubmit} className="space-y-4 pt-4">
+        <form
+          onSubmit={handleFormSubmit}
+          className="space-y-4 pt-4"
+        >
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div>
               <Label htmlFor="beNumber">BE Number</Label>
@@ -218,7 +213,12 @@ export const BoeForm: React.FC<BoeFormProps> = ({
             </div>
             <div>
               <Label htmlFor="refId">Ref ID</Label>
-              <Input id="refId" name="refId" value={formData.refId} onChange={handleChange} />
+              <Input
+                id="refId"
+                name="refId"
+                value={formData.refId}
+                onChange={handleChange}
+              />
             </div>
             <div>
               <Label htmlFor="transactionId">Transaction ID</Label>
@@ -232,11 +232,17 @@ export const BoeForm: React.FC<BoeFormProps> = ({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button type="button" style={{ backgroundColor: '#d73000', color: 'white' }}>
+              <Button
+                type="button"
+                style={{ backgroundColor: '#d73000', color: 'white' }}
+              >
                 Cancel
               </Button>
             </DialogClose>
-            <Button type="submit" style={{ backgroundColor: '#13fd00', color: 'white' }}>
+            <Button
+              type="submit"
+              style={{ backgroundColor: '#13fd00', color: 'white' }}
+            >
               {boeToEdit ? 'Update' : 'Save'}
             </Button>
           </DialogFooter>

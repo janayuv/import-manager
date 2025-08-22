@@ -34,7 +34,7 @@ export default tseslint.config([
       security,
     },
     rules: {
-      'prettier/prettier': 'warn',
+      'prettier/prettier': 'error',
       // React refresh rule - disabled to allow context files and utility exports
       'react-refresh/only-export-components': 'off',
       // Security rules (disabled for legitimate use cases)

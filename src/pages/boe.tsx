@@ -177,9 +177,7 @@ const BoePage = () => {
             let addedCount = 0
             let skippedCount = 0
             for (const row of results.data) {
-              const isDuplicate = boes.some(
-                (boe) => boe.beNumber === row.beNumber && boe.beDate === row.beDate
-              )
+              const isDuplicate = boes.some((boe) => boe.beNumber === row.beNumber && boe.beDate === row.beDate)
               if (isDuplicate) {
                 skippedCount++
                 continue
@@ -287,14 +285,20 @@ const BoePage = () => {
         boeToEdit={boeToEdit}
         existingBoes={boes}
       />
-      <BoeViewDialog isOpen={isViewOpen} onOpenChange={setViewOpen} boe={boeToView} />
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <BoeViewDialog
+        isOpen={isViewOpen}
+        onOpenChange={setViewOpen}
+        boe={boeToView}
+      />
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete BOE{' '}
-              <strong>{boeToDelete?.number}</strong>.
+              This action cannot be undone. This will permanently delete BOE <strong>{boeToDelete?.number}</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -304,7 +308,10 @@ const BoePage = () => {
             >
               Cancel
             </AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm} className="custom-alert-action-orange">
+            <AlertDialogAction
+              onClick={handleDeleteConfirm}
+              className="custom-alert-action-orange"
+            >
               Continue
             </AlertDialogAction>
           </AlertDialogFooter>

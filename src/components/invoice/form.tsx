@@ -31,14 +31,7 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Invoice, InvoiceLineItem } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
@@ -115,16 +108,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     setLineItems([])
   }
   const handleAddItem = () =>
-    setLineItems([
-      ...lineItems,
-      { id: `item-${Date.now()}`, itemId: '', quantity: 1, unitPrice: 0, isNew: true },
-    ])
+    setLineItems([...lineItems, { id: `item-${Date.now()}`, itemId: '', quantity: 1, unitPrice: 0, isNew: true }])
   const handleRemoveItem = (id: string) => setLineItems(lineItems.filter((item) => item.id !== id))
-  const handleLineItemChange = (
-    id: string,
-    field: keyof FormInvoiceLineItem,
-    value: string | number
-  ) => {
+  const handleLineItemChange = (id: string, field: keyof FormInvoiceLineItem, value: string | number) => {
     setLineItems((prevItems) =>
       prevItems.map((item) => {
         if (item.id === id) {
@@ -193,8 +179,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                 return
               }
               const isDuplicate =
-                lineItems.some((li) => li.itemId === item.id) ||
-                itemsToAdd.some((li) => li.itemId === item.id)
+                lineItems.some((li) => li.itemId === item.id) || itemsToAdd.some((li) => li.itemId === item.id)
               if (isDuplicate) {
                 duplicateItems.push(row.partNumber)
                 return
@@ -208,21 +193,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             })
 
             setLineItems((prev) => [...prev, ...itemsToAdd])
-            if (itemsToAdd.length > 0)
-              toast.success(`${itemsToAdd.length} items imported successfully!`)
+            if (itemsToAdd.length > 0) toast.success(`${itemsToAdd.length} items imported successfully!`)
             if (notFoundItems.length > 0)
-              toast.warning(
-                `Skipped ${notFoundItems.length} items not found: ${notFoundItems.join(', ')}`
-              )
+              toast.warning(`Skipped ${notFoundItems.length} items not found: ${notFoundItems.join(', ')}`)
             if (duplicateItems.length > 0)
-              toast.info(
-                `Skipped ${duplicateItems.length} duplicate items: ${duplicateItems.join(', ')}`
-              )
-            if (
-              itemsToAdd.length === 0 &&
-              notFoundItems.length === 0 &&
-              duplicateItems.length === 0
-            )
+              toast.info(`Skipped ${duplicateItems.length} duplicate items: ${duplicateItems.join(', ')}`)
+            if (itemsToAdd.length === 0 && notFoundItems.length === 0 && duplicateItems.length === 0)
               toast.info('No new items were imported.')
           },
           error: (err: Error) => {
@@ -288,16 +264,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
   // Use tolerance-based comparison for floating-point numbers
   const tolerance = 0.01 // Allow 1 cent difference
-  const isMatch = selectedShipment
-    ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
-    : false
+  const isMatch = selectedShipment ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance : false
   const matchDifference = selectedShipment ? calculatedTotal - selectedShipment.invoiceValue : 0
-  const formTitle = invoiceToEdit
-    ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}`
-    : 'Create New Invoice'
+  const formTitle = invoiceToEdit ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}` : 'Create New Invoice'
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{formTitle}</DialogTitle>
@@ -318,11 +293,17 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           </div>
           <div>
             <Label>Invoice Number</Label>
-            <Input value={selectedShipment?.invoiceNumber || ''} readOnly />
+            <Input
+              value={selectedShipment?.invoiceNumber || ''}
+              readOnly
+            />
           </div>
           <div>
             <Label>Invoice Date</Label>
-            <Input value={selectedShipment?.invoiceDate || ''} readOnly />
+            <Input
+              value={selectedShipment?.invoiceDate || ''}
+              readOnly
+            />
           </div>
         </div>
 
@@ -332,10 +313,18 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold">Line Items</h3>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={handleTemplateDownload}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleTemplateDownload}
+                  >
                     <Download className="mr-2 h-4 w-4" /> Template
                   </Button>
-                  <Button variant="outline" size="sm" onClick={handleItemImport}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleItemImport}
+                  >
                     <Upload className="mr-2 h-4 w-4" /> Import Items
                   </Button>
                 </div>
@@ -363,9 +352,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             <Combobox
                               options={availableItemOptions}
                               value={lineItem.itemId}
-                              onChange={(value) =>
-                                handleLineItemChange(lineItem.id, 'itemId', value)
-                              }
+                              onChange={(value) => handleLineItemChange(lineItem.id, 'itemId', value)}
                               searchPlaceholder="Search Part No..."
                               notFoundText="No parts for this supplier."
                               disabled={!selectedShipment}
@@ -378,11 +365,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                               type="number"
                               value={lineItem.quantity}
                               onChange={(e) =>
-                                handleLineItemChange(
-                                  lineItem.id,
-                                  'quantity',
-                                  parseFloat(e.target.value) || 0
-                                )
+                                handleLineItemChange(lineItem.id, 'quantity', parseFloat(e.target.value) || 0)
                               }
                             />
                           </TableCell>
@@ -391,11 +374,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                               type="number"
                               value={lineItem.unitPrice}
                               onChange={(e) =>
-                                handleLineItemChange(
-                                  lineItem.id,
-                                  'unitPrice',
-                                  parseFloat(e.target.value) || 0
-                                )
+                                handleLineItemChange(lineItem.id, 'unitPrice', parseFloat(e.target.value) || 0)
                               }
                             />
                           </TableCell>
@@ -409,7 +388,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                           <TableCell>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                >
                                   <X className="h-4 w-4 text-red-500" />
                                 </Button>
                               </AlertDialogTrigger>
@@ -417,14 +399,12 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    This will permanently remove the item from this invoice. This
-                                    action cannot be undone.
+                                    This will permanently remove the item from this invoice. This action cannot be
+                                    undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel className="custom-alert-action-cancel">
-                                    Cancel
-                                  </AlertDialogCancel>
+                                  <AlertDialogCancel className="custom-alert-action-cancel">Cancel</AlertDialogCancel>
                                   <AlertDialogAction
                                     className="custom-alert-action-ok"
                                     onClick={() => handleRemoveItem(lineItem.id)}
@@ -454,9 +434,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <div className="flex items-center gap-6">
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Shipment Value</p>
-                  <p className="text-lg font-bold">
-                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
-                  </p>
+                  <p className="text-lg font-bold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-500">Calculated Total</p>
@@ -516,21 +494,21 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       </DialogContent>
 
       {/* Quick Finalize Confirmation Dialog */}
-      <AlertDialog open={showQuickFinalizeDialog} onOpenChange={setShowQuickFinalizeDialog}>
+      <AlertDialog
+        open={showQuickFinalizeDialog}
+        onOpenChange={setShowQuickFinalizeDialog}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Finalize Invoice</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to finalize invoice{' '}
-              <strong>{selectedShipment?.invoiceNumber}</strong>?
+              Are you sure you want to finalize invoice <strong>{selectedShipment?.invoiceNumber}</strong>?
               <br />
               <br />
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Shipment Value:</span>
-                  <span className="font-semibold">
-                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
-                  </span>
+                  <span className="font-semibold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span>Calculated Total:</span>

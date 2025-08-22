@@ -25,9 +25,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false)
   }, [])
 
-  return (
-    <UserContext.Provider value={{ user, isLoading, refreshUser }}>{children}</UserContext.Provider>
-  )
+  return <UserContext.Provider value={{ user, isLoading, refreshUser }}>{children}</UserContext.Provider>
 }
 
 export function useUser() {

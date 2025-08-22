@@ -9,12 +9,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core'
-import {
-  SortableContext,
-  arrayMove,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable'
+import { SortableContext, arrayMove, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { toast } from 'sonner'
@@ -25,13 +20,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Switch } from '@/components/ui/switch'
 import { type AppSettings, type ModuleFieldSettings, type ModuleSettings } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
@@ -65,14 +54,16 @@ function SortableFieldItem({ fieldName, config, onToggle, onWidthChange }: Sorta
       style={style}
       className="bg-background flex items-center gap-4 rounded-lg border p-3"
     >
-      <div {...attributes} {...listeners} className="text-muted-foreground cursor-move">
+      <div
+        {...attributes}
+        {...listeners}
+        className="text-muted-foreground cursor-move"
+      >
         ⋮⋮
       </div>
 
       <div className="flex-1">
-        <Label className="font-medium capitalize">
-          {fieldName.replace(/([A-Z])/g, ' $1').trim()}
-        </Label>
+        <Label className="font-medium capitalize">{fieldName.replace(/([A-Z])/g, ' $1').trim()}</Label>
       </div>
 
       <div className="flex items-center gap-4">
@@ -117,19 +108,12 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
   }, [globalSettings, moduleName])
 
   // Check if settings are loaded
-  if (
-    !globalSettings ||
-    !globalSettings.modules ||
-    !globalSettings.modules[moduleName] ||
-    !settings
-  ) {
+  if (!globalSettings || !globalSettings.modules || !globalSettings.modules[moduleName] || !settings) {
     return (
       <div className="flex items-center justify-center p-8">
         <div className="text-center">
           <div className="text-lg font-medium">Loading settings...</div>
-          <div className="text-muted-foreground text-sm">
-            Please wait while settings are being loaded.
-          </div>
+          <div className="text-muted-foreground text-sm">Please wait while settings are being loaded.</div>
         </div>
       </div>
     )
@@ -168,10 +152,7 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
 
       // Update order for all fields
       const updatedFields = Object.fromEntries(
-        reorderedFields.map(([fieldName, config], index) => [
-          fieldName,
-          { ...config, order: index + 1 },
-        ])
+        reorderedFields.map(([fieldName, config], index) => [fieldName, { ...config, order: index + 1 }])
       )
 
       console.log('🔧 ModuleSettings - Reordering fields:', updatedFields)
@@ -188,7 +169,10 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold">{moduleTitle} Settings</h2>
         {onClose && (
-          <Button variant="outline" onClick={onClose}>
+          <Button
+            variant="outline"
+            onClick={onClose}
+          >
             Close
           </Button>
         )}
@@ -205,9 +189,7 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
               <Label>Items per Page</Label>
               <Select
                 value={settings.itemsPerPage.toString()}
-                onValueChange={(value) =>
-                  handleModuleSettingChange('itemsPerPage', parseInt(value))
-                }
+                onValueChange={(value) => handleModuleSettingChange('itemsPerPage', parseInt(value))}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -242,9 +224,7 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
       <Card>
         <CardHeader>
           <CardTitle>Field Configuration</CardTitle>
-          <p className="text-muted-foreground text-sm">
-            Drag and drop to reorder fields, or toggle visibility
-          </p>
+          <p className="text-muted-foreground text-sm">Drag and drop to reorder fields, or toggle visibility</p>
         </CardHeader>
         <CardContent>
           <DndContext
@@ -252,7 +232,10 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <SortableContext items={fieldIds} strategy={verticalListSortingStrategy}>
+            <SortableContext
+              items={fieldIds}
+              strategy={verticalListSortingStrategy}
+            >
               <div className="space-y-2">
                 {sortedFields.map(([fieldName, config]) => (
                   <SortableFieldItem
@@ -297,7 +280,10 @@ export function ModuleSettings({ moduleName, moduleTitle, onClose }: ModuleSetti
                   {sortedFields
                     .filter(([, config]) => config.visible)
                     .map(([fieldName]) => (
-                      <td key={fieldName} className="border p-2">
+                      <td
+                        key={fieldName}
+                        className="border p-2"
+                      >
                         Sample {fieldName}
                       </td>
                     ))}

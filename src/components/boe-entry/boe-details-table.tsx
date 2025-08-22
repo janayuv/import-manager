@@ -1,14 +1,7 @@
 'use client'
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDateForDisplay } from '@/lib/date-format'
 import type { BoeDetails } from '@/types/boe'
 
@@ -46,12 +39,8 @@ export function BoeDetailsTable({ boe }: BoeDetailsTableProps) {
               <TableRow>
                 <TableCell>{formatDateForDisplay(boe.beDate)}</TableCell>
                 <TableCell>{boe.location}</TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatCurrency(boe.totalAssessmentValue)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatCurrency(boe.dutyPaid)}
-                </TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(boe.totalAssessmentValue)}</TableCell>
+                <TableCell className="text-right font-mono">{formatCurrency(boe.dutyPaid)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

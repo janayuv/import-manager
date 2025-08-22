@@ -10,21 +10,8 @@ import * as React from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import {
   computeDutyFromRates,
   computeLandedCostPerUnit,
@@ -106,48 +93,22 @@ const renderCellValue = (
     case 'description':
       return <TableCell>{row.description}</TableCell>
     case 'assessableValue':
-      return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.assessableValue)}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.assessableValue)}</TableCell>
     case 'bcd':
-      return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.bcdValue)}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.bcdValue)}</TableCell>
     case 'sws':
-      return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.swsValue)}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.swsValue)}</TableCell>
     case 'igst':
-      return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.igstValue)}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.igstValue)}</TableCell>
     case 'totalDuty':
-      return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.totalDuty)}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.totalDuty)}</TableCell>
     case 'qty':
       return <TableCell className="text-right font-mono">{row.qty || '-'}</TableCell>
     case 'perUnitDuty':
-      return (
-        <TableCell className="text-right font-mono">
-          {row.qty ? formatCurrency(row.perUnitDuty) : '-'}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{row.qty ? formatCurrency(row.perUnitDuty) : '-'}</TableCell>
     case 'landedCostPerUnit':
       return (
-        <TableCell className="text-right font-mono">
-          {row.qty ? formatCurrency(row.landedCostPerUnit) : '-'}
-        </TableCell>
+        <TableCell className="text-right font-mono">{row.qty ? formatCurrency(row.landedCostPerUnit) : '-'}</TableCell>
       )
     case 'actualDuty':
       return (
@@ -156,11 +117,7 @@ const renderCellValue = (
         </TableCell>
       )
     case 'savings':
-      return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.dutySavings)}
-        </TableCell>
-      )
+      return <TableCell className="text-right font-mono">{formatCurrencyNoDecimals(row.dutySavings)}</TableCell>
     default:
       return <TableCell>-</TableCell>
   }
@@ -186,7 +143,10 @@ const renderTotalsCellValue = (
   // If this is the first field (partNo), create a cell that spans the first two columns
   if (fieldIndex === 0) {
     return (
-      <TableCell colSpan={2} className="text-right font-semibold">
+      <TableCell
+        colSpan={2}
+        className="text-right font-semibold"
+      >
         Totals
       </TableCell>
     )
@@ -262,10 +222,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, string | numbe
     }
     return s
   }
-  const csv = [
-    headers.join(','),
-    ...rows.map((r) => headers.map((h) => escape(r[h] ?? '')).join(',')),
-  ].join('\n')
+  const csv = [headers.join(','), ...rows.map((r) => headers.map((h) => escape(r[h] ?? '')).join(','))].join('\n')
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -277,10 +234,7 @@ function downloadCsv(filename: string, rows: Array<Record<string, string | numbe
 
 type SummaryRow = { label: string; calculated: number; boe: number | null; variance: number | null }
 
-async function exportXlsx(params: {
-  itemsRows?: Array<Record<string, string | number>>
-  summary: SummaryRow[]
-}) {
+async function exportXlsx(params: { itemsRows?: Array<Record<string, string | number>>; summary: SummaryRow[] }) {
   const { itemsRows = [], summary } = params
   const summaryRows = summary.map((r) => ({
     Metric: r.label,
@@ -367,9 +321,7 @@ function printReport(params: {
               'actualDuty',
               'savings',
             ].includes(fieldName)
-            console.log(
-              `  📄 Field: ${fieldName}, Display: ${displayName}, Value: ${value}, Numeric: ${isNumeric}`
-            )
+            console.log(`  📄 Field: ${fieldName}, Display: ${displayName}, Value: ${value}, Numeric: ${isNumeric}`)
             return `<td class="${isNumeric ? 'num' : ''}">${value}</td>`
           })
           .join('')
@@ -384,23 +336,18 @@ function printReport(params: {
 
     console.log('📈 Building summary rows HTML...')
     const summaryRowsHtml = summary
-      .map(
-        (
-          r: { label: string; calculated: number; boe: number | null; variance: number | null },
-          index
-        ) => {
-          console.log(`📊 Processing summary row ${index}:`, r)
-          const rowHtml = `
+      .map((r: { label: string; calculated: number; boe: number | null; variance: number | null }, index) => {
+        console.log(`📊 Processing summary row ${index}:`, r)
+        const rowHtml = `
           <tr>
             <td>${r.label}</td>
             <td class="num">${r.calculated.toFixed(2)}</td>
             <td class="num">${r.boe != null ? r.boe.toFixed(2) : '-'}</td>
             <td class="num">${r.variance != null ? r.variance.toFixed(2) : '-'}</td>
           </tr>`
-          console.log(`  ✅ Summary row ${index} HTML:`, rowHtml)
-          return rowHtml
-        }
-      )
+        console.log(`  ✅ Summary row ${index} HTML:`, rowHtml)
+        return rowHtml
+      })
       .join('')
 
     console.log('📊 Final summary rows HTML length:', summaryRowsHtml.length)
@@ -503,15 +450,11 @@ function printReport(params: {
           }, 500)
         } else {
           console.error('❌ Failed to access iframe document')
-          alert(
-            'Print failed: Popup blocked and iframe method unavailable. Please allow popups for this site.'
-          )
+          alert('Print failed: Popup blocked and iframe method unavailable. Please allow popups for this site.')
         }
       } catch (error) {
         console.error('💥 Error in iframe print method:', error)
-        alert(
-          'Print failed: Popup blocked and alternative method failed. Please allow popups for this site.'
-        )
+        alert('Print failed: Popup blocked and alternative method failed. Please allow popups for this site.')
       }
       return
     }
@@ -649,13 +592,25 @@ function ItemDetailsTable({
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Item Details</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+          >
             CSV
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExportXlsx}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportXlsx}
+          >
             Excel
           </Button>
-          <Button size="sm" variant="outline" onClick={handlePrint}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePrint}
+          >
             Print
           </Button>
         </div>
@@ -668,9 +623,7 @@ function ItemDetailsTable({
                 {orderedFields.map((fieldName) => (
                   <TableHead
                     key={fieldName}
-                    className={
-                      fieldName !== 'partNo' && fieldName !== 'description' ? 'text-right' : ''
-                    }
+                    className={fieldName !== 'partNo' && fieldName !== 'description' ? 'text-right' : ''}
                   >
                     {getFieldDisplayName(fieldName)}
                   </TableHead>
@@ -768,13 +721,25 @@ function BoeSummaryTable({
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>BOE Summary & Variance</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExport}
+          >
             CSV
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExportXlsx}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportXlsx}
+          >
             Excel
           </Button>
-          <Button size="sm" variant="outline" onClick={handlePrint}>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePrint}
+          >
             Print
           </Button>
         </div>
@@ -794,12 +759,8 @@ function BoeSummaryTable({
               {summaryRows.map((r) => (
                 <TableRow key={r.label}>
                   <TableCell className="font-medium">{r.label}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(r.calculated)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
-                    {r.boe != null ? formatCurrency(r.boe) : '-'}
-                  </TableCell>
+                  <TableCell className="text-right font-mono">{formatCurrency(r.calculated)}</TableCell>
+                  <TableCell className="text-right font-mono">{r.boe != null ? formatCurrency(r.boe) : '-'}</TableCell>
                   <TableCell className="text-right font-mono">
                     {r.variance != null ? formatCurrency(r.variance) : '-'}
                   </TableCell>
@@ -834,9 +795,7 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
   const availableInvoices = React.useMemo(() => {
     if (!selectedSupplier) return []
     return savedBoes.filter(
-      (boe) =>
-        boe.supplierName === selectedSupplier &&
-        (statusFilter === 'All' || boe.status === statusFilter)
+      (boe) => boe.supplierName === selectedSupplier && (statusFilter === 'All' || boe.status === statusFilter)
     )
   }, [selectedSupplier, savedBoes, statusFilter])
 
@@ -848,10 +807,7 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
     const shipment = shipments.find((s) => s.id === savedBoe.shipmentId) || null
     const boeDetails = savedBoe.boeId ? allBoes.find((b) => b.id === savedBoe.boeId) || null : null
 
-    const assessableTotal = savedBoe.calculationResult.calculatedItems.reduce(
-      (sum, it) => sum + it.assessableValue,
-      0
-    )
+    const assessableTotal = savedBoe.calculationResult.calculatedItems.reduce((sum, it) => sum + it.assessableValue, 0)
     const { bcdTotal, swsTotal, igstTotal, interest, customsDutyTotal } = savedBoe.calculationResult
 
     return {
@@ -887,13 +843,19 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
         <div className="flex flex-col gap-4 md:flex-row">
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <Label htmlFor="supplier-select">Supplier</Label>
-            <Select onValueChange={handleSupplierChange} value={selectedSupplier}>
+            <Select
+              onValueChange={handleSupplierChange}
+              value={selectedSupplier}
+            >
               <SelectTrigger id="supplier-select">
                 <SelectValue placeholder="Select a supplier" />
               </SelectTrigger>
               <SelectContent>
                 {suppliers.map((s) => (
-                  <SelectItem key={s} value={s}>
+                  <SelectItem
+                    key={s}
+                    value={s}
+                  >
                     {s}
                   </SelectItem>
                 ))}
@@ -912,7 +874,10 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
               </SelectTrigger>
               <SelectContent>
                 {availableInvoices.map((inv) => (
-                  <SelectItem key={inv.id} value={inv.id}>
+                  <SelectItem
+                    key={inv.id}
+                    value={inv.id}
+                  >
                     {inv.invoiceNumber}
                   </SelectItem>
                 ))}
@@ -921,20 +886,19 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
           </div>
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <Label htmlFor="status-filter">Status</Label>
-            <Select onValueChange={setStatusFilter} value={statusFilter}>
+            <Select
+              onValueChange={setStatusFilter}
+              value={statusFilter}
+            >
               <SelectTrigger id="status-filter">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
-                {[
-                  'All',
-                  'Awaiting BOE Data',
-                  'Discrepancy Found',
-                  'Reconciled',
-                  'Investigation',
-                  'Closed',
-                ].map((s) => (
-                  <SelectItem key={s} value={s}>
+                {['All', 'Awaiting BOE Data', 'Discrepancy Found', 'Reconciled', 'Investigation', 'Closed'].map((s) => (
+                  <SelectItem
+                    key={s}
+                    value={s}
+                  >
                     {s}
                   </SelectItem>
                 ))}
@@ -965,10 +929,7 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                 ])
               )}
               methodByPart={Object.fromEntries(
-                (selectedData.savedBoe.itemInputs ?? []).map((ii) => [
-                  ii.partNo,
-                  ii.calculationMethod,
-                ])
+                (selectedData.savedBoe.itemInputs ?? []).map((ii) => [ii.partNo, ii.calculationMethod])
               )}
             />
             <BoeSummaryTable
@@ -999,26 +960,21 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        {[
-                          'Awaiting BOE Data',
-                          'Discrepancy Found',
-                          'Reconciled',
-                          'Investigation',
-                          'Closed',
-                        ].map((s) => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
+                        {['Awaiting BOE Data', 'Discrepancy Found', 'Reconciled', 'Investigation', 'Closed'].map(
+                          (s) => (
+                            <SelectItem
+                              key={s}
+                              value={s}
+                            >
+                              {s}
+                            </SelectItem>
+                          )
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
                   <Button
-                    disabled={
-                      isUpdatingStatus ||
-                      !pendingStatus ||
-                      pendingStatus === selectedData.savedBoe.status
-                    }
+                    disabled={isUpdatingStatus || !pendingStatus || pendingStatus === selectedData.savedBoe.status}
                     onClick={async () => {
                       const idx = savedBoes.findIndex((b) => b.id === selectedData.savedBoe!.id)
                       if (idx < 0) return
@@ -1075,8 +1031,15 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                               {att.documentType} • {new Date(att.uploadedAt).toLocaleString()}
                             </div>
                           </div>
-                          <Button size="sm" variant="outline" asChild>
-                            <a href={convertFileSrc(att.url)} download={att.fileName}>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            asChild
+                          >
+                            <a
+                              href={convertFileSrc(att.url)}
+                              download={att.fileName}
+                            >
                               Download
                             </a>
                           </Button>
@@ -1097,17 +1060,7 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                         filters: [
                           {
                             name: 'Documents',
-                            extensions: [
-                              'pdf',
-                              'png',
-                              'jpg',
-                              'jpeg',
-                              'xlsx',
-                              'xls',
-                              'csv',
-                              'doc',
-                              'docx',
-                            ],
+                            extensions: ['pdf', 'png', 'jpg', 'jpeg', 'xlsx', 'xls', 'csv', 'doc', 'docx'],
                           },
                         ],
                       })

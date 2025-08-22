@@ -22,9 +22,7 @@ export function Breadcrumb({ items = [], className, showHome = true }: Breadcrum
   // Auto-generate breadcrumbs from current path if no items provided
   const breadcrumbItems = items.length > 0 ? items : generateBreadcrumbsFromPath(location.pathname)
 
-  const allItems = showHome
-    ? [{ label: 'Home', href: '/', icon: Home }, ...breadcrumbItems]
-    : breadcrumbItems
+  const allItems = showHome ? [{ label: 'Home', href: '/', icon: Home }, ...breadcrumbItems] : breadcrumbItems
 
   return (
     <nav className={cn('text-muted-foreground flex items-center space-x-1 text-sm', className)}>
@@ -33,7 +31,10 @@ export function Breadcrumb({ items = [], className, showHome = true }: Breadcrum
         const isLink = item.href && !isLast
 
         return (
-          <div key={index} className="flex items-center">
+          <div
+            key={index}
+            className="flex items-center"
+          >
             {index > 0 && <ChevronRight className="text-muted-foreground/50 mx-2 h-4 w-4" />}
 
             {isLink ? (
@@ -45,9 +46,7 @@ export function Breadcrumb({ items = [], className, showHome = true }: Breadcrum
                 <span>{item.label}</span>
               </Link>
             ) : (
-              <span
-                className={cn('flex items-center gap-1', isLast && 'text-foreground font-medium')}
-              >
+              <span className={cn('flex items-center gap-1', isLast && 'text-foreground font-medium')}>
                 {item.icon && <item.icon className="h-4 w-4" />}
                 <span>{item.label}</span>
               </span>

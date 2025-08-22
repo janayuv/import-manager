@@ -103,9 +103,7 @@ export function ShipmentForm({
     setIsSubmitting(true)
     try {
       await onSubmit(formData as Omit<Shipment, 'id'>)
-      toast.success(
-        shipmentToEdit ? 'Shipment updated successfully' : 'Shipment created successfully'
-      )
+      toast.success(shipmentToEdit ? 'Shipment updated successfully' : 'Shipment created successfully')
       onOpenChange(false)
     } catch {
       toast.error('Failed to save shipment')
@@ -145,15 +143,16 @@ export function ShipmentForm({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {shipmentToEdit ? 'Edit Shipment' : 'Add New Shipment'}
             {formData.status && (
-              <Badge className={getStatusColor(formData.status)}>
-                {formData.status.replace('-', ' ')}
-              </Badge>
+              <Badge className={getStatusColor(formData.status)}>{formData.status.replace('-', ' ')}</Badge>
             )}
           </DialogTitle>
           <DialogDescription>
@@ -363,7 +362,11 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label>Transit Days</Label>
-                  <Input value={calculateTransitDays()} readOnly className="bg-muted font-mono" />
+                  <Input
+                    value={calculateTransitDays()}
+                    readOnly
+                    className="bg-muted font-mono"
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label>Status</Label>
@@ -392,7 +395,11 @@ export function ShipmentForm({
         </div>
 
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isSubmitting}>
+          <Button
+            variant="outline"
+            onClick={() => onOpenChange(false)}
+            disabled={isSubmitting}
+          >
             Cancel
           </Button>
           <Button

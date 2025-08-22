@@ -148,7 +148,10 @@ const SupplierForm = () => {
         <span className="error">{validation.getFieldError('supplierName')}</span>
       )}
 
-      <button onClick={handleSubmit} disabled={validation.isSubmitting}>
+      <button
+        onClick={handleSubmit}
+        disabled={validation.isSubmitting}
+      >
         Submit
       </button>
     </form>
@@ -179,7 +182,12 @@ const FileUpload = () => {
     }
   }
 
-  return <input type="file" onChange={handleFileChange} />
+  return (
+    <input
+      type="file"
+      onChange={handleFileChange}
+    />
+  )
 }
 ```
 

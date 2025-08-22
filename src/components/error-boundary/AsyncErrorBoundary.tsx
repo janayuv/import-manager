@@ -191,25 +191,39 @@ export function AsyncErrorBoundary({
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Async Error Details</AlertTitle>
-                <AlertDescription>
-                  {state.error?.message || 'Unknown async error occurred'}
-                </AlertDescription>
+                <AlertDescription>{state.error?.message || 'Unknown async error occurred'}</AlertDescription>
               </Alert>
 
               <div className="flex flex-wrap gap-2">
-                <Button onClick={handleReset} variant="outline" size="sm">
+                <Button
+                  onClick={handleReset}
+                  variant="outline"
+                  size="sm"
+                >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Try Again
                 </Button>
-                <Button onClick={handleReload} variant="outline" size="sm">
+                <Button
+                  onClick={handleReload}
+                  variant="outline"
+                  size="sm"
+                >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Reload Page
                 </Button>
-                <Button onClick={handleGoHome} variant="outline" size="sm">
+                <Button
+                  onClick={handleGoHome}
+                  variant="outline"
+                  size="sm"
+                >
                   <Home className="mr-2 h-4 w-4" />
                   Go Home
                 </Button>
-                <Button onClick={handleCopyError} variant="outline" size="sm">
+                <Button
+                  onClick={handleCopyError}
+                  variant="outline"
+                  size="sm"
+                >
                   <Copy className="mr-2 h-4 w-4" />
                   Copy Error
                 </Button>
@@ -226,15 +240,16 @@ export function AsyncErrorBoundary({
                     <Bug className="h-4 w-4" />
                     {state.showDetails ? 'Hide' : 'Show'} Technical Details
                   </span>
-                  <X
-                    className={`h-4 w-4 transition-transform ${state.showDetails ? 'rotate-45' : ''}`}
-                  />
+                  <X className={`h-4 w-4 transition-transform ${state.showDetails ? 'rotate-45' : ''}`} />
                 </Button>
 
                 {state.showDetails && (
                   <div className="bg-muted/50 space-y-3 rounded-md border p-3">
                     <div>
-                      <Badge variant="secondary" className="mb-2">
+                      <Badge
+                        variant="secondary"
+                        className="mb-2"
+                      >
                         Error Message
                       </Badge>
                       <pre className="text-muted-foreground text-sm">{state.error?.message}</pre>
@@ -243,12 +258,13 @@ export function AsyncErrorBoundary({
                     <Separator />
 
                     <div>
-                      <Badge variant="secondary" className="mb-2">
+                      <Badge
+                        variant="secondary"
+                        className="mb-2"
+                      >
                         Stack Trace
                       </Badge>
-                      <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">
-                        {state.error?.stack}
-                      </pre>
+                      <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">{state.error?.stack}</pre>
                     </div>
                   </div>
                 )}

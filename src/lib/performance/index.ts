@@ -60,8 +60,7 @@ export class PerformanceObserver {
       const observer = new globalThis.PerformanceObserver((list: PerformanceObserverEntryList) => {
         const entries = list.getEntries()
         entries.forEach((entry: PerformanceEntry) => {
-          this.metrics.firstInputDelay =
-            (entry as { processingStart: number }).processingStart - entry.startTime
+          this.metrics.firstInputDelay = (entry as { processingStart: number }).processingStart - entry.startTime
         })
       })
       observer.observe({ entryTypes: ['first-input'] })
@@ -88,9 +87,7 @@ export class PerformanceObserver {
 
   private observeMemoryUsage() {
     if ('memory' in performance) {
-      const memory = (
-        performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
-      ).memory
+      const memory = (performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory
       this.metrics.memoryUsage = memory.usedJSHeapSize
       this.metrics.memoryLimit = memory.jsHeapSizeLimit
     }
@@ -285,9 +282,7 @@ export class MemoryManager {
   // Check memory usage and trigger cleanup if needed
   static checkMemoryUsage() {
     if ('memory' in performance) {
-      const memory = (
-        performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }
-      ).memory
+      const memory = (performance as { memory: { usedJSHeapSize: number; jsHeapSizeLimit: number } }).memory
       const usageRatio = memory.usedJSHeapSize / memory.jsHeapSizeLimit
 
       if (usageRatio > this.memoryThreshold) {
@@ -397,10 +392,7 @@ export class PerformanceReporter {
 // Performance optimization utilities
 export const performanceUtils = {
   // Debounce function
-  debounce<T extends (...args: unknown[]) => unknown>(
-    func: T,
-    wait: number
-  ): (...args: Parameters<T>) => void {
+  debounce<T extends (...args: unknown[]) => unknown>(func: T, wait: number): (...args: Parameters<T>) => void {
     let timeout: NodeJS.Timeout
     return (...args: Parameters<T>) => {
       clearTimeout(timeout)
@@ -409,10 +401,7 @@ export const performanceUtils = {
   },
 
   // Throttle function
-  throttle<T extends (...args: unknown[]) => unknown>(
-    func: T,
-    limit: number
-  ): (...args: Parameters<T>) => void {
+  throttle<T extends (...args: unknown[]) => unknown>(func: T, limit: number): (...args: Parameters<T>) => void {
     let inThrottle: boolean
     return (...args: Parameters<T>) => {
       if (!inThrottle) {

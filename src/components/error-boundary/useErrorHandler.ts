@@ -16,12 +16,7 @@ interface ErrorContext {
 }
 
 export function useErrorHandler(options: ErrorHandlerOptions = {}) {
-  const {
-    showToast = true,
-    logToConsole = true,
-    fallbackMessage = 'An unexpected error occurred',
-    onError,
-  } = options
+  const { showToast = true, logToConsole = true, fallbackMessage = 'An unexpected error occurred', onError } = options
 
   const errorCountRef = useRef(0)
   const lastErrorTimeRef = useRef(0)
@@ -33,8 +28,7 @@ export function useErrorHandler(options: ErrorHandlerOptions = {}) {
 
       // Prevent error spam - only show toast if more than 2 seconds have passed
       // or if it's a different type of error
-      const shouldShowToast =
-        showToast && (timeSinceLastError > 2000 || errorCountRef.current === 0)
+      const shouldShowToast = showToast && (timeSinceLastError > 2000 || errorCountRef.current === 0)
 
       // Convert error to Error object if it's a string
       const errorObj = error instanceof Error ? error : new Error(String(error))

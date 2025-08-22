@@ -156,5 +156,582 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* Fluid typography base - scales from 14px to 18px based on viewport width */
+    font-size: clamp(14px, 1vw + 10px, 18px);
+    line-height: 1.5;
+  }
+}
+
+/* Responsive Scaling System */
+@layer components {
+  /* Fluid Typography Classes */
+  .text-fluid-xs {
+    font-size: clamp(10px, 0.6vw + 8px, 12px);
+  }
+
+  .text-fluid-sm {
+    font-size: clamp(12px, 0.8vw + 10px, 14px);
+  }
+
+  .text-fluid-base {
+    font-size: clamp(14px, 1vw + 10px, 18px);
+  }
+
+  .text-fluid-lg {
+    font-size: clamp(16px, 1.2vw + 12px, 20px);
+  }
+
+  .text-fluid-xl {
+    font-size: clamp(18px, 1.4vw + 14px, 24px);
+  }
+
+  .text-fluid-2xl {
+    font-size: clamp(20px, 1.6vw + 16px, 28px);
+  }
+
+  .text-fluid-3xl {
+    font-size: clamp(24px, 2vw + 20px, 32px);
+  }
+
+  /* Responsive Button System */
+  .btn-fluid {
+    padding: clamp(0.375rem, 1vw, 0.75rem) clamp(0.75rem, 2vw, 1.5rem);
+    font-size: inherit;
+    min-width: clamp(80px, 8vw, 120px);
+    min-height: clamp(32px, 4vw, 44px);
+    border-radius: clamp(4px, 0.5vw, 8px);
+  }
+
+  .btn-fluid-sm {
+    padding: clamp(0.25rem, 0.8vw, 0.5rem) clamp(0.5rem, 1.5vw, 1rem);
+    font-size: clamp(12px, 0.8vw + 10px, 14px);
+    min-width: clamp(60px, 6vw, 90px);
+    min-height: clamp(28px, 3.5vw, 36px);
+  }
+
+  .btn-fluid-lg {
+    padding: clamp(0.5rem, 1.2vw, 1rem) clamp(1rem, 2.5vw, 2rem);
+    font-size: clamp(16px, 1.2vw + 12px, 20px);
+    min-width: clamp(100px, 10vw, 150px);
+    min-height: clamp(40px, 5vw, 52px);
+  }
+
+  /* Responsive Input System */
+  .input-fluid {
+    font-size: inherit;
+    padding: clamp(0.375rem, 1vw, 0.75rem);
+    width: clamp(120px, 20vw, 300px);
+    min-height: clamp(32px, 4vw, 44px);
+    border-radius: clamp(4px, 0.5vw, 8px);
+  }
+
+  .input-fluid-sm {
+    font-size: clamp(12px, 0.8vw + 10px, 14px);
+    padding: clamp(0.25rem, 0.8vw, 0.5rem);
+    width: clamp(100px, 15vw, 250px);
+    min-height: clamp(28px, 3.5vw, 36px);
+  }
+
+  .input-fluid-lg {
+    font-size: clamp(16px, 1.2vw + 12px, 20px);
+    padding: clamp(0.5rem, 1.2vw, 1rem);
+    width: clamp(150px, 25vw, 400px);
+    min-height: clamp(40px, 5vw, 52px);
+  }
+
+  /* Responsive Table System */
+  .table-fluid {
+    width: 100%;
+    table-layout: fixed;
+    font-size: inherit;
+    border-collapse: collapse;
+  }
+
+  .table-fluid th,
+  .table-fluid td {
+    padding: clamp(0.25rem, 0.5vw, 0.5rem);
+    font-size: inherit;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+    min-width: clamp(40px, 4vw, 120px);
+    word-wrap: break-word;
+  }
+
+  .table-fluid th {
+    font-weight: 600;
+    font-size: clamp(11px, 0.7vw + 9px, 13px);
+  }
+
+  /* Table container with horizontal scroll prevention */
+  .table-container-fluid {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: visible;
+    border-radius: 0.5rem;
+    border: 1px solid hsl(var(--border));
+  }
+
+  /* Responsive table wrapper */
+  .table-wrapper-fluid {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Auto-adjusting table columns */
+  .table-fluid-auto {
+    width: 100%;
+    table-layout: auto;
+  }
+
+  .table-fluid-auto th,
+  .table-fluid-auto td {
+    padding: clamp(0.25rem, 0.5vw, 0.5rem);
+    font-size: clamp(11px, 0.7vw + 9px, 13px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+  }
+
+  /* Compact table for small screens */
+  .table-fluid-compact {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  .table-fluid-compact th,
+  .table-fluid-compact td {
+    padding: clamp(0.2rem, 0.3vw, 0.4rem);
+    font-size: clamp(10px, 0.6vw + 8px, 12px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 0;
+  }
+
+  /* Responsive Card System */
+  .card-fluid {
+    padding: clamp(1rem, 2vw, 2rem);
+    border-radius: clamp(8px, 1vw, 12px);
+    gap: clamp(0.75rem, 1.5vw, 1.5rem);
+  }
+
+  .card-fluid-sm {
+    padding: clamp(0.75rem, 1.5vw, 1.5rem);
+    border-radius: clamp(6px, 0.8vw, 10px);
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .card-fluid-lg {
+    padding: clamp(1.5rem, 3vw, 3rem);
+    border-radius: clamp(12px, 1.5vw, 16px);
+    gap: clamp(1rem, 2vw, 2rem);
+  }
+
+  /* Responsive Spacing System */
+  .space-fluid {
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .space-fluid-sm {
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  .space-fluid-lg {
+    gap: clamp(1rem, 2vw, 2rem);
+  }
+
+  .space-fluid-xl {
+    gap: clamp(1.5rem, 3vw, 3rem);
+  }
+
+  /* Responsive Padding System */
+  .p-fluid {
+    padding: clamp(0.75rem, 1.5vw, 1.5rem);
+  }
+
+  .p-fluid-sm {
+    padding: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .p-fluid-lg {
+    padding: clamp(1.5rem, 3vw, 3rem);
+  }
+
+  .p-fluid-xl {
+    padding: clamp(2rem, 4vw, 4rem);
+  }
+
+  /* Responsive Margin System */
+  .m-fluid {
+    margin: clamp(0.75rem, 1.5vw, 1.5rem);
+  }
+
+  .m-fluid-sm {
+    margin: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .m-fluid-lg {
+    margin: clamp(1.5rem, 3vw, 3rem);
+  }
+
+  .m-fluid-xl {
+    margin: clamp(2rem, 4vw, 4rem);
+  }
+
+  /* Responsive Icon System */
+  .icon-fluid {
+    width: clamp(16px, 2vw, 24px);
+    height: clamp(16px, 2vw, 24px);
+  }
+
+  .icon-fluid-sm {
+    width: clamp(12px, 1.5vw, 18px);
+    height: clamp(12px, 1.5vw, 18px);
+  }
+
+  .icon-fluid-lg {
+    width: clamp(20px, 2.5vw, 32px);
+    height: clamp(20px, 2.5vw, 32px);
+  }
+
+  .icon-fluid-xl {
+    width: clamp(24px, 3vw, 40px);
+    height: clamp(24px, 3vw, 40px);
+  }
+
+  /* Responsive Navigation */
+  .nav-fluid {
+    padding: clamp(0.5rem, 1vw, 1rem);
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .nav-item-fluid {
+    padding: clamp(0.375rem, 0.8vw, 0.75rem) clamp(0.75rem, 1.5vw, 1.5rem);
+    font-size: clamp(14px, 1vw + 10px, 18px);
+  }
+
+  /* Responsive Sidebar */
+  .sidebar-fluid {
+    width: clamp(200px, 15vw, 280px);
+    padding: clamp(1rem, 2vw, 2rem);
+  }
+
+  /* Responsive Grid System */
+  .grid-fluid {
+    grid-template-columns: repeat(auto-fit, minmax(clamp(200px, 20vw, 300px), 1fr));
+    gap: clamp(1rem, 2vw, 2rem);
+  }
+
+  .grid-fluid-sm {
+    grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 15vw, 250px), 1fr));
+    gap: clamp(0.75rem, 1.5vw, 1.5rem);
+  }
+
+  .grid-fluid-lg {
+    grid-template-columns: repeat(auto-fit, minmax(clamp(250px, 25vw, 400px), 1fr));
+    gap: clamp(1.5rem, 3vw, 3rem);
+  }
+}
+
+/* Media Queries for Fine-tuning */
+@media (max-width: 1366px) {
+  /* Small laptop optimization */
+  body {
+    font-size: clamp(12px, 0.8vw + 8px, 14px);
+  }
+
+  .btn-fluid {
+    min-width: clamp(60px, 6vw, 80px);
+    padding: clamp(0.25rem, 0.6vw, 0.5rem) clamp(0.5rem, 1.2vw, 1rem);
+  }
+
+  .input-fluid {
+    width: clamp(80px, 15vw, 200px);
+    padding: clamp(0.25rem, 0.6vw, 0.5rem);
+  }
+
+  .table-fluid th,
+  .table-fluid td {
+    min-width: clamp(30px, 3vw, 80px);
+    padding: clamp(0.2rem, 0.3vw, 0.4rem);
+    font-size: clamp(10px, 0.6vw + 8px, 12px);
+  }
+
+  .table-fluid-compact th,
+  .table-fluid-compact td {
+    min-width: clamp(25px, 2.5vw, 60px);
+    padding: clamp(0.15rem, 0.2vw, 0.3rem);
+    font-size: clamp(9px, 0.5vw + 7px, 11px);
+  }
+
+  .sidebar-fluid {
+    width: clamp(160px, 10vw, 200px);
+  }
+
+  /* Prevent horizontal scrolling */
+  .table-container-fluid {
+    overflow-x: hidden;
+  }
+
+  /* Compact layout for small screens */
+  .card-fluid {
+    padding: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .space-fluid {
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  /* Form optimizations for small screens */
+  .form-fluid {
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .form-field-fluid {
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  /* Grid optimizations */
+  .grid-fluid {
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  /* Navigation optimizations */
+  .nav-fluid {
+    padding: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  .nav-item-fluid {
+    padding: clamp(0.25rem, 0.5vw, 0.5rem);
+    font-size: clamp(11px, 0.7vw + 9px, 13px);
+  }
+}
+
+/* Additional Responsive Utilities for Complete Project Coverage */
+@layer utilities {
+  /* Responsive Form System */
+  .form-fluid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .form-field-fluid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  .form-section-fluid {
+    padding: clamp(0.5rem, 1vw, 1rem);
+    margin-bottom: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  /* Responsive Layout System */
+  .layout-fluid {
+    display: flex;
+    flex-direction: column;
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .layout-fluid-horizontal {
+    display: flex;
+    flex-direction: row;
+    gap: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  /* Responsive Container System */
+  .container-fluid {
+    width: 100%;
+    max-width: clamp(1200px, 90vw, 1400px);
+    margin: 0 auto;
+    padding: clamp(0.5rem, 1vw, 1rem);
+  }
+
+  .container-fluid-sm {
+    width: 100%;
+    max-width: clamp(800px, 85vw, 1000px);
+    margin: 0 auto;
+    padding: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  .container-fluid-lg {
+    width: 100%;
+    max-width: clamp(1400px, 95vw, 1600px);
+    margin: 0 auto;
+    padding: clamp(1rem, 2vw, 2rem);
+  }
+
+  /* Responsive Dialog/Modal System */
+  .dialog-fluid {
+    max-width: clamp(400px, 80vw, 600px);
+    padding: clamp(1rem, 2vw, 2rem);
+  }
+
+  .dialog-fluid-sm {
+    max-width: clamp(300px, 75vw, 450px);
+    padding: clamp(0.75rem, 1.5vw, 1.5rem);
+  }
+
+  .dialog-fluid-lg {
+    max-width: clamp(600px, 85vw, 800px);
+    padding: clamp(1.5rem, 3vw, 3rem);
+  }
+
+  /* Responsive List System */
+  .list-fluid {
+    gap: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  .list-item-fluid {
+    padding: clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(12px, 0.8vw + 10px, 16px);
+  }
+
+  /* Responsive Badge System */
+  .badge-fluid {
+    padding: clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(10px, 0.6vw + 8px, 12px);
+    border-radius: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  /* Responsive Select System */
+  .select-fluid {
+    padding: clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(12px, 0.8vw + 10px, 16px);
+    min-width: clamp(120px, 15vw, 200px);
+  }
+
+  /* Responsive Checkbox/Radio System */
+  .checkbox-fluid {
+    width: clamp(16px, 2vw, 20px);
+    height: clamp(16px, 2vw, 20px);
+  }
+
+  /* Responsive Switch System */
+  .switch-fluid {
+    width: clamp(40px, 5vw, 50px);
+    height: clamp(20px, 2.5vw, 24px);
+  }
+
+  /* Responsive Progress System */
+  .progress-fluid {
+    height: clamp(8px, 1vw, 12px);
+    border-radius: clamp(4px, 0.5vw, 6px);
+  }
+
+  /* Responsive Skeleton System */
+  .skeleton-fluid {
+    height: clamp(16px, 2vw, 24px);
+    border-radius: clamp(4px, 0.5vw, 6px);
+  }
+
+  /* Responsive Tooltip System */
+  .tooltip-fluid {
+    padding: clamp(0.25rem, 0.5vw, 0.5rem) clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(10px, 0.6vw + 8px, 12px);
+    border-radius: clamp(0.25rem, 0.5vw, 0.5rem);
+  }
+
+  /* Responsive Alert System */
+  .alert-fluid {
+    padding: clamp(0.75rem, 1.5vw, 1.5rem);
+    border-radius: clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(12px, 0.8vw + 10px, 16px);
+  }
+
+  /* Responsive Toast System */
+  .toast-fluid {
+    padding: clamp(0.75rem, 1.5vw, 1.5rem);
+    border-radius: clamp(0.5rem, 1vw, 1rem);
+    font-size: clamp(12px, 0.8vw + 10px, 16px);
+    max-width: clamp(300px, 80vw, 400px);
+  }
+}
+
+@media (min-width: 1920px) {
+  /* Large monitor optimization */
+  body {
+    font-size: clamp(16px, 1.1vw + 12px, 20px);
+  }
+
+  .btn-fluid {
+    min-width: clamp(90px, 9vw, 140px);
+  }
+
+  .input-fluid {
+    width: clamp(140px, 22vw, 350px);
+  }
+
+  .table-fluid th,
+  .table-fluid td {
+    min-width: clamp(60px, 6vw, 180px);
+  }
+
+  .sidebar-fluid {
+    width: clamp(220px, 18vw, 320px);
+  }
+}
+
+@media (min-width: 2560px) {
+  /* Ultra-wide monitor optimization */
+  body {
+    font-size: clamp(18px, 1.2vw + 14px, 22px);
+  }
+
+  .btn-fluid {
+    min-width: clamp(100px, 10vw, 160px);
+  }
+
+  .input-fluid {
+    width: clamp(160px, 24vw, 400px);
+  }
+
+  .table-fluid th,
+  .table-fluid td {
+    min-width: clamp(70px, 7vw, 200px);
+  }
+
+  .sidebar-fluid {
+    width: clamp(240px, 20vw, 360px);
+  }
+}
+
+/* High DPI Display Optimization */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .icon-fluid,
+  .icon-fluid-sm,
+  .icon-fluid-lg,
+  .icon-fluid-xl {
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* Print styles for reports */
+@media print {
+  .btn-fluid,
+  .nav-fluid,
+  .sidebar-fluid {
+    display: none !important;
+  }
+
+  body {
+    font-size: 12px !important;
+  }
+
+  .table-fluid {
+    font-size: 10px !important;
+  }
+
+  .table-fluid th,
+  .table-fluid td {
+    padding: 0.25rem !important;
   }
 }

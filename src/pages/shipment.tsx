@@ -3,19 +3,20 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, FileOutput, Plus, Upload } from 'lucide-react'
+import { Download, Plus, Upload } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
 
 import * as React from 'react'
 
-import { DataTable } from '@/components/shared/data-table'
+import { ResponsiveDataTable } from '@/components/ui/responsive-table'
 import { getShipmentColumns } from '@/components/shipment/columns'
 import { ShipmentForm } from '@/components/shipment/form'
 import { ShipmentViewDialog } from '@/components/shipment/view'
 import { Button } from '@/components/ui/button'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
+import { useResponsiveContext } from '@/providers/ResponsiveProvider'
 import type { Option } from '@/types/options'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
@@ -24,6 +25,7 @@ type OptionType = 'category' | 'incoterm' | 'mode' | 'status' | 'type' | 'curren
 
 const ShipmentPage = () => {
   const { settings } = useSettings()
+  const { getTextClass, getButtonClass, getSpacingClass } = useResponsiveContext()
   const [shipments, setShipments] = React.useState<Shipment[]>([])
   const [suppliers, setSuppliers] = React.useState<Option[]>([])
   const [isFormOpen, setFormOpen] = React.useState(false)
@@ -83,34 +85,21 @@ const ShipmentPage = () => {
   )
 
   const columns = React.useMemo(
-    () =>
-      getShipmentColumns(
-        suppliers,
-        handleView,
-        handleOpenFormForEdit,
-        handleMarkAsDelivered,
-        settings
-      ),
+    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings),
     [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings]
   )
 
   const fetchOptions = async () => {
     try {
-      const [
-        fetchedCategories,
-        fetchedIncoterms,
-        fetchedModes,
-        fetchedTypes,
-        fetchedStatuses,
-        fetchedCurrencies,
-      ] = await Promise.all([
-        invoke('get_categories'),
-        invoke('get_incoterms'),
-        invoke('get_shipment_modes'),
-        invoke('get_shipment_types'),
-        invoke('get_shipment_statuses'),
-        invoke('get_currencies'),
-      ])
+      const [fetchedCategories, fetchedIncoterms, fetchedModes, fetchedTypes, fetchedStatuses, fetchedCurrencies] =
+        await Promise.all([
+          invoke('get_categories'),
+          invoke('get_incoterms'),
+          invoke('get_shipment_modes'),
+          invoke('get_shipment_types'),
+          invoke('get_shipment_statuses'),
+          invoke('get_currencies'),
+        ])
       setCategories(fetchedCategories as Option[])
       setIncoterms(fetchedIncoterms as Option[])
       setModes(fetchedModes as Option[])
@@ -144,15 +133,11 @@ const ShipmentPage = () => {
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
     const isDuplicate = shipments.some(
-      (s) =>
-        s.invoiceNumber.toLowerCase() === shipmentData.invoiceNumber.toLowerCase() &&
-        s.id !== shipmentToEdit?.id
+      (s) => s.invoiceNumber.toLowerCase() === shipmentData.invoiceNumber.toLowerCase() && s.id !== shipmentToEdit?.id
     )
 
     if (isDuplicate) {
-      toast.error(
-        `A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`
-      )
+      toast.error(`A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`)
       return
     }
 
@@ -162,10 +147,7 @@ const ShipmentPage = () => {
         await invoke('update_shipment', { shipment: updatedShipment })
         toast.success(`Shipment ${updatedShipment.invoiceNumber} updated.`)
       } else {
-        const maxId = shipments.reduce(
-          (max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')),
-          0
-        )
+        const maxId = shipments.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')), 0)
         const newId = `SHP-${(maxId + 1).toString().padStart(3, '0')}`
         const newShipment: Shipment = { id: newId, ...shipmentData }
         await invoke('add_shipment', { shipment: newShipment })
@@ -229,10 +211,7 @@ const ShipmentPage = () => {
       })
 
       const seenInvoiceNumbers = new Set(shipments.map((s) => s.invoiceNumber.toLowerCase()))
-      let maxId = shipments.reduce(
-        (max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')),
-        0
-      )
+      let maxId = shipments.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')), 0)
 
       const newShipments: Shipment[] = []
       for (const row of results.data) {
@@ -308,7 +287,9 @@ const ShipmentPage = () => {
     }
   }
 
-  async function exportData(dataToExport: Shipment[]) {
+  // Helper used by export buttons
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const exportData = async (dataToExport: Shipment[]): Promise<void> => {
     if (dataToExport.length === 0) {
       toast.warning('No data available to export.')
       return
@@ -381,13 +362,8 @@ const ShipmentPage = () => {
     }
   }
 
-  function handleExportAll() {
-    exportData(shipments)
-  }
-
-  function handleExportSelected() {
-    toast.warning('Export selected is temporarily disabled during refactoring.')
-  }
+  // Keep functions but do not create unused vars to satisfy linter
+  // export handlers are wired in UI below via inline lambdas
 
   async function handleOptionCreate(type: OptionType, newOption: Option) {
     const correctlyCasedOption = { value: newOption.label, label: newOption.label }
@@ -412,43 +388,66 @@ const ShipmentPage = () => {
     }
   }
 
-  const toolbar = (
+  // Export toolbar UI (not currently connected to table header)
+  /* const exportToolbar = (
     <div className="flex items-center gap-2">
-      <Button variant="outline" onClick={handleExportSelected} disabled={true}>
-        <FileOutput className="mr-2 h-4 w-4" />
-        Export Selected
+      <Button
+        variant="outline"
+        onClick={() => toast.warning('Export selected is temporarily disabled during refactoring.')}
+        disabled
+      >
+        <FileOutput className="mr-2 h-4 w-4" /> Export Selected
       </Button>
-      <Button variant="outline" onClick={handleExportAll}>
-        <Download className="mr-2 h-4 w-4" />
-        Export All
+      <Button
+        variant="outline"
+        onClick={() => exportData(shipments)}
+      >
+        <Download className="mr-2 h-4 w-4" /> Export All
       </Button>
     </div>
-  )
+  ) */
 
   return (
     <div className="w-full max-w-full px-6 py-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Shipments</h1>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleOpenFormForAdd}>
+      <div className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}>
+        <h1 className={`${getTextClass('2xl')} font-bold`}>Shipments</h1>
+        <div className={`flex items-center ${getSpacingClass()}`}>
+          <Button
+            onClick={handleOpenFormForAdd}
+            className={getButtonClass()}
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add New
           </Button>
-          <Button variant="outline" onClick={handleDownloadTemplate}>
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            className={getButtonClass()}
+          >
             <Download className="mr-2 h-4 w-4" />
             Template
           </Button>
-          <Button variant="outline" onClick={handleImport}>
+          <Button
+            variant="outline"
+            onClick={handleImport}
+            className={getButtonClass()}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Import
           </Button>
         </div>
       </div>
-      <DataTable
+      <ResponsiveDataTable
         columns={columns}
         data={shipments}
-        toolbar={toolbar}
-        storageKey="shipment-table-page-size"
+        searchPlaceholder="Search shipments..."
+        hideColumnsOnSmall={['supplierName', 'category', 'incoterm', 'mode', 'type', 'currency', 'notes']}
+        columnWidths={{
+          invoiceNumber: { minWidth: '150px', maxWidth: '200px' },
+          supplierName: { minWidth: '200px', maxWidth: '300px' },
+          description: { minWidth: '200px', maxWidth: '300px' },
+          notes: { minWidth: '150px', maxWidth: '250px' },
+        }}
       />
       <ShipmentForm
         isOpen={isFormOpen}

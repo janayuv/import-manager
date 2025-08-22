@@ -60,10 +60,8 @@ export const messages = {
   invalidHsnCode: 'Please enter a valid HSN/SAC code (4-8 digits).',
   invalidGstin: 'Please enter a valid GSTIN.',
   invalidPan: 'Please enter a valid PAN number.',
-  invalidInvoiceNumber:
-    'Invoice number can only contain letters, numbers, hyphens, underscores, and forward slashes.',
-  invalidPartNumber:
-    'Part number can only contain letters, numbers, hyphens, underscores, dots, and forward slashes.',
+  invalidInvoiceNumber: 'Invoice number can only contain letters, numbers, hyphens, underscores, and forward slashes.',
+  invalidPartNumber: 'Part number can only contain letters, numbers, hyphens, underscores, dots, and forward slashes.',
   invalidContainerNumber: 'Please enter a valid container number (4 letters + 7 digits).',
   invalidBlAwbNumber: 'BL/AWB number can only contain letters, numbers, and hyphens.',
   invalidAccountNumber: 'Please enter a valid account number (9-18 digits).',

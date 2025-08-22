@@ -159,19 +159,38 @@ export function ExpenseDebug() {
           {/* Debug Section */}
           <div className="space-y-4">
             <div className="flex gap-4">
-              <Button onClick={debugExpenseTypes} disabled={loading}>
+              <Button
+                onClick={debugExpenseTypes}
+                disabled={loading}
+              >
                 {loading ? 'Loading...' : 'Debug Expense Types'}
               </Button>
-              <Button onClick={addSampleExpenseTypes} disabled={loading} variant="outline">
+              <Button
+                onClick={addSampleExpenseTypes}
+                disabled={loading}
+                variant="outline"
+              >
                 Add Sample Expense Types
               </Button>
-              <Button onClick={fixExpenseTypes} disabled={loading} variant="destructive">
+              <Button
+                onClick={fixExpenseTypes}
+                disabled={loading}
+                variant="destructive"
+              >
                 Fix All Expense Types
               </Button>
-              <Button onClick={fixExistingExpenses} disabled={loading} variant="destructive">
+              <Button
+                onClick={fixExistingExpenses}
+                disabled={loading}
+                variant="destructive"
+              >
                 Fix Existing Expenses
               </Button>
-              <Button onClick={fixLclChargesRate} disabled={loading} variant="destructive">
+              <Button
+                onClick={fixLclChargesRate}
+                disabled={loading}
+                variant="destructive"
+              >
                 Fix LCL Charges Rate
               </Button>
               <Button
@@ -243,7 +262,10 @@ export function ExpenseDebug() {
                 />
               </div>
             </div>
-            <Button onClick={addExpenseType} disabled={loading || !newExpenseType.name.trim()}>
+            <Button
+              onClick={addExpenseType}
+              disabled={loading || !newExpenseType.name.trim()}
+            >
               Add Expense Type
             </Button>
           </div>
@@ -253,15 +275,10 @@ export function ExpenseDebug() {
             <h3 className="mb-2 font-semibold text-blue-900">Instructions:</h3>
             <ul className="space-y-1 text-sm text-blue-800">
               <li>• Click "Debug Expense Types" to see current expense types and their rates</li>
-              <li>
-                • Click "Add Sample Expense Types" to add common expense types with correct rates
-              </li>
+              <li>• Click "Add Sample Expense Types" to add common expense types with correct rates</li>
               <li>• Or manually add expense types using the form above</li>
               <li>• Rates should be entered as percentages (e.g., 9 for 9%)</li>
-              <li>
-                • The system converts percentages to basis points for storage (9% = 900 basis
-                points)
-              </li>
+              <li>• The system converts percentages to basis points for storage (9% = 900 basis points)</li>
             </ul>
           </div>
         </CardContent>

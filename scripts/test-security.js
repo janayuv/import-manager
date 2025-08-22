@@ -29,15 +29,9 @@ try {
 console.log('2. Testing Custom Security Scanner...')
 try {
   const securityOutput = execSync('node scripts/security-check.js', { encoding: 'utf8' })
-  if (
-    securityOutput.includes('❌ SECURITY:') &&
-    securityOutput.includes('Hardcoded secret detected')
-  ) {
+  if (securityOutput.includes('❌ SECURITY:') && securityOutput.includes('Hardcoded secret detected')) {
     console.log('✅ Custom security scanner correctly detected hardcoded secrets')
-  } else if (
-    securityOutput.includes('❌ SECURITY:') &&
-    securityOutput.includes('Unencrypted SQLite usage detected')
-  ) {
+  } else if (securityOutput.includes('❌ SECURITY:') && securityOutput.includes('Unencrypted SQLite usage detected')) {
     console.log('✅ Custom security scanner correctly detected unencrypted SQLite usage')
   } else {
     console.log('❌ Custom security scanner not working properly')
@@ -60,10 +54,9 @@ try {
 // Test 3: Pre-commit Hook
 console.log('3. Testing Pre-commit Hook...')
 try {
-  const preCommitOutput = execSync(
-    'powershell -ExecutionPolicy Bypass -File .husky/pre-commit.ps1',
-    { encoding: 'utf8' }
-  )
+  const preCommitOutput = execSync('powershell -ExecutionPolicy Bypass -File .husky/pre-commit.ps1', {
+    encoding: 'utf8',
+  })
   if (
     preCommitOutput.includes('Running security checks') &&
     (preCommitOutput.includes('❌ SECURITY:') || preCommitOutput.includes('Security checks passed'))
@@ -86,10 +79,7 @@ try {
 console.log('4. Testing Security Documentation...')
 if (fs.existsSync('SECURITY.md')) {
   const securityDoc = fs.readFileSync('SECURITY.md', 'utf8')
-  if (
-    securityDoc.includes('Security Implementation Guide') &&
-    securityDoc.includes('Custom Security Scanner')
-  ) {
+  if (securityDoc.includes('Security Implementation Guide') && securityDoc.includes('Custom Security Scanner')) {
     console.log('✅ Security documentation is comprehensive')
   } else {
     console.log('❌ Security documentation is incomplete')
@@ -102,11 +92,7 @@ if (fs.existsSync('SECURITY.md')) {
 
 // Test 5: Security Test Files
 console.log('5. Testing Security Test Files...')
-const testFiles = [
-  'src/db/test.ts',
-  '.github/workflows/insecure-test.yml',
-  'src-tauri/tauri-insecure.conf.json',
-]
+const testFiles = ['src/db/test.ts', '.github/workflows/insecure-test.yml', 'src-tauri/tauri-insecure.conf.json']
 
 testFiles.forEach((file) => {
   if (fs.existsSync(file)) {

@@ -6,20 +6,15 @@ mod encryption;
 mod expense;
 mod migrations;
 
-use crate::commands::{
-    boe::*, expenses::*, invoices::*, items::*, options::*, reports::*, shipments::*, suppliers::*,
-    utils::*,
-};
 use crate::db::DbState;
-use rusqlite::{Connection, Result as SqliteResult};
+use rusqlite::Connection;
 use std::sync::Mutex;
 use tauri::Manager;
-use tauri::State;
 
 fn create_new_encrypted_database(
     db_path: &std::path::Path,
     encryption: &encryption::DatabaseEncryption,
-) -> rusqlite::Connection {
+) -> Connection {
     // Generate a new encryption key
     let key = encryption::DatabaseEncryption::generate_key();
     encryption
@@ -27,7 +22,7 @@ fn create_new_encrypted_database(
         .expect("Failed to store encryption key");
 
     // Create the encrypted database
-    let conn = rusqlite::Connection::open(db_path).expect("Failed to create database file");
+    let conn = Connection::open(db_path).expect("Failed to create database file");
 
     // Enable encryption with SQLCipher
     conn.execute_batch(&format!(
@@ -144,7 +139,7 @@ fn main() {
             migrations::DatabaseMigrations::run_migrations(&mut db_connection)
                 .expect("Failed to run database migrations");
             
-            app.manage(db::DbState { db: std::sync::Mutex::new(db_connection) });
+            app.manage(DbState { db: Mutex::new(db_connection) });
 
             Ok(())
         })

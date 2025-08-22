@@ -306,11 +306,7 @@ export class CacheManager {
       return null
     },
     has: (key: string) => {
-      return (
-        this.memoryCache.has(key) ||
-        this.sessionStorageCache.has(key) ||
-        this.localStorageCache.has(key)
-      )
+      return this.memoryCache.has(key) || this.sessionStorageCache.has(key) || this.localStorageCache.has(key)
     },
     delete: (key: string) => {
       this.memoryCache.delete(key)

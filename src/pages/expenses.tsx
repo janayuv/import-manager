@@ -97,18 +97,22 @@ const ExpensesPage = () => {
   }
 
   return (
-    <ModuleErrorBoundary moduleName="Expenses" showDetails={process.env.NODE_ENV === 'development'}>
+    <ModuleErrorBoundary
+      moduleName="Expenses"
+      showDetails={process.env.NODE_ENV === 'development'}
+    >
       <div className="container mx-auto py-10">
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold">Manage Expenses</h1>
-            <p className="text-muted-foreground mt-1">
-              Track and manage expenses for your shipments
-            </p>
+            <p className="text-muted-foreground mt-1">Track and manage expenses for your shipments</p>
           </div>
           {selectedShipment && (
             <div className="text-right">
-              <Badge variant="outline" className="text-sm">
+              <Badge
+                variant="outline"
+                className="text-sm"
+              >
                 Shipment: {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
               </Badge>
               <p className="text-muted-foreground mt-1 text-xs">
@@ -127,14 +131,20 @@ const ExpensesPage = () => {
             </div>
           </div>
         ) : (
-          <Tabs defaultValue="manage" className="space-y-6">
+          <Tabs
+            defaultValue="manage"
+            className="space-y-6"
+          >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="manage">Manage Expenses</TabsTrigger>
               <TabsTrigger value="import">Import Expenses</TabsTrigger>
               <TabsTrigger value="debug">Debug & Setup</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="manage" className="space-y-6">
+            <TabsContent
+              value="manage"
+              className="space-y-6"
+            >
               <div className="mb-6">
                 <label className="mb-2 block text-sm font-medium">Select Shipment</label>
                 <ShipmentSelector
@@ -158,8 +168,7 @@ const ExpensesPage = () => {
                       <div className="lg:col-span-2">
                         <div className="mb-4 flex items-center justify-between">
                           <h2 className="text-2xl font-semibold">
-                            Expenses for Invoice:{' '}
-                            {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
+                            Expenses for Invoice: {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
                           </h2>
                           <div className="flex items-center gap-2">
                             {expenseToEdit && <Badge variant="secondary">Editing Expense</Badge>}
@@ -184,14 +193,15 @@ const ExpensesPage = () => {
                           <div className="bg-card space-y-3 rounded-lg border p-6">
                             {selectedShipment && (
                               <div className="flex items-center justify-between">
-                                <Badge variant="outline" className="text-xs">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs"
+                                >
                                   {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
                                 </Badge>
                               </div>
                             )}
-                            <h2 className="mb-4 text-xl font-semibold">
-                              {expenseToEdit ? 'Edit' : 'Add'} Expense
-                            </h2>
+                            <h2 className="mb-4 text-xl font-semibold">{expenseToEdit ? 'Edit' : 'Add'} Expense</h2>
                             <ExpenseForm
                               expenseToEdit={expenseToEdit}
                               onFormSubmit={handleFormSubmit}
@@ -207,8 +217,7 @@ const ExpensesPage = () => {
 
                   <div>
                     <h2 className="mb-4 text-2xl font-semibold">
-                      Reports for Invoice:{' '}
-                      {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
+                      Reports for Invoice: {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
                     </h2>
                     <ExpenseReports shipmentId={selectedShipment.id} />
                   </div>
@@ -231,7 +240,10 @@ const ExpensesPage = () => {
               )}
             </TabsContent>
 
-            <TabsContent value="import" className="space-y-6">
+            <TabsContent
+              value="import"
+              className="space-y-6"
+            >
               <ExpenseImport
                 shipments={shipments}
                 expenseTypes={expenseTypes}
@@ -240,7 +252,10 @@ const ExpensesPage = () => {
               />
             </TabsContent>
 
-            <TabsContent value="debug" className="space-y-6">
+            <TabsContent
+              value="debug"
+              className="space-y-6"
+            >
               <ExpenseDebug />
             </TabsContent>
           </Tabs>

@@ -203,7 +203,12 @@ export default function BoeEntryPage() {
         onDelete={handleDeleteBoe}
       />
 
-      {viewingBoe && <ViewBoeDialog boe={viewingBoe} onClose={() => setViewingBoe(null)} />}
+      {viewingBoe && (
+        <ViewBoeDialog
+          boe={viewingBoe}
+          onClose={() => setViewingBoe(null)}
+        />
+      )}
 
       {deletingBoe && (
         <DeleteConfirmDialog

@@ -12,14 +12,7 @@ import { type Resolver, useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
 import { Combobox } from '@/components/ui/combobox'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 // Removed unused Select imports
@@ -27,13 +20,7 @@ import { calculateDuties } from '@/lib/duty-calculator'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import type { BoeDetails } from '@/types/boe'
-import type {
-  BoeItemInput,
-  CalculationMethod,
-  CalculationResult,
-  SavedBoe,
-  Shipment,
-} from '@/types/boe-entry'
+import type { BoeItemInput, CalculationMethod, CalculationResult, SavedBoe, Shipment } from '@/types/boe-entry'
 
 import { BoeDetailsTable } from './boe-details-table'
 import { CalculationResults } from './calculation-results'
@@ -134,9 +121,7 @@ export function BoeEntryForm({
   }, [selectedShipment, form])
 
   const boeOptions = React.useMemo(() => {
-    const usedBoeIds = new Set(
-      savedBoes.map((savedBoe) => savedBoe.boeId).filter((id): id is string => !!id)
-    )
+    const usedBoeIds = new Set(savedBoes.map((savedBoe) => savedBoe.boeId).filter((id): id is string => !!id))
 
     return allBoes
       .filter((boe) => {
@@ -148,17 +133,14 @@ export function BoeEntryForm({
   }, [allBoes, savedBoes, initialData])
 
   React.useEffect(() => {
-    setSuppliers([
-      ...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat))),
-    ])
+    setSuppliers([...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))])
   }, [shipments, settings.textFormat])
 
   React.useEffect(() => {
     if (initialData) {
       form.reset(initialData.formValues)
       const invs = shipments.filter(
-        (s) =>
-          formatText(s.supplierName, settings.textFormat) === initialData.formValues.supplierName
+        (s) => formatText(s.supplierName, settings.textFormat) === initialData.formValues.supplierName
       )
       setAvailableInvoices(invs)
       setSelectedShipment(shipments.find((s) => s.id === initialData.shipmentId) || null)
@@ -191,9 +173,7 @@ export function BoeEntryForm({
   const handleSupplierChange = React.useCallback(
     (supplierName: string) => {
       form.setValue('supplierName', supplierName, { shouldValidate: true })
-      const invs = shipments.filter(
-        (s) => formatText(s.supplierName, settings.textFormat) === supplierName
-      )
+      const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === supplierName)
       setAvailableInvoices(invs)
       form.resetField('shipmentId')
       setSelectedShipment(null)
@@ -234,13 +214,7 @@ export function BoeEntryForm({
         header: true,
         skipEmptyLines: true,
         complete: (results: ParseResult<RawOverrideRow>) => {
-          const required = [
-            'partNo',
-            'calculationMethod',
-            'boeBcdRate',
-            'boeSwsRate',
-            'boeIgstRate',
-          ]
+          const required = ['partNo', 'calculationMethod', 'boeBcdRate', 'boeSwsRate', 'boeIgstRate']
           const actual = results.meta.fields ?? []
           if (!required.every((h) => actual.includes(h))) {
             return reject(new Error('CSV file is missing required headers.'))
@@ -280,21 +254,13 @@ export function BoeEntryForm({
           boeSwsRate: item.actualSwsRate,
           boeIgstRate: item.actualIgstRate,
         }))
-        const originalIgstMap = new Map<string, number>(
-          originalItems.map((o) => [o.partNo, o.boeIgstRate])
-        )
+        const originalIgstMap = new Map<string, number>(originalItems.map((o) => [o.partNo, o.boeIgstRate]))
         const unmatched = overrides.filter((o) => !originalIgstMap.has(o.partNo))
         const candidates = overrides.filter((o) => originalIgstMap.has(o.partNo))
-        const igstMismatches = candidates.filter(
-          (o) => o.boeIgstRate !== originalIgstMap.get(o.partNo)
-        )
-        const validOverrides = candidates.filter(
-          (o) => o.boeIgstRate === originalIgstMap.get(o.partNo)
-        )
+        const igstMismatches = candidates.filter((o) => o.boeIgstRate !== originalIgstMap.get(o.partNo))
+        const validOverrides = candidates.filter((o) => o.boeIgstRate === originalIgstMap.get(o.partNo))
         if (unmatched.length) {
-          toast.warning(
-            `Ignored override for unknown parts: ${unmatched.map((o) => o.partNo).join(', ')}`
-          )
+          toast.warning(`Ignored override for unknown parts: ${unmatched.map((o) => o.partNo).join(', ')}`)
         }
         if (igstMismatches.length) {
           toast.warning(
@@ -450,7 +416,10 @@ export function BoeEntryForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-8"
+      >
         <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
           <FormField
             name="supplierName"
@@ -521,9 +490,7 @@ export function BoeEntryForm({
                     placeholder="e.g., 83.50"
                     {...field}
                     value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? undefined : e.target.value)
-                    }
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -543,9 +510,7 @@ export function BoeEntryForm({
                     placeholder="e.g., 5000"
                     {...field}
                     value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? undefined : e.target.value)
-                    }
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     disabled={isCif}
                   />
                 </FormControl>
@@ -566,9 +531,7 @@ export function BoeEntryForm({
                     placeholder="e.g., 200"
                     {...field}
                     value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? undefined : e.target.value)
-                    }
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     disabled={isCif}
                   />
                 </FormControl>
@@ -589,9 +552,7 @@ export function BoeEntryForm({
                     placeholder="e.g., 1.125"
                     {...field}
                     value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? undefined : e.target.value)
-                    }
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                     disabled={isCif}
                   />
                 </FormControl>
@@ -612,9 +573,7 @@ export function BoeEntryForm({
                     placeholder="e.g., 100"
                     {...field}
                     value={field.value ?? ''}
-                    onChange={(e) =>
-                      field.onChange(e.target.value === '' ? undefined : e.target.value)
-                    }
+                    onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)}
                   />
                 </FormControl>
                 <FormMessage />
@@ -652,12 +611,20 @@ export function BoeEntryForm({
             {overrideFile ? 'Import & Calculate' : 'Calculate Duties'}
           </Button>
           {calculationResult && (
-            <Button type="button" onClick={handleSaveOrUpdate} className="custom-alert-action-ok">
+            <Button
+              type="button"
+              onClick={handleSaveOrUpdate}
+              className="custom-alert-action-ok"
+            >
               {isEditing ? 'Update BOE' : 'Save BOE'}
             </Button>
           )}
           {isEditing && (
-            <Button type="button" variant="ghost" onClick={onCancelEdit}>
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={onCancelEdit}
+            >
               Cancel Edit
             </Button>
           )}

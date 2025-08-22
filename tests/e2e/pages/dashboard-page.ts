@@ -28,13 +28,9 @@ export class DashboardPage {
    * Get stats card values
    */
   async getStats() {
-    const suppliers = await this.page
-      .locator('[data-testid="stat-suppliers"] .text-2xl')
-      .textContent()
+    const suppliers = await this.page.locator('[data-testid="stat-suppliers"] .text-2xl').textContent()
     const items = await this.page.locator('[data-testid="stat-items"] .text-2xl').textContent()
-    const shipments = await this.page
-      .locator('[data-testid="stat-shipments"] .text-2xl')
-      .textContent()
+    const shipments = await this.page.locator('[data-testid="stat-shipments"] .text-2xl').textContent()
     const boes = await this.page.locator('[data-testid="stat-boes"] .text-2xl').textContent()
 
     return {

@@ -9,14 +9,7 @@ import { useForm } from 'react-hook-form'
 
 import { Button } from '@/components/ui/button'
 import { CreatableCombobox } from '@/components/ui/combobox-creatable'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import type { ExpenseType, ExpenseWithInvoice, ServiceProvider } from '@/types/expense'
 
@@ -63,9 +56,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
       expenseTypeId: expenseToEdit?.expenseTypeId || '',
       serviceProviderId: expenseToEdit?.serviceProviderId || '',
       invoiceNo: expenseToEdit?.invoiceNo || '',
-      invoiceDate: expenseToEdit?.invoiceDate
-        ? new Date(expenseToEdit.invoiceDate).toISOString().split('T')[0]
-        : '',
+      invoiceDate: expenseToEdit?.invoiceDate ? new Date(expenseToEdit.invoiceDate).toISOString().split('T')[0] : '',
       amount: expenseToEdit?.amount?.toString() || '',
       cgstAmount: expenseToEdit?.cgstAmount?.toString() || '',
       sgstAmount: expenseToEdit?.sgstAmount?.toString() || '',
@@ -208,9 +199,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
         // Adding new expense - need to create both invoice and expense
         // For now, we'll use a simple approach with default invoice data
         // In the future, this should be handled by a proper invoice creation flow
-        toast.error(
-          'Adding new expenses requires invoice information. Please use the "Add Multiple Expenses" feature.'
-        )
+        toast.error('Adding new expenses requires invoice information. Please use the "Add Multiple Expenses" feature.')
         return
       }
 
@@ -257,7 +246,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="space-y-4"
+      >
         {/* Expense Type */}
         <FormField
           control={form.control}
@@ -312,7 +304,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
             <FormItem>
               <FormLabel>Invoice Number</FormLabel>
               <FormControl>
-                <Input placeholder="Invoice Number" {...field} />
+                <Input
+                  placeholder="Invoice Number"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -327,7 +322,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
             <FormItem>
               <FormLabel>Invoice Date</FormLabel>
               <FormControl>
-                <Input type="date" {...field} />
+                <Input
+                  type="date"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -342,7 +340,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
             <FormItem>
               <FormLabel>Amount (w/o GST)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="Amount" {...field} />
+                <Input
+                  type="number"
+                  placeholder="Amount"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -358,7 +360,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
               <FormItem>
                 <FormLabel>CGST Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="CGST Amount" {...field} />
+                  <Input
+                    type="number"
+                    placeholder="CGST Amount"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -371,7 +377,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
               <FormItem>
                 <FormLabel>SGST Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="SGST Amount" {...field} />
+                  <Input
+                    type="number"
+                    placeholder="SGST Amount"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -384,7 +394,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
               <FormItem>
                 <FormLabel>IGST Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="IGST Amount" {...field} />
+                  <Input
+                    type="number"
+                    placeholder="IGST Amount"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -400,7 +414,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
             <FormItem>
               <FormLabel>TDS %</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" placeholder="TDS Percentage" {...field} />
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="TDS Percentage"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -410,7 +429,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
         {/* Total */}
         <div className="space-y-2">
           <Label>Total Amount</Label>
-          <Input value={totalAmount.toFixed(2)} readOnly />
+          <Input
+            value={totalAmount.toFixed(2)}
+            readOnly
+          />
         </div>
 
         {/* Remarks */}
@@ -421,7 +443,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
             <FormItem>
               <FormLabel>Remarks</FormLabel>
               <FormControl>
-                <Input placeholder="Remarks" {...field} />
+                <Input
+                  placeholder="Remarks"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -430,11 +455,18 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({ expenseToEdit, onFormSubmit, 
 
         {/* Action Buttons */}
         <div className="flex space-x-2">
-          <Button type="submit" disabled={isSubmitting}>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+          >
             {isSubmitting ? 'Saving...' : (expenseToEdit ? 'Update' : 'Add') + ' Expense'}
           </Button>
           {expenseToEdit && (
-            <Button type="button" variant="outline" onClick={handleCancelEdit}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCancelEdit}
+            >
               Cancel Edit
             </Button>
           )}

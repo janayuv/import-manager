@@ -37,9 +37,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="text-lg font-medium">Loading application settings...</div>
-          <div className="text-muted-foreground text-sm">
-            Please wait while settings are being initialized.
-          </div>
+          <div className="text-muted-foreground text-sm">Please wait while settings are being initialized.</div>
         </div>
       </div>
     )
@@ -74,10 +72,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     updateSettings(newSettings)
   }
 
-  const updateModuleSettingsWrapper = (
-    moduleName: keyof AppSettings['modules'],
-    updates: Partial<ModuleSettings>
-  ) => {
+  const updateModuleSettingsWrapper = (moduleName: keyof AppSettings['modules'], updates: Partial<ModuleSettings>) => {
     const updatedSettings = updateModuleSettings(moduleName, updates)
     setSettings(updatedSettings)
   }

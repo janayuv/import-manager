@@ -59,11 +59,18 @@ export const AccountUpdatePage = () => {
         <CardContent className="space-y-4">
           <div>
             <label className="text-sm">Name</label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} />
+            <Input
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-sm">Email</label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+            />
           </div>
           <Button onClick={save}>Save</Button>
         </CardContent>
@@ -94,15 +101,27 @@ export const AccountPasswordPage = () => {
         <CardContent className="space-y-4">
           <div>
             <label className="text-sm">Current Password</label>
-            <Input type="password" value={current} onChange={(e) => setCurrent(e.target.value)} />
+            <Input
+              type="password"
+              value={current}
+              onChange={(e) => setCurrent(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-sm">New Password</label>
-            <Input type="password" value={next} onChange={(e) => setNext(e.target.value)} />
+            <Input
+              type="password"
+              value={next}
+              onChange={(e) => setNext(e.target.value)}
+            />
           </div>
           <div>
             <label className="text-sm">Confirm Password</label>
-            <Input type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <Input
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+            />
           </div>
           <Button onClick={change}>Update Password</Button>
         </CardContent>

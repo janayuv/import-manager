@@ -20,19 +20,16 @@ interface InvoiceLineActionsProps {
   onQuickFinalize: (invoiceId: string, invoiceNumber: string) => void
 }
 
-export function InvoiceLineActions({
-  lineItem,
-  onView,
-  onEdit,
-  onDelete,
-  onQuickFinalize,
-}: InvoiceLineActionsProps) {
+export function InvoiceLineActions({ lineItem, onView, onEdit, onDelete, onQuickFinalize }: InvoiceLineActionsProps) {
   const isFinalized = lineItem.status === 'Finalized'
   const isMatched = Math.abs(lineItem.shipmentTotal - lineItem.invoiceTotal) < 0.01
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button
+          variant="ghost"
+          className="h-8 w-8 p-0"
+        >
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
@@ -42,7 +39,10 @@ export function InvoiceLineActions({
         <DropdownMenuItem onClick={() => onView(lineItem.invoiceId)}>
           <View className="mr-2 h-4 w-4" /> View
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => onEdit(lineItem.invoiceId)} disabled={isFinalized}>
+        <DropdownMenuItem
+          onClick={() => onEdit(lineItem.invoiceId)}
+          disabled={isFinalized}
+        >
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
         {!isFinalized && isMatched && (

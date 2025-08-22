@@ -1,106 +1,214 @@
 # ================================================================
 # Cursor Rules for Import Manager (Tauri + React + SQLite)
-# Hybrid version: Enforceable rules + inline audit context
+# Enhanced version: Stricter enforcement, Windows-native focus, professional polish
 # ================================================================
-# Reference: High-priority audit prompt (Security & Ops)
+# Reference: High-priority audit prompt (Security, Ops, Performance, UI, Testing)
 # Main areas:
 # A. Tauri signing & secure auto-update
 # B. SQLite encryption (SQLCipher) & migration
 # C. Embedded migrations & schema handling
 # D. CI secrets & signing keys
-# E. Windows-only platform enforcement
+# E. Windows-only platform enforcement (enhanced)
+# F. Performance & Optimization (app size, resource usage)
+# G. Frontend & UI Best Practices (accessibility, Windows UX)
+# H. Testing & Error Handling (tests, logging, user errors)
+# I. Dependency Management (vulnerabilities, updates)
+# J. Windows-Native Features (NEW: system tray, notifications)
 # ================================================================
 
 rules:
   - name: 'Tauri Signing & Secure Auto-update'
     description: 'All release builds must be signed and updates verified.'
+    severity: critical
     patterns:
       - 'src-tauri/tauri.conf.json'
       - '.github/workflows/*.yml'
+      - '.github/workflows/*.yaml'
     actions:
       - enforce: 'Public signing key file must exist (e.g., RELEASES/public_key.pem)'
-      - enforce: 'Private signing key must never be committed — only loaded from GitHub Secrets'
+      - enforce: 'Private signing key must never be committed — use secrets.TAURI_SIGNING_PRIVATE_KEY'
       - enforce: 'Release workflows must sign artifacts using CI secret key'
-      - enforce: 'Updater config must verify signatures against public key'
-      - audit: 'Check for missing pubkey field in updater config'
-      - audit: 'Check workflows for plain-text private key or token leakage'
+      - enforce: 'Updater config must verify signatures against public key in tauri.conf.json'
+      - enforce: 'Use Windows-specific EV code signing for MSI/EXE'
+      - audit: 'Check for missing "pubkey" field in tauri.conf.json > tauri > updater'
+      - audit: 'Flag plain-text keys or tokens in workflows (e.g., TAURI_PRIVATE_KEY=...)'
+      - audit: 'Flag non-HTTPS updater endpoints in tauri.conf.json'
 
   - name: 'SQLite Encryption (SQLCipher)'
     description: 'Local data must be encrypted at rest using SQLCipher.'
+    severity: critical
     patterns:
       - 'src/db/**/*.ts'
       - 'src-tauri/src/**/*.rs'
     actions:
-      - enforce: 'DB connections must require PRAGMA key before queries'
-      - enforce: 'Unencrypted SQLite must not be opened in production builds'
-      - enforce: 'Keys must be retrieved via OS keychain or passphrase KDF (PBKDF2/Argon2)'
-      - audit: "Detect raw 'sqlite3(' usage without PRAGMA key"
-      - audit: 'Check if migrations preserve encryption after backup/migrate'
+      - enforce: 'DB connections must use PRAGMA key before queries'
+      - enforce: 'Unencrypted SQLite must not be opened in production (#[cfg(not(debug_assertions))])'
+      - enforce: 'Keys must use Windows Credential Manager or strong KDF (PBKDF2 with >=100,000 iterations or Argon2)'
+      - enforce: 'Implement key rotation and re-encryption on app updates'
+      - enforce: 'Use SQLCipher >=4.5.0 for Windows compatibility'
+      - audit: 'Detect raw sqlite3_open or Connection::open without PRAGMA key'
+      - audit: 'Check migrations for encryption preservation post-backup'
+      - audit: 'Flag weak KDF params (e.g., PBKDF2 iterations < 100,000)'
 
   - name: 'Database Schema Migrations'
     description: 'Schema drift must be handled with embedded migrations.'
+    severity: high
     patterns:
       - 'migrations/*.sql'
       - 'src-tauri/src/**/*.rs'
     actions:
-      - enforce: 'Migrations must be stored in migrations/ folder and versioned'
-      - enforce: 'Startup code must run pending migrations before DB use'
-      - enforce: 'Backup DB before applying migrations'
-      - enforce: 'CI must fail if migrations folder is missing or not applied'
+      - enforce: 'Store migrations in migrations/ folder with versioned names (e.g., 001_initial.sql)'
+      - enforce: 'Run pending migrations at startup using sqlx or equivalent'
+      - enforce: 'Backup DB to .bak file before migrations'
+      - enforce: 'CI must fail if migrations/ folder is missing or migrations not applied'
+      - enforce: 'Validate imported Excel data (e.g., checksums for invoice totals)'
       - audit: 'Check for missing checksum verification in migrations'
-      - audit: 'Check for schema drift vs migrations folder'
+      - audit: 'Flag schema drift by comparing DB schema to migrations'
 
   - name: 'CI Secrets & Security'
     description: 'Protect sensitive keys and enforce safe workflows.'
+    severity: critical
     patterns:
       - '.github/workflows/*.yml'
+      - '.github/workflows/*.yaml'
     actions:
-      - enforce: 'Never hardcode secrets in workflows'
-      - enforce: 'Signing must use secrets.TAURI_SIGNING_PRIVATE_KEY'
-      - enforce: 'Do not echo or print secrets in CI logs'
-      - enforce: 'Protected branches (e.g., main) must require passing CI checks'
-      - audit: 'Check for base64 or hex blobs that look like keys/tokens'
-      - audit: 'Ensure branch protection is documented in SECURITY.md'
+      - enforce: 'Never hardcode secrets in workflows (e.g., TAURI_PRIVATE_KEY)'
+      - enforce: 'Use secrets.TAURI_SIGNING_PRIVATE_KEY for signing'
+      - enforce: 'Avoid echoing or logging secrets in CI'
+      - enforce: 'Require CI checks for protected branches (main, develop)'
+      - enforce: 'Integrate Dependabot via .github/dependabot.yml'
+      - enforce: 'Add Cursor rule validation step in CI workflows'
+      - audit: 'Flag base64/hex strings resembling keys/tokens'
+      - audit: 'Verify SECURITY.md documents branch protection'
+      - audit: 'Flag missing npm audit or cargo audit in CI'
 
   - name: 'Windows-only Platform Restriction'
-    description: 'This project is Windows-only. Do not configure or attempt builds for Linux/macOS.'
+    description: 'Restrict project to Windows-only builds and features.'
+    severity: critical
     patterns:
       - 'src-tauri/tauri.conf.json'
       - '.github/workflows/*.yml'
+      - '.github/workflows/*.yaml'
       - 'docs/**/*.md'
+      - 'README.md'
     actions:
-      - enforce: 'Tauri build target must always be Windows (msi/exe)'
-      - enforce: 'CI workflows must restrict OS to windows-latest'
-      - enforce: "Docs and README must clearly state: 'This project supports only Windows'"
-      - audit: 'Flag any macOS/Linux build targets in tauri.conf.json'
-      - audit: 'Check workflows for non-Windows runners'
-      - audit: 'Flag docs suggesting cross-platform builds'
+      - enforce: 'Tauri bundle targets must be "msi" or "exe" only'
+      - enforce: 'CI workflows must use "runs-on: windows-latest" for all jobs'
+      - enforce: 'README.md must include: "This project supports only Windows"'
+      - enforce: 'Use Windows-specific MSI installer with WiX or NSIS'
+      - audit: 'Flag non-Windows targets (e.g., deb, appimage) in tauri.conf.json'
+      - audit: 'Flag "runs-on" values other than "windows-latest" using regex: "runs-on:\s*(?!windows-latest)"'
+      - audit: 'Flag missing Windows-only statement in README.md or docs'
+      - audit: 'Check for Windows-native feature documentation (e.g., system tray)'
+
+  - name: 'Performance & Optimization'
+    description: 'Ensure low resource usage and small app size.'
+    severity: high
+    patterns:
+      - 'src-tauri/src/**/*.rs'
+      - 'src/**/*.tsx'
+      - 'package.json'
+      - 'Cargo.toml'
+      - 'vite.config.ts'
+    actions:
+      - enforce: 'Minify JS/CSS (Vite) and optimize Rust builds (--release, LTO=true)'
+      - enforce: 'App size must be <50MB, verified in CI'
+      - enforce: 'Profile CPU/RAM (<5% idle CPU, <100MB RAM in tests)'
+      - enforce: 'Lazy-load Excel data in chunks (e.g., react-table virtual scrolling)'
+      - audit: 'Flag unnecessary dependencies (e.g., via depcheck, cargo tree)'
+      - audit: 'Check for missing image optimization in vite.config.ts'
+
+  - name: 'Frontend & UI Best Practices'
+    description: 'Ensure professional, accessible, Windows-native UI.'
+    severity: high
+    patterns:
+      - 'src/**/*.tsx'
+      - 'src/components/**/*.tsx'
+      - 'tailwind.config.js'
+    actions:
+      - enforce: 'Use ARIA attributes for tables (e.g., role="grid", aria-label)'
+      - enforce: 'Apply Windows-native styles (e.g., Fluent UI via Tailwind)'
+      - enforce: 'Add React error boundaries for DB/Excel operations'
+      - enforce: 'Support high-DPI scaling and dark mode in tailwind.config.js'
+      - enforce: 'Show user-friendly error messages for Excel import failures'
+      - audit: 'Flag unhandled React hooks or state leaks'
+      - audit: 'Flag non-responsive UI (e.g., fixed widths in CSS)'
+
+  - name: 'Testing & Error Handling'
+    description: 'Ensure comprehensive tests and robust error handling.'
+    severity: high
+    patterns:
+      - 'tests/**/*.ts'
+      - 'src-tauri/tests/**/*.rs'
+      - 'src/**/*.tsx'
+    actions:
+      - enforce: 'Include unit tests for Rust (cargo test) and React (Vitest)'
+      - enforce: 'Add integration tests for DB migrations and Excel parsing'
+      - enforce: 'Use structured logging (tracing in Rust, console/Sentry in React)'
+      - enforce: 'Handle errors with user-friendly messages (no Rust panics)'
+      - audit: 'Verify test coverage >80% via CI reports'
+      - audit: 'Flag missing try-catch or Result handling in code'
+
+  - name: 'Dependency Management'
+    description: 'Keep dependencies secure and up-to-date.'
+    severity: high
+    patterns:
+      - 'package.json'
+      - 'Cargo.toml'
+      - '.github/dependabot.yml'
+    actions:
+      - enforce: 'Pin versions in package.json and Cargo.toml, update via Dependabot'
+      - enforce: 'Run npm audit and cargo audit in CI'
+      - enforce: 'Avoid deprecated/high-vuln deps (e.g., Tauri <1.5, SQLCipher <4.5)'
+      - audit: 'Flag unused deps via depcheck (npm) or cargo tree'
+      - audit: 'Ensure licenses are compatible (no GPL in proprietary app)'
+
+  - name: 'Windows-Native Features'
+    description: 'Implement Windows-specific features for professional UX.'
+    severity: medium
+    patterns:
+      - 'src-tauri/src/**/*.rs'
+      - 'src-tauri/tauri.conf.json'
+      - 'src/**/*.tsx'
+    actions:
+      - enforce: 'Add system tray support via tauri-plugin-system-tray'
+      - enforce: 'Use Windows Toast notifications for alerts (e.g., import complete)'
+      - enforce: 'Customize MSI installer with WiX (e.g., icon, license agreement)'
+      - enforce: 'Support Windows high-DPI scaling in UI'
+      - audit: 'Flag missing system tray implementation'
+      - audit: 'Check for missing notification logic in Rust/React'
 
 # ================================================================
-# Security Audit Report Template
+# Security Audit Report Template (Enhanced)
 # ================================================================
 report:
   format: |
-    # 🔒 Security Audit Report
+    # 🔒 Security & Professional Audit Report
 
     ## ✅ Summary
     - Status: {status}
     - Files Checked: {files}
     - Rules Enforced: {rules}
+    - Compliance Score: {score}% (enforced / total * 100)
+
+    ## 🟢 Passed Rules
+    {passed}
 
     ## 🚨 Issues Detected
     {issues}
 
     ## 📋 Details
-    Each issue is shown with:
+    Each issue includes:
     - **File/Line**: {file}:{line}
     - **Issue**: {description}
-    - **Risk**: {risk}
+    - **Risk**: {risk} (Low/Medium/High/Critical)
     - **Suggested Fix**: {fix}
 
     ## 🎯 Recommendations
-    - Strengthen enforcement by adding missing security rules.
-    - Review CI/CD and ensure secrets are never committed.
-    - Ensure SQLite encryption is enabled before production release.
-    - Confirm updater signing key is present and verified.
-    - Keep platform scope Windows-only (no cross-platform builds).
+    - Enforce all CI jobs use windows-latest to match production environment.
+    - Verify SQLite encryption with SQLCipher >=4.5.0.
+    - Ensure secure key management via Windows Credential Manager.
+    - Implement Windows-native features (system tray, notifications, MSI customization).
+    - Optimize app size (<50MB) and performance (<5% idle CPU).
+    - Achieve >80% test coverage with Excel import validation.
+    - Regularly audit dependencies for vulnerabilities.

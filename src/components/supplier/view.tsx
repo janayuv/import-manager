@@ -1,13 +1,7 @@
 // src/pages/supplier/view.tsx (NEW FILE)
 // This component displays supplier details in a read-only dialog.
 import { Badge } from '@/components/ui/badge'
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
@@ -48,7 +42,10 @@ export function ViewSupplierDialog({ isOpen, onOpenChange, supplier }: ViewSuppl
   if (!supplier) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>Supplier Details: {supplier.supplierName}</DialogTitle>
@@ -57,13 +54,34 @@ export function ViewSupplierDialog({ isOpen, onOpenChange, supplier }: ViewSuppl
         <div className="grid gap-6 py-4">
           {/* General Details */}
           <div className="grid grid-cols-2 gap-4">
-            <DetailItem label="Supplier ID" value={supplier.id} />
-            <DetailItem label="Supplier Name" value={supplier.supplierName} />
-            <DetailItem label="Short Name" value={supplier.shortName} />
-            <DetailItem label="Country" value={supplier.country} />
-            <DetailItem label="Email" value={supplier.email} />
-            <DetailItem label="Phone" value={supplier.phone} />
-            <DetailItem label="Status" value={supplier.isActive} />
+            <DetailItem
+              label="Supplier ID"
+              value={supplier.id}
+            />
+            <DetailItem
+              label="Supplier Name"
+              value={supplier.supplierName}
+            />
+            <DetailItem
+              label="Short Name"
+              value={supplier.shortName}
+            />
+            <DetailItem
+              label="Country"
+              value={supplier.country}
+            />
+            <DetailItem
+              label="Email"
+              value={supplier.email}
+            />
+            <DetailItem
+              label="Phone"
+              value={supplier.phone}
+            />
+            <DetailItem
+              label="Status"
+              value={supplier.isActive}
+            />
           </div>
 
           <Separator />
@@ -72,13 +90,34 @@ export function ViewSupplierDialog({ isOpen, onOpenChange, supplier }: ViewSuppl
           <div>
             <h3 className="mb-4 text-lg font-medium">Bank Details</h3>
             <div className="grid grid-cols-2 gap-4">
-              <DetailItem label="Beneficiary Name" value={supplier.beneficiaryName} />
-              <DetailItem label="Bank Name" value={supplier.bankName} />
-              <DetailItem label="Branch" value={supplier.branch} />
-              <DetailItem label="Bank Address" value={supplier.bankAddress} />
-              <DetailItem label="Account No." value={supplier.accountNo} />
-              <DetailItem label="IBAN" value={supplier.iban} />
-              <DetailItem label="SWIFT Code" value={supplier.swiftCode} />
+              <DetailItem
+                label="Beneficiary Name"
+                value={supplier.beneficiaryName}
+              />
+              <DetailItem
+                label="Bank Name"
+                value={supplier.bankName}
+              />
+              <DetailItem
+                label="Branch"
+                value={supplier.branch}
+              />
+              <DetailItem
+                label="Bank Address"
+                value={supplier.bankAddress}
+              />
+              <DetailItem
+                label="Account No."
+                value={supplier.accountNo}
+              />
+              <DetailItem
+                label="IBAN"
+                value={supplier.iban}
+              />
+              <DetailItem
+                label="SWIFT Code"
+                value={supplier.swiftCode}
+              />
             </div>
           </div>
         </div>

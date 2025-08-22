@@ -81,8 +81,14 @@ export function CreatableCombobox({
   }
 
   return (
-    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-      <Popover open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={dialogOpen}
+      onOpenChange={setDialogOpen}
+    >
+      <Popover
+        open={open}
+        onOpenChange={setOpen}
+      >
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -111,12 +117,7 @@ export function CreatableCombobox({
                       setOpen(false)
                     }}
                   >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
+                    <Check className={cn('mr-2 h-4 w-4', value === option.value ? 'opacity-100' : 'opacity-0')} />
                     {option.label}
                   </CommandItem>
                 ))}
@@ -143,7 +144,10 @@ export function CreatableCombobox({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label htmlFor="new-option-label" className="text-right">
+            <Label
+              htmlFor="new-option-label"
+              className="text-right"
+            >
               Label
             </Label>
             <Input

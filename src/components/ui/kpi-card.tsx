@@ -73,9 +73,7 @@ export function KPICard({
     if (!trend) return ''
 
     if (trend.value === 0) return 'text-muted-foreground'
-    return trend.isPositive
-      ? 'text-green-600 dark:text-green-400'
-      : 'text-red-600 dark:text-red-400'
+    return trend.isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
   }
 
   return (
@@ -166,5 +164,12 @@ export function StatCard({
   icon?: ComponentType<{ className?: string }>
   className?: string
 }) {
-  return <KPICard title={title} value={value} icon={icon} className={className} />
+  return (
+    <KPICard
+      title={title}
+      value={value}
+      icon={icon}
+      className={className}
+    />
+  )
 }

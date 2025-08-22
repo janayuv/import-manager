@@ -27,9 +27,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
   const isGroupActive = (path: string, subItems?: Omit<NavItem, 'icon' | 'items'>[]) => {
     if (!subItems) return false
     // Check if the current path starts with the parent path, or if any sub-item is active
-    return (
-      location.pathname.startsWith(path) || subItems.some((item) => location.pathname === item.url)
-    )
+    return location.pathname.startsWith(path) || subItems.some((item) => location.pathname === item.url)
   }
 
   return (
@@ -37,7 +35,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
       {items.map((item) =>
         item.items && item.items.length > 0 ? (
           // Render as a collapsible menu item if it has sub-items
-          <Collapsible key={item.title} asChild defaultOpen={isGroupActive(item.url, item.items)}>
+          <Collapsible
+            key={item.title}
+            asChild
+            defaultOpen={isGroupActive(item.url, item.items)}
+          >
             <SidebarMenuItem>
               <SidebarMenuButton
                 asChild
@@ -62,7 +64,10 @@ export function NavMain({ items }: { items: NavItem[] }) {
                 <SidebarMenuSub>
                   {item.items.map((subItem) => (
                     <SidebarMenuSubItem key={subItem.title}>
-                      <SidebarMenuSubButton asChild isActive={isActive(subItem.url)}>
+                      <SidebarMenuSubButton
+                        asChild
+                        isActive={isActive(subItem.url)}
+                      >
                         <NavLink to={subItem.url}>{subItem.title}</NavLink>
                       </SidebarMenuSubButton>
                     </SidebarMenuSubItem>
@@ -74,7 +79,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
         ) : (
           // Render as a simple menu item if it has no sub-items
           <SidebarMenuItem key={item.title}>
-            <SidebarMenuButton asChild tooltip={item.title} isActive={isActive(item.url)}>
+            <SidebarMenuButton
+              asChild
+              tooltip={item.title}
+              isActive={isActive(item.url)}
+            >
               <NavLink to={item.url}>
                 <item.icon />
                 <span>{item.title}</span>

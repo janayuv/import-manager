@@ -19,16 +19,14 @@ interface ShipmentActionsProps {
   onMarkAsDelivered?: () => void
 }
 
-export const ShipmentActions = ({
-  shipment,
-  onView,
-  onEdit,
-  onMarkAsDelivered,
-}: ShipmentActionsProps) => {
+export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }: ShipmentActionsProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0 text-[#ff9900] hover:bg-[#8aff80]/10">
+        <Button
+          variant="ghost"
+          className="h-8 w-8 p-0 text-[#ff9900] hover:bg-[#8aff80]/10"
+        >
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
@@ -42,14 +40,20 @@ export const ShipmentActions = ({
           Copy Shipment ID
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="hover:text-[#ffff80]" onClick={onView}>
+        <DropdownMenuItem
+          className="hover:text-[#ffff80]"
+          onClick={onView}
+        >
           View details
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onEdit}>Edit shipment</DropdownMenuItem>
         {shipment.status !== 'delivered' && onMarkAsDelivered && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="hover:text-green-600" onClick={onMarkAsDelivered}>
+            <DropdownMenuItem
+              className="hover:text-green-600"
+              onClick={onMarkAsDelivered}
+            >
               Mark as Delivered
             </DropdownMenuItem>
           </>

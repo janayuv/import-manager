@@ -1,12 +1,7 @@
 // src/components/layout/theme-provider.tsx
 import { useEffect, useState } from 'react'
 
-import {
-  type Theme,
-  type ThemeColor,
-  ThemeProviderContext,
-  type ThemeProviderState,
-} from './theme-context'
+import { type Theme, type ThemeColor, ThemeProviderContext, type ThemeProviderState } from './theme-context'
 
 type ThemeProviderProps = {
   children: React.ReactNode
@@ -133,7 +128,10 @@ export function ThemeProvider({
   }
 
   return (
-    <ThemeProviderContext.Provider {...props} value={value}>
+    <ThemeProviderContext.Provider
+      {...props}
+      value={value}
+    >
       {children}
     </ThemeProviderContext.Provider>
   )

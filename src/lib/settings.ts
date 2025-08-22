@@ -1005,9 +1005,7 @@ export function loadSettings(): AppSettings {
           !shipmentFields.dateOfDelivery)
 
       if (hasOldShipmentFields) {
-        console.log(
-          '🔧 loadSettings - Detected old shipment fields structure, clearing settings...'
-        )
+        console.log('🔧 loadSettings - Detected old shipment fields structure, clearing settings...')
         localStorage.removeItem(SETTINGS_STORAGE_KEY)
         return defaultSettings
       }
@@ -1038,8 +1036,7 @@ export function loadSettings(): AppSettings {
 
       // Check if BOE module is missing new fields
       const boeFields = parsed.modules?.boe?.fields
-      const hasOldBoeFields =
-        boeFields && (!boeFields.id || !boeFields.refId || !boeFields.transactionId)
+      const hasOldBoeFields = boeFields && (!boeFields.id || !boeFields.refId || !boeFields.transactionId)
 
       if (hasOldBoeFields) {
         console.log('🔧 loadSettings - Detected old BOE fields structure, clearing settings...')
@@ -1058,9 +1055,7 @@ export function loadSettings(): AppSettings {
           !expensesFields.updatedAt)
 
       if (hasOldExpensesFields) {
-        console.log(
-          '🔧 loadSettings - Detected old expenses fields structure, clearing settings...'
-        )
+        console.log('🔧 loadSettings - Detected old expenses fields structure, clearing settings...')
         localStorage.removeItem(SETTINGS_STORAGE_KEY)
         return defaultSettings
       }
@@ -1070,9 +1065,7 @@ export function loadSettings(): AppSettings {
       const hasOldItemMasterFields = itemMasterFields && !itemMasterFields.id
 
       if (hasOldItemMasterFields) {
-        console.log(
-          '🔧 loadSettings - Detected old item master fields structure, clearing settings...'
-        )
+        console.log('🔧 loadSettings - Detected old item master fields structure, clearing settings...')
         localStorage.removeItem(SETTINGS_STORAGE_KEY)
         return defaultSettings
       }
@@ -1156,8 +1149,7 @@ export function clearTablePageSizeSettings(): void {
 
 // Make it available globally for console access
 if (typeof window !== 'undefined') {
-  ;(window as unknown as Record<string, unknown>).clearTablePageSizeSettings =
-    clearTablePageSizeSettings
+  ;(window as unknown as Record<string, unknown>).clearTablePageSizeSettings = clearTablePageSizeSettings
   ;(window as unknown as Record<string, unknown>).clearAllSettings = clearSettings
   ;(window as unknown as Record<string, unknown>).forceReloadSettings = () => {
     localStorage.clear()
@@ -1166,10 +1158,7 @@ if (typeof window !== 'undefined') {
 }
 
 // Update specific setting
-export function updateSettings<K extends keyof AppSettings>(
-  key: K,
-  value: AppSettings[K]
-): AppSettings {
+export function updateSettings<K extends keyof AppSettings>(key: K, value: AppSettings[K]): AppSettings {
   const current = loadSettings()
   const updated = { ...current, [key]: value }
   saveSettings(updated)
@@ -1391,10 +1380,7 @@ export function formatText(
       formatted = formatted.toUpperCase()
       break
     case 'titlecase':
-      formatted = formatted.replace(
-        /\w\S*/g,
-        (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-      )
+      formatted = formatted.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase())
       break
     case 'sentencecase':
       formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1).toLowerCase()

@@ -11,7 +11,7 @@ Runs on every push to `main`/`develop` branches and on pull requests to `main`.
 **Jobs:**
 
 - **test-frontend**: Runs linting, testing, and building of the React frontend
-- **test-tauri**: Builds and tests the Tauri application on Windows, macOS, and Ubuntu
+- **test-tauri**: Builds and tests the Tauri application on Windows only
 - **security-audit**: Runs security audits for both npm and Cargo dependencies
 
 ### 2. Release Workflow (`.github/workflows/release.yml`)
@@ -20,10 +20,10 @@ Triggers on Git tags starting with `v` (e.g., `v1.0.0`) or manual workflow dispa
 
 **Features:**
 
-- Builds production releases for Windows, macOS, and Ubuntu
+- Builds production releases for Windows only
 - Creates GitHub releases with downloadable assets
 - Supports code signing (when configured)
-- Universal builds for macOS (Intel + Apple Silicon)
+- Windows-specific builds optimized for the target platform
 
 ### 3. Dependabot Auto-merge (`.github/workflows/dependabot-auto-merge.yml`)
 
