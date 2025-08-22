@@ -21,14 +21,11 @@ const SyncErrorComponent = ({ shouldError }: { shouldError: boolean }) => {
           <Bug className="h-5 w-5" />
           Synchronous Error Test
         </CardTitle>
-        <CardDescription>
-          This component will throw a synchronous error when triggered
-        </CardDescription>
+        <CardDescription>This component will throw a synchronous error when triggered</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground text-sm">
-          Click the button below to trigger a synchronous error and test the ErrorBoundary
-          component.
+          Click the button below to trigger a synchronous error and test the ErrorBoundary component.
         </p>
       </CardContent>
     </Card>
@@ -76,22 +73,33 @@ const AsyncErrorComponent = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex flex-wrap gap-2">
-          <Button onClick={triggerAsyncError} variant="outline" size="sm">
+          <Button
+            onClick={triggerAsyncError}
+            variant="outline"
+            size="sm"
+          >
             <Database className="mr-2 h-4 w-4" />
             Trigger Async Error
           </Button>
-          <Button onClick={triggerUnhandledRejection} variant="outline" size="sm">
+          <Button
+            onClick={triggerUnhandledRejection}
+            variant="outline"
+            size="sm"
+          >
             <Network className="mr-2 h-4 w-4" />
             Trigger Unhandled Rejection
           </Button>
-          <Button onClick={triggerNetworkError} variant="outline" size="sm">
+          <Button
+            onClick={triggerNetworkError}
+            variant="outline"
+            size="sm"
+          >
             <FileText className="mr-2 h-4 w-4" />
             Trigger Network Error
           </Button>
         </div>
         <p className="text-muted-foreground text-sm">
-          These buttons will trigger different types of asynchronous errors to test the
-          AsyncErrorBoundary.
+          These buttons will trigger different types of asynchronous errors to test the AsyncErrorBoundary.
         </p>
       </CardContent>
     </Card>
@@ -115,8 +123,7 @@ const ModuleErrorComponent = ({ shouldError }: { shouldError: boolean }) => {
       </CardHeader>
       <CardContent>
         <p className="text-muted-foreground text-sm">
-          This component will throw a module-level error when triggered, testing the
-          ModuleErrorBoundary.
+          This component will throw a module-level error when triggered, testing the ModuleErrorBoundary.
         </p>
       </CardContent>
     </Card>
@@ -137,10 +144,17 @@ export const ErrorBoundaryTest = () => {
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         {/* Test 1: Synchronous Error Boundary */}
-        <ErrorBoundary componentName="SyncErrorTest" showDetails={true}>
+        <ErrorBoundary
+          componentName="SyncErrorTest"
+          showDetails={true}
+        >
           <SyncErrorComponent shouldError={syncError} />
           <div className="mt-4">
-            <Button onClick={() => setSyncError(true)} variant="destructive" size="sm">
+            <Button
+              onClick={() => setSyncError(true)}
+              variant="destructive"
+              size="sm"
+            >
               <Bug className="mr-2 h-4 w-4" />
               Trigger Sync Error
             </Button>
@@ -159,7 +173,11 @@ export const ErrorBoundaryTest = () => {
         >
           <ModuleErrorComponent shouldError={moduleError} />
           <div className="mt-4">
-            <Button onClick={() => setModuleError(true)} variant="destructive" size="sm">
+            <Button
+              onClick={() => setModuleError(true)}
+              variant="destructive"
+              size="sm"
+            >
               <AlertTriangle className="mr-2 h-4 w-4" />
               Trigger Module Error
             </Button>
@@ -274,22 +292,34 @@ const ErrorHandlerTest = () => {
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap gap-2">
-        <Button onClick={testSyncError} variant="outline" size="sm">
+        <Button
+          onClick={testSyncError}
+          variant="outline"
+          size="sm"
+        >
           <Bug className="mr-2 h-4 w-4" />
           Test Sync Error
         </Button>
-        <Button onClick={testAsyncError} variant="outline" size="sm">
+        <Button
+          onClick={testAsyncError}
+          variant="outline"
+          size="sm"
+        >
           <Zap className="mr-2 h-4 w-4" />
           Test Async Error
         </Button>
-        <Button onClick={testWrappedFunction} variant="outline" size="sm">
+        <Button
+          onClick={testWrappedFunction}
+          variant="outline"
+          size="sm"
+        >
           <FileText className="mr-2 h-4 w-4" />
           Test Wrapped Function
         </Button>
       </div>
       <p className="text-muted-foreground text-sm">
-        These buttons test different aspects of the useErrorHandler hook, including error contexts,
-        toast notifications, and console logging.
+        These buttons test different aspects of the useErrorHandler hook, including error contexts, toast notifications,
+        and console logging.
       </p>
     </div>
   )

@@ -1,12 +1,6 @@
 // src/components/shipment/view.tsx (MODIFIED)
 // Using the new date formatter for display in the view dialog.
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Separator } from '@/components/ui/separator'
 import { formatDateForDisplay } from '@/lib/date-format'
 import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
@@ -73,12 +67,7 @@ const DetailItem = ({
   )
 }
 
-export function ShipmentViewDialog({
-  isOpen,
-  onOpenChange,
-  shipment,
-  suppliers,
-}: ViewShipmentProps) {
+export function ShipmentViewDialog({ isOpen, onOpenChange, shipment, suppliers }: ViewShipmentProps) {
   if (!shipment) return null
 
   const supplierName = suppliers.find((s) => s.value === shipment.supplierId)?.label || 'Unknown'
@@ -101,7 +90,10 @@ export function ShipmentViewDialog({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Shipment Details: {shipment.invoiceNumber}</DialogTitle>
@@ -110,13 +102,19 @@ export function ShipmentViewDialog({
         <div className="grid gap-6 py-4">
           <h3 className="text-lg font-medium">Commercial Details</h3>
           <div className="grid grid-cols-4 gap-4">
-            <DetailItem label="Supplier" value={supplierName} />
+            <DetailItem
+              label="Supplier"
+              value={supplierName}
+            />
             <DetailItem
               label="Invoice #"
               value={shipment.invoiceNumber}
               fieldName="invoiceNumber"
             />
-            <DetailItem label="Invoice Date" value={formatDateForDisplay(shipment.invoiceDate)} />
+            <DetailItem
+              label="Invoice Date"
+              value={formatDateForDisplay(shipment.invoiceDate)}
+            />
             <DetailItem
               label="Goods Category"
               value={shipment.goodsCategory}
@@ -134,16 +132,39 @@ export function ShipmentViewDialog({
               value={shipment.invoiceCurrency}
               fieldName="invoiceCurrency"
             />
-            <DetailItem label="Incoterm" value={shipment.incoterm} fieldName="incoterm" />
+            <DetailItem
+              label="Incoterm"
+              value={shipment.incoterm}
+              fieldName="incoterm"
+            />
           </div>
           <Separator />
           <h3 className="text-lg font-medium">Logistics Details</h3>
           <div className="grid grid-cols-4 gap-4">
-            <DetailItem label="Mode" value={shipment.shipmentMode} fieldName="shipmentMode" />
-            <DetailItem label="Type" value={shipment.shipmentType} fieldName="shipmentType" />
-            <DetailItem label="BL/AWB #" value={shipment.blAwbNumber} fieldName="blAwbNumber" />
-            <DetailItem label="BL/AWB Date" value={formatDateForDisplay(shipment.blAwbDate)} />
-            <DetailItem label="Vessel/Flight" value={shipment.vesselName} fieldName="vesselName" />
+            <DetailItem
+              label="Mode"
+              value={shipment.shipmentMode}
+              fieldName="shipmentMode"
+            />
+            <DetailItem
+              label="Type"
+              value={shipment.shipmentType}
+              fieldName="shipmentType"
+            />
+            <DetailItem
+              label="BL/AWB #"
+              value={shipment.blAwbNumber}
+              fieldName="blAwbNumber"
+            />
+            <DetailItem
+              label="BL/AWB Date"
+              value={formatDateForDisplay(shipment.blAwbDate)}
+            />
+            <DetailItem
+              label="Vessel/Flight"
+              value={shipment.vesselName}
+              fieldName="vesselName"
+            />
             <DetailItem
               label="Container #"
               value={shipment.containerNumber}
@@ -160,10 +181,23 @@ export function ShipmentViewDialog({
           <Separator />
           <h3 className="text-lg font-medium">Dates & Status</h3>
           <div className="grid grid-cols-4 items-end gap-4">
-            <DetailItem label="ETD" value={formatDateForDisplay(shipment.etd)} />
-            <DetailItem label="ETA" value={formatDateForDisplay(shipment.eta)} />
-            <DetailItem label="Transit Days" value={calculateTransitDays()} />
-            <DetailItem label="Status" value={shipment.status} fieldName="status" />
+            <DetailItem
+              label="ETD"
+              value={formatDateForDisplay(shipment.etd)}
+            />
+            <DetailItem
+              label="ETA"
+              value={formatDateForDisplay(shipment.eta)}
+            />
+            <DetailItem
+              label="Transit Days"
+              value={calculateTransitDays()}
+            />
+            <DetailItem
+              label="Status"
+              value={shipment.status}
+              fieldName="status"
+            />
             {shipment.dateOfDelivery && (
               <DetailItem
                 label="Date of Delivery"

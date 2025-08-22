@@ -60,7 +60,7 @@ TAURI_KEY_PASSWORD     # Password for the key (if you set one)
 **What it does:**
 
 - Tests and builds frontend (React/TypeScript)
-- Tests and builds Tauri app on Windows, macOS, Ubuntu
+- Tests and builds Tauri app on Windows only
 - Runs security audits for dependencies
 - Performs linting and type checking
 
@@ -69,7 +69,7 @@ TAURI_KEY_PASSWORD     # Password for the key (if you set one)
 **Triggers:** Git tags starting with `v` (e.g., `v1.0.0`)
 **What it does:**
 
-- Builds production binaries for all platforms
+- Builds production binaries for Windows only
 - Creates GitHub releases with downloadable assets
 - Signs applications (if secrets are configured)
 - Supports universal macOS builds (Intel + Apple Silicon)
@@ -128,11 +128,11 @@ gh release create v1.0.0 --title "Import Manager v1.0.0" --notes "## Features\n-
 
 ### Common Issues
 
-**Build failures on Ubuntu:**
+**Build failures on Windows:**
 
 ```bash
 # The workflow installs these dependencies automatically:
-sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+# SQLCipher and other Windows-specific dependencies are handled by the CI
 ```
 
 **Code signing issues:**
@@ -154,9 +154,9 @@ You can customize the workflows by editing the YAML files:
 ### Add Additional Platforms
 
 ```yaml
-# In release.yml, add more platforms:
+# In release.yml, add more platforms (Windows only):
 matrix:
-  platform: [macos-latest, ubuntu-20.04, windows-latest, ubuntu-22.04]
+  platform: [windows-latest]
 ```
 
 ### Change Node.js Version

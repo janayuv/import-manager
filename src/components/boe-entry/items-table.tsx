@@ -6,21 +6,8 @@ import type { Dispatch, SetStateAction } from 'react'
 import React from 'react'
 
 import { Input } from '@/components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { BoeItemInput, CalculationMethod, InvoiceItem } from '@/types/boe-entry'
 
 interface ItemsTableProps {
@@ -112,13 +99,14 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
             const hasBcdDiscrepancy = boeBcd > 0 && boeBcd > actualBcd
 
             return (
-              <TableRow key={item.partNo} className={hasBcdDiscrepancy ? 'bg-red-50' : ''}>
+              <TableRow
+                key={item.partNo}
+                className={hasBcdDiscrepancy ? 'bg-red-50' : ''}
+              >
                 <TableCell className="font-medium">{item.partNo}</TableCell>
                 <TableCell>{item.description}</TableCell>
                 <TableCell className="text-right">{item.qty ?? '-'}</TableCell>
-                <TableCell className="text-right">
-                  {item.unitPrice != null ? item.unitPrice.toFixed(2) : '-'}
-                </TableCell>
+                <TableCell className="text-right">{item.unitPrice != null ? item.unitPrice.toFixed(2) : '-'}</TableCell>
                 <TableCell className="text-right">{item.hsCode ?? '-'}</TableCell>
                 {/* --- NEW: Display actual rates from shipment --- */}
                 <TableCell className="text-right">{item.actualBcdRate.toFixed(2)}%</TableCell>
@@ -127,9 +115,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
                 <TableCell>
                   <Select
                     value={itemInputs[index]?.calculationMethod || 'Standard'}
-                    onValueChange={(value: CalculationMethod) =>
-                      handleInputChange(index, 'calculationMethod', value)
-                    }
+                    onValueChange={(value: CalculationMethod) => handleInputChange(index, 'calculationMethod', value)}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select method" />
@@ -146,12 +132,8 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
                     type="number"
                     className={`text-right ${hasBcdDiscrepancy ? 'border-red-500 bg-red-50' : ''}`}
                     value={itemInputs[index]?.boeBcdRate ?? ''}
-                    onChange={(e) =>
-                      handleInputChange(index, 'boeBcdRate', parseFloat(e.target.value) || 0)
-                    }
-                    title={
-                      hasBcdDiscrepancy ? `Actual BCD (${actualBcd}%) > BOE BCD (${boeBcd}%)` : ''
-                    }
+                    onChange={(e) => handleInputChange(index, 'boeBcdRate', parseFloat(e.target.value) || 0)}
+                    title={hasBcdDiscrepancy ? `Actual BCD (${actualBcd}%) > BOE BCD (${boeBcd}%)` : ''}
                   />
                 </TableCell>
                 <TableCell>
@@ -159,9 +141,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
                     type="number"
                     className="text-right"
                     value={itemInputs[index]?.boeSwsRate ?? ''}
-                    onChange={(e) =>
-                      handleInputChange(index, 'boeSwsRate', parseFloat(e.target.value) || 0)
-                    }
+                    onChange={(e) => handleInputChange(index, 'boeSwsRate', parseFloat(e.target.value) || 0)}
                   />
                 </TableCell>
                 <TableCell>
@@ -187,7 +167,11 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
       }) && (
         <div className="border-t border-red-200 bg-red-50 p-4">
           <div className="flex items-center gap-2 text-red-700">
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+            <svg
+              className="h-5 w-5"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
               <path
                 fillRule="evenodd"
                 d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
@@ -197,8 +181,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
             <span className="font-medium">BCD Discrepancy Alert</span>
           </div>
           <p className="mt-1 text-sm text-red-600">
-            BOE BCD rates are higher than Actual BCD rates for some items. Please review and correct
-            the rates.
+            BOE BCD rates are higher than Actual BCD rates for some items. Please review and correct the rates.
           </p>
         </div>
       )}

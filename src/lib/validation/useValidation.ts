@@ -54,9 +54,7 @@ export function useValidation<T extends Record<string, unknown>>({
   // State
   const [data, setDataState] = useState<Partial<T>>(initialData)
   const [errors, setErrors] = useState<Record<keyof T, string[]>>({} as Record<keyof T, string[]>)
-  const [touched, setTouchedState] = useState<Record<keyof T, boolean>>(
-    {} as Record<keyof T, boolean>
-  )
+  const [touched, setTouchedState] = useState<Record<keyof T, boolean>>({} as Record<keyof T, boolean>)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   // Memoized validation state
@@ -323,9 +321,7 @@ export function useRealTimeValidation<T>(
   } = {}
 ) {
   const { showToast = false } = options
-  const [validationErrors, setValidationErrors] = useState<Record<keyof T, string[]>>(
-    {} as Record<keyof T, string[]>
-  )
+  const [validationErrors, setValidationErrors] = useState<Record<keyof T, string[]>>({} as Record<keyof T, string[]>)
 
   const validateRealTime = useCallback(
     (field: keyof T, value: T[keyof T]) => {

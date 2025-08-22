@@ -172,7 +172,10 @@ import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary'
 function App() {
   return (
     <AsyncErrorBoundary componentName="App">
-      <ErrorBoundary componentName="App" showDetails={process.env.NODE_ENV === 'development'}>
+      <ErrorBoundary
+        componentName="App"
+        showDetails={process.env.NODE_ENV === 'development'}
+      >
         <Router>
           <Routes>{/* Your routes */}</Routes>
         </Router>
@@ -190,7 +193,10 @@ import { ModuleErrorBoundary } from '@/components/error-boundary'
 
 const ExpensesPage = () => {
   return (
-    <ModuleErrorBoundary moduleName="Expenses" showDetails={process.env.NODE_ENV === 'development'}>
+    <ModuleErrorBoundary
+      moduleName="Expenses"
+      showDetails={process.env.NODE_ENV === 'development'}
+    >
       {/* Page content */}
     </ModuleErrorBoundary>
   )

@@ -4,14 +4,7 @@ import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react'
 import * as React from 'react'
 
 import { Button } from '@/components/ui/button'
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from '@/components/ui/command'
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { cn } from '@/lib/utils'
 import type { Option } from '@/types/options'
@@ -54,12 +47,13 @@ export function CreatableCombobox({
   }
 
   // Check if the current search query exactly matches an existing option's label
-  const exactMatch = options.some(
-    (option) => option.label.toLowerCase() === searchQuery.toLowerCase()
-  )
+  const exactMatch = options.some((option) => option.label.toLowerCase() === searchQuery.toLowerCase())
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover
+      open={open}
+      onOpenChange={setOpen}
+    >
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -112,12 +106,7 @@ export function CreatableCombobox({
                       setOpen(false)
                     }}
                   >
-                    <Check
-                      className={cn(
-                        'mr-2 h-4 w-4',
-                        value === option.value ? 'opacity-100' : 'opacity-0'
-                      )}
-                    />
+                    <Check className={cn('mr-2 h-4 w-4', value === option.value ? 'opacity-100' : 'opacity-0')} />
                     {option.label}
                   </CommandItem>
                 ))}

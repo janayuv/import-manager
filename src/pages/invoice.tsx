@@ -11,7 +11,7 @@ import * as React from 'react'
 import { getInvoiceColumns } from '@/components/invoice/columns'
 import { InvoiceForm } from '@/components/invoice/form'
 import { InvoiceViewDialog } from '@/components/invoice/view'
-import { DataTable } from '@/components/shared/data-table'
+import { ResponsiveDataTable } from '@/components/ui/responsive-table'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,14 +23,9 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSettings } from '@/lib/use-settings'
+import { useResponsiveContext } from '@/providers/ResponsiveProvider'
 import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
@@ -45,6 +40,7 @@ type BulkImportRow = {
 
 const InvoicePage = () => {
   const { settings } = useSettings()
+  const { getTextClass, getButtonClass, getSpacingClass } = useResponsiveContext()
   const [invoices, setInvoices] = React.useState<Invoice[]>([])
   const [shipments, setShipments] = React.useState<Shipment[]>([])
   const [unfinalizedShipments, setUnfinalizedShipments] = React.useState<Shipment[]>([])
@@ -63,7 +59,7 @@ const InvoicePage = () => {
     number: string
   } | null>(null)
 
-  const [statusFilter, setStatusFilter] = React.useState('All')
+  const [statusFilter] = React.useState('All')
 
   const fetchData = React.useCallback(async () => {
     setLoading(true)
@@ -119,9 +115,7 @@ const InvoicePage = () => {
   const flattenedData = React.useMemo(() => {
     const data: FlattenedInvoiceLine[] = []
     const filteredInvoices =
-      statusFilter === 'All'
-        ? invoices
-        : invoices.filter((invoice) => invoice.status === statusFilter)
+      statusFilter === 'All' ? invoices : invoices.filter((invoice) => invoice.status === statusFilter)
 
     filteredInvoices.forEach((invoice) => {
       const shipment = shipments.find((s) => s.id === invoice.shipmentId)
@@ -292,9 +286,7 @@ const InvoicePage = () => {
         toast.success(`Invoice ${invoiceData.invoiceNumber} has been updated.`)
       } else {
         await invoke('add_invoice', { payload })
-        toast.success(
-          `Invoice ${invoiceData.invoiceNumber} has been saved as ${invoiceData.status}.`
-        )
+        toast.success(`Invoice ${invoiceData.invoiceNumber} has been saved as ${invoiceData.status}.`)
       }
       setFormOpen(false)
       fetchData()
@@ -339,19 +331,14 @@ const InvoicePage = () => {
       const shipmentMap = new Map(shipments.map((s) => [s.invoiceNumber, s.id]))
       const itemMap = new Map(items.map((i) => [i.partNumber, i.id]))
 
-      const invoicesToCreate = new Map<
-        string,
-        { itemId: string; quantity: number; unitPrice: number }[]
-      >()
+      const invoicesToCreate = new Map<string, { itemId: string; quantity: number; unitPrice: number }[]>()
 
       for (const row of results.data) {
         const shipmentId = shipmentMap.get(row.shipmentInvoiceNumber)
         const itemId = itemMap.get(row.itemPartNumber)
 
         if (!shipmentId) {
-          toast.warning(
-            `Skipping row: Shipment with invoice number "${row.shipmentInvoiceNumber}" not found.`
-          )
+          toast.warning(`Skipping row: Shipment with invoice number "${row.shipmentInvoiceNumber}" not found.`)
           continue
         }
         if (!itemId) {
@@ -407,8 +394,12 @@ const InvoicePage = () => {
     )
   }
 
-  const toolbar = (
-    <Select value={statusFilter} onValueChange={setStatusFilter}>
+  // Status filter UI (currently not used in table toolbar)
+  /* const statusFilterControl = (
+    <Select
+      value={statusFilter}
+      onValueChange={setStatusFilter}
+    >
       <SelectTrigger className="w-[180px]">
         <SelectValue placeholder="Filter by status" />
       </SelectTrigger>
@@ -419,29 +410,54 @@ const InvoicePage = () => {
         <SelectItem value="Mismatch">Mismatch</SelectItem>
       </SelectContent>
     </Select>
-  )
+  ) */
 
   return (
     <div className="container mx-auto py-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Invoice Details</h1>
-        <div className="flex items-center gap-2">
-          <Button onClick={handleOpenFormForAdd}>
+      <div className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}>
+        <h1 className={`${getTextClass('2xl')} font-bold`}>Invoice Details</h1>
+        <div className={`flex items-center ${getSpacingClass()}`}>
+          <Button
+            onClick={handleOpenFormForAdd}
+            className={getButtonClass()}
+          >
             <Plus className="mr-2 h-4 w-4" /> Add New Invoice
           </Button>
-          <Button onClick={handleDownloadTemplate} variant="outline">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="outline"
+            className={getButtonClass()}
+          >
             <Download className="mr-2 h-4 w-4" /> Template
           </Button>
-          <Button onClick={handleBulkImport} variant="outline">
+          <Button
+            onClick={handleBulkImport}
+            variant="outline"
+            className={getButtonClass()}
+          >
             <Upload className="mr-2 h-4 w-4" /> Import Bulk
           </Button>
         </div>
       </div>
-      <DataTable
+      <ResponsiveDataTable
         columns={columns}
         data={flattenedData}
-        storageKey="invoice-table-page-size"
-        toolbar={toolbar}
+        searchPlaceholder="Search invoices..."
+        hideColumnsOnSmall={[
+          'supplierName',
+          'shipmentInvoiceNumber',
+          'totalAmount',
+          'totalTax',
+          'totalDiscount',
+          'finalAmount',
+        ]}
+        columnWidths={{
+          invoiceNumber: { minWidth: '150px', maxWidth: '200px' },
+          supplierName: { minWidth: '200px', maxWidth: '300px' },
+          shipmentInvoiceNumber: { minWidth: '150px', maxWidth: '200px' },
+          itemPartNumber: { minWidth: '120px', maxWidth: '150px' },
+          itemDescription: { minWidth: '200px', maxWidth: '300px' },
+        }}
       />
 
       <InvoiceForm
@@ -460,7 +476,10 @@ const InvoicePage = () => {
         suppliers={suppliers}
         shipments={shipments}
       />
-      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

@@ -33,10 +33,7 @@ interface ShipmentWithExpenseCount extends Shipment {
   isComplete: boolean
 }
 
-const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
-  selectedShipment,
-  setSelectedShipment,
-}) => {
+const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({ selectedShipment, setSelectedShipment }) => {
   const { settings } = useSettings()
   const [shipments, setShipments] = useState<ShipmentWithExpenseCount[]>([])
   const [options, setOptions] = useState<ComboboxOption[]>([])
@@ -101,9 +98,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
           `Selected completed shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} (${shipment.expenseCount} expenses)`
         )
       else
-        toast.info(
-          `Selected shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} - ready for expenses`
-        )
+        toast.info(`Selected shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} - ready for expenses`)
     }
   }
 
@@ -130,13 +125,19 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
   const getStatusBadge = (shipment: ShipmentWithExpenseCount) => {
     if (shipment.isComplete) {
       return (
-        <Badge variant="default" className="text-xs">
+        <Badge
+          variant="default"
+          className="text-xs"
+        >
           ✓ Complete ({shipment.expenseCount} expenses)
         </Badge>
       )
     }
     return (
-      <Badge variant="secondary" className="text-xs">
+      <Badge
+        variant="secondary"
+        className="text-xs"
+      >
         Ready for Expenses
       </Badge>
     )
@@ -153,7 +154,11 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
           </p>
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button size="sm" variant="outline" className="h-6 text-xs">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-6 text-xs"
+              >
                 Freeze Shipment
               </Button>
             </AlertDialogTrigger>
@@ -161,8 +166,8 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
               <AlertDialogHeader>
                 <AlertDialogTitle>Freeze Shipment</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Freezing will hide this shipment from the expense tracking list but won't delete
-                  the shipment or expenses.
+                  Freezing will hide this shipment from the expense tracking list but won't delete the shipment or
+                  expenses.
                   <br />
                   <br />
                   Are you sure you want to freeze it?
@@ -242,12 +247,10 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
           </div>
           <div className="text-muted-foreground space-y-1 text-xs">
             <p>
-              <strong>Invoice:</strong>{' '}
-              {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
+              <strong>Invoice:</strong> {formatText(selectedShipment.invoiceNumber, settings.textFormat)}
             </p>
             <p>
-              <strong>BL/AWB:</strong>{' '}
-              {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
+              <strong>BL/AWB:</strong> {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
             </p>
             <p>
               <strong>Date:</strong> {safeDateLabel(selectedShipment.invoiceDate)}
@@ -255,11 +258,11 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
             {selectedShipmentWithExpenses && selectedShipmentWithExpenses.expenseCount > 0 && (
               <p>
                 <strong>Expenses:</strong> {selectedShipmentWithExpenses.expenseCount} (₹
-                {formatNumber(
-                  selectedShipmentWithExpenses.totalExpenseAmount,
-                  settings.numberFormat,
-                  { numberFormat: 'currency', precision: 2, showSign: false }
-                )}
+                {formatNumber(selectedShipmentWithExpenses.totalExpenseAmount, settings.numberFormat, {
+                  numberFormat: 'currency',
+                  precision: 2,
+                  showSign: false,
+                })}
                 )
               </p>
             )}

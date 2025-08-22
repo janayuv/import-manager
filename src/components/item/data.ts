@@ -18,8 +18,7 @@ export const dummyItems: Item[] = [
     bcd: 10, // CHANGED to number
     sws: 10, // CHANGED to number
     igst: 18, // CHANGED to number
-    technicalWriteUp:
-      'High-grade 304 stainless steel screws, suitable for all weather conditions. Phillips head.',
+    technicalWriteUp: 'High-grade 304 stainless steel screws, suitable for all weather conditions. Phillips head.',
     category: 'Fasteners',
     endUse: 'Air Cleaner Assembly',
     netWeightKg: 0.002,
@@ -41,8 +40,7 @@ export const dummyItems: Item[] = [
     bcd: 7.5, // CHANGED to number
     sws: 10, // CHANGED to number
     igst: 18, // CHANGED to number
-    technicalWriteUp:
-      'High-performance oil filter for XYZ series engines. Recommended replacement every 10,000 km.',
+    technicalWriteUp: 'High-performance oil filter for XYZ series engines. Recommended replacement every 10,000 km.',
     category: 'Filters',
     endUse: 'Engine Assembly',
     netWeightKg: 0.8,

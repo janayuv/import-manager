@@ -53,9 +53,7 @@ export function LoginPage() {
       <Card className="mx-auto max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>
-            Enter your username and password to access the Import Manager
-          </CardDescription>
+          <CardDescription>Enter your username and password to access the Import Manager</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
@@ -86,7 +84,12 @@ export function LoginPage() {
                 disabled={isLoading}
               />
             </div>
-            <Button type="submit" className="w-full" onClick={handleLogin} disabled={isLoading}>
+            <Button
+              type="submit"
+              className="w-full"
+              onClick={handleLogin}
+              disabled={isLoading}
+            >
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
           </div>

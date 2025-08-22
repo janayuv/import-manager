@@ -11,14 +11,7 @@
 
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { SavedBoe } from '@/types/boe-entry'
 
 /*
@@ -104,9 +97,7 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
     <Card>
       <CardHeader>
         <CardTitle>Saved BOE Calculations</CardTitle>
-        <CardDescription>
-          Here is a list of all the BOE calculations you have saved.
-        </CardDescription>
+        <CardDescription>Here is a list of all the BOE calculations you have saved.</CardDescription>
       </CardHeader>
       <CardContent>
         <div className="rounded-md border">
@@ -124,9 +115,7 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
                 <TableRow key={boe.id}>
                   <TableCell className="font-medium">{boe.invoiceNumber}</TableCell>
                   <TableCell>{boe.supplierName}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(boe.calculationResult.customsDutyTotal)}
-                  </TableCell>
+                  <TableCell className="text-right">{formatCurrency(boe.calculationResult.customsDutyTotal)}</TableCell>
                   <TableCell className="space-x-2 text-right">
                     <Button
                       variant="outline"

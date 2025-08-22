@@ -79,12 +79,7 @@ export interface CalculationResult {
 }
 
 // --- Phase 3: Operational Hub additions ---
-export type BoeStatus =
-  | 'Awaiting BOE Data'
-  | 'Discrepancy Found'
-  | 'Reconciled'
-  | 'Investigation'
-  | 'Closed'
+export type BoeStatus = 'Awaiting BOE Data' | 'Discrepancy Found' | 'Reconciled' | 'Investigation' | 'Closed'
 
 export interface Attachment {
   id: string

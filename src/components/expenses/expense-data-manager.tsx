@@ -14,9 +14,7 @@ const ExpenseDataManager: React.FC = () => {
 
   const clearExpenseData = async () => {
     if (
-      !confirm(
-        'Are you sure you want to clear all expense types and service providers? This action cannot be undone.'
-      )
+      !confirm('Are you sure you want to clear all expense types and service providers? This action cannot be undone.')
     ) {
       return
     }
@@ -84,21 +82,31 @@ const ExpenseDataManager: React.FC = () => {
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              This will remove all existing expense types and service providers from the database.
-              You will need to add them manually after clearing.
+              This will remove all existing expense types and service providers from the database. You will need to add
+              them manually after clearing.
             </AlertDescription>
           </Alert>
 
           <div className="flex gap-2">
-            <Button variant="destructive" onClick={clearExpenseData} disabled={isClearing}>
+            <Button
+              variant="destructive"
+              onClick={clearExpenseData}
+              disabled={isClearing}
+            >
               {isClearing ? 'Clearing...' : 'Clear All Expense Data'}
             </Button>
 
-            <Button variant="outline" onClick={debugExpenseData}>
+            <Button
+              variant="outline"
+              onClick={debugExpenseData}
+            >
               Debug Expense Data
             </Button>
 
-            <Button variant="outline" onClick={cleanupOrphanedExpenses}>
+            <Button
+              variant="outline"
+              onClick={cleanupOrphanedExpenses}
+            >
               Cleanup Orphaned Data
             </Button>
           </div>

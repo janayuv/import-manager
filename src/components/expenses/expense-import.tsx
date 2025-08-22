@@ -13,14 +13,7 @@ import { Combobox } from '@/components/ui/combobox'
 import { Label } from '@/components/ui/label'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import type { ExpenseType, ServiceProvider } from '@/types/expense'
@@ -121,9 +114,7 @@ export default function ExpenseImport({
         }
 
         // Cross-reference validation
-        const expenseType = expenseTypes.find(
-          (et) => et.name.toLowerCase() === row.expenseTypeName?.toLowerCase()
-        )
+        const expenseType = expenseTypes.find((et) => et.name.toLowerCase() === row.expenseTypeName?.toLowerCase())
         if (!expenseType) {
           errors.push(`Row ${rowNumber}: Expense Type "${row.expenseTypeName}" not found`)
         }
@@ -386,9 +377,7 @@ export default function ExpenseImport({
       const invoiceId = await invoke('add_expenses_bulk', { payload: bulkPayload })
 
       setProgress(100)
-      toast.success(
-        `Successfully imported ${importData.length} expenses (Invoice ID: ${invoiceId})`
-      )
+      toast.success(`Successfully imported ${importData.length} expenses (Invoice ID: ${invoiceId})`)
       setImportData([])
       setSelectedShipment('')
       onImportSuccess()
@@ -418,10 +407,18 @@ export default function ExpenseImport({
           <CardTitle className="flex items-center justify-between">
             <span>Import Expenses</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={downloadTemplate}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={downloadTemplate}
+              >
                 📥 Download Template
               </Button>
-              <Button variant="outline" size="sm" onClick={handleReset}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleReset}
+              >
                 🔄 Reset
               </Button>
             </div>
@@ -474,7 +471,10 @@ export default function ExpenseImport({
           {isProcessing && (
             <div className="space-y-2">
               <Label>Processing...</Label>
-              <Progress value={progress} className="w-full" />
+              <Progress
+                value={progress}
+                className="w-full"
+              />
             </div>
           )}
 
@@ -488,9 +488,7 @@ export default function ExpenseImport({
                     {validationErrors.slice(0, 10).map((error, index) => (
                       <li key={index}>{error}</li>
                     ))}
-                    {validationErrors.length > 10 && (
-                      <li>... and {validationErrors.length - 10} more errors</li>
-                    )}
+                    {validationErrors.length > 10 && <li>... and {validationErrors.length - 10} more errors</li>}
                   </ul>
                 </div>
               </AlertDescription>
@@ -507,7 +505,10 @@ export default function ExpenseImport({
               >
                 {isProcessing ? 'Importing...' : `Import ${importData.length} Expenses`}
               </Button>
-              <Button variant="outline" onClick={() => setPreviewMode(!previewMode)}>
+              <Button
+                variant="outline"
+                onClick={() => setPreviewMode(!previewMode)}
+              >
                 {previewMode ? 'Hide Preview' : 'Show Preview'}
               </Button>
             </div>
@@ -564,14 +565,20 @@ export default function ExpenseImport({
                       <TableCell className="text-right">
                         ₹{row.totalAmount.toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </TableCell>
-                      <TableCell className="max-w-xs truncate" title={row.remarks}>
+                      <TableCell
+                        className="max-w-xs truncate"
+                        title={row.remarks}
+                      >
                         {row.remarks}
                       </TableCell>
                     </TableRow>
                   ))}
                   {importData.length > 10 && (
                     <TableRow>
-                      <TableCell colSpan={11} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={11}
+                        className="text-muted-foreground text-center"
+                      >
                         ... and {importData.length - 10} more records
                       </TableCell>
                     </TableRow>
@@ -614,8 +621,7 @@ export default function ExpenseImport({
           </div>
           <Separator />
           <div className="text-muted-foreground text-sm">
-            <strong>💡 Tip:</strong> Download the template first to see the exact format and sample
-            data structure.
+            <strong>💡 Tip:</strong> Download the template first to see the exact format and sample data structure.
           </div>
         </CardContent>
       </Card>

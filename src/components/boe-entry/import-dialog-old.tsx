@@ -26,23 +26,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from '@/components/ui/form'
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import type { Shipment } from '@/types/boe-entry'
@@ -143,9 +130,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
   const [overrideFile, setOverrideFile] = React.useState<File | null>(null)
 
   React.useEffect(() => {
-    const uniqueSuppliers = [
-      ...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat))),
-    ]
+    const uniqueSuppliers = [...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))]
     setSuppliers(uniqueSuppliers)
   }, [shipments, settings.textFormat])
 
@@ -178,23 +163,30 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
   }
 
   return (
-    <Dialog open={true} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Dialog
+      open={true}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+    >
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Import Calculation</DialogTitle>
-          <DialogDescription>
-            Select an invoice, enter costs, and upload a duty override file.
-          </DialogDescription>
+          <DialogDescription>Select an invoice, enter costs, and upload a duty override file.</DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4"
+          >
             <FormField
               control={form.control}
               name="supplierName"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Supplier</FormLabel>
-                  <Select onValueChange={handleSupplierChange} defaultValue={field.value}>
+                  <Select
+                    onValueChange={handleSupplierChange}
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select supplier" />
@@ -202,7 +194,10 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                     </FormControl>
                     <SelectContent>
                       {suppliers.map((s) => (
-                        <SelectItem key={s} value={s}>
+                        <SelectItem
+                          key={s}
+                          value={s}
+                        >
                           {s}
                         </SelectItem>
                       ))}
@@ -230,7 +225,10 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                     </FormControl>
                     <SelectContent>
                       {availableInvoices.map((s) => (
-                        <SelectItem key={s.id} value={s.id}>
+                        <SelectItem
+                          key={s.id}
+                          value={s.id}
+                        >
                           {s.invoiceNumber}
                         </SelectItem>
                       ))}
@@ -251,11 +249,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={
-                          typeof field.value === 'number' || typeof field.value === 'string'
-                            ? field.value
-                            : ''
-                        }
+                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -272,11 +266,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={
-                          typeof field.value === 'number' || typeof field.value === 'string'
-                            ? field.value
-                            : ''
-                        }
+                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -293,11 +283,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={
-                          typeof field.value === 'number' || typeof field.value === 'string'
-                            ? field.value
-                            : ''
-                        }
+                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -314,11 +300,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={
-                          typeof field.value === 'number' || typeof field.value === 'string'
-                            ? field.value
-                            : ''
-                        }
+                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
                       />
                     </FormControl>
                     <FormMessage />
@@ -336,11 +318,7 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                     <Input
                       type="number"
                       {...field}
-                      value={
-                        typeof field.value === 'number' || typeof field.value === 'string'
-                          ? field.value
-                          : ''
-                      }
+                      value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
                     />
                   </FormControl>
                   <FormMessage />
@@ -358,10 +336,17 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
             </div>
 
             <DialogFooter>
-              <Button variant="ghost" type="button" onClick={onClose}>
+              <Button
+                variant="ghost"
+                type="button"
+                onClick={onClose}
+              >
                 Cancel
               </Button>
-              <Button type="submit" disabled={!overrideFile || !form.formState.isValid}>
+              <Button
+                type="submit"
+                disabled={!overrideFile || !form.formState.isValid}
+              >
                 Import & Calculate
               </Button>
             </DialogFooter>

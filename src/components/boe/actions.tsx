@@ -23,7 +23,10 @@ export function BoeActions({ boe, onView, onEdit, onDelete }: BoeActionsProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
+        <Button
+          variant="ghost"
+          className="h-8 w-8 p-0"
+        >
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
@@ -37,7 +40,10 @@ export function BoeActions({ boe, onView, onEdit, onDelete }: BoeActionsProps) {
           <Pencil className="mr-2 h-4 w-4" /> Edit
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => onDelete(boe.id, boe.beNumber)} className="text-red-600">
+        <DropdownMenuItem
+          onClick={() => onDelete(boe.id, boe.beNumber)}
+          className="text-red-600"
+        >
           <Trash2 className="mr-2 h-4 w-4" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>

@@ -35,10 +35,7 @@ export const getShipmentColumns = (
       header: ({ table }) => (
         <Checkbox
           className="custom-checkbox"
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -288,9 +285,7 @@ export const getShipmentColumns = (
             trimWhitespace: fieldConfig?.trimWhitespace || false,
           })
         }
-        const statusLabel = formattedStatus
-          .replace(/-/g, ' ')
-          .replace(/\b\w/g, (l) => l.toUpperCase())
+        const statusLabel = formattedStatus.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
         return <Badge variant="outline">{statusLabel}</Badge>
       },
     },

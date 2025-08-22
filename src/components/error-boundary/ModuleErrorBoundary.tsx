@@ -46,11 +46,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(
-      `ModuleErrorBoundary caught an error in ${this.props.moduleName}:`,
-      error,
-      errorInfo
-    )
+    console.error(`ModuleErrorBoundary caught an error in ${this.props.moduleName}:`, error, errorInfo)
 
     this.setState({
       error,
@@ -132,12 +128,8 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                   <AlertTriangle className="text-destructive h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-destructive">
-                    {this.props.moduleName} Module Error
-                  </CardTitle>
-                  <CardDescription>
-                    An error occurred while loading the {this.props.moduleName} module
-                  </CardDescription>
+                  <CardTitle className="text-destructive">{this.props.moduleName} Module Error</CardTitle>
+                  <CardDescription>An error occurred while loading the {this.props.moduleName} module</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -146,29 +138,43 @@ export class ModuleErrorBoundary extends Component<Props, State> {
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Error Details</AlertTitle>
-                <AlertDescription>
-                  {this.state.error?.message || 'Unknown error occurred'}
-                </AlertDescription>
+                <AlertDescription>{this.state.error?.message || 'Unknown error occurred'}</AlertDescription>
               </Alert>
 
               <div className="flex flex-wrap gap-2">
                 {this.props.allowRetry !== false && (
-                  <Button onClick={this.handleReset} variant="outline" size="sm">
+                  <Button
+                    onClick={this.handleReset}
+                    variant="outline"
+                    size="sm"
+                  >
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Retry Module
                   </Button>
                 )}
-                <Button onClick={this.handleReload} variant="outline" size="sm">
+                <Button
+                  onClick={this.handleReload}
+                  variant="outline"
+                  size="sm"
+                >
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Reload Page
                 </Button>
                 {this.props.allowNavigation !== false && (
-                  <Button onClick={this.handleGoBack} variant="outline" size="sm">
+                  <Button
+                    onClick={this.handleGoBack}
+                    variant="outline"
+                    size="sm"
+                  >
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     Go Back
                   </Button>
                 )}
-                <Button onClick={this.handleCopyError} variant="outline" size="sm">
+                <Button
+                  onClick={this.handleCopyError}
+                  variant="outline"
+                  size="sm"
+                >
                   <Copy className="mr-2 h-4 w-4" />
                   Copy Error
                 </Button>
@@ -186,15 +192,16 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                       <Bug className="h-4 w-4" />
                       {this.state.showDetails ? 'Hide' : 'Show'} Technical Details
                     </span>
-                    <X
-                      className={`h-4 w-4 transition-transform ${this.state.showDetails ? 'rotate-45' : ''}`}
-                    />
+                    <X className={`h-4 w-4 transition-transform ${this.state.showDetails ? 'rotate-45' : ''}`} />
                   </Button>
 
                   {this.state.showDetails && (
                     <div className="bg-muted/50 space-y-3 rounded-md border p-3">
                       <div>
-                        <Badge variant="secondary" className="mb-2">
+                        <Badge
+                          variant="secondary"
+                          className="mb-2"
+                        >
                           Module
                         </Badge>
                         <pre className="text-muted-foreground text-sm">{this.props.moduleName}</pre>
@@ -203,18 +210,22 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                       <Separator />
 
                       <div>
-                        <Badge variant="secondary" className="mb-2">
+                        <Badge
+                          variant="secondary"
+                          className="mb-2"
+                        >
                           Error Message
                         </Badge>
-                        <pre className="text-muted-foreground text-sm">
-                          {this.state.error?.message}
-                        </pre>
+                        <pre className="text-muted-foreground text-sm">{this.state.error?.message}</pre>
                       </div>
 
                       <Separator />
 
                       <div>
-                        <Badge variant="secondary" className="mb-2">
+                        <Badge
+                          variant="secondary"
+                          className="mb-2"
+                        >
                           Stack Trace
                         </Badge>
                         <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">
@@ -225,7 +236,10 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                       <Separator />
 
                       <div>
-                        <Badge variant="secondary" className="mb-2">
+                        <Badge
+                          variant="secondary"
+                          className="mb-2"
+                        >
                           Component Stack
                         </Badge>
                         <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">

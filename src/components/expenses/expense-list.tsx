@@ -16,14 +16,7 @@ import {
 } from '@/components/ui/alert-dialog'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { ExpenseType, ExpenseWithInvoice, ServiceProvider } from '@/types/expense'
 
 interface ExpenseListProps {
@@ -150,23 +143,22 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
         </TableHeader>
         <TableBody>
           {expenses.map((expense) => (
-            <TableRow key={expense.id} className="hover:bg-muted/50">
+            <TableRow
+              key={expense.id}
+              className="hover:bg-muted/50"
+            >
               <TableCell>
                 <Badge variant="outline">{expenseTypes.get(expense.expenseTypeId) || 'N/A'}</Badge>
               </TableCell>
               <TableCell>{serviceProviders.get(expense.serviceProviderId) || 'N/A'}</TableCell>
               <TableCell className="font-mono text-sm">{expense.invoiceNo || 'N/A'}</TableCell>
-              <TableCell>
-                {expense.invoiceDate ? new Date(expense.invoiceDate).toLocaleDateString() : 'N/A'}
-              </TableCell>
+              <TableCell>{expense.invoiceDate ? new Date(expense.invoiceDate).toLocaleDateString() : 'N/A'}</TableCell>
               <TableCell className="font-mono">₹{expense.amount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.cgstAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.sgstAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.igstAmount.toFixed(2)}</TableCell>
               <TableCell className="font-mono">₹{expense.tdsAmount.toFixed(2)}</TableCell>
-              <TableCell className="font-mono font-semibold">
-                ₹{computeTotalForExpense(expense).toFixed(2)}
-              </TableCell>
+              <TableCell className="font-mono font-semibold">₹{computeTotalForExpense(expense).toFixed(2)}</TableCell>
               <TableCell>
                 <div className="flex space-x-2">
                   <Button
@@ -192,11 +184,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
                       <AlertDialogHeader>
                         <AlertDialogTitle>Delete Expense</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Are you sure you want to delete this expense? This action cannot be
-                          undone.
+                          Are you sure you want to delete this expense? This action cannot be undone.
                           <br />
-                          <strong>Expense Type:</strong>{' '}
-                          {expenseTypes.get(expense.expenseTypeId) || 'N/A'}
+                          <strong>Expense Type:</strong> {expenseTypes.get(expense.expenseTypeId) || 'N/A'}
                           <br />
                           <strong>Amount:</strong> ₹{computeTotalForExpense(expense).toFixed(2)}
                         </AlertDialogDescription>
@@ -221,9 +211,7 @@ const ExpenseList: React.FC<ExpenseListProps> = ({ shipmentId, onEdit, onDelete,
       {expenses.length === 0 && !loading && (
         <div className="py-8 text-center">
           <p className="text-muted-foreground">No expenses found for this shipment.</p>
-          <p className="text-muted-foreground mt-1 text-sm">
-            Add your first expense using the form on the right.
-          </p>
+          <p className="text-muted-foreground mt-1 text-sm">Add your first expense using the form on the right.</p>
         </div>
       )}
     </div>

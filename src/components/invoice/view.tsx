@@ -15,14 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import type { Invoice } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
@@ -44,14 +37,7 @@ const DetailRow = ({ label, value }: { label: string; value: string | number }) 
   </div>
 )
 
-export function InvoiceViewDialog({
-  isOpen,
-  onOpenChange,
-  invoice,
-  items,
-  suppliers,
-  shipments,
-}: ViewDialogProps) {
+export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppliers, shipments }: ViewDialogProps) {
   if (!invoice) return null
 
   const shipment = shipments.find((s: Shipment) => s.id === invoice.shipmentId)
@@ -59,9 +45,7 @@ export function InvoiceViewDialog({
   const currency = shipment?.invoiceCurrency || 'USD'
 
   const formatCurrency = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(
-      amount
-    )
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(amount)
   }
 
   const handleExport = async () => {
@@ -104,7 +88,10 @@ export function InvoiceViewDialog({
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>View Invoice: {invoice.invoiceNumber}</DialogTitle>
@@ -113,18 +100,30 @@ export function InvoiceViewDialog({
 
         {/* Header Details */}
         <div className="grid grid-cols-2 gap-4 border-b py-4 md:grid-cols-4">
-          <DetailRow label="Supplier Name" value={supplier?.supplierName || '-'} />
-          <DetailRow label="Invoice No" value={invoice.invoiceNumber} />
+          <DetailRow
+            label="Supplier Name"
+            value={supplier?.supplierName || '-'}
+          />
+          <DetailRow
+            label="Invoice No"
+            value={invoice.invoiceNumber}
+          />
           <DetailRow
             label="Invoice Date"
             value={new Date(invoice.invoiceDate).toLocaleDateString('en-GB')}
           />
-          <DetailRow label="Status" value={invoice.status} />
+          <DetailRow
+            label="Status"
+            value={invoice.status}
+          />
           <DetailRow
             label="Invoice Total"
             value={formatCurrency(invoice.calculatedTotal, currency)}
           />
-          <DetailRow label="Currency" value={currency} />
+          <DetailRow
+            label="Currency"
+            value={currency}
+          />
         </div>
 
         {/* Line Items Table */}
@@ -181,7 +180,10 @@ export function InvoiceViewDialog({
             <Download className="mr-2 h-4 w-4" /> Export Items
           </Button>
           <DialogClose asChild>
-            <Button type="button" className="custom-alert-action-cancel">
+            <Button
+              type="button"
+              className="custom-alert-action-cancel"
+            >
               Close
             </Button>
           </DialogClose>

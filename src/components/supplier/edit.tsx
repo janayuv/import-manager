@@ -50,7 +50,10 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
   if (!formData) return null
 
   return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={onOpenChange}
+    >
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>Edit Supplier: {formData.supplierName}</DialogTitle>
@@ -69,38 +72,47 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
             </div>
             <div className="space-y-2">
               <Label htmlFor="shortName">Short Name</Label>
-              <Input id="shortName" value={formData.shortName || ''} onChange={handleChange} />
+              <Input
+                id="shortName"
+                value={formData.shortName || ''}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="country">Country *</Label>
-              <Input id="country" value={formData.country || ''} onChange={handleChange} />
+              <Input
+                id="country"
+                value={formData.country || ''}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
-              <Input id="email" type="email" value={formData.email || ''} onChange={handleChange} />
+              <Input
+                id="email"
+                type="email"
+                value={formData.email || ''}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={formData.phone || ''} onChange={handleChange} />
+              <Input
+                id="phone"
+                value={formData.phone || ''}
+                onChange={handleChange}
+              />
             </div>
             <div className="flex items-center space-x-4 pt-6">
               <Checkbox
                 id="isActive"
                 checked={formData.isActive || false}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev!, isActive: !!checked }))
-                }
-                className={
-                  formData.isActive ? 'border-green-600 bg-green-600' : 'border-red-600 bg-red-600'
-                }
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev!, isActive: !!checked }))}
+                className={formData.isActive ? 'border-green-600 bg-green-600' : 'border-red-600 bg-red-600'}
               />
               <Label htmlFor="isActive">Is Active</Label>
 
-              <span
-                className={`text-sm font-medium ${
-                  formData.isActive ? 'text-green-600' : 'text-red-600'
-                }`}
-              >
+              <span className={`text-sm font-medium ${formData.isActive ? 'text-green-600' : 'text-red-600'}`}>
                 {formData.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
@@ -122,11 +134,19 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankName">Bank Name</Label>
-                <Input id="bankName" value={formData.bankName || ''} onChange={handleChange} />
+                <Input
+                  id="bankName"
+                  value={formData.bankName || ''}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="branch">Branch</Label>
-                <Input id="branch" value={formData.branch || ''} onChange={handleChange} />
+                <Input
+                  id="branch"
+                  value={formData.branch || ''}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankAddress">Bank Address</Label>
@@ -138,21 +158,36 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
               </div>
               <div className="space-y-2">
                 <Label htmlFor="accountNo">Account No.</Label>
-                <Input id="accountNo" value={formData.accountNo || ''} onChange={handleChange} />
+                <Input
+                  id="accountNo"
+                  value={formData.accountNo || ''}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="iban">IBAN</Label>
-                <Input id="iban" value={formData.iban || ''} onChange={handleChange} />
+                <Input
+                  id="iban"
+                  value={formData.iban || ''}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="swiftCode">SWIFT Code</Label>
-                <Input id="swiftCode" value={formData.swiftCode || ''} onChange={handleChange} />
+                <Input
+                  id="swiftCode"
+                  value={formData.swiftCode || ''}
+                  onChange={handleChange}
+                />
               </div>
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} className="bg-red-600 text-white hover:bg-red-700">
+          <Button
+            onClick={handleSubmit}
+            className="bg-red-600 text-white hover:bg-red-700"
+          >
             Save Supplier
           </Button>
         </DialogFooter>

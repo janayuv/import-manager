@@ -8,12 +8,7 @@
 | requirement to ensure accurate duty values.                                  |
 ================================================================================
 */
-import type {
-  BoeItemInput,
-  CalculatedDutyItem,
-  CalculationResult,
-  Shipment,
-} from '@/types/boe-entry'
+import type { BoeItemInput, CalculatedDutyItem, CalculationResult, Shipment } from '@/types/boe-entry'
 
 interface CalculatorInput {
   shipment: Shipment
@@ -32,11 +27,7 @@ const round = (value: number, decimals: number): number => {
   return parseFloat(value.toFixed(decimals))
 }
 
-export function calculateDuties({
-  shipment,
-  formValues,
-  itemInputs,
-}: CalculatorInput): CalculationResult {
+export function calculateDuties({ shipment, formValues, itemInputs }: CalculatorInput): CalculationResult {
   const calculatedItems: CalculatedDutyItem[] = []
   const totalInvoiceValue = shipment.invoiceValue
 

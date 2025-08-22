@@ -3,16 +3,10 @@
 import * as React from 'react'
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  type AppSettings,
-  getFieldConfig,
-  getModuleSettings,
-  getVisibleFields,
-} from '@/lib/settings'
+import { type AppSettings, getFieldConfig, getModuleSettings, getVisibleFields } from '@/lib/settings'
 
 export function ModuleSettingsDemo() {
-  const [selectedModule, setSelectedModule] =
-    React.useState<keyof AppSettings['modules']>('boeSummary')
+  const [selectedModule, setSelectedModule] = React.useState<keyof AppSettings['modules']>('boeSummary')
 
   const modules: Array<{ key: keyof AppSettings['modules']; title: string }> = [
     { key: 'shipment', title: 'Shipment' },
@@ -55,9 +49,7 @@ export function ModuleSettingsDemo() {
                 key={module.key}
                 onClick={() => setSelectedModule(module.key)}
                 className={`rounded-lg border p-4 text-left transition-colors ${
-                  selectedModule === module.key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background hover:bg-muted'
+                  selectedModule === module.key ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
                 }`}
               >
                 <div className="font-medium">{module.title}</div>
@@ -83,9 +75,7 @@ export function ModuleSettingsDemo() {
                         <span className="font-medium">
                           {index + 1}. {fieldName.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
-                        <span className="text-muted-foreground text-sm">
-                          {config?.width || 'auto'}
-                        </span>
+                        <span className="text-muted-foreground text-sm">{config?.width || 'auto'}</span>
                       </div>
                     )
                   })}

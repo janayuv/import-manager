@@ -1,14 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
-import {
-  BarChart3,
-  Building2,
-  Calendar,
-  Download,
-  FileText,
-  Filter,
-  RefreshCw,
-  Tag,
-} from 'lucide-react'
+import { BarChart3, Building2, Calendar, Download, FileText, Filter, RefreshCw, Tag } from 'lucide-react'
 import {
   Bar,
   BarChart,
@@ -32,21 +23,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Combobox } from '@/components/ui/combobox'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type {
@@ -126,11 +104,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       console.log('🔍 [DEBUG] Generating report with filters:', JSON.stringify(filters, null, 2))
       console.log('🔍 [DEBUG] Filter values breakdown:')
       console.log('  - shipmentId:', filters.shipmentId, typeof filters.shipmentId)
-      console.log(
-        '  - serviceProviderId:',
-        filters.serviceProviderId,
-        typeof filters.serviceProviderId
-      )
+      console.log('  - serviceProviderId:', filters.serviceProviderId, typeof filters.serviceProviderId)
       console.log('  - expenseTypeId:', filters.expenseTypeId, typeof filters.expenseTypeId)
       console.log('  - dateFrom:', filters.dateFrom, typeof filters.dateFrom)
       console.log('  - dateTo:', filters.dateTo, typeof filters.dateTo)
@@ -139,26 +113,16 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       console.log('  - maxAmount:', filters.maxAmount, typeof filters.maxAmount)
 
       // Clean filters object - remove undefined values
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([, value]) => value !== undefined)
-      )
+      const cleanFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value !== undefined))
       console.log('🔍 [DEBUG] Clean filters being sent:', JSON.stringify(cleanFilters, null, 2))
-      console.log(
-        '🔍 [DEBUG] Date range check: dateFrom =',
-        cleanFilters.dateFrom,
-        'dateTo =',
-        cleanFilters.dateTo
-      )
+      console.log('🔍 [DEBUG] Date range check: dateFrom =', cleanFilters.dateFrom, 'dateTo =', cleanFilters.dateTo)
 
       // Test with specific date range
       const testFilters = {
         dateFrom: '2025-05-01',
         dateTo: '2025-05-01',
       }
-      console.log(
-        '🔍 [DEBUG] Testing with specific date range:',
-        JSON.stringify(testFilters, null, 2)
-      )
+      console.log('🔍 [DEBUG] Testing with specific date range:', JSON.stringify(testFilters, null, 2))
 
       switch (reportType) {
         case 'detailed': {
@@ -181,26 +145,23 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           break
         }
         case 'summary-by-provider': {
-          const byProvider = await invoke<ExpenseSummaryByProvider[]>(
-            'generate_expense_summary_by_provider',
-            { filters: cleanFilters }
-          )
+          const byProvider = await invoke<ExpenseSummaryByProvider[]>('generate_expense_summary_by_provider', {
+            filters: cleanFilters,
+          })
           setSummaryByProvider(byProvider)
           break
         }
         case 'summary-by-shipment': {
-          const byShipment = await invoke<ExpenseSummaryByShipment[]>(
-            'generate_expense_summary_by_shipment',
-            { filters: cleanFilters }
-          )
+          const byShipment = await invoke<ExpenseSummaryByShipment[]>('generate_expense_summary_by_shipment', {
+            filters: cleanFilters,
+          })
           setSummaryByShipment(byShipment)
           break
         }
         case 'summary-by-month': {
-          const byMonth = await invoke<ExpenseSummaryByMonth[]>(
-            'generate_expense_summary_by_month',
-            { filters: cleanFilters }
-          )
+          const byMonth = await invoke<ExpenseSummaryByMonth[]>('generate_expense_summary_by_month', {
+            filters: cleanFilters,
+          })
           setSummaryByMonth(byMonth)
           break
         }
@@ -379,9 +340,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       toast.success(`Report exported successfully as ${format.toUpperCase()}`)
     } catch (error) {
       console.error('Export error:', error)
-      toast.error(
-        `Failed to export report: ${error instanceof Error ? error.message : 'Unknown error'}`
-      )
+      toast.error(`Failed to export report: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setLoading(false)
     }
@@ -431,9 +390,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
     // Auto-fit columns
     worksheet.columns.forEach((column) => {
       if (column.values) {
-        const maxLength = Math.max(
-          ...column.values.map((v: unknown) => (v ? v.toString().length : 0))
-        )
+        const maxLength = Math.max(...column.values.map((v: unknown) => (v ? v.toString().length : 0)))
         column.width = Math.min(maxLength + 2, 50)
       }
     })
@@ -505,9 +462,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
     link.click()
     document.body.removeChild(link)
 
-    toast.info(
-      'PDF export is available as HTML file. For better PDF support, consider using jsPDF library.'
-    )
+    toast.info('PDF export is available as HTML file. For better PDF support, consider using jsPDF library.')
   }
 
   return (
@@ -519,7 +474,12 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           <p className="text-muted-foreground">Generate detailed expense reports and summaries</p>
         </div>
         <div className="flex items-center space-x-2">
-          <Button variant="outline" size="sm" onClick={generateReport} disabled={loading}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={generateReport}
+            disabled={loading}
+          >
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
@@ -721,7 +681,10 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 <SelectContent>
                   <SelectItem value="all">All Shipments</SelectItem>
                   {shipments.map((shipment) => (
-                    <SelectItem key={shipment.id} value={shipment.id}>
+                    <SelectItem
+                      key={shipment.id}
+                      value={shipment.id}
+                    >
                       {shipment.invoiceNumber || shipment.id}
                     </SelectItem>
                   ))}
@@ -809,9 +772,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 onChange={(e) =>
                   setFilters((prev) => ({
                     ...prev,
-                    minAmount: e.target.value
-                      ? Math.round(parseFloat(e.target.value) * 100)
-                      : undefined,
+                    minAmount: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : undefined,
                   }))
                 }
               />
@@ -826,9 +787,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 onChange={(e) =>
                   setFilters((prev) => ({
                     ...prev,
-                    maxAmount: e.target.value
-                      ? Math.round(parseFloat(e.target.value) * 100)
-                      : undefined,
+                    maxAmount: e.target.value ? Math.round(parseFloat(e.target.value) * 100) : undefined,
                   }))
                 }
               />
@@ -864,30 +823,48 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             onValueChange={(value) => setReportType(value as ExpenseReportType)}
           >
             <TabsList className="grid w-full grid-cols-5">
-              <TabsTrigger value="detailed" className="flex items-center gap-2">
+              <TabsTrigger
+                value="detailed"
+                className="flex items-center gap-2"
+              >
                 <FileText className="h-4 w-4" />
                 Detailed
               </TabsTrigger>
-              <TabsTrigger value="summary-by-type" className="flex items-center gap-2">
+              <TabsTrigger
+                value="summary-by-type"
+                className="flex items-center gap-2"
+              >
                 <Tag className="h-4 w-4" />
                 By Type
               </TabsTrigger>
-              <TabsTrigger value="summary-by-provider" className="flex items-center gap-2">
+              <TabsTrigger
+                value="summary-by-provider"
+                className="flex items-center gap-2"
+              >
                 <Building2 className="h-4 w-4" />
                 By Provider
               </TabsTrigger>
-              <TabsTrigger value="summary-by-shipment" className="flex items-center gap-2">
+              <TabsTrigger
+                value="summary-by-shipment"
+                className="flex items-center gap-2"
+              >
                 <BarChart3 className="h-4 w-4" />
                 By Shipment
               </TabsTrigger>
-              <TabsTrigger value="summary-by-month" className="flex items-center gap-2">
+              <TabsTrigger
+                value="summary-by-month"
+                className="flex items-center gap-2"
+              >
                 <Calendar className="h-4 w-4" />
                 By Month
               </TabsTrigger>
             </TabsList>
 
             {/* Detailed Report */}
-            <TabsContent value="detailed" className="space-y-4">
+            <TabsContent
+              value="detailed"
+              className="space-y-4"
+            >
               {detailedReport && detailedReport.rows.length > 0 ? (
                 <>
                   {/* Summary Cards */}
@@ -895,9 +872,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Total Amount</CardTitle>
-                        <Badge variant="secondary">
-                          {detailedReport.totals.invoice_count} invoices
-                        </Badge>
+                        <Badge variant="secondary">{detailedReport.totals.invoice_count} invoices</Badge>
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
@@ -922,9 +897,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {formatCurrency(
-                            (detailedReport.totals.total_cgst_amount_paise || 0) / 100
-                          )}
+                          {formatCurrency((detailedReport.totals.total_cgst_amount_paise || 0) / 100)}
                         </div>
                       </CardContent>
                     </Card>
@@ -934,9 +907,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {formatCurrency(
-                            (detailedReport.totals.total_sgst_amount_paise || 0) / 100
-                          )}
+                          {formatCurrency((detailedReport.totals.total_sgst_amount_paise || 0) / 100)}
                         </div>
                       </CardContent>
                     </Card>
@@ -946,9 +917,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {formatCurrency(
-                            (detailedReport.totals.total_igst_amount_paise || 0) / 100
-                          )}
+                          {formatCurrency((detailedReport.totals.total_igst_amount_paise || 0) / 100)}
                         </div>
                       </CardContent>
                     </Card>
@@ -958,9 +927,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                   <Card>
                     <CardHeader>
                       <CardTitle>Detailed Expense Report</CardTitle>
-                      <CardDescription>
-                        {detailedReport.rows.length} expense lines found
-                      </CardDescription>
+                      <CardDescription>{detailedReport.rows.length} expense lines found</CardDescription>
                     </CardHeader>
                     <CardContent>
                       <div className="rounded-md border">
@@ -982,13 +949,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                           <TableBody>
                             {detailedReport.rows.map((row) => (
                               <TableRow key={`${row.invoice_id}-${row.expense_type_id}`}>
-                                <TableCell className="font-medium">
-                                  {row.invoice_number || 'N/A'}
-                                </TableCell>
+                                <TableCell className="font-medium">{row.invoice_number || 'N/A'}</TableCell>
                                 <TableCell>{formatDate(row.invoice_date)}</TableCell>
-                                <TableCell>
-                                  {row.shipment_number || row.shipment_id || 'N/A'}
-                                </TableCell>
+                                <TableCell>{row.shipment_number || row.shipment_id || 'N/A'}</TableCell>
                                 <TableCell>{row.service_provider_name || 'N/A'}</TableCell>
                                 <TableCell>{row.expense_type_name || 'N/A'}</TableCell>
                                 <TableCell className="text-right">
@@ -1017,9 +980,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               ) : detailedReport ? (
                 <Card>
                   <CardContent className="flex flex-col items-center justify-center py-8">
-                    <p className="text-muted-foreground">
-                      No expense data found for the selected filters.
-                    </p>
+                    <p className="text-muted-foreground">No expense data found for the selected filters.</p>
                     <p className="text-muted-foreground mt-2 text-sm">
                       Try adjusting your filters or add some expense data.
                     </p>
@@ -1029,13 +990,12 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             </TabsContent>
 
             {/* Summary Reports */}
-            {[
-              'summary-by-type',
-              'summary-by-provider',
-              'summary-by-shipment',
-              'summary-by-month',
-            ].map((type) => (
-              <TabsContent key={type} value={type} className="space-y-4">
+            {['summary-by-type', 'summary-by-provider', 'summary-by-shipment', 'summary-by-month'].map((type) => (
+              <TabsContent
+                key={type}
+                value={type}
+                className="space-y-4"
+              >
                 {/* Charts */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
                   <Card>
@@ -1043,14 +1003,21 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       <CardTitle>Bar Chart</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer
+                        width="100%"
+                        height={300}
+                      >
                         <BarChart data={chartData}>
                           <CartesianGrid strokeDasharray="3 3" />
                           <XAxis dataKey="name" />
                           <YAxis />
                           <Tooltip formatter={(value) => formatCurrency(value as number)} />
                           <Legend />
-                          <Bar dataKey="amount" fill="#8884d8" name="Amount (₹)" />
+                          <Bar
+                            dataKey="amount"
+                            fill="#8884d8"
+                            name="Amount (₹)"
+                          />
                         </BarChart>
                       </ResponsiveContainer>
                     </CardContent>
@@ -1062,22 +1029,26 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                         <CardTitle>Pie Chart</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer
+                          width="100%"
+                          height={300}
+                        >
                           <PieChart>
                             <Pie
                               data={pieChartData}
                               cx="50%"
                               cy="50%"
                               labelLine={false}
-                              label={({ name, percent }) =>
-                                `${name} ${(percent * 100).toFixed(0)}%`
-                              }
+                              label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
                               outerRadius={80}
                               fill="#8884d8"
                               dataKey="value"
                             >
                               {pieChartData.map((entry, index) => (
-                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={entry.color}
+                                />
                               ))}
                             </Pie>
                             <Tooltip formatter={(value) => formatCurrency(value as number)} />
@@ -1109,9 +1080,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                             <TableHead className="text-right">SGST</TableHead>
                             <TableHead className="text-right">IGST</TableHead>
                             <TableHead className="text-right">Total</TableHead>
-                            {type !== 'summary-by-type' && (
-                              <TableHead className="text-right">Invoices</TableHead>
-                            )}
+                            {type !== 'summary-by-type' && <TableHead className="text-right">Invoices</TableHead>}
                             <TableHead className="text-right">Lines</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -1120,9 +1089,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                             if (type === 'summary-by-type') {
                               return summaryByType.map((item) => (
                                 <TableRow key={item.expense_type_id}>
-                                  <TableCell className="font-medium">
-                                    {item.expense_type_name}
-                                  </TableCell>
+                                  <TableCell className="font-medium">{item.expense_type_name}</TableCell>
                                   <TableCell className="text-right">
                                     {formatCurrency(item.total_amount_paise / 100)}
                                   </TableCell>
@@ -1144,9 +1111,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                             } else if (type === 'summary-by-provider') {
                               return summaryByProvider.map((item) => (
                                 <TableRow key={item.service_provider_id}>
-                                  <TableCell className="font-medium">
-                                    {item.service_provider_name}
-                                  </TableCell>
+                                  <TableCell className="font-medium">{item.service_provider_name}</TableCell>
                                   <TableCell className="text-right">
                                     {formatCurrency(item.total_amount_paise / 100)}
                                   </TableCell>

@@ -11,17 +11,19 @@ import * as React from 'react'
 import { SupplierActions } from '@/components/supplier/actions'
 import { EditSupplierDialog } from '@/components/supplier/edit'
 import { AddSupplierForm } from '@/components/supplier/form'
-import { SupplierDataTable } from '@/components/supplier/table'
+import { ResponsiveDataTable } from '@/components/ui/responsive-table'
 import { ViewSupplierDialog } from '@/components/supplier/view'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
+import { useResponsiveContext } from '@/providers/ResponsiveProvider'
 import type { Supplier } from '@/types/supplier'
 
 const SupplierPage = () => {
   const { settings } = useSettings()
+  const { getTextClass, getButtonClass, getSpacingClass } = useResponsiveContext()
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([])
   const [isViewOpen, setViewOpen] = React.useState(false)
   const [isEditOpen, setEditOpen] = React.useState(false)
@@ -174,10 +176,7 @@ const SupplierPage = () => {
       id: 'select',
       header: ({ table }) => (
         <Checkbox
-          checked={
-            table.getIsAllPageRowsSelected() ||
-            (table.getIsSomePageRowsSelected() && 'indeterminate')
-          }
+          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
           onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
@@ -321,14 +320,21 @@ const SupplierPage = () => {
 
   return (
     <div className="container mx-auto py-10">
-      <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Suppliers</h1>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={handleDownloadTemplate}>
+      <div className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}>
+        <h1 className={`${getTextClass('2xl')} font-bold`}>Suppliers</h1>
+        <div className={`flex items-center ${getSpacingClass()}`}>
+          <Button
+            variant="outline"
+            onClick={handleDownloadTemplate}
+            className={getButtonClass()}
+          >
             <Download className="mr-2 h-4 w-4" />
             Download Template
           </Button>
-          <Button onClick={handleImport}>
+          <Button
+            onClick={handleImport}
+            className={getButtonClass()}
+          >
             <Upload className="mr-2 h-4 w-4" />
             Import
           </Button>
@@ -336,7 +342,17 @@ const SupplierPage = () => {
           <AddSupplierForm onAdd={handleAdd} />
         </div>
       </div>
-      <SupplierDataTable columns={columns} data={suppliers} />
+      <ResponsiveDataTable
+        columns={columns}
+        data={suppliers}
+        searchPlaceholder="Search suppliers..."
+        hideColumnsOnSmall={['phone', 'bankName', 'branch', 'bankAddress', 'accountNo', 'iban', 'swiftCode']}
+        columnWidths={{
+          supplierName: { minWidth: '200px', maxWidth: '300px' },
+          email: { minWidth: '180px', maxWidth: '250px' },
+          bankAddress: { minWidth: '200px', maxWidth: '300px' },
+        }}
+      />
       <ViewSupplierDialog
         isOpen={isViewOpen}
         onOpenChange={setViewOpen}

@@ -28,7 +28,10 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
       <div className="mb-4 flex items-center justify-end">
         <Button onClick={handlePrint}>Print / Save PDF</Button>
       </div>
-      <div ref={ref} className="bg-white p-4">
+      <div
+        ref={ref}
+        className="bg-white p-4"
+      >
         <h1 className="mb-2 text-xl font-bold">Consolidated Import Report</h1>
         <div className="mb-4 text-sm">Generated: {new Date().toLocaleString()}</div>
         <table className="w-full table-fixed border-collapse text-sm">
@@ -50,7 +53,10 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
                 'Expenses',
                 'LDC/qty',
               ].map((h) => (
-                <th key={h} className="border px-2 py-1 text-left">
+                <th
+                  key={h}
+                  className="border px-2 py-1 text-left"
+                >
                   {h}
                 </th>
               ))}
@@ -79,14 +85,15 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
           {totals && (
             <tfoot>
               <tr className="font-semibold">
-                <td className="border px-2 py-1" colSpan={6}>
+                <td
+                  className="border px-2 py-1"
+                  colSpan={6}
+                >
                   Totals
                 </td>
                 <td className="border px-2 py-1 text-right">{totals.qty?.toFixed(2)}</td>
                 <td className="border px-2 py-1" />
-                <td className="border px-2 py-1 text-right">
-                  {totals.assessable_value?.toFixed(2)}
-                </td>
+                <td className="border px-2 py-1 text-right">{totals.assessable_value?.toFixed(2)}</td>
                 <td className="border px-2 py-1 text-right">{totals.bcd_amount?.toFixed(2)}</td>
                 <td className="border px-2 py-1 text-right">{totals.sws_amount?.toFixed(2)}</td>
                 <td className="border px-2 py-1 text-right">{totals.igst_amount?.toFixed(2)}</td>

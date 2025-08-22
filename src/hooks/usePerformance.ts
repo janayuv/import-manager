@@ -17,9 +17,7 @@ export function usePerformanceMonitor(componentName: string) {
     lastRenderTime.current = now
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(
-        `[${componentName}] Render #${renderCount.current} (${timeSinceLastRender.toFixed(2)}ms)`
-      )
+      console.log(`[${componentName}] Render #${renderCount.current} (${timeSinceLastRender.toFixed(2)}ms)`)
     }
   })
 
@@ -167,11 +165,7 @@ export function useTauriData<T>(
 
 // Optimized list data with pagination and filtering
 export function useOptimizedList<T>(
-  fetchFn: (params: {
-    page: number
-    pageSize: number
-    filters?: Record<string, unknown>
-  }) => Promise<{
+  fetchFn: (params: { page: number; pageSize: number; filters?: Record<string, unknown> }) => Promise<{
     data: T[]
     total: number
     page: number

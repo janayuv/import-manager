@@ -6,165 +6,159 @@ on:
   pull_request:
     branches: [main, develop]
 
-env:
-  TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-  TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-  TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
+# CI workflow for Import Manager - Windows only
 
 jobs:
   frontend-lint:
     name: Frontend Lint & Type Check
-    runs-on: ubuntu-latest
-
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run ESLint
         run: npm run lint
-
       - name: Run TypeScript type check
         run: npm run type-check
-
       - name: Run Prettier check
         run: npm run format:check
+      - name: Validate Windows-only Runner
+        run: |
+          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
 
   backend-check:
     name: Backend Check & Format
-    runs-on: ubuntu-latest
-
-    env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-
+    runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          override: true
-
       - name: Cache Rust dependencies
         uses: actions/cache@v3
         with:
           path: |
-            ~/.cargo/registry
-            ~/.cargo/git
+            ~\.cargo\registry
+            ~\.cargo\git
             target
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
           restore-keys: |
             ${{ runner.os }}-cargo-
-
       - name: Install cargo-deny
         run: cargo install cargo-deny
-
       - name: Check Rust code
         run: |
           cd src-tauri
           cargo check
-
       - name: Run Clippy
         run: |
           cd src-tauri
           cargo clippy -- -D warnings
-
       - name: Check Rust formatting
         run: |
           cd src-tauri
           cargo fmt -- --check
-
       - name: Check for security vulnerabilities
         run: |
           cd src-tauri
           cargo deny check
+      - name: Validate Windows-only Runner
+        run: |
+          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
 
   test:
     name: Run Tests
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: [frontend-lint, backend-check]
-
-    env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          override: true
-
       - name: Install dependencies
         run: npm ci
-
       - name: Run frontend tests
         run: npm test -- --coverage --watchAll=false
-
       - name: Run backend tests
         run: |
           cd src-tauri
           cargo test
-
       - name: Upload coverage reports
         uses: codecov/codecov-action@v3
         with:
           file: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
+      - name: Validate Windows-only Runner
+        run: |
+          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
 
   build:
     name: Build Application
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     needs: [frontend-lint, backend-check]
-
     env:
-      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-      TAURI_SIGNING_PUBLIC_KEY: ${{ secrets.TAURI_SIGNING_PUBLIC_KEY }}
-
+      # SQLCipher for Windows
+      SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
+      SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
+      LIBSQLITE3_SYS_BUNDLED: '0'
     steps:
       - uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
           cache: 'npm'
-
       - name: Setup Rust
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-          override: true
-
+      - name: Install SQLCipher
+        run: |
+          echo "📦 Installing SQLCipher on Windows..."
+          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
+          C:\vcpkg\bootstrap-vcpkg.bat
+          C:\vcpkg\vcpkg.exe install sqlcipher
+          echo "SQLCIPHER_LIB_DIR=C:\vcpkg\installed\x64-windows\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "SQLCIPHER_INCLUDE_DIR=C:\vcpkg\installed\x64-windows\include" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "LIBSQLITE3_SYS_BUNDLED=0" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Install dependencies
         run: npm ci
-
       - name: Build application
         run: npm run tauri build
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@v3
         with:
           name: import-manager-build
           path: src-tauri/target/release/
+      - name: Validate Windows-only Runner
+        run: |
+          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"

@@ -201,10 +201,16 @@ export default function ReportsPage() {
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-bold">Consolidated Report</h1>
         <div className="space-x-2">
-          <Button onClick={exportCsv} variant="outline">
+          <Button
+            onClick={exportCsv}
+            variant="outline"
+          >
             Export CSV
           </Button>
-          <Button onClick={exportPdf} variant="outline">
+          <Button
+            onClick={exportPdf}
+            variant="outline"
+          >
             Export PDF
           </Button>
         </div>
@@ -265,7 +271,10 @@ export default function ReportsPage() {
           </div>
           <div className="mt-4 flex space-x-2">
             <Button onClick={handleSearch}>Search</Button>
-            <Button onClick={handleClear} variant="outline">
+            <Button
+              onClick={handleClear}
+              variant="outline"
+            >
               Clear
             </Button>
           </div>
@@ -311,9 +320,7 @@ export default function ReportsPage() {
               </div>
               <div>
                 <Label className="text-sm font-medium">Total Assessable Value</Label>
-                <p className="text-2xl font-bold">
-                  {totals.assessable_value?.toFixed(2) || '0.00'}
-                </p>
+                <p className="text-2xl font-bold">{totals.assessable_value?.toFixed(2) || '0.00'}</p>
               </div>
               <div>
                 <Label className="text-sm font-medium">Total BCD</Label>

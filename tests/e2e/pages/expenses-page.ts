@@ -55,10 +55,7 @@ export class ExpensesPage {
 
     // Fill expense form
     await this.utils.selectOption('[data-testid="expense-type-select"]', expenseData.expenseType)
-    await this.utils.selectOption(
-      '[data-testid="service-provider-select"]',
-      expenseData.serviceProvider
-    )
+    await this.utils.selectOption('[data-testid="service-provider-select"]', expenseData.serviceProvider)
     await this.utils.fillField('[data-testid="invoice-no-input"]', expenseData.invoiceNo)
     await this.utils.fillField('[data-testid="amount-input"]', expenseData.amount)
 
@@ -91,10 +88,7 @@ export class ExpensesPage {
       await this.utils.selectOption('[data-testid="expense-type-select"]', newData.expenseType)
     }
     if (newData.serviceProvider) {
-      await this.utils.selectOption(
-        '[data-testid="service-provider-select"]',
-        newData.serviceProvider
-      )
+      await this.utils.selectOption('[data-testid="service-provider-select"]', newData.serviceProvider)
     }
     if (newData.invoiceNo) {
       await this.utils.fillField('[data-testid="invoice-no-input"]', newData.invoiceNo)

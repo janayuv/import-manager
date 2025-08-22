@@ -9,9 +9,7 @@ export class TestUtils {
   async waitForAppLoad() {
     await this.page.waitForLoadState('networkidle')
     // Wait for any loading spinners to disappear
-    await this.page
-      .waitForSelector('[data-testid="loading"]', { state: 'hidden', timeout: 10000 })
-      .catch(() => {})
+    await this.page.waitForSelector('[data-testid="loading"]', { state: 'hidden', timeout: 10000 }).catch(() => {})
   }
 
   /**

@@ -78,9 +78,7 @@ export const PerformanceTest = () => {
     async ({ page, pageSize, filters }) => {
       // Simulate API call
       await new Promise((resolve) => setTimeout(resolve, 500))
-      const filtered = sampleData.filter(
-        (item) => !filters?.category || item.category === filters.category
-      )
+      const filtered = sampleData.filter((item) => !filters?.category || item.category === filters.category)
       const start = (page - 1) * pageSize
       const end = start + pageSize
       return {
@@ -205,7 +203,10 @@ export const PerformanceTest = () => {
   }, [])
 
   return (
-    <OptimizedContainer maxWidth="full" padding="lg">
+    <OptimizedContainer
+      maxWidth="full"
+      padding="lg"
+    >
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
@@ -217,7 +218,10 @@ export const PerformanceTest = () => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs
+            value={activeTab}
+            onValueChange={setActiveTab}
+          >
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="caching">Caching</TabsTrigger>
               <TabsTrigger value="hooks">Hooks</TabsTrigger>
@@ -227,7 +231,10 @@ export const PerformanceTest = () => {
               <TabsTrigger value="results">Results</TabsTrigger>
             </TabsList>
 
-            <TabsContent value="caching" className="space-y-6">
+            <TabsContent
+              value="caching"
+              className="space-y-6"
+            >
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -241,9 +248,7 @@ export const PerformanceTest = () => {
                       <OptimizedButton onClick={() => cache.session.set('test-key', 'test-value')}>
                         Set Session Cache
                       </OptimizedButton>
-                      <OptimizedButton
-                        onClick={() => cache.persistent.set('test-key', 'test-value')}
-                      >
+                      <OptimizedButton onClick={() => cache.persistent.set('test-key', 'test-value')}>
                         Set Persistent Cache
                       </OptimizedButton>
                     </div>
@@ -255,7 +260,10 @@ export const PerformanceTest = () => {
                         Get Smart Cache
                       </OptimizedButton>
                     </div>
-                    <OptimizedButton onClick={clearCache} variant="destructive">
+                    <OptimizedButton
+                      onClick={clearCache}
+                      variant="destructive"
+                    >
                       Clear All Caches
                     </OptimizedButton>
                   </CardContent>
@@ -266,22 +274,26 @@ export const PerformanceTest = () => {
                     <CardTitle>Cache Statistics</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <pre className="bg-muted rounded p-2 text-xs">
-                      {JSON.stringify(cache.getStats(), null, 2)}
-                    </pre>
+                    <pre className="bg-muted rounded p-2 text-xs">{JSON.stringify(cache.getStats(), null, 2)}</pre>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent value="hooks" className="space-y-6">
+            <TabsContent
+              value="hooks"
+              className="space-y-6"
+            >
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
                     <CardTitle>Cached Data Hook</CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    <OptimizedButton onClick={refetchCached} loading={cachedLoading}>
+                    <OptimizedButton
+                      onClick={refetchCached}
+                      loading={cachedLoading}
+                    >
                       {cachedLoading ? 'Loading...' : 'Fetch Data'}
                     </OptimizedButton>
                     <div className="text-sm">
@@ -296,15 +308,9 @@ export const PerformanceTest = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex space-x-2">
-                      <OptimizedButton onClick={() => updateFilters({ category: 'A' })}>
-                        Filter A
-                      </OptimizedButton>
-                      <OptimizedButton onClick={() => updateFilters({ category: 'B' })}>
-                        Filter B
-                      </OptimizedButton>
-                      <OptimizedButton onClick={() => updateFilters({})}>
-                        Clear Filter
-                      </OptimizedButton>
+                      <OptimizedButton onClick={() => updateFilters({ category: 'A' })}>Filter A</OptimizedButton>
+                      <OptimizedButton onClick={() => updateFilters({ category: 'B' })}>Filter B</OptimizedButton>
+                      <OptimizedButton onClick={() => updateFilters({})}>Clear Filter</OptimizedButton>
                     </div>
                     <div className="text-sm">
                       <p>Items: {listData?.length || 0}</p>
@@ -359,7 +365,10 @@ export const PerformanceTest = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="components" className="space-y-6">
+            <TabsContent
+              value="components"
+              className="space-y-6"
+            >
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="rounded border p-4">
                   <p className="text-muted-foreground">Data display component placeholder</p>
@@ -393,8 +402,14 @@ export const PerformanceTest = () => {
                   {imageError && <p className="text-destructive">Failed to load image</p>}
                 </OptimizedCard>
 
-                <OptimizedGrid cols={3} gap="md">
-                  <OptimizedSkeleton count={3} height="h-8" />
+                <OptimizedGrid
+                  cols={3}
+                  gap="md"
+                >
+                  <OptimizedSkeleton
+                    count={3}
+                    height="h-8"
+                  />
                 </OptimizedGrid>
 
                 <div ref={intersectionRef}>
@@ -405,7 +420,10 @@ export const PerformanceTest = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="monitoring" className="space-y-6">
+            <TabsContent
+              value="monitoring"
+              className="space-y-6"
+            >
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -426,7 +444,10 @@ export const PerformanceTest = () => {
                     <pre className="bg-muted rounded p-2 text-xs">
                       {JSON.stringify(MemoryManager.getMemoryUsage(), null, 2)}
                     </pre>
-                    <OptimizedButton onClick={triggerMemoryCleanup} className="mt-2">
+                    <OptimizedButton
+                      onClick={triggerMemoryCleanup}
+                      className="mt-2"
+                    >
                       Trigger Cleanup
                     </OptimizedButton>
                   </CardContent>
@@ -450,10 +471,7 @@ export const PerformanceTest = () => {
                   <CardContent className="space-y-4">
                     <div className="text-sm">
                       <p>Total Reports: {PerformanceReporter.getReports().length}</p>
-                      <p>
-                        Average Metrics:{' '}
-                        {Object.keys(PerformanceReporter.getAverageMetrics()).length} metrics
-                      </p>
+                      <p>Average Metrics: {Object.keys(PerformanceReporter.getAverageMetrics()).length} metrics</p>
                     </div>
                     <OptimizedButton onClick={exportReport}>Export Report</OptimizedButton>
                   </CardContent>
@@ -461,7 +479,10 @@ export const PerformanceTest = () => {
               </div>
             </TabsContent>
 
-            <TabsContent value="tests" className="space-y-6">
+            <TabsContent
+              value="tests"
+              className="space-y-6"
+            >
               <Card>
                 <CardHeader>
                   <CardTitle>Performance Tests</CardTitle>
@@ -497,7 +518,10 @@ export const PerformanceTest = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent value="results" className="space-y-6">
+            <TabsContent
+              value="results"
+              className="space-y-6"
+            >
               <Card>
                 <CardHeader>
                   <CardTitle>Test Results</CardTitle>
@@ -508,9 +532,7 @@ export const PerformanceTest = () => {
                       {JSON.stringify(testResults, null, 2)}
                     </pre>
                   ) : (
-                    <p className="text-muted-foreground">
-                      No test results available. Run tests first.
-                    </p>
+                    <p className="text-muted-foreground">No test results available. Run tests first.</p>
                   )}
                 </CardContent>
               </Card>

@@ -9,13 +9,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type {
   ExpenseInvoicePayload,
   ExpenseInvoicePreview,
@@ -30,11 +24,7 @@ interface ExpenseMultilineFormProps {
   onCancel: () => void
 }
 
-export function ExpenseMultilineForm({
-  shipmentId,
-  onSuccess,
-  onCancel,
-}: ExpenseMultilineFormProps) {
+export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: ExpenseMultilineFormProps) {
   const [serviceProviders, setServiceProviders] = useState<ServiceProvider[]>([])
   const [expenseTypes, setExpenseTypes] = useState<ExpenseType[]>([])
   const [loading, setLoading] = useState(false)
@@ -71,9 +61,7 @@ export function ExpenseMultilineForm({
 
   // Check for duplicate expense types
   useEffect(() => {
-    const expenseTypeIds = expenseLines
-      .map((line) => line.expense_type_id)
-      .filter((id) => id !== '')
+    const expenseTypeIds = expenseLines.map((line) => line.expense_type_id).filter((id) => id !== '')
 
     const uniqueIds = new Set(expenseTypeIds)
 
@@ -164,9 +152,7 @@ export function ExpenseMultilineForm({
   }
 
   const updateExpenseLine = (index: number, field: keyof ExpenseLine, value: string | number) => {
-    setExpenseLines((prevLines) =>
-      prevLines.map((line, i) => (i === index ? { ...line, [field]: value } : line))
-    )
+    setExpenseLines((prevLines) => prevLines.map((line, i) => (i === index ? { ...line, [field]: value } : line)))
   }
 
   const getExpenseTypeDefaults = (expenseTypeId: string) => {
@@ -202,11 +188,7 @@ export function ExpenseMultilineForm({
 
   const validateForm = () => {
     // Validate invoice header
-    if (
-      !invoiceHeader.service_provider_id ||
-      !invoiceHeader.invoice_number ||
-      !invoiceHeader.invoice_date
-    ) {
+    if (!invoiceHeader.service_provider_id || !invoiceHeader.invoice_number || !invoiceHeader.invoice_date) {
       return false
     }
 
@@ -343,7 +325,11 @@ export function ExpenseMultilineForm({
       <CardHeader className="border-b bg-gray-50/50">
         <CardTitle className="flex items-center justify-between text-xl">
           <span>Add Multiple Expenses</span>
-          <Button variant="ghost" size="sm" onClick={onCancel}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardTitle>
@@ -352,7 +338,10 @@ export function ExpenseMultilineForm({
         </CardDescription>
       </CardHeader>
       <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-8"
+        >
           {/* Duplicate Warning */}
           {duplicateWarning && (
             <Alert className="border-yellow-200 bg-yellow-50">
@@ -382,7 +371,10 @@ export function ExpenseMultilineForm({
             </div>
             <div className="grid grid-cols-1 gap-6 rounded-lg border bg-gray-500/50 p-6 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
-                <Label htmlFor="service-provider" className="text-sm font-medium">
+                <Label
+                  htmlFor="service-provider"
+                  className="text-sm font-medium"
+                >
                   Service Provider *
                 </Label>
                 <Select
@@ -399,7 +391,10 @@ export function ExpenseMultilineForm({
                   </SelectTrigger>
                   <SelectContent>
                     {serviceProviders.map((provider) => (
-                      <SelectItem key={provider.id} value={provider.id}>
+                      <SelectItem
+                        key={provider.id}
+                        value={provider.id}
+                      >
                         {provider.name}
                       </SelectItem>
                     ))}
@@ -408,7 +403,10 @@ export function ExpenseMultilineForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="invoice-number" className="text-sm font-medium">
+                <Label
+                  htmlFor="invoice-number"
+                  className="text-sm font-medium"
+                >
                   Invoice Number *
                 </Label>
                 <Input
@@ -426,7 +424,10 @@ export function ExpenseMultilineForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="invoice-date" className="text-sm font-medium">
+                <Label
+                  htmlFor="invoice-date"
+                  className="text-sm font-medium"
+                >
                   Invoice Date *
                 </Label>
                 <Input
@@ -444,7 +445,10 @@ export function ExpenseMultilineForm({
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="currency" className="text-sm font-medium">
+                <Label
+                  htmlFor="currency"
+                  className="text-sm font-medium"
+                >
                   Currency
                 </Label>
                 <Select
@@ -502,7 +506,10 @@ export function ExpenseMultilineForm({
             </div>
 
             {expenseLines.map((line, index) => (
-              <div key={index} className="space-y-6 rounded-lg border bg-gray-600 p-6 shadow-sm">
+              <div
+                key={index}
+                className="space-y-6 rounded-lg border bg-gray-600 p-6 shadow-sm"
+              >
                 <div className="flex items-center justify-between border-b pb-4">
                   <div className="flex items-center gap-3">
                     <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
@@ -536,7 +543,10 @@ export function ExpenseMultilineForm({
                       </SelectTrigger>
                       <SelectContent>
                         {expenseTypes.map((type) => (
-                          <SelectItem key={type.id} value={type.id}>
+                          <SelectItem
+                            key={type.id}
+                            value={type.id}
+                          >
                             {type.name}
                           </SelectItem>
                         ))}
@@ -652,17 +662,16 @@ export function ExpenseMultilineForm({
                     <h4 className="mb-2 font-medium text-blue-800">Line Details</h4>
                     <div className="space-y-2">
                       {preview.lines.map((line, index) => (
-                        <div key={index} className="rounded border bg-white p-2">
+                        <div
+                          key={index}
+                          className="rounded border bg-white p-2"
+                        >
                           <div className="text-sm font-medium">{line.expense_type_name}</div>
                           <div className="text-xs text-gray-600">
-                            Amount: {formatCurrency(line.amount_paise)} | CGST:{' '}
-                            {formatCurrency(line.cgst_amount_paise)} (
-                            {formatPercentage(line.cgst_rate)}) | SGST:{' '}
-                            {formatCurrency(line.sgst_amount_paise)} (
-                            {formatPercentage(line.sgst_rate)}) | IGST:{' '}
-                            {formatCurrency(line.igst_amount_paise)} (
-                            {formatPercentage(line.igst_rate)}) | TDS:{' '}
-                            {formatCurrency(line.tds_amount_paise)} (
+                            Amount: {formatCurrency(line.amount_paise)} | CGST: {formatCurrency(line.cgst_amount_paise)}{' '}
+                            ({formatPercentage(line.cgst_rate)}) | SGST: {formatCurrency(line.sgst_amount_paise)} (
+                            {formatPercentage(line.sgst_rate)}) | IGST: {formatCurrency(line.igst_amount_paise)} (
+                            {formatPercentage(line.igst_rate)}) | TDS: {formatCurrency(line.tds_amount_paise)} (
                             {formatPercentage(line.tds_rate)})
                           </div>
                           <div className="text-xs font-medium text-green-600">
@@ -677,9 +686,7 @@ export function ExpenseMultilineForm({
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Total Amount:</span>
-                        <span className="font-medium">
-                          {formatCurrency(preview.total_amount_paise)}
-                        </span>
+                        <span className="font-medium">{formatCurrency(preview.total_amount_paise)}</span>
                       </div>
                       <div className="flex justify-between">
                         <span>Total CGST:</span>
@@ -699,9 +706,7 @@ export function ExpenseMultilineForm({
                       </div>
                       <div className="flex justify-between border-t pt-2 font-semibold">
                         <span>Net Amount:</span>
-                        <span className="text-green-600">
-                          {formatCurrency(preview.net_amount_paise)}
-                        </span>
+                        <span className="text-green-600">{formatCurrency(preview.net_amount_paise)}</span>
                       </div>
                     </div>
                   </div>
@@ -712,10 +717,17 @@ export function ExpenseMultilineForm({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 border-t pt-6">
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={loading}
+            >
               {loading ? 'Creating...' : 'Create Invoice'}
             </Button>
           </div>

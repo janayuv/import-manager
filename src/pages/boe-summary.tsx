@@ -74,7 +74,11 @@ export default function BoeSummaryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <BoeSummaryClient savedBoes={savedBoes} shipments={shipments} allBoes={allBoes} />
+          <BoeSummaryClient
+            savedBoes={savedBoes}
+            shipments={shipments}
+            allBoes={allBoes}
+          />
         </CardContent>
       </Card>
     </div>

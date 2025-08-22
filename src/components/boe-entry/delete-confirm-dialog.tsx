@@ -82,13 +82,16 @@ interface DeleteConfirmDialogProps {
 
 export function DeleteConfirmDialog({ boe, onConfirm, onCancel }: DeleteConfirmDialogProps) {
   return (
-    <AlertDialog open={true} onOpenChange={(isOpen) => !isOpen && onCancel()}>
+    <AlertDialog
+      open={true}
+      onOpenChange={(isOpen) => !isOpen && onCancel()}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the BOE calculation for
-            invoice <span className="font-semibold">{boe.invoiceNumber}</span>.
+            This action cannot be undone. This will permanently delete the BOE calculation for invoice{' '}
+            <span className="font-semibold">{boe.invoiceNumber}</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

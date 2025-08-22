@@ -8,13 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import type { ExpenseInvoiceWithExpenses, ExpenseType, ServiceProvider } from '@/types/expense'
 
@@ -100,9 +94,7 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
   }
 
   const updateExpenseLine = (id: string, field: keyof ExpenseLine, value: string | number) => {
-    setExpenseLines(
-      expenseLines.map((line) => (line.id === id ? { ...line, [field]: value } : line))
-    )
+    setExpenseLines(expenseLines.map((line) => (line.id === id ? { ...line, [field]: value } : line)))
   }
 
   const getExpenseTypeDefaults = (expenseTypeId: string) => {
@@ -186,24 +178,37 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
       <CardHeader>
         <CardTitle className="flex items-center justify-between">
           <span>Create Expense Invoice</span>
-          <Button variant="ghost" size="sm" onClick={onCancel}>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onCancel}
+          >
             <X className="h-4 w-4" />
           </Button>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+        >
           {/* Invoice Details */}
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div className="space-y-2">
               <Label htmlFor="serviceProvider">Service Provider *</Label>
-              <Select value={serviceProviderId} onValueChange={setServiceProviderId}>
+              <Select
+                value={serviceProviderId}
+                onValueChange={setServiceProviderId}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Select service provider" />
                 </SelectTrigger>
                 <SelectContent>
                   {serviceProviders.map((provider) => (
-                    <SelectItem key={provider.id} value={provider.id}>
+                    <SelectItem
+                      key={provider.id}
+                      value={provider.id}
+                    >
                       {provider.name}
                     </SelectItem>
                   ))}
@@ -236,14 +241,22 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <Label className="text-lg font-semibold">Expense Lines</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addExpenseLine}>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addExpenseLine}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Expense
               </Button>
             </div>
 
             {expenseLines.map((line, index) => (
-              <Card key={line.id} className="p-4">
+              <Card
+                key={line.id}
+                className="p-4"
+              >
                 <div className="mb-4 flex items-center justify-between">
                   <h4 className="font-medium">Expense Line {index + 1}</h4>
                   {expenseLines.length > 1 && (
@@ -270,7 +283,10 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
                       </SelectTrigger>
                       <SelectContent>
                         {expenseTypes.map((type_) => (
-                          <SelectItem key={type_.id} value={type_.id}>
+                          <SelectItem
+                            key={type_.id}
+                            value={type_.id}
+                          >
                             {type_.name}
                           </SelectItem>
                         ))}
@@ -284,9 +300,7 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
                       type="number"
                       step="0.01"
                       value={line.amount}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'amount', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateExpenseLine(line.id, 'amount', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
@@ -297,9 +311,7 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
                       type="number"
                       step="0.01"
                       value={line.cgstRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'cgstRate', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateExpenseLine(line.id, 'cgstRate', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
@@ -310,9 +322,7 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
                       type="number"
                       step="0.01"
                       value={line.sgstRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'sgstRate', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateExpenseLine(line.id, 'sgstRate', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
@@ -323,9 +333,7 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
                       type="number"
                       step="0.01"
                       value={line.igstRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'igstRate', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateExpenseLine(line.id, 'igstRate', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
@@ -336,9 +344,7 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
                       type="number"
                       step="0.01"
                       value={line.tdsRate}
-                      onChange={(e) =>
-                        updateExpenseLine(line.id, 'tdsRate', parseFloat(e.target.value) || 0)
-                      }
+                      onChange={(e) => updateExpenseLine(line.id, 'tdsRate', parseFloat(e.target.value) || 0)}
                       placeholder="0.00"
                     />
                   </div>
@@ -376,10 +382,17 @@ export function ExpenseInvoiceForm({ shipmentId, onSuccess, onCancel }: ExpenseI
 
           {/* Submit Button */}
           <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancel}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              disabled={loading}
+            >
               {loading ? 'Creating...' : 'Create Expense Invoice'}
             </Button>
           </div>

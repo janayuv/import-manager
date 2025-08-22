@@ -146,25 +146,39 @@ export class ErrorBoundary extends Component<Props, State> {
                 <Alert>
                   <AlertTriangle className="h-4 w-4" />
                   <AlertTitle>Error Details</AlertTitle>
-                  <AlertDescription>
-                    {this.state.error?.message || 'Unknown error occurred'}
-                  </AlertDescription>
+                  <AlertDescription>{this.state.error?.message || 'Unknown error occurred'}</AlertDescription>
                 </Alert>
 
                 <div className="flex flex-wrap gap-2">
-                  <Button onClick={this.handleReset} variant="outline" size="sm">
+                  <Button
+                    onClick={this.handleReset}
+                    variant="outline"
+                    size="sm"
+                  >
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Try Again
                   </Button>
-                  <Button onClick={this.handleReload} variant="outline" size="sm">
+                  <Button
+                    onClick={this.handleReload}
+                    variant="outline"
+                    size="sm"
+                  >
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Reload Page
                   </Button>
-                  <Button onClick={this.handleGoHome} variant="outline" size="sm">
+                  <Button
+                    onClick={this.handleGoHome}
+                    variant="outline"
+                    size="sm"
+                  >
                     <Home className="mr-2 h-4 w-4" />
                     Go Home
                   </Button>
-                  <Button onClick={this.handleCopyError} variant="outline" size="sm">
+                  <Button
+                    onClick={this.handleCopyError}
+                    variant="outline"
+                    size="sm"
+                  >
                     <Copy className="mr-2 h-4 w-4" />
                     Copy Error
                   </Button>
@@ -182,26 +196,28 @@ export class ErrorBoundary extends Component<Props, State> {
                         <Bug className="h-4 w-4" />
                         {this.state.showDetails ? 'Hide' : 'Show'} Technical Details
                       </span>
-                      <X
-                        className={`h-4 w-4 transition-transform ${this.state.showDetails ? 'rotate-45' : ''}`}
-                      />
+                      <X className={`h-4 w-4 transition-transform ${this.state.showDetails ? 'rotate-45' : ''}`} />
                     </Button>
 
                     {this.state.showDetails && (
                       <div className="bg-muted/50 space-y-3 rounded-md border p-3">
                         <div>
-                          <Badge variant="secondary" className="mb-2">
+                          <Badge
+                            variant="secondary"
+                            className="mb-2"
+                          >
                             Error Message
                           </Badge>
-                          <pre className="text-muted-foreground text-sm">
-                            {this.state.error?.message}
-                          </pre>
+                          <pre className="text-muted-foreground text-sm">{this.state.error?.message}</pre>
                         </div>
 
                         <Separator />
 
                         <div>
-                          <Badge variant="secondary" className="mb-2">
+                          <Badge
+                            variant="secondary"
+                            className="mb-2"
+                          >
                             Stack Trace
                           </Badge>
                           <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">
@@ -212,7 +228,10 @@ export class ErrorBoundary extends Component<Props, State> {
                         <Separator />
 
                         <div>
-                          <Badge variant="secondary" className="mb-2">
+                          <Badge
+                            variant="secondary"
+                            className="mb-2"
+                          >
                             Component Stack
                           </Badge>
                           <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">

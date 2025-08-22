@@ -1,16 +1,7 @@
 // src/pages/dashboard.tsx
 import { invoke } from '@tauri-apps/api/core'
-import { format, startOfMonth, startOfWeek, subDays } from 'date-fns'
-import {
-  AlertTriangle,
-  Calendar,
-  CheckCircle,
-  DollarSign,
-  Factory,
-  Package,
-  Ship,
-  TrendingUp,
-} from 'lucide-react'
+import { format, parse, startOfMonth, startOfWeek, subDays } from 'date-fns'
+import { AlertTriangle, Calendar, CheckCircle, DollarSign, Factory, Package, Ship, TrendingUp } from 'lucide-react'
 import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { Cell, Line, LineChart, Pie, PieChart } from 'recharts'
 
@@ -21,23 +12,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { KPICard } from '@/components/ui/kpi-card'
 import { LayoutControls, ResizableLayout } from '@/components/ui/resizable-layout'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatDateForDisplay } from '@/lib/date-format'
+import { useResponsiveContext } from '@/providers/ResponsiveProvider'
 import type { SavedBoe } from '@/types/boe-entry'
 import type { Expense } from '@/types/expense'
 import type { Item } from '@/types/item'
@@ -82,11 +61,7 @@ type ModuleFilter = 'all' | 'shipment-invoice' | 'items' | 'expenses'
 type ChartData = { name: string; shipments: number; value: number; dutySavings: number }
 
 // --- Aggregation ---
-const aggregateData = (
-  shipments: ShipmentTs[],
-  boes: SavedBoe[],
-  timeframe: Timeframe
-): ChartData[] => {
+const aggregateData = (shipments: ShipmentTs[], boes: SavedBoe[], timeframe: Timeframe): ChartData[] => {
   const now = new Date()
   let startDate: Date
   switch (timeframe) {
@@ -155,13 +130,12 @@ const aggregateData = (
     d.dutySavings = Math.round(totalSavings)
   })
 
-  return Object.values(bucket).sort(
-    (a, b) => new Date(a.name).getTime() - new Date(b.name).getTime()
-  )
+  return Object.values(bucket).sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime())
 }
 
 // --- Main Component ---
 const DashboardPage = () => {
+  const { getTextClass, getSpacingClass, getGridColumns } = useResponsiveContext()
   const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('all')
   const [timeframe, setTimeframe] = useState<Timeframe>('monthly')
   const [currency, setCurrency] = useState('INR')
@@ -193,13 +167,29 @@ const DashboardPage = () => {
 
   const upcomingShipments = useMemo(() => {
     const now = new Date()
+
+    const parseDate = (value?: string) => {
+      if (!value) return null
+      // Try common formats we use across the app
+      if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+        return parse(value, 'yyyy-MM-dd', new Date())
+      }
+      if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+        return parse(value, 'dd-MM-yyyy', new Date())
+      }
+      if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
+        return parse(value, 'dd/MM/yyyy', new Date())
+      }
+      const d = new Date(value)
+      return isNaN(d.getTime()) ? null : d
+    }
+
     return [...shipments]
-      .filter((s) => s.eta && !isNaN(new Date(s.eta).getTime()) && new Date(s.eta) > now)
-      .sort((a, b) => {
-        // Both a.eta and b.eta are guaranteed to be defined due to the filter above
-        return new Date(a.eta!).getTime() - new Date(b.eta!).getTime()
-      })
+      .map((s) => ({ ...s, __etaDate: parseDate(s.eta) }))
+      .filter((s) => s.__etaDate && s.__etaDate > now)
+      .sort((a, b) => (a.__etaDate!.getTime() - b.__etaDate!.getTime()))
       .slice(0, 5)
+      .map(({ __etaDate, ...rest }) => rest)
   }, [shipments])
 
   const chartData = useMemo(() => {
@@ -224,9 +214,7 @@ const DashboardPage = () => {
   }, [shipments])
 
   // Expenses overview (quick aggregation)
-  const [expenseSummary, setExpenseSummary] = useState<{ total: number; count: number } | null>(
-    null
-  )
+  const [expenseSummary, setExpenseSummary] = useState<{ total: number; count: number } | null>(null)
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -253,10 +241,7 @@ const DashboardPage = () => {
           (sum, e) =>
             sum +
             (Number(e.totalAmount) ||
-              Number(e.amount) +
-                Number(e.cgstAmount || 0) +
-                Number(e.sgstAmount || 0) +
-                Number(e.igstAmount || 0)),
+              Number(e.amount) + Number(e.cgstAmount || 0) + Number(e.sgstAmount || 0) + Number(e.igstAmount || 0)),
           0
         )
         setExpenseSummary({ total, count: all.length })
@@ -274,15 +259,18 @@ const DashboardPage = () => {
   }
 
   return (
-    <div className="container mx-auto space-y-6 p-6">
+    <div className={`container mx-auto space-y-6 p-6 ${getSpacingClass()}`}>
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${getSpacingClass()}`}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Operational overview across modules</p>
+          <h1 className={`${getTextClass('2xl')} font-bold tracking-tight`}>Dashboard</h1>
+          <p className={`${getTextClass()} text-muted-foreground`}>Operational overview across modules</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Select value={moduleFilter} onValueChange={(v: ModuleFilter) => setModuleFilter(v)}>
+        <div className={`flex items-center ${getSpacingClass()}`}>
+          <Select
+            value={moduleFilter}
+            onValueChange={(v: ModuleFilter) => setModuleFilter(v)}
+          >
             <SelectTrigger className="w-[220px]">
               <SelectValue placeholder="Module" />
             </SelectTrigger>
@@ -297,7 +285,7 @@ const DashboardPage = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className={`grid gap-4 ${getGridColumns()}`}>
         {(moduleFilter === 'all' || moduleFilter === 'shipment-invoice') && (
           <KPICard
             title="Total Shipments"
@@ -384,19 +372,23 @@ const DashboardPage = () => {
                 <LayoutControls
                   onReset={() => {}}
                   onToggleDirection={() =>
-                    setLayoutDirection((prev) =>
-                      prev === 'horizontal' ? 'vertical' : 'horizontal'
-                    )
+                    setLayoutDirection((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'))
                   }
                   direction={layoutDirection}
                 />
-                <Select value={currency} onValueChange={setCurrency}>
+                <Select
+                  value={currency}
+                  onValueChange={setCurrency}
+                >
                   <SelectTrigger className="w-[120px]">
                     <SelectValue placeholder="Currency" />
                   </SelectTrigger>
                   <SelectContent>
                     {['INR', 'USD', 'EUR', 'GBP'].map((c) => (
-                      <SelectItem key={c} value={c}>
+                      <SelectItem
+                        key={c}
+                        value={c}
+                      >
                         {c}
                       </SelectItem>
                     ))}
@@ -425,7 +417,10 @@ const DashboardPage = () => {
             </div>
           </CardHeader>
           <CardContent className="h-[360px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
               <BarChart data={chartData}>
                 <XAxis
                   dataKey="name"
@@ -443,9 +438,21 @@ const DashboardPage = () => {
                 />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="shipments" fill="#8884d8" name="# Shipments" />
-                <Bar dataKey="value" fill="#82ca9d" name={`Total Value (${currency})`} />
-                <Bar dataKey="dutySavings" fill="#ffc658" name="Duty Savings" />
+                <Bar
+                  dataKey="shipments"
+                  fill="#8884d8"
+                  name="# Shipments"
+                />
+                <Bar
+                  dataKey="value"
+                  fill="#82ca9d"
+                  name={`Total Value (${currency})`}
+                />
+                <Bar
+                  dataKey="dutySavings"
+                  fill="#ffc658"
+                  name="Duty Savings"
+                />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -458,9 +465,17 @@ const DashboardPage = () => {
               <CardTitle>Shipment Status</CardTitle>
             </CardHeader>
             <CardContent className="h-[160px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
                 <PieChart>
-                  <Pie data={statusDistribution} dataKey="value" nameKey="name" outerRadius={60}>
+                  <Pie
+                    data={statusDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={60}
+                  >
                     {statusDistribution.map((_, idx) => (
                       <Cell
                         key={idx}
@@ -479,9 +494,15 @@ const DashboardPage = () => {
               <CardTitle>Invoice Trend</CardTitle>
             </CardHeader>
             <CardContent className="h-[160px]">
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer
+                width="100%"
+                height="100%"
+              >
                 <LineChart data={invoiceTrend}>
-                  <XAxis dataKey="date" hide />
+                  <XAxis
+                    dataKey="date"
+                    hide
+                  />
                   <YAxis />
                   <Tooltip />
                   <Line
@@ -521,15 +542,16 @@ const DashboardPage = () => {
                         <TableCell className="font-medium">{s.invoiceNumber}</TableCell>
                         <TableCell>{s.eta ? formatDateForDisplay(s.eta) : 'N/A'}</TableCell>
                         <TableCell>
-                          <Badge variant={s.status === 'delivered' ? 'default' : 'secondary'}>
-                            {s.status}
-                          </Badge>
+                          <Badge variant={s.status === 'delivered' ? 'default' : 'secondary'}>{s.status}</Badge>
                         </TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={3} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={3}
+                        className="text-muted-foreground text-center"
+                      >
                         No upcoming shipments.
                       </TableCell>
                     </TableRow>
@@ -558,14 +580,15 @@ const DashboardPage = () => {
                     recentItems.map((item) => (
                       <TableRow key={item.id}>
                         <TableCell className="font-medium">{item.partNumber}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {item.itemDescription}
-                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">{item.itemDescription}</TableCell>
                       </TableRow>
                     ))
                   ) : (
                     <TableRow>
-                      <TableCell colSpan={2} className="text-muted-foreground text-center">
+                      <TableCell
+                        colSpan={2}
+                        className="text-muted-foreground text-center"
+                      >
                         No items found.
                       </TableCell>
                     </TableRow>
@@ -586,13 +609,9 @@ const DashboardPage = () => {
           <CardContent>
             {expenseSummary ? (
               <div className="flex items-center gap-6">
-                <div className="text-2xl font-semibold">
-                  Total: ₹{expenseSummary.total.toLocaleString()}
-                </div>
+                <div className="text-2xl font-semibold">Total: ₹{expenseSummary.total.toLocaleString()}</div>
                 <Badge variant="secondary">Entries: {expenseSummary.count}</Badge>
-                <div className="text-muted-foreground text-sm">
-                  (Aggregated from latest shipments)
-                </div>
+                <div className="text-muted-foreground text-sm">(Aggregated from latest shipments)</div>
               </div>
             ) : (
               <div className="text-muted-foreground">No expenses found.</div>

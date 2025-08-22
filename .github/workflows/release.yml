@@ -100,19 +100,22 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Setup signing key
-        if: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY != '' }}
+      - name: Check signing configuration
         run: |
-          echo "🔐 Setting up signing key..."
-          echo "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" > C:\tauri_private.pem
-          echo "✅ Signing key configured"
+          if ("${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" -ne "") {
+            echo "🔐 Signing key available - will sign release"
+            echo "SIGNING_ENABLED=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+          } else {
+            echo "⚠️ No signing key - will create unsigned release"
+            echo "SIGNING_ENABLED=false" | Out-File -FilePath $env:GITHUB_ENV -Append
+          }
 
       - name: Build and sign application
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY || '' }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD || '' }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
           releaseName: 'Import Manager v__VERSION__'

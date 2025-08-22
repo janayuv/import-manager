@@ -59,7 +59,10 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setOpen}>
+    <Dialog
+      open={isOpen}
+      onOpenChange={setOpen}
+    >
       <DialogTrigger asChild>
         <Button style={{ backgroundColor: '#b77372' }}>Add New Supplier</Button>
       </DialogTrigger>
@@ -75,31 +78,50 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="supplierName">Supplier Name *</Label>
-              <Input id="supplierName" value={formData.supplierName} onChange={handleChange} />
+              <Input
+                id="supplierName"
+                value={formData.supplierName}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="shortName">Short Name</Label>
-              <Input id="shortName" value={formData.shortName} onChange={handleChange} />
+              <Input
+                id="shortName"
+                value={formData.shortName}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="country">Country *</Label>
-              <Input id="country" value={formData.country} onChange={handleChange} />
+              <Input
+                id="country"
+                value={formData.country}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">Email *</Label>
-              <Input id="email" type="email" value={formData.email} onChange={handleChange} />
+              <Input
+                id="email"
+                type="email"
+                value={formData.email}
+                onChange={handleChange}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="phone">Phone</Label>
-              <Input id="phone" value={formData.phone} onChange={handleChange} />
+              <Input
+                id="phone"
+                value={formData.phone}
+                onChange={handleChange}
+              />
             </div>
             <div className="flex items-center space-x-2 pt-6">
               <Checkbox
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData((prev) => ({ ...prev, isActive: !!checked }))
-                }
+                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isActive: !!checked }))}
               />
               <Label htmlFor="isActive">Is Active</Label>
 
@@ -128,33 +150,60 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankName">Bank Name</Label>
-                <Input id="bankName" value={formData.bankName} onChange={handleChange} />
+                <Input
+                  id="bankName"
+                  value={formData.bankName}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="branch">Branch</Label>
-                <Input id="branch" value={formData.branch} onChange={handleChange} />
+                <Input
+                  id="branch"
+                  value={formData.branch}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="bankAddress">Bank Address</Label>
-                <Input id="bankAddress" value={formData.bankAddress} onChange={handleChange} />
+                <Input
+                  id="bankAddress"
+                  value={formData.bankAddress}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="accountNo">Account No.</Label>
-                <Input id="accountNo" value={formData.accountNo} onChange={handleChange} />
+                <Input
+                  id="accountNo"
+                  value={formData.accountNo}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="iban">IBAN</Label>
-                <Input id="iban" value={formData.iban} onChange={handleChange} />
+                <Input
+                  id="iban"
+                  value={formData.iban}
+                  onChange={handleChange}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="swiftCode">SWIFT Code</Label>
-                <Input id="swiftCode" value={formData.swiftCode} onChange={handleChange} />
+                <Input
+                  id="swiftCode"
+                  value={formData.swiftCode}
+                  onChange={handleChange}
+                />
               </div>
             </div>
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} className="custom-alert-action-ok">
+          <Button
+            onClick={handleSubmit}
+            className="custom-alert-action-ok"
+          >
             Save Supplier
           </Button>
         </DialogFooter>

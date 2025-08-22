@@ -106,11 +106,7 @@ function walkDir(dir) {
 
     if (stat.isDirectory() && !shouldIgnoreFile(filePath)) {
       walkDir(filePath)
-    } else if (
-      stat.isFile() &&
-      /\.(ts|tsx|js|jsx|yml|yaml|json)$/.test(file) &&
-      !shouldIgnoreFile(filePath)
-    ) {
+    } else if (stat.isFile() && /\.(ts|tsx|js|jsx|yml|yaml|json)$/.test(file) && !shouldIgnoreFile(filePath)) {
       checkFile(filePath)
     }
   })
