@@ -900,8 +900,8 @@ impl ExpenseService {
         if let Some(ref date_from) = filters.date_from {
             println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
             println!(
-                "🔍 [DEBUG] Date from type: {}",
-                std::any::type_name_of_val(date_from)
+                "🔍 [DEBUG] Date from type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
@@ -910,8 +910,8 @@ impl ExpenseService {
         if let Some(ref date_to) = filters.date_to {
             println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
             println!(
-                "🔍 [DEBUG] Date to type: {}",
-                std::any::type_name_of_val(date_to)
+                "🔍 [DEBUG] Date to type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
@@ -1103,8 +1103,8 @@ impl ExpenseService {
         if let Some(ref date_from) = filters.date_from {
             println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
             println!(
-                "🔍 [DEBUG] Date from type: {}",
-                std::any::type_name_of_val(date_from)
+                "🔍 [DEBUG] Date from type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
@@ -1113,8 +1113,8 @@ impl ExpenseService {
         if let Some(ref date_to) = filters.date_to {
             println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
             println!(
-                "🔍 [DEBUG] Date to type: {}",
-                std::any::type_name_of_val(date_to)
+                "🔍 [DEBUG] Date to type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
@@ -1210,8 +1210,8 @@ impl ExpenseService {
         if let Some(ref date_from) = filters.date_from {
             println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
             println!(
-                "🔍 [DEBUG] Date from type: {}",
-                std::any::type_name_of_val(date_from)
+                "🔍 [DEBUG] Date from type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
@@ -1220,8 +1220,8 @@ impl ExpenseService {
         if let Some(ref date_to) = filters.date_to {
             println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
             println!(
-                "🔍 [DEBUG] Date to type: {}",
-                std::any::type_name_of_val(date_to)
+                "🔍 [DEBUG] Date to type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
@@ -1302,8 +1302,8 @@ impl ExpenseService {
         if let Some(ref date_from) = filters.date_from {
             println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
             println!(
-                "🔍 [DEBUG] Date from type: {}",
-                std::any::type_name_of_val(date_from)
+                "🔍 [DEBUG] Date from type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
@@ -1312,8 +1312,8 @@ impl ExpenseService {
         if let Some(ref date_to) = filters.date_to {
             println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
             println!(
-                "🔍 [DEBUG] Date to type: {}",
-                std::any::type_name_of_val(date_to)
+                "🔍 [DEBUG] Date to type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
@@ -1399,8 +1399,8 @@ impl ExpenseService {
         if let Some(ref date_from) = filters.date_from {
             println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
             println!(
-                "🔍 [DEBUG] Date from type: {}",
-                std::any::type_name_of_val(date_from)
+                "🔍 [DEBUG] Date from type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date >= ?".to_string());
             params.push(Box::new(date_from.clone()));
@@ -1409,8 +1409,8 @@ impl ExpenseService {
         if let Some(ref date_to) = filters.date_to {
             println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
             println!(
-                "🔍 [DEBUG] Date to type: {}",
-                std::any::type_name_of_val(date_to)
+                "🔍 [DEBUG] Date to type: {:?}",
+                std::any::type_name::<String>()
             );
             conditions.push("ei.invoice_date <= ?".to_string());
             params.push(Box::new(date_to.clone()));
