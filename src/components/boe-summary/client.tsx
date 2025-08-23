@@ -1020,7 +1020,7 @@ export function BoeSummaryClient({ savedBoes, shipments, allBoes }: BoeSummaryCl
                         >
                           <div>
                             <a
-                              className="text-blue-600 hover:underline"
+                              className="text-primary hover:underline"
                               href={convertFileSrc(att.url)}
                               target="_blank"
                               rel="noreferrer"

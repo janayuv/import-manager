@@ -146,8 +146,8 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({ selectedShipment, s
   const getCompletionSuggestion = (shipment: ShipmentWithExpenseCount) => {
     if (shipment.expenseCount >= 0) {
       return (
-        <div className="mt-2 rounded-md border border-green-200 bg-green-50 p-2">
-          <p className="mb-2 text-xs text-green-700">
+        <div className="border-success/30 bg-success/10 mt-2 rounded-md border p-2">
+          <p className="text-success mb-2 text-xs">
             {shipment.expenseCount > 0
               ? `✅ This shipment has ${shipment.expenseCount} expenses totaling ₹${shipment.totalExpenseAmount.toFixed(2)}`
               : 'No expenses yet for this shipment.'}
@@ -177,7 +177,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({ selectedShipment, s
                 <AlertDialogCancel>Cancel</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => freezeShipment(shipment.id)}
-                  className="bg-green-600 hover:bg-green-700"
+                  className="bg-success hover:bg-success/90"
                 >
                   Freeze
                 </AlertDialogAction>

@@ -494,15 +494,15 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                     <div
                       key={index}
                       className={`rounded-lg border p-3 ${
-                        result.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                        result.success ? 'border-success/20 bg-success/5' : 'border-destructive/20 bg-destructive/5'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {result.success ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CheckCircle className="text-success h-4 w-4" />
                           ) : (
-                            <X className="h-4 w-4 text-red-600" />
+                            <X className="text-destructive h-4 w-4" />
                           )}
                           <span className="font-medium">{result.testType}</span>
                           <Badge

@@ -4,7 +4,9 @@ import { invoke } from '@tauri-apps/api/core'
 
 import * as React from 'react'
 
-import { BoeSummaryClient } from '@/components/boe-summary/client'
+const BoeSummaryClient = React.lazy(() =>
+  import('@/components/boe-summary/client').then((module) => ({ default: module.BoeSummaryClient }))
+)
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { BoeDetails } from '@/types/boe'
@@ -74,11 +76,13 @@ export default function BoeSummaryPage() {
           </div>
         </CardHeader>
         <CardContent>
-          <BoeSummaryClient
-            savedBoes={savedBoes}
-            shipments={shipments}
-            allBoes={allBoes}
-          />
+          <React.Suspense fallback={<Skeleton className="h-96 w-full" />}>
+            <BoeSummaryClient
+              savedBoes={savedBoes}
+              shipments={shipments}
+              allBoes={allBoes}
+            />
+          </React.Suspense>
         </CardContent>
       </Card>
     </div>

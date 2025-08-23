@@ -132,11 +132,7 @@ export const getItemColumns = (
       header: 'Status',
       cell: ({ row }) => {
         const isActive = row.getValue('isActive')
-        return (
-          <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
-            {isActive ? 'Active' : 'Inactive'}
-          </Badge>
-        )
+        return <Badge variant={isActive ? 'success' : 'destructive'}>{isActive ? 'Active' : 'Inactive'}</Badge>
       },
     },
     {

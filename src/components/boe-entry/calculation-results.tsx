@@ -48,11 +48,22 @@ const formatCurrency = (amount: number) => {
   }).format(amount)
 }
 
+// Define proper types for the calculation items
+interface CalculationItem {
+  description?: string
+  assessableValue?: number
+  bcd?: number
+  igst?: number
+  compCess?: number
+  total?: number
+  [key: string]: unknown // Allow additional properties
+}
+
 export function CalculationResults({ results }: CalculationResultsProps) {
   const r = results as CalculationResult
-  const detailItems = (r.items ?? (r as any).calculatedItems ?? []) as Array<any>
-  const safeNum = (v: any) => (typeof v === 'number' && isFinite(v) ? v : 0)
-  const safeStr = (v: any) => (typeof v === 'string' ? v : '')
+  const detailItems = (r.items ?? (r as Record<string, unknown>).calculatedItems ?? []) as CalculationItem[]
+  const safeNum = (v: unknown): number => (typeof v === 'number' && isFinite(v) ? v : 0)
+  const safeStr = (v: unknown): string => (typeof v === 'string' ? v : '')
   return (
     <div className="mt-12 space-y-8">
       {/* --- Totals Summary --- */}

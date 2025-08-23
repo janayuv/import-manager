@@ -111,8 +111,8 @@ export const columns: ColumnDef<Shipment>[] = [
             variant={status === 'Delivered' ? 'default' : 'secondary'}
             className={` ${
               status === 'Delivered'
-                ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                : 'bg-blue-100 text-blue-800 hover:bg-blue-200'
+                ? 'bg-success/10 text-success hover:bg-success/20'
+                : 'bg-info/10 text-info hover:bg-info/20'
             } `}
           >
             {status}

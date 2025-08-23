@@ -340,7 +340,7 @@ export function ItemMasterPage() {
     <div className="flex items-center gap-2">
       <Button
         onClick={() => handleExport('selected')}
-        variant="outline"
+        variant="secondary"
         disabled={true}
       >
         <FileOutput className="mr-2 h-4 w-4" />
@@ -348,7 +348,7 @@ export function ItemMasterPage() {
       </Button>
       <Button
         onClick={() => handleExport('all')}
-        variant="outline"
+        variant="info"
       >
         <Download className="mr-2 h-4 w-4" />
         Export All
@@ -361,20 +361,23 @@ export function ItemMasterPage() {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Item Master</h1>
         <div className="flex items-center gap-2">
-          <Button onClick={handleOpenFormForAdd}>
+          <Button
+            onClick={handleOpenFormForAdd}
+            variant="default"
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add New
           </Button>
           <Button
             onClick={handleDownloadTemplate}
-            variant="outline"
+            variant="secondary"
           >
             <Download className="mr-2 h-4 w-4" />
             Template
           </Button>
           <Button
             onClick={handleImport}
-            variant="outline"
+            variant="success"
           >
             <Upload className="mr-2 h-4 w-4" />
             Import

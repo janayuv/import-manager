@@ -32,11 +32,11 @@ export function KPICard({
   const getVariantStyles = () => {
     switch (variant) {
       case 'success':
-        return 'border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950/20'
+        return 'border-success/20 bg-success/5 dark:border-success/80 dark:bg-success/20'
       case 'warning':
-        return 'border-yellow-200 bg-yellow-50 dark:border-yellow-800 dark:bg-yellow-950/20'
+        return 'border-warning/20 bg-warning/5 dark:border-warning/80 dark:bg-warning/20'
       case 'destructive':
-        return 'border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/20'
+        return 'border-destructive/20 bg-destructive/5 dark:border-destructive/80 dark:bg-destructive/20'
       default:
         return 'border-border bg-card'
     }
@@ -47,9 +47,9 @@ export function KPICard({
       case 'success':
         return 'text-green-600 dark:text-green-400'
       case 'warning':
-        return 'text-yellow-600 dark:text-yellow-400'
+        return 'text-warning'
       case 'destructive':
-        return 'text-red-600 dark:text-red-400'
+        return 'text-destructive'
       default:
         return 'text-muted-foreground'
     }
@@ -65,7 +65,7 @@ export function KPICard({
     return trend.isPositive ? (
       <ArrowUpIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
     ) : (
-      <ArrowDownIcon className="h-4 w-4 text-red-600 dark:text-red-400" />
+      <ArrowDownIcon className="text-destructive h-4 w-4" />
     )
   }
 
@@ -73,7 +73,7 @@ export function KPICard({
     if (!trend) return ''
 
     if (trend.value === 0) return 'text-muted-foreground'
-    return trend.isPositive ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'
+    return trend.isPositive ? 'text-success' : 'text-destructive'
   }
 
   return (

@@ -203,7 +203,7 @@ export function ExpenseDebug() {
             </div>
 
             {debugInfo && (
-              <div className="rounded-lg bg-gray-700 p-4">
+              <div className="bg-muted rounded-lg p-4">
                 <h3 className="mb-2 font-semibold">Debug Information:</h3>
                 <pre className="text-sm whitespace-pre-wrap">{debugInfo}</pre>
               </div>
@@ -271,9 +271,9 @@ export function ExpenseDebug() {
           </div>
 
           {/* Instructions */}
-          <div className="rounded-lg bg-gray-500 p-4">
-            <h3 className="mb-2 font-semibold text-blue-900">Instructions:</h3>
-            <ul className="space-y-1 text-sm text-blue-800">
+          <div className="bg-muted rounded-lg p-4">
+            <h3 className="text-foreground mb-2 font-semibold">Instructions:</h3>
+            <ul className="text-foreground space-y-1 text-sm">
               <li>• Click "Debug Expense Types" to see current expense types and their rates</li>
               <li>• Click "Add Sample Expense Types" to add common expense types with correct rates</li>
               <li>• Or manually add expense types using the form above</li>

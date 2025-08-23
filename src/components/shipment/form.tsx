@@ -132,13 +132,13 @@ export function ShipmentForm({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'delivered':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300'
+        return 'bg-success/10 text-success'
       case 'in-transit':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300'
+        return 'bg-info/10 text-info'
       case 'docu-received':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300'
+        return 'bg-warning/10 text-warning-foreground'
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300'
+        return 'bg-muted text-foreground'
     }
   }
 
@@ -170,7 +170,7 @@ export function ShipmentForm({
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Supplier <span className="text-red-500">*</span>
+                    Supplier <span className="text-destructive">*</span>
                   </Label>
                   <CreatableCombobox
                     options={suppliers}
@@ -184,7 +184,7 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Invoice # <span className="text-red-500">*</span>
+                    Invoice # <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="invoiceNumber"
@@ -195,7 +195,7 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Invoice Date <span className="text-red-500">*</span>
+                    Invoice Date <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="invoiceDate"
@@ -206,7 +206,7 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Goods Category <span className="text-red-500">*</span>
+                    Goods Category <span className="text-destructive">*</span>
                   </Label>
                   <CreatableCombobox
                     options={categories}
@@ -218,7 +218,7 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Invoice Value <span className="text-red-500">*</span>
+                    Invoice Value <span className="text-destructive">*</span>
                   </Label>
                   <Input
                     id="invoiceValue"
@@ -231,7 +231,7 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Currency <span className="text-red-500">*</span>
+                    Currency <span className="text-destructive">*</span>
                   </Label>
                   <CreatableCombobox
                     options={currencies}
@@ -243,7 +243,7 @@ export function ShipmentForm({
                 </div>
                 <div className="space-y-2">
                   <Label className="flex items-center gap-1">
-                    Incoterm <span className="text-red-500">*</span>
+                    Incoterm <span className="text-destructive">*</span>
                   </Label>
                   <CreatableCombobox
                     options={incoterms}

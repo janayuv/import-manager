@@ -23,9 +23,7 @@ const DetailItem = ({ label, value }: { label: string; value?: string | boolean 
     return (
       <div className="flex items-center space-x-2">
         <span className="text-muted-foreground w-40 text-sm">{label}</span>
-        <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
-          {isActive ? 'Active' : 'Inactive'}
-        </Badge>
+        <Badge variant={isActive ? 'success' : 'destructive'}>{isActive ? 'Active' : 'Inactive'}</Badge>
       </div>
     )
   }

@@ -286,7 +286,7 @@ export default function ReportsPage() {
         <CardHeader>
           <CardTitle>Report Data</CardTitle>
           {loading && <p className="text-muted-foreground text-sm">Loading...</p>}
-          {error && <p className="text-sm text-red-500">Error: {error}</p>}
+          {error && <p className="text-destructive text-sm">Error: {error}</p>}
         </CardHeader>
         <CardContent>
           {data.length === 0 && !loading ? (

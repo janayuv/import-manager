@@ -127,7 +127,7 @@ export function DataTable<TData, TValue>({ columns, data }: DataTableProps<TData
     <div className="space-y-4">
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-primary text-primary-foreground">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {

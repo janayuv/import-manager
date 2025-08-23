@@ -108,11 +108,11 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
                 id="isActive"
                 checked={formData.isActive || false}
                 onCheckedChange={(checked) => setFormData((prev) => ({ ...prev!, isActive: !!checked }))}
-                className={formData.isActive ? 'border-green-600 bg-green-600' : 'border-red-600 bg-red-600'}
+                className={formData.isActive ? 'border-success bg-success' : 'border-destructive bg-destructive'}
               />
               <Label htmlFor="isActive">Is Active</Label>
 
-              <span className={`text-sm font-medium ${formData.isActive ? 'text-green-600' : 'text-red-600'}`}>
+              <span className={`text-sm font-medium ${formData.isActive ? 'text-success' : 'text-destructive'}`}>
                 {formData.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
@@ -186,7 +186,7 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
         <DialogFooter>
           <Button
             onClick={handleSubmit}
-            className="bg-red-600 text-white hover:bg-red-700"
+            variant="default"
           >
             Save Supplier
           </Button>

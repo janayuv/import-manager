@@ -60,7 +60,7 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
       </div>
       <div className="rounded-md border">
         <Table>
-          <TableHeader>
+          <TableHeader className="bg-primary text-black">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {

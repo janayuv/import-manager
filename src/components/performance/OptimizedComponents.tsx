@@ -1,4 +1,5 @@
 import React, { Suspense, forwardRef, lazy, memo, useCallback, useMemo } from 'react'
+import { type ColumnDef } from '@tanstack/react-table'
 
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -158,13 +159,9 @@ export const OptimizedList = memo(
 )
 
 // Optimized table component
-interface OptimizedTableProps<T> {
-  data: T[]
-  columns: Array<{
-    key: string
-    header: string
-    cell?: (item: T) => React.ReactNode
-  }>
+interface OptimizedTableProps {
+  data: Record<string, unknown>[]
+  columns: ColumnDef<Record<string, unknown>, unknown>[]
   loading?: boolean
   error?: string | null
   emptyMessage?: string
@@ -173,15 +170,7 @@ interface OptimizedTableProps<T> {
 }
 
 export const OptimizedTable = memo(
-  <T,>({
-    data,
-    columns,
-    loading = false,
-    error = null,
-
-    className = '',
-    storageKey,
-  }: OptimizedTableProps<T>) => {
+  ({ data, columns, loading = false, error = null, className = '', storageKey }: OptimizedTableProps) => {
     usePerformanceMonitor('OptimizedTable')
 
     if (loading) {
@@ -201,10 +190,9 @@ export const OptimizedTable = memo(
     return (
       <div className={className}>
         <Suspense fallback={<TableLoadingFallback />}>
-          {/* Cast to satisfy DataTable generic expectations without altering runtime */}
           <LazyTable
-            columns={columns as unknown as any}
-            data={data as unknown as any[]}
+            columns={columns as ColumnDef<unknown, unknown>[]}
+            data={data as unknown[]}
             storageKey={storageKey}
           />
         </Suspense>

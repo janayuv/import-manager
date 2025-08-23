@@ -322,7 +322,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
 
   return (
     <Card className="mx-auto w-full max-w-7xl">
-      <CardHeader className="border-b bg-gray-50/50">
+      <CardHeader className="bg-card/50 border-b">
         <CardTitle className="flex items-center justify-between text-xl">
           <span>Add Multiple Expenses</span>
           <Button
@@ -344,9 +344,9 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
         >
           {/* Duplicate Warning */}
           {duplicateWarning && (
-            <Alert className="border-yellow-200 bg-yellow-50">
-              <AlertTriangle className="h-4 w-4 text-yellow-600" />
-              <AlertDescription className="text-yellow-800">
+            <Alert className="bg-warning/10">
+              <AlertTriangle className="text-warning h-4 w-4" />
+              <AlertDescription className="text-warning-foreground">
                 <div className="flex items-center justify-between">
                   <span>{duplicateWarning}</span>
                   <Button
@@ -354,7 +354,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                     variant="outline"
                     size="sm"
                     onClick={combineDuplicateExpenseTypes}
-                    className="ml-4 border-yellow-300 text-yellow-700 hover:bg-yellow-100"
+                    className="text-warning hover:bg-warning/20 ml-4"
                   >
                     Combine Duplicates
                   </Button>
@@ -366,10 +366,10 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
           {/* Invoice Header Section */}
           <div className="space-y-4">
             <div className="flex items-center gap-2">
-              <div className="h-6 w-1 rounded-full bg-blue-600"></div>
-              <h3 className="text-lg font-semibold text-gray-900">Invoice Details</h3>
+              <div className="bg-primary h-6 w-1 rounded-full"></div>
+              <h3 className="text-foreground text-lg font-semibold">Invoice Details</h3>
             </div>
-            <div className="grid grid-cols-1 gap-6 rounded-lg border bg-gray-500/50 p-6 md:grid-cols-2 lg:grid-cols-4">
+            <div className="bg-card/50 grid grid-cols-1 gap-6 rounded-lg border p-6 md:grid-cols-2 lg:grid-cols-4">
               <div className="space-y-2">
                 <Label
                   htmlFor="service-provider"
@@ -477,8 +477,8 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="h-6 w-1 rounded-full bg-green-600"></div>
-                <h3 className="text-lg font-semibold text-gray-900">Expense Lines</h3>
+                <div className="bg-success h-6 w-1 rounded-full"></div>
+                <h3 className="text-foreground text-lg font-semibold">Expense Lines</h3>
               </div>
               <div className="flex gap-3">
                 <Button
@@ -508,14 +508,14 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
             {expenseLines.map((line, index) => (
               <div
                 key={index}
-                className="space-y-6 rounded-lg border bg-gray-600 p-6 shadow-sm"
+                className="bg-secondary space-y-6 rounded-lg border p-6 shadow-sm"
               >
                 <div className="flex items-center justify-between border-b pb-4">
                   <div className="flex items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-600">
+                    <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold">
                       {index + 1}
                     </div>
-                    <h4 className="font-semibold text-gray-900">Expense Line {index + 1}</h4>
+                    <h4 className="text-foreground font-semibold">Expense Line {index + 1}</h4>
                   </div>
                   {expenseLines.length > 1 && (
                     <Button
@@ -523,7 +523,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                       variant="ghost"
                       size="sm"
                       onClick={() => removeExpenseLine(index)}
-                      className="text-red-600 hover:bg-red-50 hover:text-red-700"
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -582,10 +582,10 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
 
                 {/* Tax Rates Row */}
                 <div className="space-y-3">
-                  <Label className="text-sm font-medium text-gray-700">Tax Rates (%)</Label>
+                  <Label className="text-foreground text-sm font-medium">Tax Rates (%)</Label>
                   <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-600">CGST Rate (%)</Label>
+                      <Label className="text-muted-foreground text-xs font-medium">CGST Rate (%)</Label>
                       <Input
                         type="number"
                         step="1"
@@ -600,7 +600,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-600">SGST Rate (%)</Label>
+                      <Label className="text-muted-foreground text-xs font-medium">SGST Rate (%)</Label>
                       <Input
                         type="number"
                         step="1"
@@ -615,7 +615,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-600">IGST Rate (%)</Label>
+                      <Label className="text-muted-foreground text-xs font-medium">IGST Rate (%)</Label>
                       <Input
                         type="number"
                         step="1"
@@ -630,7 +630,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                     </div>
 
                     <div className="space-y-2">
-                      <Label className="text-xs font-medium text-gray-600">TDS Rate (%)</Label>
+                      <Label className="text-muted-foreground text-xs font-medium">TDS Rate (%)</Label>
                       <Input
                         type="number"
                         step="1"
@@ -654,12 +654,12 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
             <div className="space-y-4">
               <div className="flex items-center gap-2">
                 <div className="h-6 w-1 rounded-full bg-purple-600"></div>
-                <h3 className="text-lg font-semibold text-gray-900">Calculation Preview</h3>
+                <h3 className="text-foreground text-lg font-semibold">Calculation Preview</h3>
               </div>
-              <div className="rounded-lg border bg-gray-50/50 p-6">
+              <div className="bg-card/50 rounded-lg border p-6">
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                   <div>
-                    <h4 className="mb-2 font-medium text-blue-800">Line Details</h4>
+                    <h4 className="text-foreground mb-2 font-medium">Line Details</h4>
                     <div className="space-y-2">
                       {preview.lines.map((line, index) => (
                         <div
@@ -667,14 +667,14 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                           className="rounded border bg-white p-2"
                         >
                           <div className="text-sm font-medium">{line.expense_type_name}</div>
-                          <div className="text-xs text-gray-600">
+                          <div className="text-muted-foreground text-xs">
                             Amount: {formatCurrency(line.amount_paise)} | CGST: {formatCurrency(line.cgst_amount_paise)}{' '}
                             ({formatPercentage(line.cgst_rate)}) | SGST: {formatCurrency(line.sgst_amount_paise)} (
                             {formatPercentage(line.sgst_rate)}) | IGST: {formatCurrency(line.igst_amount_paise)} (
                             {formatPercentage(line.igst_rate)}) | TDS: {formatCurrency(line.tds_amount_paise)} (
                             {formatPercentage(line.tds_rate)})
                           </div>
-                          <div className="text-xs font-medium text-green-600">
+                          <div className="text-success text-xs font-medium">
                             Total: {formatCurrency(line.total_amount_paise)}
                           </div>
                         </div>
@@ -682,7 +682,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                     </div>
                   </div>
                   <div>
-                    <h4 className="mb-2 font-medium text-blue-800">Invoice Summary</h4>
+                    <h4 className="text-foreground mb-2 font-medium">Invoice Summary</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <span>Total Amount:</span>
@@ -706,7 +706,7 @@ export function ExpenseMultilineForm({ shipmentId, onSuccess, onCancel }: Expens
                       </div>
                       <div className="flex justify-between border-t pt-2 font-semibold">
                         <span>Net Amount:</span>
-                        <span className="text-green-600">{formatCurrency(preview.net_amount_paise)}</span>
+                        <span className="text-success">{formatCurrency(preview.net_amount_paise)}</span>
                       </div>
                     </div>
                   </div>

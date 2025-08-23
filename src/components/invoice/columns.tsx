@@ -202,10 +202,10 @@ export const getInvoiceColumns = ({
 
         const colorClass =
           {
-            Draft: 'bg-orange-400 text-gray-800',
-            Finalized: 'bg-green-600 text-gray-800',
-            Mismatch: 'bg-red-400 text-red-100',
-          }[status] ?? 'bg-gray-100 text-gray-800' // fallback
+            Draft: 'bg-warning text-warning-foreground',
+            Finalized: 'bg-success text-success-foreground',
+            Mismatch: 'bg-destructive text-destructive-foreground',
+          }[status] ?? 'bg-muted text-muted-foreground' // fallback
 
         return <Badge className={colorClass}>{status}</Badge>
       },

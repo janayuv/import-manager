@@ -206,9 +206,9 @@ export const ValidationTest = () => {
                     className="flex items-center gap-2"
                   >
                     {result.success ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="text-success h-4 w-4" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-red-500" />
+                      <XCircle className="text-destructive h-4 w-4" />
                     )}
                     <span className="text-sm font-medium">{test}:</span>
                     <span className="text-muted-foreground text-sm">{result.message}</span>
@@ -311,7 +311,7 @@ export const ValidationTest = () => {
                       className={supplierValidation.hasFieldError('supplierName') ? 'border-red-500' : ''}
                     />
                     {supplierValidation.hasFieldError('supplierName') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('supplierName')}</p>
+                      <p className="text-destructive text-sm">{supplierValidation.getFieldError('supplierName')}</p>
                     )}
                   </div>
 
@@ -326,7 +326,7 @@ export const ValidationTest = () => {
                       className={supplierValidation.hasFieldError('country') ? 'border-red-500' : ''}
                     />
                     {supplierValidation.hasFieldError('country') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('country')}</p>
+                      <p className="text-destructive text-sm">{supplierValidation.getFieldError('country')}</p>
                     )}
                   </div>
 
@@ -341,7 +341,7 @@ export const ValidationTest = () => {
                       className={supplierValidation.hasFieldError('email') ? 'border-red-500' : ''}
                     />
                     {supplierValidation.hasFieldError('email') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('email')}</p>
+                      <p className="text-destructive text-sm">{supplierValidation.getFieldError('email')}</p>
                     )}
                   </div>
 
@@ -356,7 +356,7 @@ export const ValidationTest = () => {
                       className={supplierValidation.hasFieldError('phone') ? 'border-red-500' : ''}
                     />
                     {supplierValidation.hasFieldError('phone') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('phone')}</p>
+                      <p className="text-destructive text-sm">{supplierValidation.getFieldError('phone')}</p>
                     )}
                   </div>
                 </div>
@@ -402,7 +402,7 @@ export const ValidationTest = () => {
                       className={shipmentValidation.hasFieldError('invoiceNumber') ? 'border-red-500' : ''}
                     />
                     {shipmentValidation.hasFieldError('invoiceNumber') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceNumber')}</p>
+                      <p className="text-destructive text-sm">{shipmentValidation.getFieldError('invoiceNumber')}</p>
                     )}
                   </div>
 
@@ -417,7 +417,7 @@ export const ValidationTest = () => {
                       className={shipmentValidation.hasFieldError('invoiceDate') ? 'border-red-500' : ''}
                     />
                     {shipmentValidation.hasFieldError('invoiceDate') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceDate')}</p>
+                      <p className="text-destructive text-sm">{shipmentValidation.getFieldError('invoiceDate')}</p>
                     )}
                   </div>
 
@@ -432,7 +432,7 @@ export const ValidationTest = () => {
                       className={shipmentValidation.hasFieldError('invoiceValue') ? 'border-red-500' : ''}
                     />
                     {shipmentValidation.hasFieldError('invoiceValue') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceValue')}</p>
+                      <p className="text-destructive text-sm">{shipmentValidation.getFieldError('invoiceValue')}</p>
                     )}
                   </div>
 
@@ -447,7 +447,7 @@ export const ValidationTest = () => {
                       className={shipmentValidation.hasFieldError('invoiceCurrency') ? 'border-red-500' : ''}
                     />
                     {shipmentValidation.hasFieldError('invoiceCurrency') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceCurrency')}</p>
+                      <p className="text-destructive text-sm">{shipmentValidation.getFieldError('invoiceCurrency')}</p>
                     )}
                   </div>
                 </div>
@@ -484,7 +484,7 @@ export const ValidationTest = () => {
                       className={itemValidation.hasFieldError('partNumber') ? 'border-red-500' : ''}
                     />
                     {itemValidation.hasFieldError('partNumber') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('partNumber')}</p>
+                      <p className="text-destructive text-sm">{itemValidation.getFieldError('partNumber')}</p>
                     )}
                   </div>
 
@@ -499,7 +499,7 @@ export const ValidationTest = () => {
                       className={itemValidation.hasFieldError('hsnCode') ? 'border-red-500' : ''}
                     />
                     {itemValidation.hasFieldError('hsnCode') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('hsnCode')}</p>
+                      <p className="text-destructive text-sm">{itemValidation.getFieldError('hsnCode')}</p>
                     )}
                   </div>
 
@@ -513,7 +513,7 @@ export const ValidationTest = () => {
                       className={itemValidation.hasFieldError('itemDescription') ? 'border-red-500' : ''}
                     />
                     {itemValidation.hasFieldError('itemDescription') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('itemDescription')}</p>
+                      <p className="text-destructive text-sm">{itemValidation.getFieldError('itemDescription')}</p>
                     )}
                   </div>
 
@@ -528,7 +528,7 @@ export const ValidationTest = () => {
                       className={itemValidation.hasFieldError('unitPrice') ? 'border-red-500' : ''}
                     />
                     {itemValidation.hasFieldError('unitPrice') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('unitPrice')}</p>
+                      <p className="text-destructive text-sm">{itemValidation.getFieldError('unitPrice')}</p>
                     )}
                   </div>
 
@@ -543,7 +543,7 @@ export const ValidationTest = () => {
                       className={itemValidation.hasFieldError('currency') ? 'border-red-500' : ''}
                     />
                     {itemValidation.hasFieldError('currency') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('currency')}</p>
+                      <p className="text-destructive text-sm">{itemValidation.getFieldError('currency')}</p>
                     )}
                   </div>
                 </div>
@@ -663,7 +663,7 @@ export const ValidationTest = () => {
     const testCsvValidation = () => {
       const result = validateCsv(sampleCsvData)
       setCsvValidationResult(
-        (result as unknown) as {
+        result as unknown as {
           valid: Record<string, string>[]
           invalid: { index: number; errors: string[] }[]
         }
@@ -701,9 +701,7 @@ export const ValidationTest = () => {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-green-600">
-                        Valid Records ({csvValidationResult.valid.length})
-                      </CardTitle>
+                      <CardTitle className="text-success">Valid Records ({csvValidationResult.valid.length})</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
@@ -721,7 +719,7 @@ export const ValidationTest = () => {
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-red-600">
+                      <CardTitle className="text-destructive">
                         Invalid Records ({csvValidationResult.invalid.length})
                       </CardTitle>
                     </CardHeader>
@@ -734,7 +732,7 @@ export const ValidationTest = () => {
                               className="text-sm"
                             >
                               <strong>Row {record.index + 1}:</strong>
-                              <ul className="ml-4 text-red-500">
+                              <ul className="text-destructive ml-4">
                                 {record.errors.map((error: string, errorIndex: number) => (
                                   <li key={errorIndex}>{error}</li>
                                 ))}

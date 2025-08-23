@@ -1,4 +1,4 @@
-import { Monitor, Moon, SidebarIcon, Sun } from 'lucide-react'
+import { Monitor, Moon, Palette, SidebarIcon, Sun } from 'lucide-react'
 
 import { useTheme } from '@/components/layout/theme-context'
 import { Breadcrumb } from '@/components/ui/breadcrumb'
@@ -10,6 +10,24 @@ import { useSidebar } from '@/components/ui/use-sidebar'
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar()
   const { theme, setTheme, toggleMode } = useTheme()
+
+  const colorOptions: { key: typeof theme.color; label: string; swatchClass: string }[] = [
+    { key: 'zinc', label: 'Zinc', swatchClass: 'bg-zinc-500' },
+    { key: 'slate', label: 'Slate', swatchClass: 'bg-slate-500' },
+    { key: 'blue', label: 'Blue', swatchClass: 'bg-blue-500' },
+    { key: 'cyan', label: 'Cyan', swatchClass: 'bg-cyan-500' },
+    { key: 'teal', label: 'Teal', swatchClass: 'bg-teal-500' },
+    { key: 'green', label: 'Green', swatchClass: 'bg-green-500' },
+    { key: 'orange', label: 'Orange', swatchClass: 'bg-orange-500' },
+    { key: 'red', label: 'Red', swatchClass: 'bg-red-500' },
+    { key: 'purple', label: 'Purple', swatchClass: 'bg-purple-500' },
+    { key: 'violet', label: 'Violet', swatchClass: 'bg-violet-500' },
+    { key: 'indigo', label: 'Indigo', swatchClass: 'bg-indigo-500' },
+    { key: 'sky', label: 'Sky', swatchClass: 'bg-sky-500' },
+    { key: 'pink', label: 'Pink', swatchClass: 'bg-pink-500' },
+    { key: 'rose', label: 'Rose', swatchClass: 'bg-rose-500' },
+    { key: 'fuchsia', label: 'Fuchsia', swatchClass: 'bg-fuchsia-500' },
+  ]
 
   const getThemeIcon = () => {
     switch (theme.mode) {
@@ -90,6 +108,39 @@ export function SiteHeader() {
                 <Monitor className="mr-2 h-4 w-4" />
                 <span>System</span>
               </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {/* Color Palette */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                title={`Theme color: ${theme.color}`}
+              >
+                <Palette className="h-4 w-4" />
+                <span className="sr-only">Change theme color</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-52 p-2"
+            >
+              <div className="grid grid-cols-5 gap-2">
+                {colorOptions.map((c) => (
+                  <button
+                    key={c.key}
+                    type="button"
+                    onClick={() => setTheme({ ...theme, color: c.key })}
+                    className={`border-foreground/20 hover:border-foreground/60 ring-ring/50 focus-visible:ring-ring/50 relative flex h-7 w-7 items-center justify-center rounded-full border transition focus-visible:ring-2 focus-visible:outline-none ${c.swatchClass}`}
+                    title={c.label}
+                  >
+                    {theme.color === c.key ? <span className="bg-background/80 block h-2 w-2 rounded-full" /> : null}
+                  </button>
+                ))}
+              </div>
             </DropdownMenuContent>
           </DropdownMenu>
 

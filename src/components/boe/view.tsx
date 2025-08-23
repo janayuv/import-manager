@@ -19,7 +19,7 @@ interface ViewDialogProps {
 
 const DetailRow = ({ label, value }: { label: string; value: string | number | null | undefined }) => (
   <div>
-    <p className="text-sm font-medium text-gray-500">{label}</p>
+    <p className="text-muted-foreground text-sm font-medium">{label}</p>
     <p className="font-semibold">{value || '-'}</p>
   </div>
 )

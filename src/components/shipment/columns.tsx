@@ -65,7 +65,7 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-blue-600 hover:bg-blue-600/10"
+          className="text-primary hover:bg-primary/10"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Invoice No
@@ -88,7 +88,7 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-blue-600 hover:bg-blue-600/10"
+          className="text-primary hover:bg-primary/10"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           {' '}
@@ -242,7 +242,7 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-blue-600 hover:bg-blue-600/10"
+          className="text-primary hover:bg-primary/10"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           {' '}
@@ -258,7 +258,7 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-blue-600 hover:bg-blue-600/10"
+          className="text-primary hover:bg-primary/10"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           {' '}

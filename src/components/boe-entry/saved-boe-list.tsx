@@ -103,7 +103,7 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
         <div className="rounded-md border">
           <Table>
             <TableHeader>
-              <TableRow className="bg-pink-800 text-gray-100">
+              <TableRow className="bg-primary text-primary-foreground">
                 <TableHead>Invoice Number</TableHead>
                 <TableHead>Supplier</TableHead>
                 <TableHead className="text-right">Total Duty</TableHead>

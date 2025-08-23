@@ -92,6 +92,28 @@ export function useValidation<T extends Record<string, unknown>>({
     [data, setData]
   )
 
+  // Validate individual field
+  const validateField = useCallback(
+    (field: keyof T): boolean => {
+      const fieldData = { [field]: data[field] }
+      // Create a simple field validation
+      const result = validateData(schema, fieldData)
+
+      if (result.success) {
+        setErrors((prev) => ({ ...prev, [field]: [] }))
+        return true
+      } else {
+        const fieldErrors = result.errors
+          .filter((error) => error.startsWith(field as string))
+          .map((error) => error.split(':')[1]?.trim() || error)
+
+        setErrors((prev) => ({ ...prev, [field]: fieldErrors }))
+        return false
+      }
+    },
+    [data, schema]
+  )
+
   // Set touched state
   const setTouched = useCallback(
     (field: keyof T, touched: boolean) => {
@@ -101,7 +123,7 @@ export function useValidation<T extends Record<string, unknown>>({
         validateField(field)
       }
     },
-    [validateOnBlur]
+    [validateOnBlur, validateField]
   )
 
   // Validate entire form
@@ -129,28 +151,6 @@ export function useValidation<T extends Record<string, unknown>>({
       return false
     }
   }, [data, schema, showToast, onValidationError])
-
-  // Validate individual field
-  const validateField = useCallback(
-    (field: keyof T): boolean => {
-      const fieldData = { [field]: data[field] }
-      // Create a simple field validation
-      const result = validateData(schema, fieldData)
-
-      if (result.success) {
-        setErrors((prev) => ({ ...prev, [field]: [] }))
-        return true
-      } else {
-        const fieldErrors = result.errors
-          .filter((error) => error.startsWith(field as string))
-          .map((error) => error.split(':')[1]?.trim() || error)
-
-        setErrors((prev) => ({ ...prev, [field]: fieldErrors }))
-        return false
-      }
-    },
-    [data, schema]
-  )
 
   // Reset form
   const reset = useCallback(() => {

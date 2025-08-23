@@ -243,28 +243,25 @@ const BoePage = () => {
         <div className="flex items-center gap-2">
           <Button
             onClick={handleDownloadTemplate}
-            variant="outline"
-            style={{ backgroundColor: '#a855f7', color: 'white' }}
+            variant="secondary"
           >
             <Download className="mr-2 h-4 w-4" /> Template
           </Button>
           <Button
             onClick={handleImport}
-            variant="outline"
-            style={{ backgroundColor: '#22c55e', color: 'white' }}
+            variant="success"
           >
             <Upload className="mr-2 h-4 w-4" /> Import
           </Button>
           <Button
             onClick={handleExport}
-            variant="outline"
-            style={{ backgroundColor: '#3b82f6', color: 'white' }}
+            variant="info"
           >
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
           <Button
             onClick={handleOpenFormForAdd}
-            style={{ backgroundColor: '#e7739e', color: 'white' }}
+            variant="default"
           >
             <Plus className="mr-2 h-4 w-4" /> Add New BOE
           </Button>
