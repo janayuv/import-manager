@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use refinery::embed_migrations;
 use rusqlite::{Connection, Result};
 use std::path::Path;

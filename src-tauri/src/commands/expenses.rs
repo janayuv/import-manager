@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use crate::commands::utils::generate_id;
 use crate::db::{
     DbState, Expense, ExpenseAttachment, ExpenseInvoice, ExpenseType, ExpenseWithInvoice,

@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use crate::db::DbState;
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
