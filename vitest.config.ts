@@ -9,13 +9,7 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.{test,vitest}.{ts,tsx}'],
-    exclude: [
-      'node_modules/**',
-      'dist/**',
-      'tests/e2e/**',
-      'e2e/**',
-      'playwright/**',
-    ],
+    exclude: ['node_modules/**', 'dist/**', 'tests/e2e/**', 'e2e/**', 'playwright/**'],
     environment: 'jsdom',
   },
 })

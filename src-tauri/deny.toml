@@ -24,6 +24,13 @@ allow = [
 ]
 confidence-threshold = 0.8
 
+# Accept dual-licensed expressions like "MIT OR Apache-2.0"
+exceptions = [
+  { name = "windows_x86_64_gnu", allow = ["MIT OR Apache-2.0"] },
+  { name = "android_log-sys", allow = ["MIT OR Apache-2.0"] },
+  { name = "windows_x86_64_gnullvm", allow = ["MIT OR Apache-2.0"] },
+]
+
 [bans]
 multiple-versions = "warn"
 wildcards = "deny"
