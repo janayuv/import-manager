@@ -140,15 +140,15 @@
 }
 
 .custom-alert-action-cancel {
-  @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-2 focus:ring-ring focus:outline-none;
+  @apply bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-ring focus:ring-2 focus:outline-none;
 }
 
 .custom-alert-action-ok {
-  @apply bg-success text-success-foreground hover:bg-success/90 focus:ring-2 focus:ring-ring focus:outline-none;
+  @apply bg-success text-success-foreground hover:bg-success/90 focus:ring-ring focus:ring-2 focus:outline-none;
 }
 
 .custom-alert-action-orange {
-  @apply bg-warning text-warning-foreground hover:bg-warning/90 focus:ring-2 focus:ring-ring focus:outline-none;
+  @apply bg-warning text-warning-foreground hover:bg-warning/90 focus:ring-ring focus:ring-2 focus:outline-none;
 }
 
 .custom-checkbox[data-state='checked'] {
@@ -162,15 +162,15 @@
 }
 
 .status-draft {
-  @apply rounded bg-warning/10 px-2 py-1 text-sm font-medium text-warning-foreground;
+  @apply bg-warning/10 text-warning-foreground rounded px-2 py-1 text-sm font-medium;
 }
 
 .status-finalized {
-  @apply rounded bg-success/10 px-2 py-1 text-sm font-medium text-success-foreground;
+  @apply bg-success/10 text-success-foreground rounded px-2 py-1 text-sm font-medium;
 }
 
 .status-mismatch {
-  @apply rounded bg-destructive/10 px-2 py-1 text-sm font-medium text-destructive;
+  @apply bg-destructive/10 text-destructive rounded px-2 py-1 text-sm font-medium;
 }
 
 @layer base {
