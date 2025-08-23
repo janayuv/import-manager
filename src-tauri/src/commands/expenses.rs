@@ -1428,10 +1428,7 @@ pub fn add_expenses_bulk(
 
     for expense in &payload.expenses {
         let key = format!("{}|{}", expense.service_provider_id, expense.invoice_no);
-        invoice_groups
-            .entry(key)
-            .or_default()
-            .push(expense);
+        invoice_groups.entry(key).or_default().push(expense);
     }
 
     let mut created_invoice_ids = Vec::new();

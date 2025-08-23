@@ -51,10 +51,10 @@ fn main() {
             if !data_dir.exists() {
                 std::fs::create_dir_all(&data_dir).expect("Failed to create app data dir");
             }
-            
+
             let db_path = data_dir.join("import-manager.db");
             let encryption = encryption::DatabaseEncryption::new();
-            
+
             // Check if database exists and needs migration
             if db_path.exists() {
                 match encryption::DatabaseEncryption::is_encrypted(&db_path) {
@@ -62,15 +62,15 @@ fn main() {
                         // Database exists but is not encrypted - migrate it
                         let backup_path = data_dir.join("import-manager.db.backup");
                         std::fs::copy(&db_path, &backup_path).expect("Failed to create backup");
-                        
+
                         let encrypted_path = data_dir.join("import-manager.db.encrypted");
                         encryption.migrate_to_encrypted(&db_path, &encrypted_path)
                             .expect("Failed to migrate database to encrypted");
-                        
+
                         // Replace original with encrypted version
                         std::fs::remove_file(&db_path).expect("Failed to remove plaintext database");
                         std::fs::rename(&encrypted_path, &db_path).expect("Failed to rename encrypted database");
-                        
+
                         log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
                     }
                     Ok(true) => {
@@ -86,7 +86,7 @@ fn main() {
                     }
                 }
             }
-            
+
             // Initialize database (will create encrypted if new)
             let mut db_connection = if db_path.exists() {
                 // Database exists, check if it's encrypted
@@ -107,17 +107,17 @@ fn main() {
                         // Database exists but is plaintext - migrate it
                         let backup_path = data_dir.join("import-manager.db.backup");
                         std::fs::copy(&db_path, &backup_path).expect("Failed to create backup");
-                        
+
                         let encrypted_path = data_dir.join("import-manager.db.encrypted");
                         encryption.migrate_to_encrypted(&db_path, &encrypted_path)
                             .expect("Failed to migrate database to encrypted");
-                        
+
                         // Replace original with encrypted version
                         std::fs::remove_file(&db_path).expect("Failed to remove plaintext database");
                         std::fs::rename(&encrypted_path, &db_path).expect("Failed to rename encrypted database");
-                        
+
                         log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
-                        
+
                         // Open the newly encrypted database
                         encryption.open_encrypted(&db_path).expect("Failed to open migrated encrypted database")
                     }
@@ -134,11 +134,11 @@ fn main() {
                 // No database exists, create a new encrypted one
                 create_new_encrypted_database(&db_path, &encryption)
             };
-            
+
             // Run migrations
             migrations::DatabaseMigrations::run_migrations(&mut db_connection)
                 .expect("Failed to run database migrations");
-            
+
             app.manage(DbState { db: Mutex::new(db_connection) });
 
             Ok(())
@@ -148,20 +148,20 @@ fn main() {
             commands::get_suppliers,
             commands::add_supplier,
             commands::update_supplier,
-                        commands::add_suppliers_bulk,            
+                        commands::add_suppliers_bulk,
             // Shipment commands
             commands::get_shipments,
             commands::get_active_shipments,
             commands::add_shipment,
             commands::update_shipment,
             commands::add_shipments_bulk,
-            
+
             // Item Master commands
             commands::get_items,
             commands::add_item,
             commands::add_items_bulk,
             commands::update_item,
-            
+
             // Invoice commands
             commands::get_invoices,
             commands::add_invoice,
@@ -210,7 +210,7 @@ fn main() {
             commands::add_end_use,
             commands::get_purchase_uoms,
             commands::add_purchase_uom,
-            
+
             // New shipment-specific option commands
             commands::get_incoterms,
             commands::add_incoterm,
@@ -250,13 +250,13 @@ fn main() {
             commands::cleanup_orphaned_expense_invoices,
             commands::generate_shipment_expense_report,
             commands::generate_monthly_gst_summary,
-            
+
             // New production-grade expense commands
             expense::create_expense_invoice,
             expense::preview_expense_invoice,
             expense::combine_expense_duplicates,
             expense::get_expense_invoice,
-            
+
             // Expense Reporting Commands
             commands::generate_detailed_expense_report,
             commands::generate_expense_summary_by_type,
@@ -277,7 +277,7 @@ fn main() {
             // Validation commands
             commands::validate_shipment_import,
             commands::check_supplier_exists,
-            
+
 
         ])
         .run(tauri::generate_context!())
