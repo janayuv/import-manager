@@ -71,7 +71,7 @@ jobs:
       - name: Check for security vulnerabilities
         run: |
           cd src-tauri
-          cargo deny check
+          cargo deny check --config deny.toml
       - name: Validate Windows-only Runner
         run: |
           if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
