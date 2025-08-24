@@ -48,7 +48,7 @@ export function InvoiceLineActions({ lineItem, onView, onEdit, onDelete, onQuick
         {!isFinalized && isMatched && (
           <DropdownMenuItem
             onClick={() => onQuickFinalize(lineItem.invoiceId, lineItem.invoiceNumber)}
-            className="text-green-600"
+            className="text-success"
           >
             <Zap className="mr-2 h-4 w-4" /> Quick Finalize
           </DropdownMenuItem>
@@ -56,7 +56,7 @@ export function InvoiceLineActions({ lineItem, onView, onEdit, onDelete, onQuick
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => onDelete(lineItem.invoiceId, lineItem.invoiceNumber)}
-          className="text-red-600"
+          className="text-destructive"
         >
           <Trash2 className="mr-2 h-4 w-4" /> Delete
         </DropdownMenuItem>

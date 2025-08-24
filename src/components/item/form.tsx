@@ -170,19 +170,19 @@ export function ItemForm({
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger
               value="general"
-              className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white"
+              className="text-foreground data-[state=active]:!bg-primary data-[state=active]:!text-primary-foreground bg-transparent"
             >
               General Details
             </TabsTrigger>
             <TabsTrigger
               value="customs"
-              className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white"
+              className="text-foreground data-[state=active]:!bg-primary data-[state=active]:!text-primary-foreground bg-transparent"
             >
               Commercial & Customs
             </TabsTrigger>
             <TabsTrigger
               value="specs"
-              className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white"
+              className="text-foreground data-[state=active]:!bg-primary data-[state=active]:!text-primary-foreground bg-transparent"
             >
               Specifications
             </TabsTrigger>

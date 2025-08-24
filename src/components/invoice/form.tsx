@@ -331,7 +331,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               </div>
               <div className="max-h-64 overflow-y-auto rounded-md border pr-2">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-pink-800">
+                  <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="w-[200px]">Part No</TableHead>
                       <TableHead>Description</TableHead>
@@ -382,7 +382,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             <Input
                               value={formatCurrency(lineItem.quantity * lineItem.unitPrice)}
                               readOnly
-                              className="bg-gray-100"
+                              className="bg-muted"
                             />
                           </TableCell>
                           <TableCell>
@@ -392,7 +392,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                                   variant="ghost"
                                   size="icon"
                                 >
-                                  <X className="h-4 w-4 text-red-500" />
+                                  <X className="text-destructive h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
@@ -433,15 +433,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             <div className="flex items-center justify-between border-t pt-4">
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">Shipment Value</p>
+                  <p className="text-muted-foreground text-sm">Shipment Value</p>
                   <p className="text-lg font-bold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">Calculated Total</p>
+                  <p className="text-muted-foreground text-sm">Calculated Total</p>
                   <p className="text-lg font-bold">{formatCurrency(calculatedTotal)}</p>
                 </div>
                 <div
-                  className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-green-600' : 'text-red-600'}`}
+                  className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-success' : 'text-destructive'}`}
                 >
                   {isMatch ? '✅ Match' : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
                 </div>
@@ -449,7 +449,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               {isMatch && (
                 <Button
                   type="button"
-                  className="bg-green-600 text-white hover:bg-green-700"
+                  variant="success"
                   onClick={handleQuickFinalize}
                   disabled={isSubmitting}
                 >
@@ -514,7 +514,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                   <span>Calculated Total:</span>
                   <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
                 </div>
-                <div className="flex justify-between text-green-600">
+                <div className="text-success flex justify-between">
                   <span>Status:</span>
                   <span className="font-semibold">✅ Match</span>
                 </div>

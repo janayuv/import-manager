@@ -185,11 +185,16 @@ const DashboardPage = () => {
     }
 
     return [...shipments]
-      .map((s) => ({ ...s, __etaDate: parseDate(s.eta) }))
-      .filter((s) => s.__etaDate && s.__etaDate > now)
-      .sort((a, b) => (a.__etaDate!.getTime() - b.__etaDate!.getTime()))
+      .map((s) => ({ ...s, _etaDate: parseDate(s.eta) }))
+      .filter((s) => s._etaDate && s._etaDate > now)
+      .sort((a, b) => a._etaDate!.getTime() - b._etaDate!.getTime())
       .slice(0, 5)
-      .map(({ __etaDate, ...rest }) => rest)
+      .map((s) => {
+        // strip helper field without unused var binding
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _etaDate: _ignore, ...rest } = s
+        return rest
+      })
   }, [shipments])
 
   const chartData = useMemo(() => {

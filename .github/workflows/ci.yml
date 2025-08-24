@@ -17,7 +17,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
       - name: Install dependencies
         run: npm ci
@@ -71,7 +71,7 @@ jobs:
       - name: Check for security vulnerabilities
         run: |
           cd src-tauri
-          cargo deny check
+          cargo deny check --config deny.toml
       - name: Validate Windows-only Runner
         run: |
           if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
@@ -89,7 +89,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -131,7 +131,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
           cache: 'npm'
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable

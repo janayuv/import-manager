@@ -64,15 +64,12 @@ export function DataTable<TData, TValue>({
       </div>
       <div className="rounded-md border">
         <Table>
-          <TableHeader style={{ backgroundColor: '#e7739e' }}>
+          <TableHeader className="bg-primary text-black">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
-                    <TableHead
-                      key={header.id}
-                      className="text-white"
-                    >
+                    <TableHead key={header.id}>
                       {header.isPlaceholder ? null : (
                         <div
                           {...{

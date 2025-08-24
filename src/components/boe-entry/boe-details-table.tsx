@@ -19,7 +19,7 @@ const formatCurrency = (amount: number | null | undefined) => {
 
 export function BoeDetailsTable({ boe }: BoeDetailsTableProps) {
   return (
-    <Card className="mt-6 bg-gray-900">
+    <Card className="bg-card mt-6">
       <CardHeader>
         <CardTitle>Details for Selected BOE: #{boe.beNumber}</CardTitle>
         <CardDescription>This is the official data for the selected Bill of Entry.</CardDescription>

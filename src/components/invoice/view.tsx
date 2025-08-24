@@ -32,7 +32,7 @@ interface ViewDialogProps {
 
 const DetailRow = ({ label, value }: { label: string; value: string | number }) => (
   <div>
-    <p className="text-sm font-medium text-gray-500">{label}</p>
+    <p className="text-muted-foreground text-sm font-medium">{label}</p>
     <p className="font-semibold">{value}</p>
   </div>
 )
@@ -131,7 +131,7 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
           <h3 className="mb-2 text-lg font-semibold">Items</h3>
           <div className="max-h-64 overflow-y-auto rounded-md border pr-2">
             <Table>
-              <TableHeader className="sticky top-0 z-10 rounded-r-md rounded-b-md bg-pink-800">
+              <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10 rounded-r-md rounded-b-md">
                 <TableRow>
                   <TableHead>Part No</TableHead>
                   <TableHead>Description</TableHead>

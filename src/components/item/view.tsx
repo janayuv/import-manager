@@ -27,9 +27,7 @@ const DetailItem = ({ label, value, isRate = false }: DetailItemProps) => {
     return (
       <div className="space-y-1">
         <p className="text-muted-foreground text-sm">{label}</p>
-        <Badge className={value ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
-          {value ? 'Active' : 'Inactive'}
-        </Badge>
+        <Badge variant={value ? 'success' : 'destructive'}>{value ? 'Active' : 'Inactive'}</Badge>
       </div>
     )
   }
@@ -72,19 +70,19 @@ export function ItemViewDialog({ isOpen, onOpenChange, item, suppliers }: ViewIt
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger
               value="general"
-              className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white"
+              className="data-[state=active]:!bg-primary data-[state=active]:!text-primary-foreground bg-transparent"
             >
               General Details
             </TabsTrigger>
             <TabsTrigger
               value="customs"
-              className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white"
+              className="data-[state=active]:!bg-primary data-[state=active]:!text-primary-foreground bg-transparent"
             >
               Commercial & Customs
             </TabsTrigger>
             <TabsTrigger
               value="specs"
-              className="bg-transparent text-gray-700 data-[state=active]:!bg-pink-600 data-[state=active]:!text-white"
+              className="data-[state=active]:!bg-primary data-[state=active]:!text-primary-foreground bg-transparent"
             >
               Specifications
             </TabsTrigger>

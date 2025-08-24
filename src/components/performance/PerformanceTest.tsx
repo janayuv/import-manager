@@ -139,16 +139,16 @@ export const PerformanceTest = () => {
 
       // Memory usage test
       const memoryUsage = MemoryManager.getMemoryUsage()
-      results.memoryUsage = memoryUsage
+      results.memoryUsage = JSON.stringify(memoryUsage)
 
       // Bundle analysis test
       const bundleStats = BundleAnalyzer.getBundleStats()
-      results.bundleStats = bundleStats
+      results.bundleStats = JSON.stringify(bundleStats)
 
       // Performance metrics test
       const observer = PerformanceObserver.getInstance()
       const metrics = observer.getMetrics()
-      results.performanceMetrics = metrics
+      results.performanceMetrics = JSON.stringify(metrics)
 
       // Function timing test
       const timingResult = performanceUtils.measureTime(() => {
@@ -412,7 +412,7 @@ export const PerformanceTest = () => {
                   />
                 </OptimizedGrid>
 
-                <div ref={intersectionRef}>
+                <div ref={intersectionRef as React.RefObject<HTMLDivElement>}>
                   <OptimizedCard title="Intersection Observer Test">
                     <p>This card is {isIntersecting ? 'visible' : 'not visible'} in the viewport</p>
                   </OptimizedCard>

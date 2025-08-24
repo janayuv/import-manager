@@ -46,7 +46,7 @@ export const ResponsiveExample: React.FC = () => {
         <ResponsiveCard>
           <ResponsiveSpacing>
             <ResponsiveIcon variant="lg">
-              <Package className="text-blue-500" />
+              <Package className="text-primary" />
             </ResponsiveIcon>
             <div>
               <ResponsiveText
@@ -68,7 +68,7 @@ export const ResponsiveExample: React.FC = () => {
         <ResponsiveCard>
           <ResponsiveSpacing>
             <ResponsiveIcon variant="lg">
-              <DollarSign className="text-green-500" />
+              <DollarSign className="text-success" />
             </ResponsiveIcon>
             <div>
               <ResponsiveText
@@ -90,7 +90,7 @@ export const ResponsiveExample: React.FC = () => {
         <ResponsiveCard>
           <ResponsiveSpacing>
             <ResponsiveIcon variant="lg">
-              <TrendingUp className="text-orange-500" />
+              <TrendingUp className="text-warning" />
             </ResponsiveIcon>
             <div>
               <ResponsiveText
@@ -112,7 +112,7 @@ export const ResponsiveExample: React.FC = () => {
         <ResponsiveCard>
           <ResponsiveSpacing>
             <ResponsiveIcon variant="lg">
-              <Users className="text-purple-500" />
+              <Users className="text-primary" />
             </ResponsiveIcon>
             <div>
               <ResponsiveText
@@ -229,7 +229,7 @@ export const ResponsiveExample: React.FC = () => {
                 <ResponsiveText>john@abc.com</ResponsiveText>
               </td>
               <td>
-                <span className="text-fluid-xs rounded bg-green-100 px-2 py-1 text-green-800">Active</span>
+                <span className="text-fluid-xs bg-success/10 text-success rounded px-2 py-1">Active</span>
               </td>
               <td>
                 <ResponsiveSpacing variant="sm">
@@ -256,7 +256,7 @@ export const ResponsiveExample: React.FC = () => {
                 <ResponsiveText>sarah@xyz.com</ResponsiveText>
               </td>
               <td>
-                <span className="text-fluid-xs rounded bg-yellow-100 px-2 py-1 text-yellow-800">Pending</span>
+                <span className="text-fluid-xs bg-warning/10 text-warning rounded px-2 py-1">Pending</span>
               </td>
               <td>
                 <ResponsiveSpacing variant="sm">
@@ -364,9 +364,9 @@ export const ResponsiveClassesExample: React.FC = () => {
       <h1 className="text-fluid-2xl mb-4 font-bold">Direct CSS Classes Example</h1>
 
       <div className="space-fluid">
-        <button className="btn-fluid bg-blue-500 text-white">Default Button</button>
-        <button className="btn-fluid-sm bg-green-500 text-white">Small Button</button>
-        <button className="btn-fluid-lg bg-red-500 text-white">Large Button</button>
+        <button className="btn-fluid bg-primary text-primary-foreground">Default Button</button>
+        <button className="btn-fluid-sm bg-success text-success-foreground">Small Button</button>
+        <button className="btn-fluid-lg bg-destructive text-destructive-foreground">Large Button</button>
       </div>
 
       <div className="space-fluid mt-6">
@@ -402,13 +402,13 @@ export const ResponsiveConditionalExample: React.FC = () => {
       <h2 className="text-fluid-xl mb-4 font-bold">Conditional Rendering Example</h2>
 
       {isSmallScreen && (
-        <div className="card-fluid-sm bg-yellow-50">
+        <div className="card-fluid-sm bg-warning/10">
           <p className="text-fluid-sm">This content only shows on small screens (≤1366px)</p>
         </div>
       )}
 
       {isLargeScreen && (
-        <div className="card-fluid-lg bg-green-50">
+        <div className="card-fluid-lg bg-success/10">
           <p className="text-fluid-lg">This content only shows on large screens (&gt;1920px)</p>
         </div>
       )}

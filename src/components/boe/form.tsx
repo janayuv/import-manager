@@ -139,7 +139,7 @@ export const BoeForm: React.FC<BoeFormProps> = ({ isOpen, onOpenChange, onSubmit
                 value={formData.beNumber}
                 onChange={handleChange}
               />
-              {errors.beNumber && <p className="mt-1 text-xs text-red-500">{errors.beNumber}</p>}
+              {errors.beNumber && <p className="text-destructive mt-1 text-xs">{errors.beNumber}</p>}
             </div>
             <div>
               <Label htmlFor="beDate">BE Date</Label>
@@ -150,7 +150,7 @@ export const BoeForm: React.FC<BoeFormProps> = ({ isOpen, onOpenChange, onSubmit
                 value={formData.beDate}
                 onChange={handleChange}
               />
-              {errors.beDate && <p className="mt-1 text-xs text-red-500">{errors.beDate}</p>}
+              {errors.beDate && <p className="text-destructive mt-1 text-xs">{errors.beDate}</p>}
             </div>
             <div>
               <Label htmlFor="location">Location</Label>
@@ -160,7 +160,7 @@ export const BoeForm: React.FC<BoeFormProps> = ({ isOpen, onOpenChange, onSubmit
                 value={formData.location}
                 onChange={handleChange}
               />
-              {errors.location && <p className="mt-1 text-xs text-red-500">{errors.location}</p>}
+              {errors.location && <p className="text-destructive mt-1 text-xs">{errors.location}</p>}
             </div>
             <div>
               <Label htmlFor="totalAssessmentValue">Total Assessment Value</Label>
@@ -234,14 +234,14 @@ export const BoeForm: React.FC<BoeFormProps> = ({ isOpen, onOpenChange, onSubmit
             <DialogClose asChild>
               <Button
                 type="button"
-                style={{ backgroundColor: '#d73000', color: 'white' }}
+                className="bg-destructive text-destructive-foreground"
               >
                 Cancel
               </Button>
             </DialogClose>
             <Button
               type="submit"
-              style={{ backgroundColor: '#13fd00', color: 'white' }}
+              className="bg-success text-success-foreground"
             >
               {boeToEdit ? 'Update' : 'Save'}
             </Button>

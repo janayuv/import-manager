@@ -25,7 +25,7 @@ export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }:
       <DropdownMenuTrigger asChild>
         <Button
           variant="ghost"
-          className="h-8 w-8 p-0 text-[#ff9900] hover:bg-[#8aff80]/10"
+          className="text-warning hover:bg-warning/10 h-8 w-8 p-0"
         >
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
@@ -34,14 +34,14 @@ export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }:
       <DropdownMenuContent align="end">
         <DropdownMenuLabel>Actions</DropdownMenuLabel>
         <DropdownMenuItem
-          className="hover:text-[#ffff80]"
+          className="hover:text-warning"
           onClick={() => navigator.clipboard.writeText(shipment.id)}
         >
           Copy Shipment ID
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="hover:text-[#ffff80]"
+          className="hover:text-warning"
           onClick={onView}
         >
           View details
@@ -51,7 +51,7 @@ export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }:
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              className="hover:text-green-600"
+              className="hover:text-success"
               onClick={onMarkAsDelivered}
             >
               Mark as Delivered

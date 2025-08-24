@@ -133,12 +133,9 @@ export function ResponsiveDataTable<TData, TValue>({
       <div className="w-full overflow-hidden rounded-md border">
         <div className="w-full overflow-x-auto">
           <Table className={getTableClass()}>
-            <TableHeader className="bg-muted/50">
+            <TableHeader className="bg-primary text-black">
               {table.getHeaderGroups().map((headerGroup) => (
-                <TableRow
-                  key={headerGroup.id}
-                  className="bg-pink-800 text-gray-900"
-                >
+                <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
                     const columnStyle = getColumnStyle(header.id)
                     return (

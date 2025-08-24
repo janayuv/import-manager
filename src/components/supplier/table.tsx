@@ -71,12 +71,9 @@ export function SupplierDataTable<TData, TValue>({ columns, data }: DataTablePro
       </div>
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-muted/50">
+          <TableHeader className="bg-primary text-primary-foreground">
             {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow
-                key={headerGroup.id}
-                className="bg-pink-800 text-gray-900"
-              >
+              <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   return (
                     <TableHead key={header.id}>

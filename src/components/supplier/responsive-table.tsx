@@ -97,7 +97,7 @@ export function ResponsiveSupplierDataTable<TData, TValue>({ columns, data }: Re
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow
                   key={headerGroup.id}
-                  className="bg-pink-800 text-gray-900"
+                  className="bg-primary text-primary-foreground"
                 >
                   {headerGroup.headers.map((header) => {
                     return (

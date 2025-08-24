@@ -32,12 +32,27 @@ export default defineConfig({
     rollupOptions: {
       output: {
         manualChunks: {
-          // Vendor chunks for better caching
+          // Core React libraries
           vendor: ['react', 'react-dom'],
-          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select'],
-          utils: ['date-fns', 'clsx', 'tailwind-merge'],
+          // UI component libraries split by usage
+          'ui-core': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-select',
+            '@radix-ui/react-popover',
+          ],
+          'ui-forms': ['@radix-ui/react-checkbox', '@radix-ui/react-switch', '@radix-ui/react-label'],
+          'ui-data': ['@tanstack/react-table', '@radix-ui/react-collapsible'],
+          // Utility libraries
+          utils: ['date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority'],
+          // Chart and visualization libraries
           charts: ['recharts'],
+          // Data processing libraries
+          'data-processing': ['papaparse', 'exceljs'],
+          // Tauri APIs
           tauri: ['@tauri-apps/api'],
+          // Lucide icons (separate chunk due to size)
+          icons: ['lucide-react'],
         },
         // Optimize chunk naming for better caching
         chunkFileNames: () => {

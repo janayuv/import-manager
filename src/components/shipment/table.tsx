@@ -57,7 +57,7 @@ export function ShipmentDataTable<TData, TValue>({ columns, data }: DataTablePro
       </div>
       <div className="rounded-md border">
         <Table>
-          <TableHeader className="bg-muted/50">
+          <TableHeader className="bg-primary text-primary-foreground">
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (

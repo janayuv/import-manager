@@ -64,7 +64,7 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
       onOpenChange={setOpen}
     >
       <DialogTrigger asChild>
-        <Button style={{ backgroundColor: '#b77372' }}>Add New Supplier</Button>
+        <Button variant="default">Add New Supplier</Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[800px]">
         <DialogHeader>
@@ -127,7 +127,7 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
 
               {/* Status badge */}
               <span
-                className={`ml-4 inline-block rounded-full px-3 py-1 text-sm font-medium ${formData.isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}`}
+                className={`ml-4 inline-block rounded-full px-3 py-1 text-sm font-medium ${formData.isActive ? 'bg-success text-success-foreground' : 'bg-destructive text-destructive-foreground'}`}
               >
                 {formData.isActive ? 'Active' : 'Inactive'}
               </span>

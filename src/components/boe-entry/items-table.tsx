@@ -76,7 +76,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
     <div className="rounded-md border">
       <Table>
         <TableHeader>
-          <TableRow className="bg-pink-800 text-gray-100">
+          <TableRow className="bg-primary text-primary-foreground">
             <TableHead className="w-[150px]">Part No</TableHead>
             <TableHead>Description</TableHead>
             <TableHead className="text-right">Qty</TableHead>
@@ -101,7 +101,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
             return (
               <TableRow
                 key={item.partNo}
-                className={hasBcdDiscrepancy ? 'bg-red-50' : ''}
+                className={hasBcdDiscrepancy ? 'bg-destructive/10' : ''}
               >
                 <TableCell className="font-medium">{item.partNo}</TableCell>
                 <TableCell>{item.description}</TableCell>
@@ -130,7 +130,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
                 <TableCell>
                   <Input
                     type="number"
-                    className={`text-right ${hasBcdDiscrepancy ? 'border-red-500 bg-red-50' : ''}`}
+                    className={`text-right ${hasBcdDiscrepancy ? 'border-destructive bg-destructive/10' : ''}`}
                     value={itemInputs[index]?.boeBcdRate ?? ''}
                     onChange={(e) => handleInputChange(index, 'boeBcdRate', parseFloat(e.target.value) || 0)}
                     title={hasBcdDiscrepancy ? `Actual BCD (${actualBcd}%) > BOE BCD (${boeBcd}%)` : ''}
@@ -147,7 +147,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
                 <TableCell>
                   <Input
                     type="number"
-                    className="bg-gray-100 text-right"
+                    className="bg-muted text-right"
                     value={itemInputs[index]?.boeIgstRate ?? ''}
                     readOnly // IGST should not be user-editable here
                   />
@@ -165,8 +165,8 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
         const boeBcd = itemInputs[index]?.boeBcdRate || 0
         return boeBcd > 0 && boeBcd > actualBcd
       }) && (
-        <div className="border-t border-red-200 bg-red-50 p-4">
-          <div className="flex items-center gap-2 text-red-700">
+        <div className="border-destructive/20 bg-destructive/5 border-t p-4">
+          <div className="text-destructive flex items-center gap-2">
             <svg
               className="h-5 w-5"
               fill="currentColor"
@@ -180,7 +180,7 @@ export function ItemsTable({ items = [], itemInputs, setItemInputs }: ItemsTable
             </svg>
             <span className="font-medium">BCD Discrepancy Alert</span>
           </div>
-          <p className="mt-1 text-sm text-red-600">
+          <p className="text-destructive mt-1 text-sm">
             BOE BCD rates are higher than Actual BCD rates for some items. Please review and correct the rates.
           </p>
         </div>

@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use crate::db::{DbState, Shipment};
 use rusqlite::params;
 use tauri::State;

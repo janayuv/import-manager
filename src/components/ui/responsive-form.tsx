@@ -71,13 +71,13 @@ export const ResponsiveFormField: React.FC<ResponsiveFormFieldProps> = ({
             )}
           >
             {label}
-            {required && <span className="ml-1 text-red-500">*</span>}
+            {required && <span className="text-destructive ml-1">*</span>}
           </label>
         </div>
       )}
       {description && <p className={cn(getTextClass('xs'), 'text-muted-foreground')}>{description}</p>}
       <div className={getSpacingClass()}>{children}</div>
-      {error && <p className={cn(getTextClass('xs'), 'text-red-500')}>{error}</p>}
+      {error && <p className={cn(getTextClass('xs'), 'text-destructive')}>{error}</p>}
     </div>
   )
 }
