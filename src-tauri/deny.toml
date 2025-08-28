@@ -26,9 +26,15 @@ confidence-threshold = 0.8
 
 # Accept dual-licensed expressions like "MIT OR Apache-2.0"
 exceptions = [
-  { name = "windows_x86_64_gnu", allow = ["MIT OR Apache-2.0"] },
-  { name = "android_log-sys", allow = ["MIT OR Apache-2.0"] },
-  { name = "windows_x86_64_gnullvm", allow = ["MIT OR Apache-2.0"] },
+  { name = "windows_x86_64_gnu", allow = [
+    "MIT OR Apache-2.0",
+  ] },
+  { name = "android_log-sys", allow = [
+    "MIT OR Apache-2.0",
+  ] },
+  { name = "windows_x86_64_gnullvm", allow = [
+    "MIT OR Apache-2.0",
+  ] },
 ]
 
 [bans]
@@ -41,5 +47,3 @@ unknown-registry = "deny"
 unknown-git = "warn"
 allow-registry = ["https://github.com/rust-lang/crates.io-index"]
 allow-git = ["https://github.com/"]
-
-

@@ -3,7 +3,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { open, save } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, Plus, Upload } from 'lucide-react'
+import { Download, Plus, Upload, Filter, RefreshCw, Settings, Database, AlertTriangle } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
 
@@ -14,6 +14,14 @@ import { getShipmentColumns } from '@/components/shipment/columns'
 import { ShipmentForm } from '@/components/shipment/form'
 import { ShipmentViewDialog } from '@/components/shipment/view'
 import { Button } from '@/components/ui/button'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { formatText } from '@/lib/settings'
 import { useSettings } from '@/lib/use-settings'
 import { useResponsiveContext } from '@/providers/ResponsiveProvider'
@@ -39,6 +47,7 @@ const ShipmentPage = () => {
   const [types, setTypes] = React.useState<Option[]>([])
   const [statuses, setStatuses] = React.useState<Option[]>([])
   const [currencies, setCurrencies] = React.useState<Option[]>([])
+  const [statusFilter, setStatusFilter] = React.useState('All')
 
   const fetchShipments = React.useCallback(async () => {
     try {
@@ -83,6 +92,49 @@ const ShipmentPage = () => {
     },
     [fetchShipments]
   )
+
+  const handleCheckStatusUpdates = React.useCallback(async () => {
+    try {
+      await invoke('check_and_update_ready_for_delivery')
+      toast.success('Shipment status check completed.')
+      fetchShipments()
+    } catch (error) {
+      console.error('Failed to check shipment status updates:', error)
+      toast.error('Failed to check shipment status updates.')
+    }
+  }, [fetchShipments])
+
+  const handleMigrateStatuses = React.useCallback(async () => {
+    try {
+      await invoke('migrate_shipment_statuses')
+      toast.success('Shipment status migration completed.')
+      fetchShipments()
+    } catch (error) {
+      console.error('Failed to migrate shipment statuses:', error)
+      toast.error('Failed to migrate shipment statuses.')
+    }
+  }, [fetchShipments])
+
+  // Filter shipments based on status
+  const filteredShipments = React.useMemo(() => {
+    // Debug: Log all unique status values
+    const uniqueStatuses = [...new Set(shipments.map((s) => s.status).filter(Boolean))]
+    console.log('Available statuses in shipments:', uniqueStatuses)
+    console.log('Current filter:', statusFilter)
+
+    if (statusFilter === 'All') {
+      return shipments
+    }
+
+    // More robust filtering that handles null/undefined and case sensitivity
+    const filtered = shipments.filter((shipment) => {
+      const shipmentStatus = shipment.status || ''
+      return shipmentStatus.toLowerCase() === statusFilter.toLowerCase()
+    })
+
+    console.log('Filtered results:', filtered.length, 'shipments')
+    return filtered
+  }, [shipments, statusFilter])
 
   const columns = React.useMemo(
     () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings),
@@ -440,17 +492,93 @@ const ShipmentPage = () => {
           </Button>
         </div>
       </div>
+
       <ResponsiveDataTable
         columns={columns}
-        data={shipments}
+        data={filteredShipments}
         searchPlaceholder="Search shipments..."
         hideColumnsOnSmall={['supplierName', 'category', 'incoterm', 'mode', 'type', 'currency', 'notes']}
         columnWidths={{
-          invoiceNumber: { minWidth: '150px', maxWidth: '200px' },
-          supplierName: { minWidth: '200px', maxWidth: '300px' },
-          description: { minWidth: '200px', maxWidth: '300px' },
-          notes: { minWidth: '150px', maxWidth: '250px' },
+          invoiceNumber: { minWidth: '120px', maxWidth: '150px' },
+          invoiceDate: { minWidth: '100px', maxWidth: '120px' },
+          eta: { minWidth: '100px', maxWidth: '120px' },
+          etd: { minWidth: '100px', maxWidth: '120px' },
+          supplierId: { minWidth: '150px', maxWidth: '200px' },
+          goodsCategory: { minWidth: '120px', maxWidth: '150px' },
+          invoiceCurrency: { minWidth: '80px', maxWidth: '100px' },
+          invoiceValue: { minWidth: '120px', maxWidth: '150px' },
+          incoterm: { minWidth: '100px', maxWidth: '120px' },
+          vesselName: { minWidth: '120px', maxWidth: '150px' },
+          blAwbNumber: { minWidth: '120px', maxWidth: '150px' },
+          containerNumber: { minWidth: '120px', maxWidth: '150px' },
+          status: { minWidth: '120px', maxWidth: '150px' },
         }}
+        statusFilter={
+          <div className="flex items-center gap-2">
+            <Filter className="text-muted-foreground h-4 w-4" />
+            <span className="text-sm font-medium">Status:</span>
+            <Select
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+            >
+              <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Filter by status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All Statuses</SelectItem>
+                <SelectItem value="docs-rcvd">Document Received</SelectItem>
+                <SelectItem value="docu-received">Document Received (Legacy)</SelectItem>
+                <SelectItem value="in-transit">In Transit</SelectItem>
+                <SelectItem value="customs-clearance">Customs Clearance</SelectItem>
+                <SelectItem value="ready-dly">Ready for Delivery</SelectItem>
+                <SelectItem value="delivered">Delivered</SelectItem>
+              </SelectContent>
+            </Select>
+            <div className="text-muted-foreground text-sm">
+              {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''}
+              {statusFilter !== 'All' && ` (${statusFilter})`}
+            </div>
+          </div>
+        }
+        statusActions={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+              >
+                <Settings className="mr-2 h-4 w-4" />
+                Status Actions
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              className="w-56"
+            >
+              <DropdownMenuItem onClick={handleCheckStatusUpdates}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Check Status Updates
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleMigrateStatuses}>
+                <Database className="mr-2 h-4 w-4" />
+                Migrate Statuses
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => {
+                  const uniqueStatuses = [...new Set(shipments.map((s) => s.status).filter(Boolean))]
+                  console.log('All shipments:', shipments)
+                  console.log('Unique statuses:', uniqueStatuses)
+                  toast.info(`Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`)
+                }}
+              >
+                <AlertTriangle className="mr-2 h-4 w-4" />
+                Debug Statuses
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
       />
       <ShipmentForm
         isOpen={isFormOpen}

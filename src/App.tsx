@@ -22,6 +22,7 @@ import ExpenseReportsPage from '@/pages/expense-reports'
 import ExpensesPage from '@/pages/expenses'
 import FrozenShipmentsPage from '@/pages/frozen-shipments'
 import InvoicePage from '@/pages/invoice'
+import InvoiceWizardPage from '@/pages/invoice-wizard'
 import ItemMasterPage from '@/pages/item'
 import ReportsPage from '@/pages/reports'
 import SettingsPage from '@/pages/settings'
@@ -82,6 +83,10 @@ function App() {
                         <Route
                           path="/invoice"
                           element={<InvoicePage />}
+                        />
+                        <Route
+                          path="/invoice-wizard"
+                          element={<InvoiceWizardPage />}
                         />
 
                         <Route

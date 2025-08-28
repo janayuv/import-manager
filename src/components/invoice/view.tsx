@@ -21,6 +21,24 @@ import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
 import type { Supplier } from '@/types/supplier'
 
+// Helper function to normalize currency codes for Intl.NumberFormat
+const normalizeCurrencyCode = (currencyCode: string): string => {
+  const normalized = currencyCode?.trim().toUpperCase() || 'USD'
+
+  // Common currency code mappings
+  const currencyMap: Record<string, string> = {
+    EURO: 'EUR',
+    DOLLAR: 'USD',
+    POUND: 'GBP',
+    YEN: 'JPY',
+    WON: 'KRW',
+    RUPEE: 'INR',
+    YUAN: 'CNY',
+  }
+
+  return currencyMap[normalized] || normalized
+}
+
 interface ViewDialogProps {
   isOpen: boolean
   onOpenChange: (isOpen: boolean) => void
@@ -45,7 +63,9 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
   const currency = shipment?.invoiceCurrency || 'USD'
 
   const formatCurrency = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: currencyCode }).format(amount)
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizeCurrencyCode(currencyCode) }).format(
+      amount
+    )
   }
 
   const handleExport = async () => {

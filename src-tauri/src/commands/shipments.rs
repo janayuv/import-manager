@@ -86,6 +86,10 @@ pub fn get_active_shipments(state: State<DbState>) -> Result<Vec<Shipment>, Stri
 #[tauri::command]
 pub fn add_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
+    
+    // Set initial status to "docs-rcvd" if not provided
+    let initial_status = shipment.status.as_deref().unwrap_or("docs-rcvd");
+    
     conn.execute(
         "INSERT INTO shipments (id, supplier_id, invoice_number, invoice_date, goods_category, invoice_value, invoice_currency, incoterm, shipment_mode, shipment_type, bl_awb_number, bl_awb_date, vessel_name, container_number, gross_weight_kg, etd, eta, status, date_of_delivery, is_frozen) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)",
         params![
@@ -94,7 +98,7 @@ pub fn add_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), Str
             shipment.incoterm, shipment.shipment_mode, shipment.shipment_type,
             shipment.bl_awb_number, shipment.bl_awb_date, shipment.vessel_name,
             shipment.container_number, shipment.gross_weight_kg, shipment.etd,
-            shipment.eta, shipment.status, shipment.date_of_delivery, shipment.is_frozen,
+            shipment.eta, initial_status, shipment.date_of_delivery, shipment.is_frozen,
         ],
     ).map_err(|e| e.to_string())?;
     Ok(())
@@ -155,6 +159,81 @@ pub fn update_shipment_status(
         .map_err(|e| e.to_string())?;
     }
 
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_shipment_status_on_invoice_add(state: State<DbState>, shipment_id: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    
+    // Only update if current status is not "delivered"
+    conn.execute(
+        "UPDATE shipments SET status = 'in-transit' WHERE id = ?1 AND status != 'delivered'",
+        params![shipment_id],
+    )
+    .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn update_shipment_status_on_boe_add(state: State<DbState>, shipment_id: String) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    
+    // Only update if current status is not "delivered"
+    conn.execute(
+        "UPDATE shipments SET status = 'customs-clearance' WHERE id = ?1 AND status != 'delivered'",
+        params![shipment_id],
+    )
+    .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn check_and_update_ready_for_delivery(state: State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    
+    // Get current date
+    let today = chrono::Utc::now().date_naive();
+    
+    // Update shipments to "ready-dly" if:
+    // 1. They have BOE entries with dates
+    // 2. BOE date + 7 days <= today
+    // 3. Current status is not "delivered"
+    // 4. Current status is "customs-clearance"
+    let sql = "
+        UPDATE shipments 
+        SET status = 'ready-dly' 
+        WHERE id IN (
+            SELECT DISTINCT s.id 
+            FROM shipments s
+            JOIN boe_calculations bc ON s.id = bc.shipment_id
+            JOIN boe_details bd ON bc.boe_id = bd.id
+            WHERE s.status = 'customs-clearance'
+            AND s.status != 'delivered'
+            AND bd.be_date IS NOT NULL
+            AND date(bd.be_date, '+7 days') <= date(?1)
+        )
+    ";
+    
+    conn.execute(sql, params![today.to_string()])
+        .map_err(|e| e.to_string())?;
+    
+    Ok(())
+}
+
+#[tauri::command]
+pub fn migrate_shipment_statuses(state: State<DbState>) -> Result<(), String> {
+    let conn = state.db.lock().unwrap();
+    
+    // Update legacy status values to new standardized values
+    conn.execute(
+        "UPDATE shipments SET status = 'docs-rcvd' WHERE status = 'docu-received'",
+        [],
+    )
+    .map_err(|e| e.to_string())?;
+    
     Ok(())
 }
 

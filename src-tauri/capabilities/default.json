@@ -7,6 +7,7 @@
     "core:default",
     "dialog:allow-open",
     "dialog:allow-save",
+    "dialog:allow-confirm",
     "fs:read-all",
     "fs:write-all",
     "fs:allow-exists",

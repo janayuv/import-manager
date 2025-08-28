@@ -15,8 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 // Minimal shape used here to avoid cross-branch type drift
 type CalculationResult = {
   bcdTotal?: number
+  swsTotal?: number
   igstTotal?: number
-  compCessTotal?: number
   totalDuty?: number
   totalAmount?: number
   items?: Array<Record<string, unknown>>
@@ -64,6 +64,14 @@ export function CalculationResults({ results }: CalculationResultsProps) {
   const detailItems = (r.items ?? (r as Record<string, unknown>).calculatedItems ?? []) as CalculationItem[]
   const safeNum = (v: unknown): number => (typeof v === 'number' && isFinite(v) ? v : 0)
   const safeStr = (v: unknown): string => (typeof v === 'string' ? v : '')
+  const bcdTotal = safeNum((r as Record<string, unknown>).bcdTotal)
+  const swsTotal = safeNum((r as Record<string, unknown>).swsTotal)
+  const igstTotal = safeNum((r as Record<string, unknown>).igstTotal)
+  const interest = safeNum((r as Record<string, unknown>).interest)
+  const totalDuty =
+    safeNum((r as Record<string, unknown>).totalDuty) ||
+    safeNum((r as Record<string, unknown>).customsDutyTotal) ||
+    bcdTotal + swsTotal + igstTotal + interest
   return (
     <div className="mt-12 space-y-8">
       {/* --- Totals Summary --- */}
@@ -72,26 +80,22 @@ export function CalculationResults({ results }: CalculationResultsProps) {
           <CardTitle>Calculation Summary</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-center md:grid-cols-5">
+          <div className="grid grid-cols-2 gap-4 text-center md:grid-cols-4">
             <div>
               <p className="text-muted-foreground text-sm">BCD Total</p>
-              <p className="text-xl font-bold">{formatCurrency(r.bcdTotal ?? 0)}</p>
+              <p className="text-xl font-bold">{formatCurrency(bcdTotal)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground text-sm">SWS Total</p>
+              <p className="text-xl font-bold">{formatCurrency(swsTotal)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-sm">IGST Total</p>
-              <p className="text-xl font-bold">{formatCurrency(r.igstTotal ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Comp. Cess</p>
-              <p className="text-xl font-bold">{formatCurrency(r.compCessTotal ?? 0)}</p>
+              <p className="text-xl font-bold">{formatCurrency(igstTotal)}</p>
             </div>
             <div>
               <p className="text-muted-foreground text-sm">Total Duty</p>
-              <p className="text-xl font-bold">{formatCurrency(r.totalDuty ?? 0)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Total Amount</p>
-              <p className="text-xl font-bold">{formatCurrency(r.totalAmount ?? 0)}</p>
+              <p className="text-xl font-bold">{formatCurrency(totalDuty)}</p>
             </div>
           </div>
         </CardContent>
@@ -109,8 +113,8 @@ export function CalculationResults({ results }: CalculationResultsProps) {
                 <TableHead>Item</TableHead>
                 <TableHead className="text-right">Assessable Value</TableHead>
                 <TableHead className="text-right">BCD</TableHead>
+                <TableHead className="text-right">SWS</TableHead>
                 <TableHead className="text-right">IGST</TableHead>
-                <TableHead className="text-right">Comp. Cess</TableHead>
                 <TableHead className="text-right">Total</TableHead>
               </TableRow>
             </TableHeader>
@@ -119,16 +123,16 @@ export function CalculationResults({ results }: CalculationResultsProps) {
                 const description = safeStr(item.description) || `Item ${index + 1}`
                 const assessableValue = safeNum(item.assessableValue)
                 const bcd = safeNum(item.bcd ?? item.bcdValue)
+                const sws = safeNum((item as Record<string, unknown>).sws ?? (item as Record<string, unknown>).swsValue)
                 const igst = safeNum(item.igst ?? item.igstValue)
-                const compCess = safeNum(item.compCess)
-                const total = safeNum(item.total ?? assessableValue + bcd + igst + compCess + safeNum(item.swsValue))
+                const total = safeNum((item as Record<string, unknown>).total) || assessableValue + bcd + sws + igst
                 return (
                   <TableRow key={index}>
                     <TableCell className="font-medium">{description}</TableCell>
                     <TableCell className="text-right">{formatCurrency(assessableValue)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(bcd)}</TableCell>
+                    <TableCell className="text-right">{formatCurrency(sws)}</TableCell>
                     <TableCell className="text-right">{formatCurrency(igst)}</TableCell>
-                    <TableCell className="text-right">{formatCurrency(compCess)}</TableCell>
                     <TableCell className="text-right font-bold">{formatCurrency(total)}</TableCell>
                   </TableRow>
                 )

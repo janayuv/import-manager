@@ -24,6 +24,9 @@ interface ResponsiveDataTableProps<TData, TValue> {
   className?: string
   hideColumnsOnSmall?: string[]
   columnWidths?: Record<string, { minWidth: string; maxWidth?: string }>
+  // Status filter props
+  statusFilter?: React.ReactNode
+  statusActions?: React.ReactNode
 }
 
 export function ResponsiveDataTable<TData, TValue>({
@@ -36,6 +39,8 @@ export function ResponsiveDataTable<TData, TValue>({
   className = '',
   hideColumnsOnSmall = [],
   columnWidths = {},
+  statusFilter,
+  statusActions,
 }: ResponsiveDataTableProps<TData, TValue>) {
   const { settings } = useSettings()
   const { isSmallScreen, getTableClass, getInputClass, getTextClass } = useResponsiveContext()
@@ -117,15 +122,21 @@ export function ResponsiveDataTable<TData, TValue>({
 
   return (
     <div className={`w-full space-y-4 ${className}`}>
-      {/* Search Input */}
-      {showSearch && (
-        <div className="flex items-center py-2">
-          <Input
-            placeholder={searchPlaceholder}
-            value={globalFilter ?? ''}
-            onChange={(event) => setGlobalFilter(event.target.value)}
-            className={`max-w-sm ${getInputClass()}`}
-          />
+      {/* Search Input and Status Controls */}
+      {(showSearch || statusFilter || statusActions) && (
+        <div className="flex items-center justify-between py-2">
+          <div className="flex items-center gap-4">
+            {showSearch && (
+              <Input
+                placeholder={searchPlaceholder}
+                value={globalFilter ?? ''}
+                onChange={(event) => setGlobalFilter(event.target.value)}
+                className={`max-w-sm ${getInputClass()}`}
+              />
+            )}
+            {statusFilter}
+          </div>
+          {statusActions && <div className="flex items-center gap-2">{statusActions}</div>}
         </div>
       )}
 
@@ -133,7 +144,7 @@ export function ResponsiveDataTable<TData, TValue>({
       <div className="w-full overflow-hidden rounded-md border">
         <div className="w-full overflow-x-auto">
           <Table className={getTableClass()}>
-            <TableHeader className="bg-primary text-black">
+            <TableHeader className="bg-primary text-primary-foreground">
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => {
@@ -141,7 +152,7 @@ export function ResponsiveDataTable<TData, TValue>({
                     return (
                       <TableHead
                         key={header.id}
-                        className={`${getTextClass('sm')} font-semibold`}
+                        className={`${getTextClass('sm')} text-primary-foreground overflow-hidden font-semibold whitespace-nowrap`}
                         style={columnStyle}
                       >
                         {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}

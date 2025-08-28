@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { confirm } from '@tauri-apps/plugin-dialog'
 import { AlertTriangle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -13,9 +14,15 @@ const ExpenseDataManager: React.FC = () => {
   const [message, setMessage] = useState<string | null>(null)
 
   const clearExpenseData = async () => {
-    if (
-      !confirm('Are you sure you want to clear all expense types and service providers? This action cannot be undone.')
-    ) {
+    const confirmed = await confirm(
+      'Are you sure you want to clear all expense types and service providers? This action cannot be undone.',
+      {
+        title: 'Clear Expense Data',
+        kind: 'warning',
+      }
+    )
+
+    if (!confirmed) {
       return
     }
 
@@ -48,11 +55,15 @@ const ExpenseDataManager: React.FC = () => {
   }
 
   const cleanupOrphanedExpenses = async () => {
-    if (
-      !confirm(
-        'Are you sure you want to clean up orphaned expense data? This will remove expenses and invoices that are not properly linked.'
-      )
-    ) {
+    const confirmed = await confirm(
+      'Are you sure you want to clean up orphaned expense data? This will remove expenses and invoices that are not properly linked.',
+      {
+        title: 'Cleanup Orphaned Data',
+        kind: 'warning',
+      }
+    )
+
+    if (!confirmed) {
       return
     }
 

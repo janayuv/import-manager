@@ -1,8 +1,8 @@
 // src/pages/invoice/index.tsx
 import { invoke } from '@tauri-apps/api/core'
-import { open, save } from '@tauri-apps/plugin-dialog'
+import { open, save, confirm } from '@tauri-apps/plugin-dialog'
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, Loader2, Plus, Upload } from 'lucide-react'
+import { Download, Loader2, Plus, Upload, Zap } from 'lucide-react'
 import Papa from 'papaparse'
 import { toast } from 'sonner'
 
@@ -23,7 +23,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { Button } from '@/components/ui/button'
-// import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useSettings } from '@/lib/use-settings'
 import { useResponsiveContext } from '@/providers/ResponsiveProvider'
 import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice'
@@ -59,7 +59,7 @@ const InvoicePage = () => {
     number: string
   } | null>(null)
 
-  const [statusFilter] = React.useState('All')
+  const [statusFilter, setStatusFilter] = React.useState('All')
 
   const fetchData = React.useCallback(async () => {
     setLoading(true)
@@ -110,6 +110,18 @@ const InvoicePage = () => {
       return isNaN(parsed) ? 0 : parsed
     }
     return 0
+  }
+
+  // Helper function to format currency
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency?.toUpperCase() || 'USD',
+      }).format(amount)
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`
+    }
   }
 
   const flattenedData = React.useMemo(() => {
@@ -225,11 +237,15 @@ const InvoicePage = () => {
         }
 
         // Show confirmation dialog
-        if (
-          confirm(
-            `Are you sure you want to finalize invoice ${invoiceNumber}?\n\nShipment Value: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.shipmentTotal)}\nCalculated Total: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.calculatedTotal)}\n\nThis action cannot be undone.`
-          )
-        ) {
+        const confirmed = await confirm(
+          `Are you sure you want to finalize invoice ${invoiceNumber}?\n\nShipment Value: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.shipmentTotal)}\nCalculated Total: ${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(invoice.calculatedTotal)}\n\nThis action cannot be undone.`,
+          {
+            title: 'Finalize Invoice',
+            kind: 'warning',
+          }
+        )
+
+        if (confirmed) {
           const payload = {
             shipmentId: invoice.shipmentId,
             status: 'Finalized',
@@ -252,6 +268,69 @@ const InvoicePage = () => {
     },
     [invoices, fetchData]
   )
+
+  const handleBulkAutoFinalize = React.useCallback(async () => {
+    try {
+      // Find all draft invoices that can be auto-finalized
+      const draftInvoices = invoices.filter((invoice) => invoice.status === 'Draft')
+      const autoFinalizableInvoices = draftInvoices.filter((invoice) => {
+        const tolerance = 0.01
+        return Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+      })
+
+      if (autoFinalizableInvoices.length === 0) {
+        toast.info('No invoices found that can be auto-finalized.')
+        return
+      }
+
+      // Show confirmation dialog
+      const confirmed = await confirm(
+        `Are you sure you want to auto-finalize ${autoFinalizableInvoices.length} invoice(s)?\n\nThis will finalize all draft invoices where the calculated total matches the shipment value.\n\nThis action cannot be undone.`,
+        {
+          title: 'Bulk Auto-Finalize',
+          kind: 'warning',
+        }
+      )
+
+      if (confirmed) {
+        const toastId = toast.loading(`Finalizing ${autoFinalizableInvoices.length} invoice(s)...`)
+
+        // Process each invoice
+        let successCount = 0
+        let errorCount = 0
+
+        for (const invoice of autoFinalizableInvoices) {
+          try {
+            const payload = {
+              shipmentId: invoice.shipmentId,
+              status: 'Finalized',
+              lineItems:
+                invoice.lineItems?.map((li) => ({
+                  itemId: li.itemId,
+                  quantity: li.quantity,
+                  unitPrice: li.unitPrice,
+                })) || [],
+            }
+
+            await invoke('update_invoice', { id: invoice.id, payload })
+            successCount++
+          } catch (error) {
+            console.error(`Failed to finalize invoice ${invoice.invoiceNumber}:`, error)
+            errorCount++
+          }
+        }
+
+        toast.success(
+          `Bulk finalization complete! ${successCount} invoice(s) finalized successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
+          { id: toastId }
+        )
+        fetchData()
+      }
+    } catch (error) {
+      console.error('Failed to bulk auto-finalize invoices:', error)
+      toast.error('Failed to bulk auto-finalize invoices.')
+    }
+  }, [invoices, fetchData])
 
   const handleDeleteConfirm = async () => {
     if (invoiceToDelete) {
@@ -374,6 +453,15 @@ const InvoicePage = () => {
     }
   }
 
+  // Calculate auto-finalizable invoices
+  const autoFinalizableInvoices = React.useMemo(() => {
+    const draftInvoices = invoices.filter((invoice) => invoice.status === 'Draft')
+    return draftInvoices.filter((invoice) => {
+      const tolerance = 0.01
+      return Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+    })
+  }, [invoices])
+
   const columns = React.useMemo(
     () =>
       getInvoiceColumns({
@@ -394,8 +482,8 @@ const InvoicePage = () => {
     )
   }
 
-  // Status filter UI (currently not used in table toolbar)
-  /* const statusFilterControl = (
+  // Status filter UI
+  const statusFilterControl = (
     <Select
       value={statusFilter}
       onValueChange={setStatusFilter}
@@ -410,7 +498,7 @@ const InvoicePage = () => {
         <SelectItem value="Mismatch">Mismatch</SelectItem>
       </SelectContent>
     </Select>
-  ) */
+  )
 
   return (
     <div className="container mx-auto py-10">
@@ -439,6 +527,68 @@ const InvoicePage = () => {
           </Button>
         </div>
       </div>
+      {/* Status Filter and Auto-Finalize */}
+      <div className="mb-4 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-medium">Status:</span>
+            {statusFilterControl}
+          </div>
+          <div className="text-muted-foreground text-sm">
+            Showing {flattenedData.length} invoice{flattenedData.length !== 1 ? 's' : ''}
+            {statusFilter !== 'All' && ` with status "${statusFilter}"`}
+          </div>
+        </div>
+
+        {/* Auto-Finalize Section */}
+        <div className="flex items-center gap-3">
+          {autoFinalizableInvoices.length > 0 ? (
+            <>
+              <div className="text-muted-foreground text-sm">
+                {autoFinalizableInvoices.length} invoice{autoFinalizableInvoices.length !== 1 ? 's' : ''} ready for
+                auto-finalize
+              </div>
+              <Button
+                onClick={handleBulkAutoFinalize}
+                variant="outline"
+                size="sm"
+                className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
+              >
+                <Zap className="mr-2 h-4 w-4" />
+                Auto-Finalize All
+              </Button>
+            </>
+          ) : (
+            <div className="text-muted-foreground text-sm">No invoices ready for auto-finalize</div>
+          )}
+        </div>
+      </div>
+
+      {/* Auto-Finalize Summary Card */}
+      {autoFinalizableInvoices.length > 0 && (
+        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-sm font-semibold text-green-800">Auto-Finalize Ready</h3>
+              <p className="mt-1 text-xs text-green-600">
+                {autoFinalizableInvoices.length} draft invoice{autoFinalizableInvoices.length !== 1 ? 's' : ''} have
+                matching shipment and invoice values
+              </p>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-medium text-green-800">
+                Total Value:{' '}
+                {formatCurrency(
+                  autoFinalizableInvoices.reduce((sum, inv) => sum + inv.calculatedTotal, 0),
+                  'USD'
+                )}
+              </div>
+              <div className="text-xs text-green-600">Ready for bulk finalization</div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <ResponsiveDataTable
         columns={columns}
         data={flattenedData}

@@ -168,8 +168,9 @@ pub fn add_boe_calculation(payload: SavedBoe, state: State<DbState>) -> Result<S
     ).map_err(|e| e.to_string())?;
 
     // Automatically update shipment status to "Custom Clearance" when BOE entry is added
+    // Only update if current status is not "delivered"
     conn.execute(
-        "UPDATE shipments SET status = 'custom-clearance' WHERE id = ?1",
+        "UPDATE shipments SET status = 'customs-clearance' WHERE id = ?1 AND status != 'delivered'",
         params![payload.shipment_id],
     )
     .map_err(|e| e.to_string())?;

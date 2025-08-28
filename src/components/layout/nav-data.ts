@@ -30,6 +30,10 @@ export const navItems = [
     title: 'Invoice',
     url: '/invoice',
     icon: FileText,
+    items: [
+      { title: 'Invoices', url: '/invoice' },
+      { title: 'Invoice Wizard', url: '/invoice-wizard' },
+    ],
   },
   {
     title: 'Item Master',

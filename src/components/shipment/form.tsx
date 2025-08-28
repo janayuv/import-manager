@@ -61,7 +61,7 @@ export function ShipmentForm({
     if (shipmentToEdit) {
       setFormData(shipmentToEdit)
     } else {
-      setFormData({ status: 'docu-received' })
+      setFormData({ status: 'docs-rcvd' })
     }
   }, [shipmentToEdit, isOpen])
 
@@ -135,7 +135,7 @@ export function ShipmentForm({
         return 'bg-success/10 text-success'
       case 'in-transit':
         return 'bg-info/10 text-info'
-      case 'docu-received':
+      case 'docs-rcvd':
         return 'bg-warning/10 text-warning-foreground'
       default:
         return 'bg-muted text-foreground'

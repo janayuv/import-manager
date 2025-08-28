@@ -65,11 +65,11 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-primary hover:bg-primary/10"
+          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
           Invoice No
-          <SortIndicator column={column} />{' '}
+          <SortIndicator column={column} />
         </Button>
       ),
       cell: ({ row }) => {
@@ -88,12 +88,11 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-primary hover:bg-primary/10"
+          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          {' '}
           Date
-          <SortIndicator column={column} />{' '}
+          <SortIndicator column={column} />
         </Button>
       ),
       cell: ({ row }) => formatDateForDisplay(row.getValue('invoiceDate')),
@@ -242,12 +241,11 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-primary hover:bg-primary/10"
+          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          {' '}
           ETD
-          <SortIndicator column={column} />{' '}
+          <SortIndicator column={column} />
         </Button>
       ),
       cell: ({ row }) => formatDateForDisplay(row.getValue('etd')),
@@ -258,12 +256,11 @@ export const getShipmentColumns = (
       header: ({ column }) => (
         <Button
           variant="ghost"
-          className="text-primary hover:bg-primary/10"
+          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
           onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
         >
-          {' '}
           ETA
-          <SortIndicator column={column} />{' '}
+          <SortIndicator column={column} />
         </Button>
       ),
       cell: ({ row }) => formatDateForDisplay(row.getValue('eta')),
@@ -275,18 +272,23 @@ export const getShipmentColumns = (
       cell: ({ row }) => {
         const status = row.getValue('status') as string
         if (!status) return null
-        const fieldConfig = getFieldConfig('shipment', 'status')
-        let formattedStatus
-        if (fieldConfig?.case === 'none') {
-          formattedStatus = status
-        } else {
-          formattedStatus = formatText(status, {
-            case: fieldConfig?.case || 'sentencecase',
-            trimWhitespace: fieldConfig?.trimWhitespace || false,
-          })
+
+        // Define status colors and labels
+        const statusConfig = {
+          'docs-rcvd': { label: 'Document Received', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+          'docu-received': { label: 'Document Received', color: 'bg-blue-100 text-blue-800 border-blue-200' },
+          'in-transit': { label: 'In Transit', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
+          'customs-clearance': { label: 'Customs Clearance', color: 'bg-purple-100 text-purple-800 border-purple-200' },
+          'ready-dly': { label: 'Ready for Delivery', color: 'bg-orange-100 text-orange-800 border-orange-200' },
+          delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800 border-green-200' },
         }
-        const statusLabel = formattedStatus.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase())
-        return <Badge variant="outline">{statusLabel}</Badge>
+
+        const config = statusConfig[status as keyof typeof statusConfig] || {
+          label: status.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+          color: 'bg-gray-100 text-gray-800 border-gray-200',
+        }
+
+        return <Badge className={config.color}>{config.label}</Badge>
       },
     },
     {

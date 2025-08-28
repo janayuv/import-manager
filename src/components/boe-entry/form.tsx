@@ -3,6 +3,8 @@
 
 import { zodResolver } from '@hookform/resolvers/zod'
 import Papa, { type ParseResult } from 'papaparse'
+import { save } from '@tauri-apps/plugin-dialog'
+import { writeTextFile } from '@tauri-apps/plugin-fs'
 import { toast } from 'sonner'
 import * as z from 'zod'
 
@@ -41,7 +43,7 @@ import { ItemsTable } from './items-table'
 const formSchema = z.object({
   supplierName: z.string().min(1, { message: 'Please select a supplier.' }),
   shipmentId: z.string().min(1, { message: 'Please select an invoice.' }),
-  exchangeRate: z.coerce.number().min(0, { message: 'Invalid rate.' }),
+  exchangeRate: z.coerce.number().min(0, { message: 'Invalid rate.' }).optional().default(83.5),
   freightCost: z.coerce.number().min(0),
   exwCost: z.coerce.number().min(0),
   insuranceRate: z.coerce.number().min(0),
@@ -57,6 +59,9 @@ interface BoeEntryFormProps {
   initialData: SavedBoe | null
   onCancelEdit: () => void
   setEditingBoe: (boe: SavedBoe | null) => void
+  // Optional presets for embedding in flows (e.g., Invoice Wizard)
+  presetSupplierName?: string
+  presetShipmentId?: string
 }
 
 interface RawOverrideRow {
@@ -75,6 +80,8 @@ export function BoeEntryForm({
   initialData,
   onCancelEdit,
   setEditingBoe,
+  presetSupplierName,
+  presetShipmentId,
 }: BoeEntryFormProps) {
   const { settings } = useSettings()
   const [suppliers, setSuppliers] = React.useState<string[]>([])
@@ -96,7 +103,7 @@ export function BoeEntryForm({
     defaultValues: {
       supplierName: '',
       shipmentId: '',
-      exchangeRate: 0,
+      exchangeRate: 83.5,
       freightCost: 0,
       exwCost: 0,
       insuranceRate: 0.015,
@@ -155,7 +162,7 @@ export function BoeEntryForm({
       form.reset({
         supplierName: '',
         shipmentId: '',
-        exchangeRate: 0,
+        exchangeRate: 83.5,
         freightCost: 0,
         exwCost: 0,
         insuranceRate: 0.015,
@@ -170,10 +177,25 @@ export function BoeEntryForm({
     }
   }, [initialData, shipments, allBoes, form, settings.textFormat])
 
+  // Apply presets when not editing and form is blank
+  React.useEffect(() => {
+    if (!initialData) {
+      if (presetSupplierName) {
+        handleSupplierChange(presetSupplierName)
+      }
+      if (presetShipmentId) {
+        handleInvoiceChange(presetShipmentId)
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetSupplierName, presetShipmentId])
+
   const handleSupplierChange = React.useCallback(
     (supplierName: string) => {
-      form.setValue('supplierName', supplierName, { shouldValidate: true })
-      const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === supplierName)
+      // Normalize to current text format to ensure matching
+      const normalizedName = formatText(supplierName, settings.textFormat)
+      form.setValue('supplierName', normalizedName, { shouldValidate: true })
+      const invs = shipments.filter((s) => formatText(s.supplierName, settings.textFormat) === normalizedName)
       setAvailableInvoices(invs)
       form.resetField('shipmentId')
       setSelectedShipment(null)
@@ -235,6 +257,32 @@ export function BoeEntryForm({
         error: (err: Error) => reject(err),
       })
     })
+
+  const handleDownloadOverrideTemplate = React.useCallback(async () => {
+    const templateRows: RawOverrideRow[] = [
+      {
+        partNo: '433157-0001',
+        calculationMethod: 'Standard',
+        boeBcdRate: '15',
+        boeSwsRate: '10',
+        boeIgstRate: '28',
+      },
+    ]
+    const csv = Papa.unparse(templateRows)
+    try {
+      const filePath = await save({
+        defaultPath: 'boe_item_override_template.csv',
+        filters: [{ name: 'CSV', extensions: ['csv'] }],
+      })
+      if (filePath) {
+        await writeTextFile(filePath, csv)
+        toast.success('BOE item override template downloaded.')
+      }
+    } catch (error) {
+      console.error('Failed to download override template:', error)
+      toast.error('Failed to download template.')
+    }
+  }, [])
 
   async function onSubmit(values: FormValues) {
     if (!selectedShipment) {
@@ -603,6 +651,13 @@ export function BoeEntryForm({
         )}
 
         <div className="flex justify-end space-x-4">
+          <Button
+            type="button"
+            variant="secondary"
+            onClick={handleDownloadOverrideTemplate}
+          >
+            Download Item Template
+          </Button>
           <Button
             type="submit"
             disabled={!form.formState.isValid}

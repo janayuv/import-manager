@@ -102,12 +102,12 @@ export function SavedBoeList({ savedBoes, onView, onEdit, onDelete }: SavedBoeLi
       <CardContent>
         <div className="rounded-md border">
           <Table>
-            <TableHeader>
-              <TableRow className="bg-primary text-primary-foreground">
-                <TableHead>Invoice Number</TableHead>
-                <TableHead>Supplier</TableHead>
-                <TableHead className="text-right">Total Duty</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+            <TableHeader className="bg-primary text-primary-foreground">
+              <TableRow>
+                <TableHead className="text-primary-foreground">Invoice Number</TableHead>
+                <TableHead className="text-primary-foreground">Supplier</TableHead>
+                <TableHead className="text-primary-foreground text-right">Total Duty</TableHead>
+                <TableHead className="text-primary-foreground text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

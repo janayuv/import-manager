@@ -2,6 +2,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 
 import { Badge } from '@/components/ui/badge'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 import { formatDateForDisplay } from '@/lib/date-format'
 import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
 import type { AppSettings } from '@/lib/settings'
@@ -208,6 +209,49 @@ export const getInvoiceColumns = ({
           }[status] ?? 'bg-muted text-muted-foreground' // fallback
 
         return <Badge className={colorClass}>{status}</Badge>
+      },
+    },
+    {
+      accessorKey: 'matchStatus',
+      header: 'Match Status',
+      cell: ({ row }) => {
+        const isMatched = Math.abs(row.original.shipmentTotal - row.original.invoiceTotal) < 0.01
+        const isDraft = row.original.status === 'Draft'
+        const difference = row.original.shipmentTotal - row.original.invoiceTotal
+
+        if (!isDraft) {
+          return <span className="text-muted-foreground text-xs">-</span>
+        }
+
+        if (isMatched) {
+          return (
+            <div className="flex items-center gap-1">
+              <div className="h-2 w-2 rounded-full bg-green-500"></div>
+              <span className="text-xs font-medium text-green-700">Ready to Finalize</span>
+            </div>
+          )
+        } else {
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex cursor-help items-center gap-1">
+                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
+                  <span className="text-xs font-medium text-red-700">Mismatch</span>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="text-xs">
+                  <div>Shipment Total: {formatCurrency(row.original.shipmentTotal, row.original.currency)}</div>
+                  <div>Invoice Total: {formatCurrency(row.original.invoiceTotal, row.original.currency)}</div>
+                  <div className={difference > 0 ? 'text-red-600' : 'text-green-600'}>
+                    Difference: {difference > 0 ? '+' : ''}
+                    {formatCurrency(Math.abs(difference), row.original.currency)}
+                  </div>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          )
+        }
       },
     },
   ]

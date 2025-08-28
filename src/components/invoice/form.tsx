@@ -36,6 +36,24 @@ import type { Invoice, InvoiceLineItem } from '@/types/invoice'
 import type { Item } from '@/types/item'
 import type { Shipment } from '@/types/shipment'
 
+// Helper function to normalize currency codes for Intl.NumberFormat
+const normalizeCurrencyCode = (currencyCode: string): string => {
+  const normalized = currencyCode?.trim().toUpperCase() || 'USD'
+
+  // Common currency code mappings
+  const currencyMap: Record<string, string> = {
+    EURO: 'EUR',
+    DOLLAR: 'USD',
+    POUND: 'GBP',
+    YEN: 'JPY',
+    WON: 'KRW',
+    RUPEE: 'INR',
+    YUAN: 'CNY',
+  }
+
+  return currencyMap[normalized] || normalized
+}
+
 // Extended type for form handling with isNew flag
 interface FormInvoiceLineItem extends InvoiceLineItem {
   isNew?: boolean
@@ -70,7 +88,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   const currency = selectedShipment?.invoiceCurrency || 'USD'
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizeCurrencyCode(currency) }).format(
+      amount
+    )
   }
 
   // Filter available items based on the selected supplier from the shipment

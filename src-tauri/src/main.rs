@@ -275,6 +275,10 @@ fn main() {
             commands::freeze_shipment,
             // Update shipment status
             commands::update_shipment_status,
+            commands::update_shipment_status_on_invoice_add,
+            commands::update_shipment_status_on_boe_add,
+            commands::check_and_update_ready_for_delivery,
+            commands::migrate_shipment_statuses,
             // Validation commands
             commands::validate_shipment_import,
             commands::check_supplier_exists,
