@@ -1,30 +1,13 @@
-/**
- * Prettier configuration for Import Manager
- * - Optimized for React, TypeScript, Tailwind CSS
- * - Supports JSON, Markdown, TOML for project files
- * - Integrates with ESLint and Tailwind
- * - Enhanced for data-heavy Excel parsing and UI components
- */
+/** @type {import("prettier").Config} */
 module.exports = {
-  semi: false,
+  plugins: ['prettier-plugin-tailwindcss'],
+  tailwindConfig: './tailwind.config.ts',
+  semi: true,
   singleQuote: true,
-  printWidth: 120,
+  printWidth: 80,
   tabWidth: 2,
+  useTabs: false,
   trailingComma: 'es5',
   bracketSpacing: true,
-  arrowParens: 'always',
-  endOfLine: 'lf',
-  singleAttributePerLine: true,
-  plugins: ['prettier-plugin-tailwindcss', 'prettier-plugin-toml'],
-  tailwindConfig: './tailwind.config.js',
-  overrides: [
-    {
-      files: ['*.json', '*.md'],
-      options: { tabWidth: 2, useTabs: false },
-    },
-    {
-      files: ['Cargo.toml', '*.toml'],
-      options: { parser: 'toml', tabWidth: 2 },
-    },
-  ],
-}
+  arrowParens: 'avoid',
+};
