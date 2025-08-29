@@ -140,19 +140,10 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Install SQLCipher
+      - name: Set CI Environment
         run: |
-          echo "📦 Installing SQLCipher on Windows..."
-          if (Test-Path "C:\vcpkg") {
-            echo "vcpkg directory already exists, removing..."
-            Remove-Item -Recurse -Force "C:\vcpkg"
-          }
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-          C:\vcpkg\bootstrap-vcpkg.bat
-          C:\vcpkg\vcpkg.exe install sqlcipher
-          echo "SQLCIPHER_LIB_DIR=C:\vcpkg\installed\x64-windows\lib" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "SQLCIPHER_INCLUDE_DIR=C:\vcpkg\installed\x64-windows\include" | Out-File -FilePath $env:GITHUB_ENV -Append
-          echo "LIBSQLITE3_SYS_BUNDLED=0" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "CI=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "LIBSQLITE3_SYS_BUNDLED=1" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Install dependencies
         run: npm ci
       - name: Build application
