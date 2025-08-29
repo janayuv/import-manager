@@ -17,30 +17,12 @@ use rusqlite::Connection;
 use std::sync::Mutex;
 use tauri::Manager;
 
-fn create_new_encrypted_database(
+fn create_new_database(
     db_path: &std::path::Path,
-    encryption: &encryption::DatabaseEncryption,
 ) -> Result<Connection, Box<dyn std::error::Error>> {
-    // Generate a new encryption key
-    let key = encryption::DatabaseEncryption::generate_key();
-    encryption
-        .store_key(&key)
-        .map_err(|e| format!("Failed to store encryption key: {}", e))?;
-
-    // Create the encrypted database
+    // Create the database
     let conn =
         Connection::open(db_path).map_err(|e| format!("Failed to create database file: {}", e))?;
-
-    // Enable encryption with SQLCipher
-    conn.execute_batch(&format!(
-        "PRAGMA cipher_page_size = 4096;
-         PRAGMA kdf_iter = 256000;
-         PRAGMA cipher_hmac_algorithm = HMAC_SHA512;
-         PRAGMA cipher_kdf_algorithm = PBKDF2_HMAC_SHA512;
-         PRAGMA key = \"x'{}'\";",
-        hex::encode(&key)
-    ))
-    .map_err(|e| format!("Failed to enable encryption: {}", e))?;
 
     // Initialize the database schema
     db::init_schema(&conn).map_err(|e| format!("Failed to initialize database schema: {}", e))?;
@@ -62,118 +44,55 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let db_path = data_dir.join("import-manager.db");
-            let encryption = encryption::DatabaseEncryption::new();
 
-            // Check if database exists and needs migration
-            if db_path.exists() {
-                match encryption::DatabaseEncryption::is_encrypted(&db_path) {
-                    Ok(false) => {
-                        // Database exists but is not encrypted - migrate it
-                        let backup_path = data_dir.join("import-manager.db.backup");
+            // Check if we're using bundled SQLite (CI environment or bundled build)
+            let using_bundled_sqlite = std::env::var("LIBSQLITE3_SYS_BUNDLED").is_ok() 
+                || std::env::var("CI").is_ok();
+
+            // If using bundled SQLite and database exists, check if it's encrypted
+            if using_bundled_sqlite && db_path.exists() {
+                // Try to open the database to see if it's encrypted
+                match Connection::open(&db_path) {
+                    Ok(_) => {
+                        log::info!("Database opened successfully with bundled SQLite");
+                    }
+                    Err(_) => {
+                        // Database is likely encrypted with SQLCipher, create backup and start fresh
+                        log::warn!("Database appears to be encrypted with SQLCipher. Creating backup and starting fresh with bundled SQLite.");
+                        let backup_path = data_dir.join("import-manager.db.sqlcipher-backup");
                         if let Err(e) = std::fs::copy(&db_path, &backup_path) {
                             log::error!("Failed to create backup: {}", e);
                             return Err(Box::new(e));
                         }
-
-                        let encrypted_path = data_dir.join("import-manager.db.encrypted");
-                        if let Err(e) = encryption.migrate_to_encrypted(&db_path, &encrypted_path) {
-                            log::error!("Failed to migrate database to encrypted: {}", e);
-                            return Err(Box::new(e));
-                        }
-
-                        // Replace original with encrypted version
+                        
                         if let Err(e) = std::fs::remove_file(&db_path) {
-                            log::error!("Failed to remove plaintext database: {}", e);
+                            log::error!("Failed to remove encrypted database: {}", e);
                             return Err(Box::new(e));
                         }
-                        if let Err(e) = std::fs::rename(&encrypted_path, &db_path) {
-                            log::error!("Failed to rename encrypted database: {}", e);
-                            return Err(Box::new(e));
-                        }
-
-                        log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
-                    }
-                    Ok(true) => {
-                        // Database is already encrypted
-                        log::info!("Using existing encrypted database");
-                    }
-                    Err(_) => {
-                        // Database might be corrupted, start fresh
-                        log::warn!("Database appears corrupted, starting fresh");
-                        if db_path.exists() {
-                            if let Err(e) = std::fs::remove_file(&db_path) {
-                                log::error!("Failed to remove corrupted database: {}", e);
-                                return Err(Box::new(e));
-                            }
-                        }
+                        
+                        log::info!("Encrypted database backed up as import-manager.db.sqlcipher-backup");
                     }
                 }
             }
 
-            // Initialize database (will create encrypted if new)
+            // Initialize database
             let mut db_connection = if db_path.exists() {
-                // Database exists, check if it's encrypted
-                match encryption::DatabaseEncryption::is_encrypted(&db_path) {
-                    Ok(true) => {
-                        // Database is encrypted, try to open it
-                        match encryption.open_encrypted(&db_path) {
-                            Ok(conn) => conn,
-                            Err(e) => {
-                                log::warn!("Failed to open encrypted database: {}. Starting fresh.", e);
-                                // Remove the corrupted/encrypted database and start fresh
-                                if let Err(e) = std::fs::remove_file(&db_path) {
-                                    log::error!("Failed to remove corrupted database: {}", e);
-                                    return Err(Box::new(e));
-                                }
-                                create_new_encrypted_database(&db_path, &encryption)?
-                            }
-                        }
-                    }
-                    Ok(false) => {
-                        // Database exists but is plaintext - migrate it
-                        let backup_path = data_dir.join("import-manager.db.backup");
-                        if let Err(e) = std::fs::copy(&db_path, &backup_path) {
-                            log::error!("Failed to create backup: {}", e);
-                            return Err(Box::new(e));
-                        }
-
-                        let encrypted_path = data_dir.join("import-manager.db.encrypted");
-                        if let Err(e) = encryption.migrate_to_encrypted(&db_path, &encrypted_path) {
-                            log::error!("Failed to migrate database to encrypted: {}", e);
-                            return Err(Box::new(e));
-                        }
-
-                        // Replace original with encrypted version
+                // Database exists, try to open it
+                match Connection::open(&db_path) {
+                    Ok(conn) => conn,
+                    Err(e) => {
+                        log::warn!("Failed to open database: {}. Starting fresh.", e);
+                        // Remove the corrupted database and start fresh
                         if let Err(e) = std::fs::remove_file(&db_path) {
-                            log::error!("Failed to remove plaintext database: {}", e);
+                            log::error!("Failed to remove corrupted database: {}", e);
                             return Err(Box::new(e));
                         }
-                        if let Err(e) = std::fs::rename(&encrypted_path, &db_path) {
-                            log::error!("Failed to rename encrypted database: {}", e);
-                            return Err(Box::new(e));
-                        }
-
-                        log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
-
-                        // Open the newly encrypted database
-                        encryption.open_encrypted(&db_path)
-                            .map_err(|e| format!("Failed to open migrated encrypted database: {}", e))?
-                    }
-                    Err(_) => {
-                        // Database might be corrupted, start fresh
-                        log::warn!("Database appears corrupted, starting fresh");
-                        if db_path.exists() {
-                            if let Err(e) = std::fs::remove_file(&db_path) {
-                                log::error!("Failed to remove corrupted database: {}", e);
-                                return Err(Box::new(e));
-                            }
-                        }
-                        create_new_encrypted_database(&db_path, &encryption)?
+                        create_new_database(&db_path)?
                     }
                 }
             } else {
-                // No database exists, create a new encrypted one
-                create_new_encrypted_database(&db_path, &encryption)?
+                // No database exists, create a new one
+                create_new_database(&db_path)?
             };
 
             // Run migrations
