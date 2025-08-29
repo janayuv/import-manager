@@ -52,6 +52,7 @@ pub fn get_shipments(state: State<DbState>) -> Result<Vec<Shipment>, String> {
 }
 
 #[tauri::command]
+#[allow(dead_code)]
 pub fn get_shipment_by_id(state: State<DbState>, id: String) -> Result<Option<Shipment>, String> {
     let conn = state.db.lock().unwrap();
     let mut stmt = conn
@@ -167,6 +168,7 @@ pub fn update_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), 
 }
 
 #[tauri::command]
+#[allow(dead_code)]
 pub fn delete_shipment(state: State<DbState>, id: String) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
     conn.execute("DELETE FROM shipments WHERE id = ?1", params![id])
