@@ -1,5 +1,5 @@
-use crate::Shipment;
 use crate::DbState;
+use crate::Shipment;
 use rusqlite::params;
 use tauri::State;
 
@@ -306,7 +306,7 @@ pub fn get_active_shipments(state: State<DbState>) -> Result<Vec<Shipment>, Stri
 #[tauri::command]
 pub fn add_shipments_bulk(state: State<DbState>, shipments: Vec<Shipment>) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
-    
+
     for shipment in shipments {
         conn.execute(
             "INSERT INTO shipments (
@@ -395,17 +395,27 @@ pub fn get_unfinalized_shipments(state: State<DbState>) -> Result<Vec<Shipment>,
 #[tauri::command]
 pub fn freeze_shipment(state: State<DbState>, id: String) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
-    conn.execute("UPDATE shipments SET is_frozen = 1 WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE shipments SET is_frozen = 1 WHERE id = ?1",
+        params![id],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
 #[tauri::command]
-pub fn update_shipment_status(state: State<DbState>, id: String, status: String) -> Result<(), String> {
+pub fn update_shipment_status(
+    state: State<DbState>,
+    id: String,
+    status: String,
+) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
-    conn.execute("UPDATE shipments SET status = ?1 WHERE id = ?2", params![status, id])
-        .map_err(|e| e.to_string())?;
+    conn.execute(
+        "UPDATE shipments SET status = ?1 WHERE id = ?2",
+        params![status, id],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -413,7 +423,7 @@ pub fn update_shipment_status(state: State<DbState>, id: String, status: String)
 #[tauri::command]
 pub fn validate_shipment_import(shipments: Vec<Shipment>) -> Result<Vec<String>, String> {
     let mut errors = Vec::new();
-    
+
     for (index, shipment) in shipments.iter().enumerate() {
         if shipment.invoice_number.is_empty() {
             errors.push(format!("Row {}: Invoice number is required", index + 1));
@@ -425,9 +435,12 @@ pub fn validate_shipment_import(shipments: Vec<Shipment>) -> Result<Vec<String>,
             errors.push(format!("Row {}: Invoice date is required", index + 1));
         }
         if shipment.invoice_value <= 0.0 {
-            errors.push(format!("Row {}: Invoice value must be greater than 0", index + 1));
+            errors.push(format!(
+                "Row {}: Invoice value must be greater than 0",
+                index + 1
+            ));
         }
     }
-    
+
     Ok(errors)
 }

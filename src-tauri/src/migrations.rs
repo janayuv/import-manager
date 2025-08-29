@@ -33,12 +33,10 @@ impl DatabaseMigrations {
                     );
 
                     // Create backup after successful migration
-                    let backup_str = backup_path.to_str()
-                        .ok_or_else(|| rusqlite::Error::InvalidPath("Invalid backup path".into()))?;
-                    conn.execute(
-                        &format!("VACUUM INTO '{}'", backup_str),
-                        [],
-                    )?;
+                    let backup_str = backup_path.to_str().ok_or_else(|| {
+                        rusqlite::Error::InvalidPath("Invalid backup path".into())
+                    })?;
+                    conn.execute(&format!("VACUUM INTO '{}'", backup_str), [])?;
                     log::info!("Database backup created at import-manager.db.backup");
                 }
                 Ok(())

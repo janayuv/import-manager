@@ -8,7 +8,9 @@ mod expense;
 mod migrations;
 
 // Re-export commonly used types
-pub use db::{Shipment, Supplier, Item, Invoice, BoeDetails, Expense, ServiceProvider, ExpenseType};
+pub use db::{
+    BoeDetails, Expense, ExpenseType, Invoice, Item, ServiceProvider, Shipment, Supplier,
+};
 
 use crate::db::DbState;
 use rusqlite::Connection;
@@ -26,8 +28,8 @@ fn create_new_encrypted_database(
         .map_err(|e| format!("Failed to store encryption key: {}", e))?;
 
     // Create the encrypted database
-    let conn = Connection::open(db_path)
-        .map_err(|e| format!("Failed to create database file: {}", e))?;
+    let conn =
+        Connection::open(db_path).map_err(|e| format!("Failed to create database file: {}", e))?;
 
     // Enable encryption with SQLCipher
     conn.execute_batch(&format!(
@@ -41,8 +43,7 @@ fn create_new_encrypted_database(
     .map_err(|e| format!("Failed to enable encryption: {}", e))?;
 
     // Initialize the database schema
-    db::init_schema(&conn)
-        .map_err(|e| format!("Failed to initialize database schema: {}", e))?;
+    db::init_schema(&conn).map_err(|e| format!("Failed to initialize database schema: {}", e))?;
 
     Ok(conn)
 }
