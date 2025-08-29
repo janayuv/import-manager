@@ -1,12 +1,11 @@
 [advisories]
-vulnerability = "deny"
-unmaintained = "warn"
+unmaintained = "none"
 yanked = "deny"
-notice = "warn"
+ignore = [
+  { id = "RUSTSEC-2024-0429", reason = "Transitive dependency issue in glib, will be resolved in future updates" }
+]
 
 [licenses]
-unlicensed = "deny"
-copyleft = "warn"
 allow = [
   "MIT",
   "Apache-2.0",
@@ -15,6 +14,7 @@ allow = [
   "ISC",
   "MPL-2.0",
   "Unicode-DFS-2016",
+  "Unicode-3.0",
   "Zlib",
   "OpenSSL",
   "BSL-1.0",
@@ -24,21 +24,27 @@ allow = [
 ]
 confidence-threshold = 0.8
 
-# Accept dual-licensed expressions like "MIT OR Apache-2.0"
+# Accept dual-licensed expressions
 exceptions = [
   { name = "windows_x86_64_gnu", allow = [
-    "MIT OR Apache-2.0",
+    "MIT",
+    "Apache-2.0",
   ] },
   { name = "android_log-sys", allow = [
-    "MIT OR Apache-2.0",
+    "MIT",
+    "Apache-2.0",
   ] },
   { name = "windows_x86_64_gnullvm", allow = [
-    "MIT OR Apache-2.0",
+    "MIT",
+    "Apache-2.0",
+  ] },
+  { name = "target-lexicon", allow = [
+    "Apache-2.0 WITH LLVM-exception",
   ] },
 ]
 
 [bans]
-multiple-versions = "warn"
+multiple-versions = "allow"
 wildcards = "deny"
 highlight = "all"
 

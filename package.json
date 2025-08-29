@@ -28,7 +28,7 @@
     "tauri": "tauri"
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx,css,html,md,json,toml}": [
+    "*.{ts,tsx,js,jsx,css,html,md,json}": [
       "prettier --write"
     ],
     "src/**/*.{ts,tsx,js,jsx}": [
