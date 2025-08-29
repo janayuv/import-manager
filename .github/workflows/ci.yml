@@ -143,6 +143,10 @@ jobs:
       - name: Install SQLCipher
         run: |
           echo "📦 Installing SQLCipher on Windows..."
+          if (Test-Path "C:\vcpkg") {
+            echo "vcpkg directory already exists, removing..."
+            Remove-Item -Recurse -Force "C:\vcpkg"
+          }
           git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
           C:\vcpkg\bootstrap-vcpkg.bat
           C:\vcpkg\vcpkg.exe install sqlcipher
