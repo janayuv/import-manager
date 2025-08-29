@@ -1,11 +1,11 @@
 // src/components/invoice/view.tsx (MODIFIED - Formats tax numbers as percentages)
-import { save } from '@tauri-apps/plugin-dialog'
-import { writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download } from 'lucide-react'
-import Papa from 'papaparse'
-import { toast } from 'sonner'
+import { save } from '@tauri-apps/plugin-dialog';
+import { writeTextFile } from '@tauri-apps/plugin-fs';
+import { Download } from 'lucide-react';
+import Papa from 'papaparse';
+import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -14,16 +14,23 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { Invoice } from '@/types/invoice'
-import type { Item } from '@/types/item'
-import type { Shipment } from '@/types/shipment'
-import type { Supplier } from '@/types/supplier'
+} from '@/components/ui/dialog';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import type { Invoice } from '@/types/invoice';
+import type { Item } from '@/types/item';
+import type { Shipment } from '@/types/shipment';
+import type { Supplier } from '@/types/supplier';
 
 // Helper function to normalize currency codes for Intl.NumberFormat
 const normalizeCurrencyCode = (currencyCode: string): string => {
-  const normalized = currencyCode?.trim().toUpperCase() || 'USD'
+  const normalized = currencyCode?.trim().toUpperCase() || 'USD';
 
   // Common currency code mappings
   const currencyMap: Record<string, string> = {
@@ -34,48 +41,64 @@ const normalizeCurrencyCode = (currencyCode: string): string => {
     WON: 'KRW',
     RUPEE: 'INR',
     YUAN: 'CNY',
-  }
+  };
 
-  return currencyMap[normalized] || normalized
-}
+  return currencyMap[normalized] || normalized;
+};
 
 interface ViewDialogProps {
-  isOpen: boolean
-  onOpenChange: (isOpen: boolean) => void
-  invoice: Invoice | null
-  items: Item[]
-  suppliers: Supplier[]
-  shipments: Shipment[]
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  invoice: Invoice | null;
+  items: Item[];
+  suppliers: Supplier[];
+  shipments: Shipment[];
 }
 
-const DetailRow = ({ label, value }: { label: string; value: string | number }) => (
+const DetailRow = ({
+  label,
+  value,
+}: {
+  label: string;
+  value: string | number;
+}) => (
   <div>
     <p className="text-muted-foreground text-sm font-medium">{label}</p>
     <p className="font-semibold">{value}</p>
   </div>
-)
+);
 
-export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppliers, shipments }: ViewDialogProps) {
-  if (!invoice) return null
+export function InvoiceViewDialog({
+  isOpen,
+  onOpenChange,
+  invoice,
+  items,
+  suppliers,
+  shipments,
+}: ViewDialogProps) {
+  if (!invoice) return null;
 
-  const shipment = shipments.find((s: Shipment) => s.id === invoice.shipmentId)
-  const supplier = suppliers.find((s: Supplier) => s.id === shipment?.supplierId)
-  const currency = shipment?.invoiceCurrency || 'USD'
+  const shipment = shipments.find((s: Shipment) => s.id === invoice.shipmentId);
+  const supplier = suppliers.find(
+    (s: Supplier) => s.id === shipment?.supplierId
+  );
+  const currency = shipment?.invoiceCurrency || 'USD';
 
   const formatCurrency = (amount: number, currencyCode: string) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizeCurrencyCode(currencyCode) }).format(
-      amount
-    )
-  }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: normalizeCurrencyCode(currencyCode),
+    }).format(amount);
+  };
 
   const handleExport = async () => {
     if (!invoice || !invoice.lineItems || invoice.lineItems.length === 0) {
-      toast.warning('No items to export.')
-      return
+      toast.warning('No items to export.');
+      return;
     }
 
-    const exportData = invoice.lineItems.map((lineItem) => {
-      const item = items.find((i) => i.id === lineItem.itemId)
+    const exportData = invoice.lineItems.map(lineItem => {
+      const item = items.find(i => i.id === lineItem.itemId);
       return {
         'Part No': item?.partNumber || '',
         Description: item?.itemDescription || '',
@@ -88,34 +111,33 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
         BCD: item?.bcd ? `${item.bcd}%` : '-',
         // FIX: Format IGST for export
         IGST: item?.igst ? `${item.igst}%` : '-',
-      }
-    })
+      };
+    });
 
-    const csv = Papa.unparse(exportData)
+    const csv = Papa.unparse(exportData);
     try {
       const filePath = await save({
         defaultPath: `${invoice.invoiceNumber}-items.csv`,
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
       if (filePath) {
-        await writeTextFile(filePath, csv)
-        toast.success('Items exported successfully!')
+        await writeTextFile(filePath, csv);
+        toast.success('Items exported successfully!');
       }
     } catch (error) {
-      console.error('Failed to export items:', error)
-      toast.error('Failed to export items.')
+      console.error('Failed to export items:', error);
+      toast.error('Failed to export items.');
     }
-  }
+  };
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>View Invoice: {invoice.invoiceNumber}</DialogTitle>
-          <DialogDescription>A detailed view of the invoice and its line items.</DialogDescription>
+          <DialogDescription>
+            A detailed view of the invoice and its line items.
+          </DialogDescription>
         </DialogHeader>
 
         {/* Header Details */}
@@ -124,26 +146,17 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
             label="Supplier Name"
             value={supplier?.supplierName || '-'}
           />
-          <DetailRow
-            label="Invoice No"
-            value={invoice.invoiceNumber}
-          />
+          <DetailRow label="Invoice No" value={invoice.invoiceNumber} />
           <DetailRow
             label="Invoice Date"
             value={new Date(invoice.invoiceDate).toLocaleDateString('en-GB')}
           />
-          <DetailRow
-            label="Status"
-            value={invoice.status}
-          />
+          <DetailRow label="Status" value={invoice.status} />
           <DetailRow
             label="Invoice Total"
             value={formatCurrency(invoice.calculatedTotal, currency)}
           />
-          <DetailRow
-            label="Currency"
-            value={currency}
-          />
+          <DetailRow label="Currency" value={currency} />
         </div>
 
         {/* Line Items Table */}
@@ -165,10 +178,10 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {invoice.lineItems?.map((lineItem) => {
-                  const item = items.find((i) => i.id === lineItem.itemId)
-                  if (!item) return null
-                  const lineTotal = lineItem.quantity * lineItem.unitPrice
+                {invoice.lineItems?.map(lineItem => {
+                  const item = items.find(i => i.id === lineItem.itemId);
+                  if (!item) return null;
+                  const lineTotal = lineItem.quantity * lineItem.unitPrice;
                   return (
                     <TableRow key={lineItem.id}>
                       <TableCell>{item.partNumber}</TableCell>
@@ -176,14 +189,18 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
                       <TableCell>{item.hsnCode}</TableCell>
                       <TableCell>{item.unit}</TableCell>
                       <TableCell>{lineItem.quantity}</TableCell>
-                      <TableCell>{formatCurrency(lineItem.unitPrice, currency)}</TableCell>
-                      <TableCell>{formatCurrency(lineTotal, currency)}</TableCell>
+                      <TableCell>
+                        {formatCurrency(lineItem.unitPrice, currency)}
+                      </TableCell>
+                      <TableCell>
+                        {formatCurrency(lineTotal, currency)}
+                      </TableCell>
                       {/* FIX: Display the BCD number as a percentage */}
                       <TableCell>{item.bcd ? `${item.bcd}%` : '-'}</TableCell>
                       {/* FIX: Display the IGST number as a percentage */}
                       <TableCell>{item.igst ? `${item.igst}%` : '-'}</TableCell>
                     </TableRow>
-                  )
+                  );
                 })}
               </TableBody>
             </Table>
@@ -200,15 +217,12 @@ export function InvoiceViewDialog({ isOpen, onOpenChange, invoice, items, suppli
             <Download className="mr-2 h-4 w-4" /> Export Items
           </Button>
           <DialogClose asChild>
-            <Button
-              type="button"
-              className="custom-alert-action-cancel"
-            >
+            <Button type="button" className="custom-alert-action-cancel">
               Close
             </Button>
           </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

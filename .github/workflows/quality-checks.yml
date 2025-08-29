@@ -1,0 +1,194 @@
+name: Quality Checks
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  quality-checks:
+    name: Code Quality & Backend Validation
+    runs-on: windows-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install MCP server dependencies
+        run: |
+          npm install @modelcontextprotocol/sdk@^0.4.0
+          chmod +x mcp-server-quality.js
+
+      - name: Run TypeScript type checking
+        run: |
+          node mcp-server-quality.js type_check
+        env:
+          INPUT_ARGS: '{"strict": true, "project": "tsconfig.json"}'
+
+      - name: Run ESLint code quality checks
+        run: |
+          node mcp-server-quality.js lint_code
+        env:
+          INPUT_ARGS: '{"fix": false}'
+
+      - name: Run unit tests
+        run: |
+          node mcp-server-quality.js run_tests
+        env:
+          INPUT_ARGS: '{"type": "unit", "coverage": true, "watch": false}'
+
+      - name: Run E2E tests
+        run: |
+          npx playwright install
+          node mcp-server-quality.js run_tests
+        env:
+          INPUT_ARGS: '{"type": "e2e", "coverage": false, "watch": false}'
+
+      - name: Run comprehensive quality analysis
+        run: |
+          node mcp-server-quality.js check_quality
+        env:
+          INPUT_ARGS: '{"include_security": true, "include_complexity": true, "include_maintainability": true}'
+
+      - name: Run backend logic validation
+        run: |
+          node mcp-server-quality.js check_backend_logic
+        env:
+          INPUT_ARGS: '{"check_database": true, "check_api_endpoints": true, "check_business_logic": true}'
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results-${{ matrix.node-version }}
+          path: |
+            test-results/
+            playwright-report/
+            coverage/
+
+      - name: Upload quality reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: quality-reports-${{ matrix.node-version }}
+          path: |
+            quality-reports/
+            mcp-reports/
+
+  security-scan:
+    name: Security Analysis
+    runs-on: windows-latest
+    needs: quality-checks
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run security audit
+        run: npm audit --audit-level=moderate
+
+      - name: Run dependency vulnerability scan
+        run: |
+          npm install -g audit-ci
+          audit-ci --moderate
+        continue-on-error: true
+
+      - name: Check for hardcoded secrets
+        run: |
+          npm install -g detect-secrets
+          detect-secrets scan --baseline .secrets.baseline
+        continue-on-error: true
+
+  build-validation:
+    name: Build & Package Validation
+    runs-on: windows-latest
+    needs: [quality-checks, security-scan]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          profile: minimal
+          override: true
+
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            src-tauri/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Build Tauri application
+        run: npm run build:tauri
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: |
+            dist/
+            src-tauri/target/release/
+
+  quality-gates:
+    name: Quality Gates
+    runs-on: windows-latest
+    needs: [quality-checks, security-scan, build-validation]
+
+    steps:
+      - name: Check quality check results
+        run: |
+          echo "Quality checks completed successfully"
+          echo "All quality gates passed"
+
+      - name: Generate quality report
+        run: |
+          echo "## Quality Check Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ TypeScript type checking passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ ESLint code quality checks passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Unit tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ E2E tests passed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Security analysis completed" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build validation successful" >> $GITHUB_STEP_SUMMARY

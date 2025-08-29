@@ -1,5 +1,5 @@
 // src/components/boe/data.ts (MODIFIED)
-import type { BoeDetails } from '@/types/boe'
+import type { BoeDetails } from '@/types/boe';
 
 // This is no longer needed
 // export const paymentStatuses = [ ... ];
@@ -40,4 +40,4 @@ export const dummyBoes: BoeDetails[] = [
     dutyAmount: 982560,
     // No paymentDate means it's unpaid
   },
-]
+];

@@ -1,5 +1,5 @@
-import { defineConfig } from 'vitest/config'
-import path from 'path'
+import { defineConfig } from 'vitest/config';
+import path from 'path';
 
 export default defineConfig({
   resolve: {
@@ -9,7 +9,13 @@ export default defineConfig({
   },
   test: {
     include: ['src/**/*.{test,vitest}.{ts,tsx}'],
-    exclude: ['node_modules/**', 'dist/**', 'tests/e2e/**', 'e2e/**', 'playwright/**'],
+    exclude: [
+      'node_modules/**',
+      'dist/**',
+      'tests/e2e/**',
+      'e2e/**',
+      'playwright/**',
+    ],
     environment: 'jsdom',
   },
-})
+});

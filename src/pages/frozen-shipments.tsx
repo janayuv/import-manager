@@ -1,44 +1,51 @@
-import { invoke } from '@tauri-apps/api/core'
-import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core';
+import { toast } from 'sonner';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { Shipment } from '@/types/shipment'
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import type { Shipment } from '@/types/shipment';
 
 const FrozenShipmentsPage = () => {
-  const [shipments, setShipments] = useState<Shipment[]>([])
-  const [loading, setLoading] = useState(true)
+  const [shipments, setShipments] = useState<Shipment[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const refresh = async () => {
     try {
-      setLoading(true)
-      const all: Shipment[] = await invoke('get_shipments')
-      setShipments(all.filter((s) => s.isFrozen))
+      setLoading(true);
+      const all: Shipment[] = await invoke('get_shipments');
+      setShipments(all.filter(s => s.isFrozen));
     } catch (e) {
-      console.error(e)
-      toast.error('Failed to load frozen shipments')
+      console.error(e);
+      toast.error('Failed to load frozen shipments');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    refresh()
-  }, [])
+    refresh();
+  }, []);
 
   const handleUnfreeze = async (id: string) => {
     try {
-      await invoke('freeze_shipment', { shipmentId: id, frozen: false })
-      toast.success('Shipment unfrozen')
-      await refresh()
+      await invoke('freeze_shipment', { shipmentId: id, frozen: false });
+      toast.success('Shipment unfrozen');
+      await refresh();
     } catch (e) {
-      console.error(e)
-      toast.error('Failed to unfreeze')
+      console.error(e);
+      toast.error('Failed to unfreeze');
     }
-  }
+  };
 
   return (
     <div className="container mx-auto p-6">
@@ -60,15 +67,12 @@ const FrozenShipmentsPage = () => {
               </TableHeader>
               <TableBody>
                 {shipments.length ? (
-                  shipments.map((s) => (
+                  shipments.map(s => (
                     <TableRow key={s.id}>
                       <TableCell>{s.invoiceNumber}</TableCell>
                       <TableCell>{s.status}</TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          onClick={() => handleUnfreeze(s.id)}
-                        >
+                        <Button size="sm" onClick={() => handleUnfreeze(s.id)}>
                           Unfreeze
                         </Button>
                       </TableCell>
@@ -76,10 +80,7 @@ const FrozenShipmentsPage = () => {
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell
-                      colSpan={3}
-                      className="text-center"
-                    >
+                    <TableCell colSpan={3} className="text-center">
                       No frozen shipments
                     </TableCell>
                   </TableRow>
@@ -90,7 +91,7 @@ const FrozenShipmentsPage = () => {
         </CardContent>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default FrozenShipmentsPage
+export default FrozenShipmentsPage;

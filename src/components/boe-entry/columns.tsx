@@ -6,14 +6,14 @@
 | Defines the columns for the shipments data table.                            |
 ================================================================================
 */
-'use client'
+'use client';
 
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table';
 
-import { Badge } from '@/components/ui/badge'
-import type { Shipment } from '@/types/shipment'
+import { Badge } from '@/components/ui/badge';
+import type { Shipment } from '@/types/shipment';
 
-import { DataTableRowActions } from './actions'
+import { DataTableRowActions } from './actions';
 
 /*
 ================================================================================
@@ -87,8 +87,8 @@ export const columns: ColumnDef<Shipment>[] = [
     accessorKey: 'invoiceValue',
     header: 'Invoice Value',
     cell: ({ row }) => {
-      const amount = parseFloat(row.getValue('invoiceValue'))
-      const currency = row.original.invoiceCurrency
+      const amount = parseFloat(row.getValue('invoiceValue'));
+      const currency = row.original.invoiceCurrency;
 
       return (
         <div className="text-right font-mono">
@@ -97,14 +97,14 @@ export const columns: ColumnDef<Shipment>[] = [
             currency: currency,
           }).format(amount)}
         </div>
-      )
+      );
     },
   },
   {
     accessorKey: 'status',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue('status') as string
+      const status = row.getValue('status') as string;
       return (
         <div className="text-center">
           <Badge
@@ -118,14 +118,14 @@ export const columns: ColumnDef<Shipment>[] = [
             {status}
           </Badge>
         </div>
-      )
+      );
     },
     filterFn: (row, id, value) => {
-      return value.includes(row.getValue(id))
+      return value.includes(row.getValue(id));
     },
   },
   {
     id: 'actions',
     cell: () => <DataTableRowActions />,
   },
-]
+];

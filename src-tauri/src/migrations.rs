@@ -16,7 +16,9 @@ impl DatabaseMigrations {
         // Create a backup before running migrations
         let backup_path = Path::new("import-manager.db.backup");
         if backup_path.exists() {
-            std::fs::remove_file(backup_path).expect("Failed to remove existing backup");
+            if let Err(e) = std::fs::remove_file(backup_path) {
+                log::warn!("Failed to remove existing backup: {}", e);
+            }
         }
 
         // Run migrations
@@ -31,8 +33,10 @@ impl DatabaseMigrations {
                     );
 
                     // Create backup after successful migration
+                    let backup_str = backup_path.to_str()
+                        .ok_or_else(|| rusqlite::Error::InvalidPath("Invalid backup path".into()))?;
                     conn.execute(
-                        &format!("VACUUM INTO '{}'", backup_path.to_str().unwrap()),
+                        &format!("VACUUM INTO '{}'", backup_str),
                         [],
                     )?;
                     log::info!("Database backup created at import-manager.db.backup");
@@ -98,20 +102,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_migration_status() {
-        let mut conn = Connection::open_in_memory().unwrap();
+    fn test_migration_status() -> Result<(), Box<dyn std::error::Error>> {
+        let mut conn = Connection::open_in_memory()
+            .map_err(|e| format!("Failed to create in-memory database: {}", e))?;
 
         // Should need migration for new database
-        assert!(DatabaseMigrations::needs_migration(&conn).unwrap());
+        assert!(DatabaseMigrations::needs_migration(&conn)
+            .map_err(|e| format!("Failed to check migration status: {}", e))?);
 
         // Run migrations
-        DatabaseMigrations::run_migrations(&mut conn).unwrap();
+        DatabaseMigrations::run_migrations(&mut conn)
+            .map_err(|e| format!("Failed to run migrations: {}", e))?;
 
         // Should not need migration after running
-        assert!(!DatabaseMigrations::needs_migration(&conn).unwrap());
+        assert!(!DatabaseMigrations::needs_migration(&conn)
+            .map_err(|e| format!("Failed to check migration status after running: {}", e))?);
 
         // Check status
-        let status = DatabaseMigrations::get_migration_status(&conn).unwrap();
+        let status = DatabaseMigrations::get_migration_status(&conn)
+            .map_err(|e| format!("Failed to get migration status: {}", e))?;
         assert!(!status.is_empty());
+
+        Ok(())
     }
 }

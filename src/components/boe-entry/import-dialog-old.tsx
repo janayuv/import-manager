@@ -8,16 +8,16 @@
 | Also added the missing `key` prop to the `<SelectItem>` components.          |
 ================================================================================
 */
-'use client'
+'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod'
-import * as z from 'zod'
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { useForm } from 'react-hook-form'
+import { useForm } from 'react-hook-form';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -25,14 +25,27 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { formatText } from '@/lib/settings'
-import { useSettings } from '@/lib/use-settings'
-import type { Shipment } from '@/types/boe-entry'
+} from '@/components/ui/dialog';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { formatText } from '@/lib/settings';
+import { useSettings } from '@/lib/use-settings';
+import type { Shipment } from '@/types/boe-entry';
 
 /*
 ================================================================================
@@ -108,31 +121,41 @@ const importFormSchema = z.object({
   exwCost: z.coerce.number().min(0),
   insuranceRate: z.coerce.number().min(0),
   interest: z.coerce.number().min(0).optional(),
-})
+});
 
-type ImportFormValues = z.infer<typeof importFormSchema>
+type ImportFormValues = z.infer<typeof importFormSchema>;
 
 export interface ImportFormData {
-  formValues: ImportFormValues
-  overrideFile: File
+  formValues: ImportFormValues;
+  overrideFile: File;
 }
 
 interface ImportDialogProps {
-  shipments: Shipment[]
-  onClose: () => void
-  onImport: (importData: ImportFormData) => void
+  shipments: Shipment[];
+  onClose: () => void;
+  onImport: (importData: ImportFormData) => void;
 }
 
-export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps) {
-  const { settings } = useSettings()
-  const [suppliers, setSuppliers] = React.useState<string[]>([])
-  const [availableInvoices, setAvailableInvoices] = React.useState<Shipment[]>([])
-  const [overrideFile, setOverrideFile] = React.useState<File | null>(null)
+export function ImportDialog({
+  shipments,
+  onClose,
+  onImport,
+}: ImportDialogProps) {
+  const { settings } = useSettings();
+  const [suppliers, setSuppliers] = React.useState<string[]>([]);
+  const [availableInvoices, setAvailableInvoices] = React.useState<Shipment[]>(
+    []
+  );
+  const [overrideFile, setOverrideFile] = React.useState<File | null>(null);
 
   React.useEffect(() => {
-    const uniqueSuppliers = [...new Set(shipments.map((s) => formatText(s.supplierName, settings.textFormat)))]
-    setSuppliers(uniqueSuppliers)
-  }, [shipments, settings.textFormat])
+    const uniqueSuppliers = [
+      ...new Set(
+        shipments.map(s => formatText(s.supplierName, settings.textFormat))
+      ),
+    ];
+    setSuppliers(uniqueSuppliers);
+  }, [shipments, settings.textFormat]);
 
   const form = useForm({
     resolver: zodResolver(importFormSchema),
@@ -145,38 +168,34 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
       insuranceRate: 1.125,
       interest: 0,
     },
-  })
+  });
 
   const handleSupplierChange = (supplierName: string) => {
-    form.setValue('supplierName', supplierName)
+    form.setValue('supplierName', supplierName);
     const invoicesForSupplier = shipments.filter(
-      (s) => formatText(s.supplierName, settings.textFormat) === supplierName
-    )
-    setAvailableInvoices(invoicesForSupplier)
-    form.resetField('shipmentId')
-  }
+      s => formatText(s.supplierName, settings.textFormat) === supplierName
+    );
+    setAvailableInvoices(invoicesForSupplier);
+    form.resetField('shipmentId');
+  };
 
   function onSubmit(values: ImportFormValues) {
     if (overrideFile) {
-      onImport({ formValues: values, overrideFile })
+      onImport({ formValues: values, overrideFile });
     }
   }
 
   return (
-    <Dialog
-      open={true}
-      onOpenChange={(isOpen) => !isOpen && onClose()}
-    >
+    <Dialog open={true} onOpenChange={isOpen => !isOpen && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Import Calculation</DialogTitle>
-          <DialogDescription>Select an invoice, enter costs, and upload a duty override file.</DialogDescription>
+          <DialogDescription>
+            Select an invoice, enter costs, and upload a duty override file.
+          </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form
-            onSubmit={form.handleSubmit(onSubmit)}
-            className="space-y-4"
-          >
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="supplierName"
@@ -193,11 +212,8 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {suppliers.map((s) => (
-                        <SelectItem
-                          key={s}
-                          value={s}
-                        >
+                      {suppliers.map(s => (
+                        <SelectItem key={s} value={s}>
                           {s}
                         </SelectItem>
                       ))}
@@ -224,11 +240,8 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {availableInvoices.map((s) => (
-                        <SelectItem
-                          key={s.id}
-                          value={s.id}
-                        >
+                      {availableInvoices.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
                           {s.invoiceNumber}
                         </SelectItem>
                       ))}
@@ -249,7 +262,12 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
+                        value={
+                          typeof field.value === 'number' ||
+                          typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -266,7 +284,12 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
+                        value={
+                          typeof field.value === 'number' ||
+                          typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -283,7 +306,12 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
+                        value={
+                          typeof field.value === 'number' ||
+                          typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -300,7 +328,12 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                       <Input
                         type="number"
                         {...field}
-                        value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
+                        value={
+                          typeof field.value === 'number' ||
+                          typeof field.value === 'string'
+                            ? field.value
+                            : ''
+                        }
                       />
                     </FormControl>
                     <FormMessage />
@@ -318,7 +351,12 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                     <Input
                       type="number"
                       {...field}
-                      value={typeof field.value === 'number' || typeof field.value === 'string' ? field.value : ''}
+                      value={
+                        typeof field.value === 'number' ||
+                        typeof field.value === 'string'
+                          ? field.value
+                          : ''
+                      }
                     />
                   </FormControl>
                   <FormMessage />
@@ -331,16 +369,14 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
                 id="override-file"
                 type="file"
                 accept=".csv"
-                onChange={(e) => setOverrideFile(e.target.files ? e.target.files[0] : null)}
+                onChange={e =>
+                  setOverrideFile(e.target.files ? e.target.files[0] : null)
+                }
               />
             </div>
 
             <DialogFooter>
-              <Button
-                variant="ghost"
-                type="button"
-                onClick={onClose}
-              >
+              <Button variant="ghost" type="button" onClick={onClose}>
                 Cancel
               </Button>
               <Button
@@ -354,5 +390,5 @@ export function ImportDialog({ shipments, onClose, onImport }: ImportDialogProps
         </Form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

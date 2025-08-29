@@ -58,53 +58,53 @@ src/
 ### Cache Configuration
 
 ```typescript
-import { CACHE_TTL, cache } from '@/lib/cache'
+import { CACHE_TTL, cache } from '@/lib/cache';
 
 // Configure cache with custom settings
 const customCache = new CacheManager({
   ttl: CACHE_TTL.MEDIUM, // 5 minutes
   maxSize: 1000, // Maximum items
   namespace: 'custom-cache', // Namespace for storage
-})
+});
 ```
 
 ### Cache Operations
 
 ```typescript
 // Set data in cache
-cache.memory.set('key', data, CACHE_TTL.SHORT)
-cache.session.set('key', data, CACHE_TTL.MEDIUM)
-cache.persistent.set('key', data, CACHE_TTL.LONG)
+cache.memory.set('key', data, CACHE_TTL.SHORT);
+cache.session.set('key', data, CACHE_TTL.MEDIUM);
+cache.persistent.set('key', data, CACHE_TTL.LONG);
 
 // Get data from cache
-const data = cache.smart.get('key')
+const data = cache.smart.get('key');
 
 // Check if data exists
-const exists = cache.memory.has('key')
+const exists = cache.memory.has('key');
 
 // Delete data
-cache.memory.delete('key')
+cache.memory.delete('key');
 
 // Clear all caches
-cache.clearAll()
+cache.clearAll();
 ```
 
 ### Cache Utilities
 
 ```typescript
-import { cacheUtils } from '@/lib/cache'
+import { cacheUtils } from '@/lib/cache';
 
 // Cache with automatic key generation
-const key = cacheUtils.withKey('users', { id: 123 }, userData)
+const key = cacheUtils.withKey('users', { id: 123 }, userData);
 
 // Cache with invalidation
-cacheUtils.withInvalidation('user-123', userData, ['users', 'user-list'])
+cacheUtils.withInvalidation('user-123', userData, ['users', 'user-list']);
 
 // Invalidate related caches
-cacheUtils.invalidateRelated('user-123')
+cacheUtils.invalidateRelated('user-123');
 
 // Debounced cache set
-cacheUtils.debouncedSet('key', data, CACHE_TTL.SHORT, 1000)
+cacheUtils.debouncedSet('key', data, CACHE_TTL.SHORT, 1000);
 ```
 
 ## Performance Hooks
@@ -376,18 +376,18 @@ function DataTable() {
 Monitors web vitals and performance metrics.
 
 ```typescript
-import { PerformanceObserver } from '@/lib/performance'
+import { PerformanceObserver } from '@/lib/performance';
 
 // Start monitoring
-const observer = PerformanceObserver.getInstance()
-observer.startMonitoring()
+const observer = PerformanceObserver.getInstance();
+observer.startMonitoring();
 
 // Get current metrics
-const metrics = observer.getMetrics()
-console.log('Performance metrics:', metrics)
+const metrics = observer.getMetrics();
+console.log('Performance metrics:', metrics);
 
 // Stop monitoring
-observer.stopMonitoring()
+observer.stopMonitoring();
 ```
 
 ### MemoryManager
@@ -395,20 +395,20 @@ observer.stopMonitoring()
 Manages memory usage and triggers cleanup when needed.
 
 ```typescript
-import { MemoryManager } from '@/lib/performance'
+import { MemoryManager } from '@/lib/performance';
 
 // Register cleanup callback
 MemoryManager.registerCleanup(() => {
   // Clear component caches
-  cache.memory.clear()
-})
+  cache.memory.clear();
+});
 
 // Check memory usage
-const memoryUsage = MemoryManager.getMemoryUsage()
-console.log('Memory usage:', memoryUsage)
+const memoryUsage = MemoryManager.getMemoryUsage();
+console.log('Memory usage:', memoryUsage);
 
 // Set memory threshold (default: 80%)
-MemoryManager.setMemoryThreshold(0.7) // 70%
+MemoryManager.setMemoryThreshold(0.7); // 70%
 ```
 
 ### PerformanceReporter
@@ -416,7 +416,7 @@ MemoryManager.setMemoryThreshold(0.7) // 70%
 Collects and reports performance metrics.
 
 ```typescript
-import { PerformanceReporter } from '@/lib/performance'
+import { PerformanceReporter } from '@/lib/performance';
 
 // Add performance report
 PerformanceReporter.addReport({
@@ -431,13 +431,13 @@ PerformanceReporter.addReport({
   cacheSize: 100,
   renderCount: 15,
   renderTime: 25,
-})
+});
 
 // Get average metrics
-const averageMetrics = PerformanceReporter.getAverageMetrics()
+const averageMetrics = PerformanceReporter.getAverageMetrics();
 
 // Export reports
-const report = PerformanceReporter.exportReports()
+const report = PerformanceReporter.exportReports();
 ```
 
 ## Bundle Optimization
@@ -447,23 +447,23 @@ const report = PerformanceReporter.exportReports()
 Tracks bundle size and composition.
 
 ```typescript
-import { BundleAnalyzer } from '@/lib/performance'
+import { BundleAnalyzer } from '@/lib/performance';
 
 // Track chunk size
-BundleAnalyzer.trackChunk('vendor', 500000)
-BundleAnalyzer.trackChunk('app', 200000)
+BundleAnalyzer.trackChunk('vendor', 500000);
+BundleAnalyzer.trackChunk('app', 200000);
 
 // Track module size
-BundleAnalyzer.trackModule('react', 100000)
-BundleAnalyzer.trackModule('lodash', 50000)
+BundleAnalyzer.trackModule('react', 100000);
+BundleAnalyzer.trackModule('lodash', 50000);
 
 // Get bundle statistics
-const stats = BundleAnalyzer.getBundleStats()
-console.log('Bundle stats:', stats)
+const stats = BundleAnalyzer.getBundleStats();
+console.log('Bundle stats:', stats);
 
 // Get largest chunks
-const largestChunks = BundleAnalyzer.getLargestChunks(5)
-console.log('Largest chunks:', largestChunks)
+const largestChunks = BundleAnalyzer.getLargestChunks(5);
+console.log('Largest chunks:', largestChunks);
 ```
 
 ### CodeSplitter
@@ -471,18 +471,21 @@ console.log('Largest chunks:', largestChunks)
 Manages dynamic imports and code splitting.
 
 ```typescript
-import { CodeSplitter } from '@/lib/performance'
+import { CodeSplitter } from '@/lib/performance';
 
 // Load chunk with caching
-await CodeSplitter.loadChunk('heavy-component', () => import('@/components/HeavyComponent'))
+await CodeSplitter.loadChunk(
+  'heavy-component',
+  () => import('@/components/HeavyComponent')
+);
 
 // Preload chunk
-CodeSplitter.preloadChunk('lazy-module', () => import('@/modules/LazyModule'))
+CodeSplitter.preloadChunk('lazy-module', () => import('@/modules/LazyModule'));
 
 // Get loading status
-const status = CodeSplitter.getLoadingStatus()
-console.log('Loaded chunks:', status.loaded)
-console.log('Loading chunks:', status.loading)
+const status = CodeSplitter.getLoadingStatus();
+console.log('Loaded chunks:', status.loaded);
+console.log('Loading chunks:', status.loading);
 ```
 
 ## Memory Management
@@ -499,18 +502,18 @@ The system automatically manages memory usage:
 ### Manual Cleanup
 
 ```typescript
-import { MemoryManager, cache } from '@/lib/performance'
+import { MemoryManager, cache } from '@/lib/performance';
 
 // Trigger manual cleanup
-MemoryManager.checkMemoryUsage()
+MemoryManager.checkMemoryUsage();
 
 // Clear specific caches
-cache.memory.clear()
-cache.session.clear()
-cache.persistent.clear()
+cache.memory.clear();
+cache.session.clear();
+cache.persistent.clear();
 
 // Clear all caches
-cache.clearAll()
+cache.clearAll();
 ```
 
 ## Usage Examples
@@ -713,20 +716,20 @@ function TestPage() {
 
 ```typescript
 // Test cache performance
-const start = performance.now()
+const start = performance.now();
 for (let i = 0; i < 1000; i++) {
-  cache.memory.set(`test-${i}`, { data: i })
+  cache.memory.set(`test-${i}`, { data: i });
 }
-const end = performance.now()
-console.log(`Cache write: ${end - start}ms`)
+const end = performance.now();
+console.log(`Cache write: ${end - start}ms`);
 
 // Test memory usage
-const memoryUsage = MemoryManager.getMemoryUsage()
-console.log('Memory usage:', memoryUsage)
+const memoryUsage = MemoryManager.getMemoryUsage();
+console.log('Memory usage:', memoryUsage);
 
 // Test bundle analysis
-const bundleStats = BundleAnalyzer.getBundleStats()
-console.log('Bundle stats:', bundleStats)
+const bundleStats = BundleAnalyzer.getBundleStats();
+console.log('Bundle stats:', bundleStats);
 ```
 
 ## Configuration
@@ -739,40 +742,40 @@ const cacheConfig = {
   ttl: CACHE_TTL.MEDIUM, // Default TTL
   maxSize: 1000, // Maximum cache size
   namespace: 'import-manager', // Storage namespace
-}
+};
 
 // Initialize with custom config
-const customCache = new CacheManager(cacheConfig)
+const customCache = new CacheManager(cacheConfig);
 ```
 
 ### Performance Monitoring Configuration
 
 ```typescript
 // Initialize performance monitoring
-import { initializePerformanceMonitoring } from '@/lib/performance'
+import { initializePerformanceMonitoring } from '@/lib/performance';
 
 // Call in your app initialization
-initializePerformanceMonitoring()
+initializePerformanceMonitoring();
 ```
 
 ### Memory Management Configuration
 
 ```typescript
 // Set memory threshold
-MemoryManager.setMemoryThreshold(0.7) // 70%
+MemoryManager.setMemoryThreshold(0.7); // 70%
 
 // Register cleanup callbacks
 MemoryManager.registerCleanup(() => {
   // Custom cleanup logic
-})
+});
 ```
 
 ### Bundle Analysis Configuration
 
 ```typescript
 // Track custom chunks and modules
-BundleAnalyzer.trackChunk('custom-chunk', size)
-BundleAnalyzer.trackModule('custom-module', size)
+BundleAnalyzer.trackChunk('custom-chunk', size);
+BundleAnalyzer.trackModule('custom-module', size);
 ```
 
 ## Conclusion

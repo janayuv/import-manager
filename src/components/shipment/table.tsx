@@ -9,24 +9,34 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from '@tanstack/react-table'
+} from '@tanstack/react-table';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
-import { DataTablePagination } from './pagination'
+import { DataTablePagination } from './pagination';
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
 }
 
-export function ShipmentDataTable<TData, TValue>({ columns, data }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = React.useState('')
-  const [rowSelection, setRowSelection] = React.useState({})
+export function ShipmentDataTable<TData, TValue>({
+  columns,
+  data,
+}: DataTableProps<TData, TValue>) {
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState('');
+  const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
     data,
@@ -38,12 +48,15 @@ export function ShipmentDataTable<TData, TValue>({ columns, data }: DataTablePro
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
     onRowSelectionChange: setRowSelection,
+    // Provide more aggressive column sizing to prevent truncation
+    defaultColumn: { minSize: 150, size: 200, maxSize: 600 },
+    columnResizeMode: 'onChange',
     state: {
       sorting,
       globalFilter,
       rowSelection,
     },
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -51,18 +64,29 @@ export function ShipmentDataTable<TData, TValue>({ columns, data }: DataTablePro
         <Input
           placeholder="Search all shipments..."
           value={globalFilter ?? ''}
-          onChange={(event) => setGlobalFilter(event.target.value)}
+          onChange={event => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
       </div>
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader className="bg-primary text-primary-foreground">
-            {table.getHeaderGroups().map((headerGroup) => (
+            {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead key={header.id}>
-                    {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                {headerGroup.headers.map(header => (
+                  <TableHead
+                    key={header.id}
+                    style={{
+                      width: header.column.getSize(),
+                      maxWidth: header.column.getSize(),
+                    }}
+                  >
+                    {header.isPlaceholder
+                      ? null
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -70,13 +94,24 @@ export function ShipmentDataTable<TData, TValue>({ columns, data }: DataTablePro
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map(row => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell
+                      key={cell.id}
+                      style={{
+                        width: cell.column.getSize(),
+                        maxWidth: cell.column.getSize(),
+                      }}
+                    >
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
@@ -95,5 +130,5 @@ export function ShipmentDataTable<TData, TValue>({ columns, data }: DataTablePro
       </div>
       <DataTablePagination table={table} />
     </div>
-  )
+  );
 }

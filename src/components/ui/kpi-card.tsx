@@ -1,22 +1,22 @@
-import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@radix-ui/react-icons'
+import { ArrowDownIcon, ArrowUpIcon, MinusIcon } from '@radix-ui/react-icons';
 
-import type { ComponentType } from 'react'
+import type { ComponentType } from 'react';
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils';
 
 interface KPICardProps {
-  title: string
-  value: string | number
-  description?: string
-  icon?: ComponentType<{ className?: string }>
+  title: string;
+  value: string | number;
+  description?: string;
+  icon?: ComponentType<{ className?: string }>;
   trend?: {
-    value: number
-    isPositive: boolean
-    period: string
-  }
-  variant?: 'default' | 'success' | 'warning' | 'destructive'
-  className?: string
-  loading?: boolean
+    value: number;
+    isPositive: boolean;
+    period: string;
+  };
+  variant?: 'default' | 'success' | 'warning' | 'destructive';
+  className?: string;
+  loading?: boolean;
 }
 
 export function KPICard({
@@ -32,49 +32,49 @@ export function KPICard({
   const getVariantStyles = () => {
     switch (variant) {
       case 'success':
-        return 'border-success/20 bg-success/5 dark:border-success/80 dark:bg-success/20'
+        return 'border-success/20 bg-success/5 dark:border-success/80 dark:bg-success/20';
       case 'warning':
-        return 'border-warning/20 bg-warning/5 dark:border-warning/80 dark:bg-warning/20'
+        return 'border-warning/20 bg-warning/5 dark:border-warning/80 dark:bg-warning/20';
       case 'destructive':
-        return 'border-destructive/20 bg-destructive/5 dark:border-destructive/80 dark:bg-destructive/20'
+        return 'border-destructive/20 bg-destructive/5 dark:border-destructive/80 dark:bg-destructive/20';
       default:
-        return 'border-border bg-card'
+        return 'border-border bg-card';
     }
-  }
+  };
 
   const getIconColor = () => {
     switch (variant) {
       case 'success':
-        return 'text-green-600 dark:text-green-400'
+        return 'text-green-600 dark:text-green-400';
       case 'warning':
-        return 'text-warning'
+        return 'text-warning';
       case 'destructive':
-        return 'text-destructive'
+        return 'text-destructive';
       default:
-        return 'text-muted-foreground'
+        return 'text-muted-foreground';
     }
-  }
+  };
 
   const getTrendIcon = () => {
-    if (!trend) return null
+    if (!trend) return null;
 
     if (trend.value === 0) {
-      return <MinusIcon className="text-muted-foreground h-4 w-4" />
+      return <MinusIcon className="text-muted-foreground h-4 w-4" />;
     }
 
     return trend.isPositive ? (
       <ArrowUpIcon className="h-4 w-4 text-green-600 dark:text-green-400" />
     ) : (
       <ArrowDownIcon className="text-destructive h-4 w-4" />
-    )
-  }
+    );
+  };
 
   const getTrendColor = () => {
-    if (!trend) return ''
+    if (!trend) return '';
 
-    if (trend.value === 0) return 'text-muted-foreground'
-    return trend.isPositive ? 'text-success' : 'text-destructive'
-  }
+    if (trend.value === 0) return 'text-muted-foreground';
+    return trend.isPositive ? 'text-success' : 'text-destructive';
+  };
 
   return (
     <div
@@ -99,12 +99,16 @@ export function KPICard({
             </p>
           )}
 
-          {description && <p className="text-muted-foreground text-xs">{description}</p>}
+          {description && (
+            <p className="text-muted-foreground text-xs">{description}</p>
+          )}
 
           {trend && (
             <div className="flex items-center gap-1 text-xs">
               {getTrendIcon()}
-              <span className={cn('font-medium', getTrendColor())}>{Math.abs(trend.value)}%</span>
+              <span className={cn('font-medium', getTrendColor())}>
+                {Math.abs(trend.value)}%
+              </span>
               <span className="text-muted-foreground">vs {trend.period}</span>
             </div>
           )}
@@ -122,7 +126,7 @@ export function KPICard({
         )}
       </div>
     </div>
-  )
+  );
 }
 
 // Specialized KPI card variants
@@ -134,12 +138,12 @@ export function MetricCard({
   trend,
   className,
 }: {
-  title: string
-  value: string | number
-  subtitle?: string
-  icon?: ComponentType<{ className?: string }>
-  trend?: { value: number; isPositive: boolean }
-  className?: string
+  title: string;
+  value: string | number;
+  subtitle?: string;
+  icon?: ComponentType<{ className?: string }>;
+  trend?: { value: number; isPositive: boolean };
+  className?: string;
 }) {
   return (
     <KPICard
@@ -150,7 +154,7 @@ export function MetricCard({
       trend={trend ? { ...trend, period: 'last month' } : undefined}
       className={className}
     />
-  )
+  );
 }
 
 export function StatCard({
@@ -159,17 +163,12 @@ export function StatCard({
   icon,
   className,
 }: {
-  title: string
-  value: string | number
-  icon?: ComponentType<{ className?: string }>
-  className?: string
+  title: string;
+  value: string | number;
+  icon?: ComponentType<{ className?: string }>;
+  className?: string;
 }) {
   return (
-    <KPICard
-      title={title}
-      value={value}
-      icon={icon}
-      className={className}
-    />
-  )
+    <KPICard title={title} value={value} icon={icon} className={className} />
+  );
 }

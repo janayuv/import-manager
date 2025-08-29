@@ -8,11 +8,11 @@ declare global {
     __TAURI__?: {
       window: {
         getCurrent: () => Promise<{
-          setTheme: (theme: string) => void
-        }>
-      }
-    }
+          setTheme: (theme: string) => void;
+        }>;
+      };
+    };
   }
 }
 
-export {}
+export {};

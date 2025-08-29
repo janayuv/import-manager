@@ -1,7 +1,7 @@
-import tailwindcss from '@tailwindcss/vite'
-import react from '@vitejs/plugin-react'
-import path from 'path'
-import { defineConfig } from 'vite'
+import tailwindcss from '@tailwindcss/vite';
+import react from '@vitejs/plugin-react';
+import path from 'path';
+import { defineConfig } from 'vite';
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -41,10 +41,19 @@ export default defineConfig({
             '@radix-ui/react-select',
             '@radix-ui/react-popover',
           ],
-          'ui-forms': ['@radix-ui/react-checkbox', '@radix-ui/react-switch', '@radix-ui/react-label'],
+          'ui-forms': [
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-label',
+          ],
           'ui-data': ['@tanstack/react-table', '@radix-ui/react-collapsible'],
           // Utility libraries
-          utils: ['date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority'],
+          utils: [
+            'date-fns',
+            'clsx',
+            'tailwind-merge',
+            'class-variance-authority',
+          ],
           // Chart and visualization libraries
           charts: ['recharts'],
           // Data processing libraries
@@ -56,19 +65,19 @@ export default defineConfig({
         },
         // Optimize chunk naming for better caching
         chunkFileNames: () => {
-          return `js/[name]-[hash].js`
+          return `js/[name]-[hash].js`;
         },
         entryFileNames: 'js/[name]-[hash].js',
-        assetFileNames: (assetInfo) => {
-          const info = assetInfo.name?.split('.') || []
-          const ext = info[info.length - 1]
+        assetFileNames: assetInfo => {
+          const info = assetInfo.name?.split('.') || [];
+          const ext = info[info.length - 1];
           if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(ext)) {
-            return `images/[name]-[hash][extname]`
+            return `images/[name]-[hash][extname]`;
           }
           if (/css/i.test(ext)) {
-            return `css/[name]-[hash][extname]`
+            return `css/[name]-[hash][extname]`;
           }
-          return `assets/[name]-[hash][extname]`
+          return `assets/[name]-[hash][extname]`;
         },
       },
     },
@@ -92,4 +101,4 @@ export default defineConfig({
   css: {
     devSourcemap: true,
   },
-})
+});

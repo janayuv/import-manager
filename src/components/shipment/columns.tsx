@@ -1,25 +1,33 @@
 // src/components/shipment/columns.tsx (MODIFIED)
 // Using the new date formatter for display in the table and adding a custom sorting function.
-import type { ColumnDef, Row } from '@tanstack/react-table'
+import type { ColumnDef, Row } from '@tanstack/react-table';
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { formatDateForDisplay } from '@/lib/date-format'
-import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
-import type { AppSettings } from '@/lib/settings'
-import type { Option } from '@/types/options'
-import type { Shipment } from '@/types/shipment'
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { formatDateForDisplay } from '@/lib/date-format';
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings';
+import type { AppSettings } from '@/lib/settings';
+import type { Option } from '@/types/options';
+import type { Shipment } from '@/types/shipment';
 
-import { ShipmentActions } from './actions'
-import { SortIndicator } from './sort-indicator'
+import { ShipmentActions } from './actions';
 
 // Custom sorting function for "dd-mm-yyyy" dates
-const dateSort = (rowA: Row<Shipment>, rowB: Row<Shipment>, columnId: string) => {
-  const dateA = (rowA.getValue(columnId) as string).split('-').reverse().join('-')
-  const dateB = (rowB.getValue(columnId) as string).split('-').reverse().join('-')
-  return dateA.localeCompare(dateB)
-}
+const dateSort = (
+  rowA: Row<Shipment>,
+  rowB: Row<Shipment>,
+  columnId: string
+) => {
+  const dateA = (rowA.getValue(columnId) as string)
+    .split('-')
+    .reverse()
+    .join('-');
+  const dateB = (rowB.getValue(columnId) as string)
+    .split('-')
+    .reverse()
+    .join('-');
+  return dateA.localeCompare(dateB);
+};
 
 export const getShipmentColumns = (
   suppliers: Option[],
@@ -35,8 +43,11 @@ export const getShipmentColumns = (
       header: ({ table }) => (
         <Checkbox
           className="custom-checkbox"
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
       ),
@@ -44,7 +55,7 @@ export const getShipmentColumns = (
         <Checkbox
           className="custom-checkbox"
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onCheckedChange={value => row.toggleSelected(!!value)}
           aria-label="Select row"
         />
       ),
@@ -54,76 +65,94 @@ export const getShipmentColumns = (
     {
       accessorKey: 'supplierId',
       header: 'Supplier',
+      size: 220,
       cell: ({ row }) => {
-        const supplierId = row.getValue('supplierId') as string
-        const supplier = suppliers.find((s) => s.value === supplierId)
-        return supplier ? supplier.label : 'Unknown'
+        const supplierId = row.getValue('supplierId') as string;
+        const supplier = suppliers.find(s => s.value === supplierId);
+        const label = supplier ? supplier.label : 'Unknown';
+        return (
+          <span className="block max-w-[28ch] truncate" title={label}>
+            {label}
+          </span>
+        );
       },
     },
     {
       accessorKey: 'invoiceNumber',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Invoice No
-          <SortIndicator column={column} />
-        </Button>
-      ),
+      header: 'Invoice No',
+      size: 200,
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'invoiceNumber')
+        const fieldConfig = getFieldConfig('shipment', 'invoiceNumber');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('invoiceNumber')
+          const val = row.getValue('invoiceNumber') as string;
+          return (
+            <span className="block max-w-[24ch] truncate" title={val}>
+              {val}
+            </span>
+          );
         }
-        return formatText(row.getValue('invoiceNumber'), {
+        const formatted = formatText(row.getValue('invoiceNumber'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
+        return (
+          <span
+            className="block max-w-[24ch] truncate"
+            title={String(formatted)}
+          >
+            {String(formatted)}
+          </span>
+        );
       },
     },
     {
       accessorKey: 'invoiceDate',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          Date
-          <SortIndicator column={column} />
-        </Button>
+      header: 'Date',
+      size: 140,
+      cell: ({ row }) => (
+        <span className="whitespace-nowrap">
+          {formatDateForDisplay(row.getValue('invoiceDate'))}
+        </span>
       ),
-      cell: ({ row }) => formatDateForDisplay(row.getValue('invoiceDate')),
       sortingFn: dateSort,
     },
     {
       accessorKey: 'goodsCategory',
       header: 'Goods Category',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'goodsCategory')
+        const fieldConfig = getFieldConfig('shipment', 'goodsCategory');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('goodsCategory')
+          return row.getValue('goodsCategory');
         }
         return formatText(row.getValue('goodsCategory'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'invoiceCurrency',
       header: 'Currency',
+      size: 100,
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'invoiceCurrency')
+        const fieldConfig = getFieldConfig('shipment', 'invoiceCurrency');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('invoiceCurrency')
+          const val = row.getValue('invoiceCurrency') as string;
+          return (
+            <span className="block truncate" title={val}>
+              {val}
+            </span>
+          );
         }
-        return formatText(row.getValue('invoiceCurrency'), {
+        const formatted = formatText(row.getValue('invoiceCurrency'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
+        return (
+          <span className="block truncate" title={String(formatted)}>
+            {String(formatted)}
+          </span>
+        );
       },
     },
     {
@@ -140,42 +169,56 @@ export const getShipmentColumns = (
       accessorKey: 'incoterm',
       header: 'Incoterm',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'incoterm')
+        const fieldConfig = getFieldConfig('shipment', 'incoterm');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('incoterm')
+          return row.getValue('incoterm');
         }
         return formatText(row.getValue('incoterm'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'vesselName',
       header: 'Vessel',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'vesselName')
+        const fieldConfig = getFieldConfig('shipment', 'vesselName');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('vesselName')
+          return row.getValue('vesselName');
         }
         return formatText(row.getValue('vesselName'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'blAwbNumber',
       header: 'BL/AWB No',
+      size: 220,
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'blAwbNumber')
+        const fieldConfig = getFieldConfig('shipment', 'blAwbNumber');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('blAwbNumber')
+          const val = row.getValue('blAwbNumber') as string;
+          return (
+            <span className="block max-w-[26ch] truncate" title={val}>
+              {val}
+            </span>
+          );
         }
-        return formatText(row.getValue('blAwbNumber'), {
+        const formatted = formatText(row.getValue('blAwbNumber'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
+        return (
+          <span
+            className="block max-w-[26ch] truncate"
+            title={String(formatted)}
+          >
+            {String(formatted)}
+          </span>
+        );
       },
     },
     {
@@ -188,42 +231,42 @@ export const getShipmentColumns = (
       accessorKey: 'shipmentMode',
       header: 'Mode',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'shipmentMode')
+        const fieldConfig = getFieldConfig('shipment', 'shipmentMode');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('shipmentMode')
+          return row.getValue('shipmentMode');
         }
         return formatText(row.getValue('shipmentMode'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'shipmentType',
       header: 'Type',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'shipmentType')
+        const fieldConfig = getFieldConfig('shipment', 'shipmentType');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('shipmentType')
+          return row.getValue('shipmentType');
         }
         return formatText(row.getValue('shipmentType'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'containerNumber',
       header: 'Container #',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('shipment', 'containerNumber')
+        const fieldConfig = getFieldConfig('shipment', 'containerNumber');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('containerNumber')
+          return row.getValue('containerNumber');
         }
         return formatText(row.getValue('containerNumber'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
@@ -238,57 +281,64 @@ export const getShipmentColumns = (
     },
     {
       accessorKey: 'etd',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          ETD
-          <SortIndicator column={column} />
-        </Button>
-      ),
+      header: 'ETD',
       cell: ({ row }) => formatDateForDisplay(row.getValue('etd')),
       sortingFn: dateSort,
     },
     {
       accessorKey: 'eta',
-      header: ({ column }) => (
-        <Button
-          variant="ghost"
-          className="text-primary-foreground hover:bg-primary/10 h-auto p-1 text-xs font-medium whitespace-nowrap"
-          onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-        >
-          ETA
-          <SortIndicator column={column} />
-        </Button>
-      ),
+      header: 'ETA',
       cell: ({ row }) => formatDateForDisplay(row.getValue('eta')),
       sortingFn: dateSort,
     },
     {
       accessorKey: 'status',
       header: 'Status',
+      size: 140,
       cell: ({ row }) => {
-        const status = row.getValue('status') as string
-        if (!status) return null
+        const status = row.getValue('status') as string;
+        if (!status) return null;
 
         // Define status colors and labels
         const statusConfig = {
-          'docs-rcvd': { label: 'Document Received', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-          'docu-received': { label: 'Document Received', color: 'bg-blue-100 text-blue-800 border-blue-200' },
-          'in-transit': { label: 'In Transit', color: 'bg-yellow-100 text-yellow-800 border-yellow-200' },
-          'customs-clearance': { label: 'Customs Clearance', color: 'bg-purple-100 text-purple-800 border-purple-200' },
-          'ready-dly': { label: 'Ready for Delivery', color: 'bg-orange-100 text-orange-800 border-orange-200' },
-          delivered: { label: 'Delivered', color: 'bg-green-100 text-green-800 border-green-200' },
-        }
+          'docs-rcvd': {
+            label: 'Document Received',
+            color: 'bg-blue-100 text-blue-800 border-blue-200',
+          },
+          'docu-received': {
+            label: 'Document Received',
+            color: 'bg-blue-100 text-blue-800 border-blue-200',
+          },
+          'in-transit': {
+            label: 'In Transit',
+            color: 'bg-yellow-100 text-yellow-800 border-yellow-200',
+          },
+          'customs-clearance': {
+            label: 'Customs Clearance',
+            color: 'bg-purple-100 text-purple-800 border-purple-200',
+          },
+          'ready-dly': {
+            label: 'Ready for Delivery',
+            color: 'bg-orange-100 text-orange-800 border-orange-200',
+          },
+          delivered: {
+            label: 'Delivered',
+            color: 'bg-green-100 text-green-800 border-green-200',
+          },
+        };
 
         const config = statusConfig[status as keyof typeof statusConfig] || {
-          label: status.replace(/-/g, ' ').replace(/\b\w/g, (l) => l.toUpperCase()),
+          label: status
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase()),
           color: 'bg-gray-100 text-gray-800 border-gray-200',
-        }
+        };
 
-        return <Badge className={config.color}>{config.label}</Badge>
+        return (
+          <Badge className={config.color} title={config.label}>
+            {config.label}
+          </Badge>
+        );
       },
     },
     {
@@ -298,52 +348,60 @@ export const getShipmentColumns = (
           shipment={row.original}
           onView={() => onView(row.original)}
           onEdit={() => onEdit(row.original)}
-          onMarkAsDelivered={onMarkAsDelivered ? () => onMarkAsDelivered(row.original) : undefined}
+          onMarkAsDelivered={
+            onMarkAsDelivered
+              ? () => onMarkAsDelivered(row.original)
+              : undefined
+          }
         />
       ),
     },
-  ]
+  ];
 
   // Filter columns based on visibility settings and sort by order
-  const shipmentFields = settings?.modules?.shipment?.fields || {}
-  const visibleColumns = allColumns.filter((column) => {
+  const shipmentFields = settings?.modules?.shipment?.fields || {};
+  const visibleColumns = allColumns.filter(column => {
     // Always show select and actions columns
     if (column.id === 'select' || column.id === 'actions') {
-      return true
+      return true;
     }
 
     // Check if the column has an accessorKey and if it's visible in settings
-    if ('accessorKey' in column && column.accessorKey && typeof column.accessorKey === 'string') {
-      const fieldSettings = shipmentFields[column.accessorKey]
-      return fieldSettings?.visible !== false
+    if (
+      'accessorKey' in column &&
+      column.accessorKey &&
+      typeof column.accessorKey === 'string'
+    ) {
+      const fieldSettings = shipmentFields[column.accessorKey];
+      return fieldSettings?.visible !== false;
     }
 
     // If no accessorKey, show the column (fallback)
-    return true
-  })
+    return true;
+  });
 
   // Sort columns by their order property
   const sortedColumns = visibleColumns.sort((a, b) => {
     // Select column should always be first
-    if (a.id === 'select') return -1
-    if (b.id === 'select') return 1
+    if (a.id === 'select') return -1;
+    if (b.id === 'select') return 1;
 
     // Actions column should always be last
-    if (a.id === 'actions') return 1
-    if (b.id === 'actions') return -1
+    if (a.id === 'actions') return 1;
+    if (b.id === 'actions') return -1;
 
     // Get order values from settings
     const aOrder =
       'accessorKey' in a && a.accessorKey && typeof a.accessorKey === 'string'
         ? shipmentFields[a.accessorKey]?.order || 999
-        : 999
+        : 999;
     const bOrder =
       'accessorKey' in b && b.accessorKey && typeof b.accessorKey === 'string'
         ? shipmentFields[b.accessorKey]?.order || 999
-        : 999
+        : 999;
 
-    return aOrder - bOrder
-  })
+    return aOrder - bOrder;
+  });
 
-  return sortedColumns
-}
+  return sortedColumns;
+};

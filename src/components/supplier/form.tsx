@@ -1,9 +1,9 @@
 // src/pages/supplier/form.tsx
 // The form for adding new suppliers. Now handles state and submission.
-import { useState } from 'react'
+import { useState } from 'react';
 
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -12,14 +12,14 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import type { Supplier } from '@/types/supplier'
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import type { Supplier } from '@/types/supplier';
 
 interface AddSupplierFormProps {
-  onAdd: (newSupplier: Omit<Supplier, 'id'>) => void
+  onAdd: (newSupplier: Omit<Supplier, 'id'>) => void;
 }
 
 const initialState: Omit<Supplier, 'id'> = {
@@ -36,33 +36,33 @@ const initialState: Omit<Supplier, 'id'> = {
   iban: '',
   swiftCode: '',
   isActive: true,
-}
+};
 
 export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
-  const [isOpen, setOpen] = useState(false)
-  const [formData, setFormData] = useState(initialState)
+  const [isOpen, setOpen] = useState(false);
+  const [formData, setFormData] = useState(initialState);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { id, value, type, checked } = e.target
-    setFormData((prev) => ({ ...prev, [id]: type === 'checkbox' ? checked : value }))
-  }
+    const { id, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [id]: type === 'checkbox' ? checked : value,
+    }));
+  };
 
   const handleSubmit = () => {
     // Basic validation
     if (!formData.supplierName || !formData.country || !formData.email) {
-      alert('Please fill out all mandatory fields.')
-      return
+      alert('Please fill out all mandatory fields.');
+      return;
     }
-    onAdd(formData)
-    setFormData(initialState) // Reset form
-    setOpen(false) // Close dialog
-  }
+    onAdd(formData);
+    setFormData(initialState); // Reset form
+    setOpen(false); // Close dialog
+  };
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={setOpen}
-    >
+    <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button variant="default">Add New Supplier</Button>
       </DialogTrigger>
@@ -70,7 +70,8 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
         <DialogHeader>
           <DialogTitle>Add Supplier</DialogTitle>
           <DialogDescription>
-            Fill in the details for the new supplier. Mandatory fields are marked with *.
+            Fill in the details for the new supplier. Mandatory fields are
+            marked with *.
           </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
@@ -121,7 +122,9 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
               <Checkbox
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev, isActive: !!checked }))}
+                onCheckedChange={checked =>
+                  setFormData(prev => ({ ...prev, isActive: !!checked }))
+                }
               />
               <Label htmlFor="isActive">Is Active</Label>
 
@@ -200,14 +203,11 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
           </div>
         </div>
         <DialogFooter>
-          <Button
-            onClick={handleSubmit}
-            className="custom-alert-action-ok"
-          >
+          <Button onClick={handleSubmit} className="custom-alert-action-ok">
             Save Supplier
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

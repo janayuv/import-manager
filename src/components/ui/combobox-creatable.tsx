@@ -1,10 +1,10 @@
 // src/components/ui/combobox-creatable.tsx (NO CHANGE)
 // A reusable combobox that allows selecting from a list or creating a new option.
-import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react'
+import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -12,9 +12,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+} from '@/components/ui/dialog';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 import {
   Command,
@@ -24,26 +28,26 @@ import {
   CommandItem,
   CommandList,
   CommandSeparator,
-} from './command'
-import { Input } from './input'
-import { Label } from './label'
+} from './command';
+import { Input } from './input';
+import { Label } from './label';
 
 interface Option {
-  value: string
-  label: string
+  value: string;
+  label: string;
 }
 
 interface CreatableComboboxProps {
-  options: Option[]
-  value: string
-  onChange: (value: string) => void
-  onOptionCreate?: (newOption: Option) => void
-  onNameCreate?: (name: string) => void
-  placeholder?: string
-  searchPlaceholder?: string
-  emptyText?: string
-  dialogTitle?: string
-  dialogDescription?: string
+  options: Option[];
+  value: string;
+  onChange: (value: string) => void;
+  onOptionCreate?: (newOption: Option) => void;
+  onNameCreate?: (name: string) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  emptyText?: string;
+  dialogTitle?: string;
+  dialogDescription?: string;
 }
 
 export function CreatableCombobox({
@@ -58,37 +62,31 @@ export function CreatableCombobox({
   dialogTitle = 'Create New',
   dialogDescription = 'Enter the details for the new option.',
 }: CreatableComboboxProps) {
-  const [open, setOpen] = React.useState(false)
-  const [dialogOpen, setDialogOpen] = React.useState(false)
-  const [newOptionLabel, setNewOptionLabel] = React.useState('')
+  const [open, setOpen] = React.useState(false);
+  const [dialogOpen, setDialogOpen] = React.useState(false);
+  const [newOptionLabel, setNewOptionLabel] = React.useState('');
 
   const handleCreateNew = () => {
     if (newOptionLabel) {
       if (onNameCreate) {
-        onNameCreate(newOptionLabel)
+        onNameCreate(newOptionLabel);
       } else if (onOptionCreate) {
         const newOption = {
           value: newOptionLabel.toLowerCase().replace(/\s/g, '-'),
           label: newOptionLabel,
-        }
-        onOptionCreate(newOption)
-        onChange(newOption.value)
+        };
+        onOptionCreate(newOption);
+        onChange(newOption.value);
       }
-      setDialogOpen(false)
-      setNewOptionLabel('')
-      setOpen(false)
+      setDialogOpen(false);
+      setNewOptionLabel('');
+      setOpen(false);
     }
-  }
+  };
 
   return (
-    <Dialog
-      open={dialogOpen}
-      onOpenChange={setDialogOpen}
-    >
-      <Popover
-        open={open}
-        onOpenChange={setOpen}
-      >
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <Button
             variant="outline"
@@ -96,7 +94,9 @@ export function CreatableCombobox({
             aria-expanded={open}
             className="w-full justify-between"
           >
-            {value ? options.find((option) => option.value === value)?.label : placeholder}
+            {value
+              ? options.find(option => option.value === value)?.label
+              : placeholder}
             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
@@ -108,16 +108,21 @@ export function CreatableCombobox({
                 <div className="p-4 text-sm">{emptyText}</div>
               </CommandEmpty>
               <CommandGroup>
-                {options.map((option) => (
+                {options.map(option => (
                   <CommandItem
                     key={option.value}
                     value={option.label}
                     onSelect={() => {
-                      onChange(option.value)
-                      setOpen(false)
+                      onChange(option.value);
+                      setOpen(false);
                     }}
                   >
-                    <Check className={cn('mr-2 h-4 w-4', value === option.value ? 'opacity-100' : 'opacity-0')} />
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value === option.value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
                     {option.label}
                   </CommandItem>
                 ))}
@@ -126,7 +131,7 @@ export function CreatableCombobox({
               <CommandGroup>
                 <CommandItem
                   onSelect={() => {
-                    setDialogOpen(true)
+                    setDialogOpen(true);
                   }}
                 >
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -144,16 +149,13 @@ export function CreatableCombobox({
         </DialogHeader>
         <div className="grid gap-4 py-4">
           <div className="grid grid-cols-4 items-center gap-4">
-            <Label
-              htmlFor="new-option-label"
-              className="text-right"
-            >
+            <Label htmlFor="new-option-label" className="text-right">
               Label
             </Label>
             <Input
               id="new-option-label"
               value={newOptionLabel}
-              onChange={(e) => setNewOptionLabel(e.target.value)}
+              onChange={e => setNewOptionLabel(e.target.value)}
               className="col-span-3"
             />
           </div>
@@ -163,5 +165,5 @@ export function CreatableCombobox({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

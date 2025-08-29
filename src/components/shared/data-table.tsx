@@ -10,25 +10,39 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from '@tanstack/react-table'
+} from '@tanstack/react-table';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
-import { DataTablePagination } from './data-table-pagination'
+import { DataTablePagination } from './data-table-pagination';
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  storageKey?: string
-  toolbar?: React.ReactNode
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  storageKey?: string;
+  toolbar?: React.ReactNode;
 }
 
-export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }: DataTableProps<TData, TValue>) {
-  const [globalFilter, setGlobalFilter] = React.useState('')
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([])
+export function DataTable<TData, TValue>({
+  columns,
+  data,
+  storageKey,
+  toolbar,
+}: DataTableProps<TData, TValue>) {
+  const [globalFilter, setGlobalFilter] = React.useState('');
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
 
   const table = useReactTable({
     data,
@@ -39,13 +53,16 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+    // Provide more aggressive column sizing to prevent truncation
+    defaultColumn: { minSize: 150, size: 200, maxSize: 600 },
+    columnResizeMode: 'onChange',
     state: {
       globalFilter,
       columnFilters,
     },
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -53,38 +70,48 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
         <Input
           placeholder="Search all columns..."
           value={globalFilter ?? ''}
-          onChange={(event) => setGlobalFilter(event.target.value)}
+          onChange={event => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
         {toolbar}
       </div>
-      <div className="rounded-md border">
+      <div className="overflow-x-auto rounded-md border">
         <Table>
           <TableHeader className="bg-primary text-primary-foreground">
-            {table.getHeaderGroups().map((headerGroup) => (
+            {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
+                {headerGroup.headers.map(header => {
                   return (
                     <TableHead
                       key={header.id}
                       className="text-primary-foreground"
                     >
-                      {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map(row => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
@@ -101,10 +128,7 @@ export function DataTable<TData, TValue>({ columns, data, storageKey, toolbar }:
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination
-        table={table}
-        storageKey={storageKey}
-      />
+      <DataTablePagination table={table} storageKey={storageKey} />
     </div>
-  )
+  );
 }

@@ -10,20 +10,27 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from '@tanstack/react-table'
+} from '@tanstack/react-table';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { DataTablePagination } from '@/components/shared/data-table-pagination'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
+import { DataTablePagination } from '@/components/shared/data-table-pagination';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  globalFilter: string
-  setGlobalFilter: (filter: string) => void
-  storageKey?: string
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  globalFilter: string;
+  setGlobalFilter: (filter: string) => void;
+  storageKey?: string;
 }
 
 export function DataTable<TData, TValue>({
@@ -33,7 +40,7 @@ export function DataTable<TData, TValue>({
   setGlobalFilter,
   storageKey = 'table-page-size',
 }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = React.useState<SortingState>([])
+  const [sorting, setSorting] = React.useState<SortingState>([]);
 
   const table = useReactTable({
     data,
@@ -50,7 +57,7 @@ export function DataTable<TData, TValue>({
     },
     onSortingChange: setSorting,
     onGlobalFilterChange: setGlobalFilter,
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -58,16 +65,16 @@ export function DataTable<TData, TValue>({
         <Input
           placeholder="Search all columns..."
           value={globalFilter ?? ''}
-          onChange={(event) => setGlobalFilter(event.target.value)}
+          onChange={event => setGlobalFilter(event.target.value)}
           className="max-w-sm"
         />
       </div>
       <div className="rounded-md border">
         <Table>
           <TableHeader className="bg-primary text-primary-foreground">
-            {table.getHeaderGroups().map((headerGroup) => (
+            {table.getHeaderGroups().map(headerGroup => (
               <TableRow key={headerGroup.id}>
-                {headerGroup.headers.map((header) => {
+                {headerGroup.headers.map(header => {
                   return (
                     <TableHead
                       key={header.id}
@@ -76,11 +83,16 @@ export function DataTable<TData, TValue>({
                       {header.isPlaceholder ? null : (
                         <div
                           {...{
-                            className: header.column.getCanSort() ? 'cursor-pointer select-none flex items-center' : '',
+                            className: header.column.getCanSort()
+                              ? 'cursor-pointer select-none flex items-center'
+                              : '',
                             onClick: header.column.getToggleSortingHandler(),
                           }}
                         >
-                          {flexRender(header.column.columnDef.header, header.getContext())}
+                          {flexRender(
+                            header.column.columnDef.header,
+                            header.getContext()
+                          )}
                           {{
                             asc: ' 🔼',
                             desc: ' 🔽',
@@ -88,20 +100,25 @@ export function DataTable<TData, TValue>({
                         </div>
                       )}
                     </TableHead>
-                  )
+                  );
                 })}
               </TableRow>
             ))}
           </TableHeader>
           <TableBody>
             {table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
+              table.getRowModel().rows.map(row => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && 'selected'}
                 >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</TableCell>
+                  {row.getVisibleCells().map(cell => (
+                    <TableCell key={cell.id}>
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
+                    </TableCell>
                   ))}
                 </TableRow>
               ))
@@ -118,10 +135,7 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-      <DataTablePagination
-        table={table}
-        storageKey={storageKey}
-      />
+      <DataTablePagination table={table} storageKey={storageKey} />
     </div>
-  )
+  );
 }

@@ -1,41 +1,49 @@
-'use client'
+'use client';
 
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core';
 
-import * as React from 'react'
+import * as React from 'react';
 
 const BoeSummaryClient = React.lazy(() =>
-  import('@/components/boe-summary/client').then((module) => ({ default: module.BoeSummaryClient }))
-)
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import type { BoeDetails } from '@/types/boe'
-import type { SavedBoe, Shipment } from '@/types/boe-entry'
+  import('@/components/boe-summary/client').then(module => ({
+    default: module.BoeSummaryClient,
+  }))
+);
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import type { BoeDetails } from '@/types/boe';
+import type { SavedBoe, Shipment } from '@/types/boe-entry';
 
 export default function BoeSummaryPage() {
-  const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([])
-  const [shipments, setShipments] = React.useState<Shipment[]>([])
-  const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
+  const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([]);
+  const [shipments, setShipments] = React.useState<Shipment[]>([]);
+  const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
     const load = async () => {
-      setIsLoading(true)
+      setIsLoading(true);
       try {
         const [shipmentsData, savedBoesData, allBoesData] = await Promise.all([
           invoke<Shipment[]>('get_shipments_for_boe_summary'),
           invoke<SavedBoe[]>('get_boe_calculations'),
           invoke<BoeDetails[]>('get_boes'),
-        ])
-        setShipments(shipmentsData)
-        setSavedBoes(savedBoesData)
-        setAllBoes(allBoesData)
+        ]);
+        setShipments(shipmentsData);
+        setSavedBoes(savedBoesData);
+        setAllBoes(allBoesData);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
-    }
-    load()
-  }, [])
+    };
+    load();
+  }, []);
 
   if (isLoading) {
     return (
@@ -61,7 +69,7 @@ export default function BoeSummaryPage() {
           </CardContent>
         </Card>
       </div>
-    )
+    );
   }
 
   return (
@@ -71,7 +79,8 @@ export default function BoeSummaryPage() {
           <div>
             <CardTitle>BOE Reconciliation Report</CardTitle>
             <CardDescription>
-              Select a supplier and invoice to view a detailed breakdown of duties and variance.
+              Select a supplier and invoice to view a detailed breakdown of
+              duties and variance.
             </CardDescription>
           </div>
         </CardHeader>
@@ -86,5 +95,5 @@ export default function BoeSummaryPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

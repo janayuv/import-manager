@@ -7,6 +7,9 @@ mod encryption;
 mod expense;
 mod migrations;
 
+// Re-export commonly used types
+pub use db::{Shipment, Supplier, Item, Invoice, BoeDetails, Expense, ServiceProvider, ExpenseType};
+
 use crate::db::DbState;
 use rusqlite::Connection;
 use std::sync::Mutex;
@@ -15,15 +18,16 @@ use tauri::Manager;
 fn create_new_encrypted_database(
     db_path: &std::path::Path,
     encryption: &encryption::DatabaseEncryption,
-) -> Connection {
+) -> Result<Connection, Box<dyn std::error::Error>> {
     // Generate a new encryption key
     let key = encryption::DatabaseEncryption::generate_key();
     encryption
         .store_key(&key)
-        .expect("Failed to store encryption key");
+        .map_err(|e| format!("Failed to store encryption key: {}", e))?;
 
     // Create the encrypted database
-    let conn = Connection::open(db_path).expect("Failed to create database file");
+    let conn = Connection::open(db_path)
+        .map_err(|e| format!("Failed to create database file: {}", e))?;
 
     // Enable encryption with SQLCipher
     conn.execute_batch(&format!(
@@ -34,23 +38,26 @@ fn create_new_encrypted_database(
          PRAGMA key = \"x'{}'\";",
         hex::encode(&key)
     ))
-    .expect("Failed to enable encryption");
+    .map_err(|e| format!("Failed to enable encryption: {}", e))?;
 
     // Initialize the database schema
-    db::init_schema(&conn).expect("Failed to initialize database schema");
+    db::init_schema(&conn)
+        .map_err(|e| format!("Failed to initialize database schema: {}", e))?;
 
-    conn
+    Ok(conn)
 }
 
-fn main() {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
-            let data_dir = app.path().app_data_dir().expect("Failed to get app data dir");
+            let data_dir = app.path().app_data_dir()
+                .map_err(|e| format!("Failed to get app data dir: {}", e))?;
             if !data_dir.exists() {
-                std::fs::create_dir_all(&data_dir).expect("Failed to create app data dir");
+                std::fs::create_dir_all(&data_dir)
+                    .map_err(|e| format!("Failed to create app data dir: {}", e))?;
             }
 
             let db_path = data_dir.join("import-manager.db");
@@ -62,15 +69,26 @@ fn main() {
                     Ok(false) => {
                         // Database exists but is not encrypted - migrate it
                         let backup_path = data_dir.join("import-manager.db.backup");
-                        std::fs::copy(&db_path, &backup_path).expect("Failed to create backup");
+                        if let Err(e) = std::fs::copy(&db_path, &backup_path) {
+                            log::error!("Failed to create backup: {}", e);
+                            return Err(Box::new(e));
+                        }
 
                         let encrypted_path = data_dir.join("import-manager.db.encrypted");
-                        encryption.migrate_to_encrypted(&db_path, &encrypted_path)
-                            .expect("Failed to migrate database to encrypted");
+                        if let Err(e) = encryption.migrate_to_encrypted(&db_path, &encrypted_path) {
+                            log::error!("Failed to migrate database to encrypted: {}", e);
+                            return Err(Box::new(e));
+                        }
 
                         // Replace original with encrypted version
-                        std::fs::remove_file(&db_path).expect("Failed to remove plaintext database");
-                        std::fs::rename(&encrypted_path, &db_path).expect("Failed to rename encrypted database");
+                        if let Err(e) = std::fs::remove_file(&db_path) {
+                            log::error!("Failed to remove plaintext database: {}", e);
+                            return Err(Box::new(e));
+                        }
+                        if let Err(e) = std::fs::rename(&encrypted_path, &db_path) {
+                            log::error!("Failed to rename encrypted database: {}", e);
+                            return Err(Box::new(e));
+                        }
 
                         log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
                     }
@@ -82,7 +100,10 @@ fn main() {
                         // Database might be corrupted, start fresh
                         log::warn!("Database appears corrupted, starting fresh");
                         if db_path.exists() {
-                            std::fs::remove_file(&db_path).expect("Failed to remove corrupted database");
+                            if let Err(e) = std::fs::remove_file(&db_path) {
+                                log::error!("Failed to remove corrupted database: {}", e);
+                                return Err(Box::new(e));
+                            }
                         }
                     }
                 }
@@ -99,46 +120,66 @@ fn main() {
                             Err(e) => {
                                 log::warn!("Failed to open encrypted database: {}. Starting fresh.", e);
                                 // Remove the corrupted/encrypted database and start fresh
-                                std::fs::remove_file(&db_path).expect("Failed to remove corrupted database");
-                                create_new_encrypted_database(&db_path, &encryption)
+                                if let Err(e) = std::fs::remove_file(&db_path) {
+                                    log::error!("Failed to remove corrupted database: {}", e);
+                                    return Err(Box::new(e));
+                                }
+                                create_new_encrypted_database(&db_path, &encryption)?
                             }
                         }
                     }
                     Ok(false) => {
                         // Database exists but is plaintext - migrate it
                         let backup_path = data_dir.join("import-manager.db.backup");
-                        std::fs::copy(&db_path, &backup_path).expect("Failed to create backup");
+                        if let Err(e) = std::fs::copy(&db_path, &backup_path) {
+                            log::error!("Failed to create backup: {}", e);
+                            return Err(Box::new(e));
+                        }
 
                         let encrypted_path = data_dir.join("import-manager.db.encrypted");
-                        encryption.migrate_to_encrypted(&db_path, &encrypted_path)
-                            .expect("Failed to migrate database to encrypted");
+                        if let Err(e) = encryption.migrate_to_encrypted(&db_path, &encrypted_path) {
+                            log::error!("Failed to migrate database to encrypted: {}", e);
+                            return Err(Box::new(e));
+                        }
 
                         // Replace original with encrypted version
-                        std::fs::remove_file(&db_path).expect("Failed to remove plaintext database");
-                        std::fs::rename(&encrypted_path, &db_path).expect("Failed to rename encrypted database");
+                        if let Err(e) = std::fs::remove_file(&db_path) {
+                            log::error!("Failed to remove plaintext database: {}", e);
+                            return Err(Box::new(e));
+                        }
+                        if let Err(e) = std::fs::rename(&encrypted_path, &db_path) {
+                            log::error!("Failed to rename encrypted database: {}", e);
+                            return Err(Box::new(e));
+                        }
 
                         log::info!("Database migrated to encrypted format. Backup saved as import-manager.db.backup");
 
                         // Open the newly encrypted database
-                        encryption.open_encrypted(&db_path).expect("Failed to open migrated encrypted database")
+                        encryption.open_encrypted(&db_path)
+                            .map_err(|e| format!("Failed to open migrated encrypted database: {}", e))?
                     }
                     Err(_) => {
                         // Database might be corrupted, start fresh
                         log::warn!("Database appears corrupted, starting fresh");
                         if db_path.exists() {
-                            std::fs::remove_file(&db_path).expect("Failed to remove corrupted database");
+                            if let Err(e) = std::fs::remove_file(&db_path) {
+                                log::error!("Failed to remove corrupted database: {}", e);
+                                return Err(Box::new(e));
+                            }
                         }
-                        create_new_encrypted_database(&db_path, &encryption)
+                        create_new_encrypted_database(&db_path, &encryption)?
                     }
                 }
             } else {
                 // No database exists, create a new encrypted one
-                create_new_encrypted_database(&db_path, &encryption)
+                create_new_encrypted_database(&db_path, &encryption)?
             };
 
             // Run migrations
-            migrations::DatabaseMigrations::run_migrations(&mut db_connection)
-                .expect("Failed to run database migrations");
+            if let Err(e) = migrations::DatabaseMigrations::run_migrations(&mut db_connection) {
+                log::error!("Failed to run database migrations: {}", e);
+                return Err(Box::new(e));
+            }
 
             app.manage(DbState { db: Mutex::new(db_connection) });
 
@@ -286,5 +327,8 @@ fn main() {
 
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .map_err(|e| {
+            log::error!("Error while running tauri application: {}", e);
+            Box::new(e) as Box<dyn std::error::Error>
+        })
 }

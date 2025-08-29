@@ -8,7 +8,7 @@ import {
   Settings,
   Ship,
   Users,
-} from 'lucide-react'
+} from 'lucide-react';
 
 export const navItems = [
   {
@@ -70,4 +70,4 @@ export const navItems = [
     url: '/settings',
     icon: Settings,
   },
-]
+];

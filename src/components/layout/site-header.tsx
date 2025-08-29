@@ -1,17 +1,26 @@
-import { Monitor, Moon, Palette, SidebarIcon, Sun } from 'lucide-react'
+import { Monitor, Moon, Palette, SidebarIcon, Sun } from 'lucide-react';
 
-import { useTheme } from '@/components/layout/theme-context'
-import { Breadcrumb } from '@/components/ui/breadcrumb'
-import { Button } from '@/components/ui/button'
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
-import { Separator } from '@/components/ui/separator'
-import { useSidebar } from '@/components/ui/use-sidebar'
+import { useTheme } from '@/components/layout/theme-context';
+import { Breadcrumb } from '@/components/ui/breadcrumb';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Separator } from '@/components/ui/separator';
+import { useSidebar } from '@/components/ui/use-sidebar';
 
 export function SiteHeader() {
-  const { toggleSidebar } = useSidebar()
-  const { theme, setTheme, toggleMode } = useTheme()
+  const { toggleSidebar } = useSidebar();
+  const { theme, setTheme, toggleMode } = useTheme();
 
-  const colorOptions: { key: typeof theme.color; label: string; swatchClass: string }[] = [
+  const colorOptions: {
+    key: typeof theme.color;
+    label: string;
+    swatchClass: string;
+  }[] = [
     { key: 'zinc', label: 'Zinc', swatchClass: 'bg-zinc-500' },
     { key: 'slate', label: 'Slate', swatchClass: 'bg-slate-500' },
     { key: 'blue', label: 'Blue', swatchClass: 'bg-blue-500' },
@@ -27,33 +36,33 @@ export function SiteHeader() {
     { key: 'pink', label: 'Pink', swatchClass: 'bg-pink-500' },
     { key: 'rose', label: 'Rose', swatchClass: 'bg-rose-500' },
     { key: 'fuchsia', label: 'Fuchsia', swatchClass: 'bg-fuchsia-500' },
-  ]
+  ];
 
   const getThemeIcon = () => {
     switch (theme.mode) {
       case 'light':
-        return <Sun className="h-4 w-4" />
+        return <Sun className="h-4 w-4" />;
       case 'dark':
-        return <Moon className="h-4 w-4" />
+        return <Moon className="h-4 w-4" />;
       case 'system':
-        return <Monitor className="h-4 w-4" />
+        return <Monitor className="h-4 w-4" />;
       default:
-        return <Sun className="h-4 w-4" />
+        return <Sun className="h-4 w-4" />;
     }
-  }
+  };
 
   const getThemeLabel = () => {
     switch (theme.mode) {
       case 'light':
-        return 'Light'
+        return 'Light';
       case 'dark':
-        return 'Dark'
+        return 'Dark';
       case 'system':
-        return 'System'
+        return 'System';
       default:
-        return 'Light'
+        return 'Light';
     }
-  }
+  };
 
   return (
     <header className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-40 flex w-full items-center border-b backdrop-blur">
@@ -67,18 +76,14 @@ export function SiteHeader() {
           <SidebarIcon className="size-5" />
           <span className="sr-only">Toggle Sidebar</span>
         </Button>
-        <Separator
-          orientation="vertical"
-          className="mr-2 h-6"
-        />
+        <Separator orientation="vertical" className="mr-2 h-6" />
 
         {/* App Title */}
         <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold tracking-tight">Import Manager</h1>
-          <Separator
-            orientation="vertical"
-            className="h-4"
-          />
+          <h1 className="text-lg font-semibold tracking-tight">
+            Import Manager
+          </h1>
+          <Separator orientation="vertical" className="h-4" />
           <Breadcrumb className="hidden sm:flex" />
         </div>
 
@@ -86,25 +91,27 @@ export function SiteHeader() {
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
-              >
+              <Button variant="ghost" size="icon" className="h-8 w-8">
                 {getThemeIcon()}
                 <span className="sr-only">Toggle theme</span>
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => setTheme({ ...theme, mode: 'light' })}>
+              <DropdownMenuItem
+                onClick={() => setTheme({ ...theme, mode: 'light' })}
+              >
                 <Sun className="mr-2 h-4 w-4" />
                 <span>Light</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme({ ...theme, mode: 'dark' })}>
+              <DropdownMenuItem
+                onClick={() => setTheme({ ...theme, mode: 'dark' })}
+              >
                 <Moon className="mr-2 h-4 w-4" />
                 <span>Dark</span>
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setTheme({ ...theme, mode: 'system' })}>
+              <DropdownMenuItem
+                onClick={() => setTheme({ ...theme, mode: 'system' })}
+              >
                 <Monitor className="mr-2 h-4 w-4" />
                 <span>System</span>
               </DropdownMenuItem>
@@ -124,12 +131,9 @@ export function SiteHeader() {
                 <span className="sr-only">Change theme color</span>
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-52 p-2"
-            >
+            <DropdownMenuContent align="end" className="w-52 p-2">
               <div className="grid grid-cols-5 gap-2">
-                {colorOptions.map((c) => (
+                {colorOptions.map(c => (
                   <button
                     key={c.key}
                     type="button"
@@ -137,7 +141,9 @@ export function SiteHeader() {
                     className={`border-foreground/20 hover:border-foreground/60 ring-ring/50 focus-visible:ring-ring/50 relative flex h-7 w-7 items-center justify-center rounded-full border transition focus-visible:ring-2 focus-visible:outline-none ${c.swatchClass}`}
                     title={c.label}
                   >
-                    {theme.color === c.key ? <span className="bg-background/80 block h-2 w-2 rounded-full" /> : null}
+                    {theme.color === c.key ? (
+                      <span className="bg-background/80 block h-2 w-2 rounded-full" />
+                    ) : null}
                   </button>
                 ))}
               </div>
@@ -158,5 +164,5 @@ export function SiteHeader() {
         </div>
       </div>
     </header>
-  )
+  );
 }

@@ -1,4 +1,4 @@
-import React from 'react'
+import React from 'react';
 import {
   type ColumnDef,
   type SortingState,
@@ -8,25 +8,33 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
-} from '@tanstack/react-table'
-import { useResponsiveContext } from '@/providers/ResponsiveProvider'
-import { Input } from '@/components/ui/input'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { useSettings } from '@/lib/use-settings'
+} from '@tanstack/react-table';
+import { useResponsiveContext } from '@/providers/ResponsiveProvider';
+import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { useSettings } from '@/lib/use-settings';
 
 interface ResponsiveDataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  searchPlaceholder?: string
-  showSearch?: boolean
-  showPagination?: boolean
-  pageSize?: number
-  className?: string
-  hideColumnsOnSmall?: string[]
-  columnWidths?: Record<string, { minWidth: string; maxWidth?: string }>
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  searchPlaceholder?: string;
+  showSearch?: boolean;
+  showPagination?: boolean;
+  pageSize?: number;
+  className?: string;
+  hideColumnsOnSmall?: string[];
+  columnWidths?: Record<string, { minWidth: string; maxWidth?: string }>;
   // Status filter props
-  statusFilter?: React.ReactNode
-  statusActions?: React.ReactNode
+  statusFilter?: React.ReactNode;
+  statusActions?: React.ReactNode;
+  moduleName?: string;
 }
 
 export function ResponsiveDataTable<TData, TValue>({
@@ -41,26 +49,28 @@ export function ResponsiveDataTable<TData, TValue>({
   columnWidths = {},
   statusFilter,
   statusActions,
+  moduleName,
 }: ResponsiveDataTableProps<TData, TValue>) {
-  const { settings } = useSettings()
-  const { isSmallScreen, getTableClass, getInputClass, getTextClass } = useResponsiveContext()
+  const { settings } = useSettings();
+  const { isSmallScreen, getTableClass, getInputClass, getTextClass } =
+    useResponsiveContext();
 
-  const [sorting, setSorting] = React.useState<SortingState>([])
-  const [globalFilter, setGlobalFilter] = React.useState('')
-  const [rowSelection, setRowSelection] = React.useState({})
+  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [globalFilter, setGlobalFilter] = React.useState('');
+  const [rowSelection, setRowSelection] = React.useState({});
 
-  // Filter columns based on visibility settings and screen size
-  const visibleColumns = columns.filter((column) => {
-    if (column.id === 'select') return true // Always show select column
+  // Filter columns based on screen size only (module settings are already applied in column definitions)
+  const visibleColumns = columns.filter(column => {
+    if (column.id === 'select') return true; // Always show select column
 
     // Hide specified columns on small screens
     if (isSmallScreen && hideColumnsOnSmall.includes(column.id as string)) {
-      return false
+      return false;
     }
 
-    const isVisible = (column.meta as { visible?: boolean })?.visible !== false
-    return isVisible
-  })
+    // Don't override module settings - columns are already filtered by their definitions
+    return true;
+  });
 
   const table = useReactTable({
     data,
@@ -82,10 +92,32 @@ export function ResponsiveDataTable<TData, TValue>({
       globalFilter,
       rowSelection,
     },
-  })
+  });
 
-  // Get column width styles
+  // Get column width styles - respect module settings first, then fall back to responsive defaults
   const getColumnStyle = (columnId: string) => {
+    // Try to get width from module settings first
+    let moduleWidth: string | undefined;
+    if (
+      moduleName &&
+      settings?.modules?.[moduleName as keyof typeof settings.modules]
+        ?.fields?.[columnId]?.width
+    ) {
+      moduleWidth =
+        settings.modules[moduleName as keyof typeof settings.modules].fields[
+          columnId
+        ].width;
+    }
+
+    // If module width is set, use it as minWidth
+    if (moduleWidth) {
+      return {
+        minWidth: moduleWidth,
+        maxWidth: columnWidths[columnId]?.maxWidth || moduleWidth,
+      };
+    }
+
+    // Fall back to responsive column widths
     const defaultWidths = {
       select: { minWidth: '40px', maxWidth: '40px' },
       id: { minWidth: '80px', maxWidth: '100px' },
@@ -109,16 +141,18 @@ export function ResponsiveDataTable<TData, TValue>({
       address: { minWidth: '200px', maxWidth: '300px' },
       description: { minWidth: '150px', maxWidth: '250px' },
       notes: { minWidth: '150px', maxWidth: '250px' },
-    }
+    };
 
     const width = columnWidths[columnId] ||
-      defaultWidths[columnId as keyof typeof defaultWidths] || { minWidth: '100px' }
+      defaultWidths[columnId as keyof typeof defaultWidths] || {
+        minWidth: '100px',
+      };
 
     return {
       minWidth: width.minWidth,
       maxWidth: width.maxWidth,
-    }
-  }
+    };
+  };
 
   return (
     <div className={`w-full space-y-4 ${className}`}>
@@ -130,13 +164,15 @@ export function ResponsiveDataTable<TData, TValue>({
               <Input
                 placeholder={searchPlaceholder}
                 value={globalFilter ?? ''}
-                onChange={(event) => setGlobalFilter(event.target.value)}
+                onChange={event => setGlobalFilter(event.target.value)}
                 className={`max-w-sm ${getInputClass()}`}
               />
             )}
             {statusFilter}
           </div>
-          {statusActions && <div className="flex items-center gap-2">{statusActions}</div>}
+          {statusActions && (
+            <div className="flex items-center gap-2">{statusActions}</div>
+          )}
         </div>
       )}
 
@@ -145,41 +181,49 @@ export function ResponsiveDataTable<TData, TValue>({
         <div className="w-full overflow-x-auto">
           <Table className={getTableClass()}>
             <TableHeader className="bg-primary text-primary-foreground">
-              {table.getHeaderGroups().map((headerGroup) => (
+              {table.getHeaderGroups().map(headerGroup => (
                 <TableRow key={headerGroup.id}>
-                  {headerGroup.headers.map((header) => {
-                    const columnStyle = getColumnStyle(header.id)
+                  {headerGroup.headers.map(header => {
+                    const columnStyle = getColumnStyle(header.id);
                     return (
                       <TableHead
                         key={header.id}
                         className={`${getTextClass('sm')} text-primary-foreground overflow-hidden font-semibold whitespace-nowrap`}
                         style={columnStyle}
                       >
-                        {header.isPlaceholder ? null : flexRender(header.column.columnDef.header, header.getContext())}
+                        {header.isPlaceholder
+                          ? null
+                          : flexRender(
+                              header.column.columnDef.header,
+                              header.getContext()
+                            )}
                       </TableHead>
-                    )
+                    );
                   })}
                 </TableRow>
               ))}
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row) => (
+                table.getRowModel().rows.map(row => (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && 'selected'}
                   >
-                    {row.getVisibleCells().map((cell) => {
-                      const columnStyle = getColumnStyle(cell.column.id)
+                    {row.getVisibleCells().map(cell => {
+                      const columnStyle = getColumnStyle(cell.column.id);
                       return (
                         <TableCell
                           key={cell.id}
                           className={getTextClass('sm')}
                           style={columnStyle}
                         >
-                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
                         </TableCell>
-                      )
+                      );
                     })}
                   </TableRow>
                 ))
@@ -202,8 +246,8 @@ export function ResponsiveDataTable<TData, TValue>({
       {showPagination && (
         <div className="flex items-center justify-between space-x-2 py-4">
           <div className="text-muted-foreground flex-1 text-sm">
-            {table.getFilteredSelectedRowModel().rows.length} of {table.getFilteredRowModel().rows.length} row(s)
-            selected.
+            {table.getFilteredSelectedRowModel().rows.length} of{' '}
+            {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
           <div className="space-x-2">
             <button
@@ -250,5 +294,5 @@ export function ResponsiveDataTable<TData, TValue>({
         </div>
       )}
     </div>
-  )
+  );
 }

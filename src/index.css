@@ -453,17 +453,26 @@
 
   /* Responsive Grid System */
   .grid-fluid {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(200px, 20vw, 300px), 1fr));
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(clamp(200px, 20vw, 300px), 1fr)
+    );
     gap: clamp(1rem, 2vw, 2rem);
   }
 
   .grid-fluid-sm {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(150px, 15vw, 250px), 1fr));
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(clamp(150px, 15vw, 250px), 1fr)
+    );
     gap: clamp(0.75rem, 1.5vw, 1.5rem);
   }
 
   .grid-fluid-lg {
-    grid-template-columns: repeat(auto-fit, minmax(clamp(250px, 25vw, 400px), 1fr));
+    grid-template-columns: repeat(
+      auto-fit,
+      minmax(clamp(250px, 25vw, 400px), 1fr)
+    );
     gap: clamp(1.5rem, 3vw, 3rem);
   }
 }

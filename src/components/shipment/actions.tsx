@@ -1,7 +1,7 @@
 // src/components/shipment/actions.tsx (NEW FILE)
-import { MoreHorizontal } from 'lucide-react'
+import { MoreHorizontal } from 'lucide-react';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,17 +9,22 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import type { Shipment } from '@/types/shipment'
+} from '@/components/ui/dropdown-menu';
+import type { Shipment } from '@/types/shipment';
 
 interface ShipmentActionsProps {
-  shipment: Shipment
-  onView: () => void
-  onEdit: () => void
-  onMarkAsDelivered?: () => void
+  shipment: Shipment;
+  onView: () => void;
+  onEdit: () => void;
+  onMarkAsDelivered?: () => void;
 }
 
-export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }: ShipmentActionsProps) => {
+export const ShipmentActions = ({
+  shipment,
+  onView,
+  onEdit,
+  onMarkAsDelivered,
+}: ShipmentActionsProps) => {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -40,10 +45,7 @@ export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }:
           Copy Shipment ID
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="hover:text-warning"
-          onClick={onView}
-        >
+        <DropdownMenuItem className="hover:text-warning" onClick={onView}>
           View details
         </DropdownMenuItem>
         <DropdownMenuItem onClick={onEdit}>Edit shipment</DropdownMenuItem>
@@ -60,5 +62,5 @@ export const ShipmentActions = ({ shipment, onView, onEdit, onMarkAsDelivered }:
         )}
       </DropdownMenuContent>
     </DropdownMenu>
-  )
-}
+  );
+};

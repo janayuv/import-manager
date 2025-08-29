@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it } from 'vitest';
 
-import { buildReportCsv } from '@/lib/financial'
+import { buildReportCsv } from '@/lib/financial';
 
 describe('Report CSV', () => {
   it('creates CSV with header and rows', () => {
@@ -21,13 +21,13 @@ describe('Report CSV', () => {
         expenses_total: 2.5,
         ldc_per_qty: 6.73,
       },
-    ]
-    const csv = buildReportCsv(rows)
-    const lines = csv.split('\n')
+    ];
+    const csv = buildReportCsv(rows);
+    const lines = csv.split('\n');
     expect(lines[0]).toContain(
       'Supplier,Invoice No,Date,Part No,Description,Unit,Qty,Unit Price,Assessable Value,BCD,SWS,IGST,Expenses,LDC per qty'
-    )
-    expect(lines[1]).toContain('"ABC Ltd"')
-    expect(lines[1]).toContain('"INV-001"')
-  })
-})
+    );
+    expect(lines[1]).toContain('"ABC Ltd"');
+    expect(lines[1]).toContain('"INV-001"');
+  });
+});

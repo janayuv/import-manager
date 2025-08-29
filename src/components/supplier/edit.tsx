@@ -1,10 +1,10 @@
 // src/pages/supplier/edit.tsx
 // This component now takes an onSave prop and calls it on submission.
 // Adjust the import path as necessary
-import { useEffect, useState } from 'react'
+import { useEffect, useState } from 'react';
 
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -12,52 +12,59 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import type { Supplier } from '@/types/supplier'
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import type { Supplier } from '@/types/supplier';
 
 interface EditSupplierProps {
-  isOpen: boolean
-  onOpenChange: (isOpen: boolean) => void
-  supplier: Supplier | null
-  onSave: (updatedSupplier: Supplier) => void
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  supplier: Supplier | null;
+  onSave: (updatedSupplier: Supplier) => void;
 }
 
-export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: EditSupplierProps) {
-  const [formData, setFormData] = useState<Supplier | null>(null)
+export function EditSupplierDialog({
+  isOpen,
+  onOpenChange,
+  supplier,
+  onSave,
+}: EditSupplierProps) {
+  const [formData, setFormData] = useState<Supplier | null>(null);
 
   useEffect(() => {
     if (supplier) {
-      setFormData(supplier)
+      setFormData(supplier);
     }
-  }, [supplier])
+  }, [supplier]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!formData) return
-    const { id, value, type, checked } = e.target
-    setFormData((prev) => ({ ...prev!, [id]: type === 'checkbox' ? checked : value }))
-  }
+    if (!formData) return;
+    const { id, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev!,
+      [id]: type === 'checkbox' ? checked : value,
+    }));
+  };
 
   const handleSubmit = () => {
     if (formData) {
-      onSave(formData)
-      onOpenChange(false)
+      onSave(formData);
+      onOpenChange(false);
     }
-  }
+  };
 
-  if (!formData) return null
+  if (!formData) return null;
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[800px]">
         <DialogHeader>
           <DialogTitle>Edit Supplier: {formData.supplierName}</DialogTitle>
-          <DialogDescription>Update the details for this supplier.</DialogDescription>
+          <DialogDescription>
+            Update the details for this supplier.
+          </DialogDescription>
         </DialogHeader>
         <div className="grid gap-6 py-4">
           {/* General Details */}
@@ -107,12 +114,20 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
               <Checkbox
                 id="isActive"
                 checked={formData.isActive || false}
-                onCheckedChange={(checked) => setFormData((prev) => ({ ...prev!, isActive: !!checked }))}
-                className={formData.isActive ? 'border-success bg-success' : 'border-destructive bg-destructive'}
+                onCheckedChange={checked =>
+                  setFormData(prev => ({ ...prev!, isActive: !!checked }))
+                }
+                className={
+                  formData.isActive
+                    ? 'border-success bg-success'
+                    : 'border-destructive bg-destructive'
+                }
               />
               <Label htmlFor="isActive">Is Active</Label>
 
-              <span className={`text-sm font-medium ${formData.isActive ? 'text-success' : 'text-destructive'}`}>
+              <span
+                className={`text-sm font-medium ${formData.isActive ? 'text-success' : 'text-destructive'}`}
+              >
                 {formData.isActive ? 'Active' : 'Inactive'}
               </span>
             </div>
@@ -184,14 +199,11 @@ export function EditSupplierDialog({ isOpen, onOpenChange, supplier, onSave }: E
           </div>
         </div>
         <DialogFooter>
-          <Button
-            onClick={handleSubmit}
-            variant="default"
-          >
+          <Button onClick={handleSubmit} variant="default">
             Save Supplier
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

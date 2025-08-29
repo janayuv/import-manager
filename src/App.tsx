@@ -1,51 +1,54 @@
-import React from 'react'
+import React from 'react';
 
-import { Navigate, Outlet, Route, BrowserRouter as Router, Routes } from 'react-router-dom'
+import {
+  Navigate,
+  Outlet,
+  Route,
+  BrowserRouter as Router,
+  Routes,
+} from 'react-router-dom';
 
-import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { ThemeProvider } from '@/components/layout/theme-provider'
+import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
+import { AppLayout } from '@/components/layout/AppLayout';
+import { ThemeProvider } from '@/components/layout/theme-provider';
 // Corrected import name
-import { Toaster } from '@/components/ui/sonner'
-import { initializePerformanceMonitoring } from '@/lib/performance'
-import { SettingsProvider } from '@/lib/settings-context'
-import { UserProvider } from '@/lib/user-context'
-import { ResponsiveProvider } from '@/providers/ResponsiveProvider'
-import { LoginPage } from '@/pages/LoginPage'
-import { AccountDetailsPage, AccountPasswordPage, AccountUpdatePage } from '@/pages/account'
-import BOEPage from '@/pages/boe'
-import BOEEntrypage from '@/pages/boe-entry'
-import BoeSummaryPage from '@/pages/boe-summary'
-import DashboardPage from '@/pages/dashboard'
-import ExpenseDataManagerPage from '@/pages/expense-data-manager'
-import ExpenseReportsPage from '@/pages/expense-reports'
-import ExpensesPage from '@/pages/expenses'
-import FrozenShipmentsPage from '@/pages/frozen-shipments'
-import InvoicePage from '@/pages/invoice'
-import InvoiceWizardPage from '@/pages/invoice-wizard'
-import ItemMasterPage from '@/pages/item'
-import ReportsPage from '@/pages/reports'
-import SettingsPage from '@/pages/settings'
-import ShipmentPage from '@/pages/shipment'
-import SupplierPage from '@/pages/supplier'
+import { Toaster } from '@/components/ui/sonner';
+import { initializePerformanceMonitoring } from '@/lib/performance';
+import { SettingsProvider } from '@/lib/settings-context';
+import { UserProvider } from '@/lib/user-context';
+import { ResponsiveProvider } from '@/providers/ResponsiveProvider';
+import { LoginPage } from '@/pages/LoginPage';
+import {
+  AccountDetailsPage,
+  AccountPasswordPage,
+  AccountUpdatePage,
+} from '@/pages/account';
+import BOEPage from '@/pages/boe';
+import BOEEntrypage from '@/pages/boe-entry';
+import BoeSummaryPage from '@/pages/boe-summary';
+import DashboardPage from '@/pages/dashboard';
+import ExpenseDataManagerPage from '@/pages/expense-data-manager';
+import ExpenseReportsPage from '@/pages/expense-reports';
+import ExpensesPage from '@/pages/expenses';
+import FrozenShipmentsPage from '@/pages/frozen-shipments';
+import InvoicePage from '@/pages/invoice';
+import InvoiceWizardPage from '@/pages/invoice-wizard';
+import ItemMasterPage from '@/pages/item';
+import ReportsPage from '@/pages/reports';
+import SettingsPage from '@/pages/settings';
+import ShipmentPage from '@/pages/shipment';
+import SupplierPage from '@/pages/supplier';
 
 const ProtectedRoute = () => {
-  const isAuthenticated = localStorage.getItem('isAuthenticated')
-  return isAuthenticated ? (
-    <Outlet />
-  ) : (
-    <Navigate
-      to="/login"
-      replace
-    />
-  )
-}
+  const isAuthenticated = localStorage.getItem('isAuthenticated');
+  return isAuthenticated ? <Outlet /> : <Navigate to="/login" replace />;
+};
 
 function App() {
   // Initialize performance monitoring
   React.useEffect(() => {
-    initializePerformanceMonitoring()
-  }, [])
+    initializePerformanceMonitoring();
+  }, []);
 
   return (
     <AsyncErrorBoundary componentName="App">
@@ -62,28 +65,13 @@ function App() {
               >
                 <Router>
                   <Routes>
-                    <Route
-                      path="/login"
-                      element={<LoginPage />}
-                    />
+                    <Route path="/login" element={<LoginPage />} />
                     <Route element={<ProtectedRoute />}>
                       <Route element={<AppLayout />}>
-                        <Route
-                          path="/"
-                          element={<DashboardPage />}
-                        />
-                        <Route
-                          path="/supplier"
-                          element={<SupplierPage />}
-                        />
-                        <Route
-                          path="/shipment"
-                          element={<ShipmentPage />}
-                        />
-                        <Route
-                          path="/invoice"
-                          element={<InvoicePage />}
-                        />
+                        <Route path="/" element={<DashboardPage />} />
+                        <Route path="/supplier" element={<SupplierPage />} />
+                        <Route path="/shipment" element={<ShipmentPage />} />
+                        <Route path="/invoice" element={<InvoicePage />} />
                         <Route
                           path="/invoice-wizard"
                           element={<InvoiceWizardPage />}
@@ -93,22 +81,13 @@ function App() {
                           path="/item-master"
                           element={<ItemMasterPage />}
                         />
-                        <Route
-                          path="/boe"
-                          element={<BOEPage />}
-                        />
-                        <Route
-                          path="/boe-entry"
-                          element={<BOEEntrypage />}
-                        />
+                        <Route path="/boe" element={<BOEPage />} />
+                        <Route path="/boe-entry" element={<BOEEntrypage />} />
                         <Route
                           path="/boe-summary"
                           element={<BoeSummaryPage />}
                         />
-                        <Route
-                          path="/expenses"
-                          element={<ExpensesPage />}
-                        />
+                        <Route path="/expenses" element={<ExpensesPage />} />
                         <Route
                           path="/expense-reports"
                           element={<ExpenseReportsPage />}
@@ -121,10 +100,7 @@ function App() {
                           path="/frozen-shipments"
                           element={<FrozenShipmentsPage />}
                         />
-                        <Route
-                          path="/report"
-                          element={<ReportsPage />}
-                        />
+                        <Route path="/report" element={<ReportsPage />} />
                         <Route
                           path="/frozen-shipments"
                           element={<FrozenShipmentsPage />}
@@ -141,25 +117,19 @@ function App() {
                           path="/account/password"
                           element={<AccountPasswordPage />}
                         />
-                        <Route
-                          path="/settings"
-                          element={<SettingsPage />}
-                        />
+                        <Route path="/settings" element={<SettingsPage />} />
                       </Route>
                     </Route>
                   </Routes>
                 </Router>
               </ErrorBoundary>
-              <Toaster
-                position="top-right"
-                richColors
-              />
+              <Toaster position="top-right" richColors />
             </ResponsiveProvider>
           </UserProvider>
         </SettingsProvider>
       </ThemeProvider>
     </AsyncErrorBoundary>
-  )
+  );
 }
 
-export default App
+export default App;

@@ -1,17 +1,17 @@
 // src/pages/invoice/index.tsx
-import { invoke } from '@tauri-apps/api/core'
-import { open, save, confirm } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, Loader2, Plus, Upload, Zap } from 'lucide-react'
-import Papa from 'papaparse'
-import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core';
+import { open, save, confirm } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { Download, Loader2, Plus, Upload, Zap } from 'lucide-react';
+import Papa from 'papaparse';
+import { toast } from 'sonner';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { getInvoiceColumns } from '@/components/invoice/columns'
-import { InvoiceForm } from '@/components/invoice/form'
-import { InvoiceViewDialog } from '@/components/invoice/view'
-import { ResponsiveDataTable } from '@/components/ui/responsive-table'
+import { getInvoiceColumns } from '@/components/invoice/columns';
+import { InvoiceForm } from '@/components/invoice/form';
+import { InvoiceViewDialog } from '@/components/invoice/view';
+import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,48 +21,61 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { useSettings } from '@/lib/use-settings'
-import { useResponsiveContext } from '@/providers/ResponsiveProvider'
-import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice'
-import type { Item } from '@/types/item'
-import type { Shipment } from '@/types/shipment'
-import type { Supplier } from '@/types/supplier'
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useSettings } from '@/lib/use-settings';
+import { useResponsiveContext } from '@/providers/ResponsiveProvider';
+import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice';
+import type { Item } from '@/types/item';
+import type { Shipment } from '@/types/shipment';
+import type { Supplier } from '@/types/supplier';
 
 type BulkImportRow = {
-  shipmentInvoiceNumber: string
-  itemPartNumber: string
-  quantity: string
-  unitPrice: string
-}
+  shipmentInvoiceNumber: string;
+  itemPartNumber: string;
+  quantity: string;
+  unitPrice: string;
+};
 
 const InvoicePage = () => {
-  const { settings } = useSettings()
-  const { getTextClass, getButtonClass, getSpacingClass } = useResponsiveContext()
-  const [invoices, setInvoices] = React.useState<Invoice[]>([])
-  const [shipments, setShipments] = React.useState<Shipment[]>([])
-  const [unfinalizedShipments, setUnfinalizedShipments] = React.useState<Shipment[]>([])
-  const [items, setItems] = React.useState<Item[]>([])
-  const [suppliers, setSuppliers] = React.useState<Supplier[]>([])
-  const [loading, setLoading] = React.useState(true)
+  const { settings } = useSettings();
+  const { getTextClass, getButtonClass, getSpacingClass } =
+    useResponsiveContext();
+  const [invoices, setInvoices] = React.useState<Invoice[]>([]);
+  const [shipments, setShipments] = React.useState<Shipment[]>([]);
+  const [unfinalizedShipments, setUnfinalizedShipments] = React.useState<
+    Shipment[]
+  >([]);
+  const [items, setItems] = React.useState<Item[]>([]);
+  const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
+  const [loading, setLoading] = React.useState(true);
 
-  const [isFormOpen, setFormOpen] = React.useState(false)
-  const [isViewOpen, setViewOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
+  const [isFormOpen, setFormOpen] = React.useState(false);
+  const [isViewOpen, setViewOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
-  const [invoiceToEdit, setInvoiceToEdit] = React.useState<Invoice | null>(null)
-  const [invoiceToView, setInvoiceToView] = React.useState<Invoice | null>(null)
+  const [invoiceToEdit, setInvoiceToEdit] = React.useState<Invoice | null>(
+    null
+  );
+  const [invoiceToView, setInvoiceToView] = React.useState<Invoice | null>(
+    null
+  );
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<{
-    id: string
-    number: string
-  } | null>(null)
+    id: string;
+    number: string;
+  } | null>(null);
 
-  const [statusFilter, setStatusFilter] = React.useState('All')
+  const [statusFilter, setStatusFilter] = React.useState('All');
 
   const fetchData = React.useCallback(async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const [inv, shp, unfinalizedShp, itm, sup] = await Promise.all([
         invoke<Invoice[]>('get_invoices'),
@@ -70,47 +83,52 @@ const InvoicePage = () => {
         invoke<Shipment[]>('get_unfinalized_shipments'),
         invoke<Item[]>('get_items'),
         invoke<Supplier[]>('get_suppliers'),
-      ])
-      setInvoices(inv)
-      setShipments(shp)
-      setUnfinalizedShipments(unfinalizedShp)
-      setItems(itm)
-      setSuppliers(sup)
+      ]);
+      setInvoices(inv);
+      setShipments(shp);
+      setUnfinalizedShipments(unfinalizedShp);
+      setItems(itm);
+      setSuppliers(sup);
     } catch (error) {
-      console.error('Failed to fetch data:', error)
-      toast.error('Failed to load initial data. Please try again.')
+      console.error('Failed to fetch data:', error);
+      toast.error('Failed to load initial data. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [])
+  }, []);
 
   React.useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData();
+  }, [fetchData]);
 
   const availableShipmentsForForm = React.useMemo(() => {
     if (invoiceToEdit) {
-      const currentShipment = shipments.find((s) => s.id === invoiceToEdit.shipmentId)
-      if (currentShipment && !unfinalizedShipments.some((us) => us.id === currentShipment.id)) {
-        return [...unfinalizedShipments, currentShipment]
+      const currentShipment = shipments.find(
+        s => s.id === invoiceToEdit.shipmentId
+      );
+      if (
+        currentShipment &&
+        !unfinalizedShipments.some(us => us.id === currentShipment.id)
+      ) {
+        return [...unfinalizedShipments, currentShipment];
       }
     }
-    return unfinalizedShipments
-  }, [unfinalizedShipments, shipments, invoiceToEdit])
+    return unfinalizedShipments;
+  }, [unfinalizedShipments, shipments, invoiceToEdit]);
 
   // Helper function to parse percentage values from database
   const parsePercentage = (value: string | number | undefined): number => {
     if (typeof value === 'number') {
-      return value
+      return value;
     }
     if (typeof value === 'string') {
       // Remove '%' and convert to number
-      const cleanValue = value.replace('%', '').trim()
-      const parsed = parseFloat(cleanValue)
-      return isNaN(parsed) ? 0 : parsed
+      const cleanValue = value.replace('%', '').trim();
+      const parsed = parseFloat(cleanValue);
+      return isNaN(parsed) ? 0 : parsed;
     }
-    return 0
-  }
+    return 0;
+  };
 
   // Helper function to format currency
   const formatCurrency = (amount: number, currency: string) => {
@@ -118,24 +136,26 @@ const InvoicePage = () => {
       return new Intl.NumberFormat('en-US', {
         style: 'currency',
         currency: currency?.toUpperCase() || 'USD',
-      }).format(amount)
+      }).format(amount);
     } catch {
-      return `${currency} ${amount.toFixed(2)}`
+      return `${currency} ${amount.toFixed(2)}`;
     }
-  }
+  };
 
   const flattenedData = React.useMemo(() => {
-    const data: FlattenedInvoiceLine[] = []
+    const data: FlattenedInvoiceLine[] = [];
     const filteredInvoices =
-      statusFilter === 'All' ? invoices : invoices.filter((invoice) => invoice.status === statusFilter)
+      statusFilter === 'All'
+        ? invoices
+        : invoices.filter(invoice => invoice.status === statusFilter);
 
-    filteredInvoices.forEach((invoice) => {
-      const shipment = shipments.find((s) => s.id === invoice.shipmentId)
-      const supplier = suppliers.find((sup) => sup.id === shipment?.supplierId)
+    filteredInvoices.forEach(invoice => {
+      const shipment = shipments.find(s => s.id === invoice.shipmentId);
+      const supplier = suppliers.find(sup => sup.id === shipment?.supplierId);
 
       if (invoice.lineItems && invoice.lineItems.length > 0) {
-        invoice.lineItems.forEach((lineItem) => {
-          const item = items.find((i) => i.id === lineItem.itemId)
+        invoice.lineItems.forEach(lineItem => {
+          const item = items.find(i => i.id === lineItem.itemId);
           if (shipment && supplier && item) {
             data.push({
               invoiceId: invoice.id,
@@ -155,9 +175,9 @@ const InvoicePage = () => {
               invoiceTotal: invoice.calculatedTotal,
               shipmentTotal: invoice.shipmentTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
-            })
+            });
           }
-        })
+        });
       } else {
         if (shipment && supplier) {
           data.push({
@@ -178,62 +198,68 @@ const InvoicePage = () => {
             invoiceTotal: invoice.calculatedTotal,
             shipmentTotal: invoice.shipmentTotal,
             status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
-          })
+          });
         }
       }
-    })
-    return data
-  }, [invoices, shipments, items, suppliers, statusFilter])
+    });
+    return data;
+  }, [invoices, shipments, items, suppliers, statusFilter]);
 
   const handleOpenFormForAdd = () => {
-    setInvoiceToEdit(null)
-    setFormOpen(true)
-  }
+    setInvoiceToEdit(null);
+    setFormOpen(true);
+  };
 
   const handleOpenFormForEdit = React.useCallback(
     (invoiceId: string) => {
-      const fullInvoice = invoices.find((inv) => inv.id === invoiceId)
+      const fullInvoice = invoices.find(inv => inv.id === invoiceId);
       if (fullInvoice) {
-        setInvoiceToEdit(fullInvoice)
-        setFormOpen(true)
+        setInvoiceToEdit(fullInvoice);
+        setFormOpen(true);
       }
     },
     [invoices]
-  )
+  );
 
   const handleView = React.useCallback(
     (invoiceId: string) => {
-      const fullInvoice = invoices.find((inv) => inv.id === invoiceId)
+      const fullInvoice = invoices.find(inv => inv.id === invoiceId);
       if (fullInvoice) {
-        setInvoiceToView(fullInvoice)
-        setViewOpen(true)
+        setInvoiceToView(fullInvoice);
+        setViewOpen(true);
       }
     },
     [invoices]
-  )
+  );
 
-  const handleDeleteRequest = React.useCallback((invoiceId: string, invoiceNumber: string) => {
-    setInvoiceToDelete({ id: invoiceId, number: invoiceNumber })
-    setIsDeleteDialogOpen(true)
-  }, [])
+  const handleDeleteRequest = React.useCallback(
+    (invoiceId: string, invoiceNumber: string) => {
+      setInvoiceToDelete({ id: invoiceId, number: invoiceNumber });
+      setIsDeleteDialogOpen(true);
+    },
+    []
+  );
 
   const handleQuickFinalize = React.useCallback(
     async (invoiceId: string, invoiceNumber: string) => {
       try {
         // Find the invoice to get its current data
-        const invoice = invoices.find((inv) => inv.id === invoiceId)
+        const invoice = invoices.find(inv => inv.id === invoiceId);
         if (!invoice) {
-          toast.error('Invoice not found.')
-          return
+          toast.error('Invoice not found.');
+          return;
         }
 
         // Check if the invoice totals match
-        const tolerance = 0.01
-        const isMatched = Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+        const tolerance = 0.01;
+        const isMatched =
+          Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance;
 
         if (!isMatched) {
-          toast.error('Cannot finalize. The calculated total must match the shipment value.')
-          return
+          toast.error(
+            'Cannot finalize. The calculated total must match the shipment value.'
+          );
+          return;
         }
 
         // Show confirmation dialog
@@ -243,44 +269,50 @@ const InvoicePage = () => {
             title: 'Finalize Invoice',
             kind: 'warning',
           }
-        )
+        );
 
         if (confirmed) {
           const payload = {
             shipmentId: invoice.shipmentId,
             status: 'Finalized',
             lineItems:
-              invoice.lineItems?.map((li) => ({
+              invoice.lineItems?.map(li => ({
                 itemId: li.itemId,
                 quantity: li.quantity,
                 unitPrice: li.unitPrice,
               })) || [],
-          }
+          };
 
-          await invoke('update_invoice', { id: invoiceId, payload })
-          toast.success(`Invoice ${invoiceNumber} has been finalized successfully!`)
-          fetchData()
+          await invoke('update_invoice', { id: invoiceId, payload });
+          toast.success(
+            `Invoice ${invoiceNumber} has been finalized successfully!`
+          );
+          fetchData();
         }
       } catch (error) {
-        console.error('Failed to finalize invoice:', error)
-        toast.error('Failed to finalize invoice.')
+        console.error('Failed to finalize invoice:', error);
+        toast.error('Failed to finalize invoice.');
       }
     },
     [invoices, fetchData]
-  )
+  );
 
   const handleBulkAutoFinalize = React.useCallback(async () => {
     try {
       // Find all draft invoices that can be auto-finalized
-      const draftInvoices = invoices.filter((invoice) => invoice.status === 'Draft')
-      const autoFinalizableInvoices = draftInvoices.filter((invoice) => {
-        const tolerance = 0.01
-        return Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
-      })
+      const draftInvoices = invoices.filter(
+        invoice => invoice.status === 'Draft'
+      );
+      const autoFinalizableInvoices = draftInvoices.filter(invoice => {
+        const tolerance = 0.01;
+        return (
+          Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+        );
+      });
 
       if (autoFinalizableInvoices.length === 0) {
-        toast.info('No invoices found that can be auto-finalized.')
-        return
+        toast.info('No invoices found that can be auto-finalized.');
+        return;
       }
 
       // Show confirmation dialog
@@ -290,14 +322,16 @@ const InvoicePage = () => {
           title: 'Bulk Auto-Finalize',
           kind: 'warning',
         }
-      )
+      );
 
       if (confirmed) {
-        const toastId = toast.loading(`Finalizing ${autoFinalizableInvoices.length} invoice(s)...`)
+        const toastId = toast.loading(
+          `Finalizing ${autoFinalizableInvoices.length} invoice(s)...`
+        );
 
         // Process each invoice
-        let successCount = 0
-        let errorCount = 0
+        let successCount = 0;
+        let errorCount = 0;
 
         for (const invoice of autoFinalizableInvoices) {
           try {
@@ -305,162 +339,190 @@ const InvoicePage = () => {
               shipmentId: invoice.shipmentId,
               status: 'Finalized',
               lineItems:
-                invoice.lineItems?.map((li) => ({
+                invoice.lineItems?.map(li => ({
                   itemId: li.itemId,
                   quantity: li.quantity,
                   unitPrice: li.unitPrice,
                 })) || [],
-            }
+            };
 
-            await invoke('update_invoice', { id: invoice.id, payload })
-            successCount++
+            await invoke('update_invoice', { id: invoice.id, payload });
+            successCount++;
           } catch (error) {
-            console.error(`Failed to finalize invoice ${invoice.invoiceNumber}:`, error)
-            errorCount++
+            console.error(
+              `Failed to finalize invoice ${invoice.invoiceNumber}:`,
+              error
+            );
+            errorCount++;
           }
         }
 
         toast.success(
           `Bulk finalization complete! ${successCount} invoice(s) finalized successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
           { id: toastId }
-        )
-        fetchData()
+        );
+        fetchData();
       }
     } catch (error) {
-      console.error('Failed to bulk auto-finalize invoices:', error)
-      toast.error('Failed to bulk auto-finalize invoices.')
+      console.error('Failed to bulk auto-finalize invoices:', error);
+      toast.error('Failed to bulk auto-finalize invoices.');
     }
-  }, [invoices, fetchData])
+  }, [invoices, fetchData]);
 
   const handleDeleteConfirm = async () => {
     if (invoiceToDelete) {
       try {
-        await invoke('delete_invoice', { id: invoiceToDelete.id })
-        toast.success(`Invoice ${invoiceToDelete.number} deleted successfully.`)
-        fetchData()
+        await invoke('delete_invoice', { id: invoiceToDelete.id });
+        toast.success(
+          `Invoice ${invoiceToDelete.number} deleted successfully.`
+        );
+        fetchData();
       } catch (error) {
-        console.error('Failed to delete invoice:', error)
-        toast.error('Failed to delete invoice.')
+        console.error('Failed to delete invoice:', error);
+        toast.error('Failed to delete invoice.');
       }
     }
-    setIsDeleteDialogOpen(false)
-    setInvoiceToDelete(null)
-  }
+    setIsDeleteDialogOpen(false);
+    setInvoiceToDelete(null);
+  };
 
-  const handleSubmit = async (invoiceData: Omit<Invoice, 'id'>, id?: string) => {
+  const handleSubmit = async (
+    invoiceData: Omit<Invoice, 'id'>,
+    id?: string
+  ) => {
     const payload = {
       shipmentId: invoiceData.shipmentId,
       status: invoiceData.status,
       lineItems:
-        invoiceData.lineItems?.map((li) => ({
+        invoiceData.lineItems?.map(li => ({
           itemId: li.itemId,
           quantity: li.quantity,
           unitPrice: li.unitPrice,
         })) || [],
-    }
+    };
 
     try {
       if (id) {
-        await invoke('update_invoice', { id, payload })
-        toast.success(`Invoice ${invoiceData.invoiceNumber} has been updated.`)
+        await invoke('update_invoice', { id, payload });
+        toast.success(`Invoice ${invoiceData.invoiceNumber} has been updated.`);
       } else {
-        await invoke('add_invoice', { payload })
-        toast.success(`Invoice ${invoiceData.invoiceNumber} has been saved as ${invoiceData.status}.`)
+        await invoke('add_invoice', { payload });
+        toast.success(
+          `Invoice ${invoiceData.invoiceNumber} has been saved as ${invoiceData.status}.`
+        );
       }
-      setFormOpen(false)
-      fetchData()
+      setFormOpen(false);
+      fetchData();
     } catch (error) {
-      console.error('Failed to save invoice:', error)
-      toast.error('Failed to save invoice.')
+      console.error('Failed to save invoice:', error);
+      toast.error('Failed to save invoice.');
     }
-  }
+  };
 
   const handleDownloadTemplate = async () => {
-    const headers = 'shipmentInvoiceNumber,itemPartNumber,quantity,unitPrice'
+    const headers = 'shipmentInvoiceNumber,itemPartNumber,quantity,unitPrice';
     try {
       const filePath = await save({
         defaultPath: 'bulk_invoice_template.csv',
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
       if (filePath) {
-        await writeTextFile(filePath, headers)
-        toast.success('Invoice import template downloaded successfully!')
+        await writeTextFile(filePath, headers);
+        toast.success('Invoice import template downloaded successfully!');
       }
     } catch (err) {
-      toast.error(`Failed to download template: ${(err as Error).message}`)
+      toast.error(`Failed to download template: ${(err as Error).message}`);
     }
-  }
+  };
 
   const handleBulkImport = async () => {
     try {
       const selectedPath = await open({
         multiple: false,
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
-      if (!selectedPath) return
+      });
+      if (!selectedPath) return;
 
-      const content = await readTextFile(selectedPath as string)
-      const results = Papa.parse<BulkImportRow>(content, { header: true, skipEmptyLines: true })
+      const content = await readTextFile(selectedPath as string);
+      const results = Papa.parse<BulkImportRow>(content, {
+        header: true,
+        skipEmptyLines: true,
+      });
 
       if (results.errors.length) {
-        toast.error('CSV parsing error. Please check the file format.')
-        return
+        toast.error('CSV parsing error. Please check the file format.');
+        return;
       }
 
-      const shipmentMap = new Map(shipments.map((s) => [s.invoiceNumber, s.id]))
-      const itemMap = new Map(items.map((i) => [i.partNumber, i.id]))
+      const shipmentMap = new Map(shipments.map(s => [s.invoiceNumber, s.id]));
+      const itemMap = new Map(items.map(i => [i.partNumber, i.id]));
 
-      const invoicesToCreate = new Map<string, { itemId: string; quantity: number; unitPrice: number }[]>()
+      const invoicesToCreate = new Map<
+        string,
+        { itemId: string; quantity: number; unitPrice: number }[]
+      >();
 
       for (const row of results.data) {
-        const shipmentId = shipmentMap.get(row.shipmentInvoiceNumber)
-        const itemId = itemMap.get(row.itemPartNumber)
+        const shipmentId = shipmentMap.get(row.shipmentInvoiceNumber);
+        const itemId = itemMap.get(row.itemPartNumber);
 
         if (!shipmentId) {
-          toast.warning(`Skipping row: Shipment with invoice number "${row.shipmentInvoiceNumber}" not found.`)
-          continue
+          toast.warning(
+            `Skipping row: Shipment with invoice number "${row.shipmentInvoiceNumber}" not found.`
+          );
+          continue;
         }
         if (!itemId) {
-          toast.warning(`Skipping row: Item with part number "${row.itemPartNumber}" not found.`)
-          continue
+          toast.warning(
+            `Skipping row: Item with part number "${row.itemPartNumber}" not found.`
+          );
+          continue;
         }
 
-        const lineItems = invoicesToCreate.get(shipmentId) || []
+        const lineItems = invoicesToCreate.get(shipmentId) || [];
         lineItems.push({
           itemId,
           quantity: parseFloat(row.quantity) || 0,
           unitPrice: parseFloat(row.unitPrice) || 0,
-        })
-        invoicesToCreate.set(shipmentId, lineItems)
+        });
+        invoicesToCreate.set(shipmentId, lineItems);
       }
 
       if (invoicesToCreate.size === 0) {
-        toast.info('No new valid invoices found to import.')
-        return
+        toast.info('No new valid invoices found to import.');
+        return;
       }
 
-      const payloads = Array.from(invoicesToCreate.entries()).map(([shipmentId, lineItems]) => ({
-        shipmentId,
-        status: 'Draft',
-        lineItems,
-      }))
+      const payloads = Array.from(invoicesToCreate.entries()).map(
+        ([shipmentId, lineItems]) => ({
+          shipmentId,
+          status: 'Draft',
+          lineItems,
+        })
+      );
 
-      await invoke('add_invoices_bulk', { payloads })
-      toast.success(`${payloads.length} invoices have been imported as drafts.`)
-      fetchData()
+      await invoke('add_invoices_bulk', { payloads });
+      toast.success(
+        `${payloads.length} invoices have been imported as drafts.`
+      );
+      fetchData();
     } catch (err) {
-      toast.error(`Failed to import invoices: ${(err as Error).message}`)
+      toast.error(`Failed to import invoices: ${(err as Error).message}`);
     }
-  }
+  };
 
   // Calculate auto-finalizable invoices
   const autoFinalizableInvoices = React.useMemo(() => {
-    const draftInvoices = invoices.filter((invoice) => invoice.status === 'Draft')
-    return draftInvoices.filter((invoice) => {
-      const tolerance = 0.01
-      return Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
-    })
-  }, [invoices])
+    const draftInvoices = invoices.filter(
+      invoice => invoice.status === 'Draft'
+    );
+    return draftInvoices.filter(invoice => {
+      const tolerance = 0.01;
+      return (
+        Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance
+      );
+    });
+  }, [invoices]);
 
   const columns = React.useMemo(
     () =>
@@ -471,23 +533,26 @@ const InvoicePage = () => {
         onQuickFinalize: handleQuickFinalize,
         settings,
       }),
-    [handleView, handleOpenFormForEdit, handleDeleteRequest, handleQuickFinalize, settings]
-  )
+    [
+      handleView,
+      handleOpenFormForEdit,
+      handleDeleteRequest,
+      handleQuickFinalize,
+      settings,
+    ]
+  );
 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
       </div>
-    )
+    );
   }
 
   // Status filter UI
   const statusFilterControl = (
-    <Select
-      value={statusFilter}
-      onValueChange={setStatusFilter}
-    >
+    <Select value={statusFilter} onValueChange={setStatusFilter}>
       <SelectTrigger className="w-[180px]">
         <SelectValue placeholder="Filter by status" />
       </SelectTrigger>
@@ -498,17 +563,16 @@ const InvoicePage = () => {
         <SelectItem value="Mismatch">Mismatch</SelectItem>
       </SelectContent>
     </Select>
-  )
+  );
 
   return (
     <div className="container mx-auto py-10">
-      <div className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}>
+      <div
+        className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
+      >
         <h1 className={`${getTextClass('2xl')} font-bold`}>Invoice Details</h1>
         <div className={`flex items-center ${getSpacingClass()}`}>
-          <Button
-            onClick={handleOpenFormForAdd}
-            className={getButtonClass()}
-          >
+          <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
             <Plus className="mr-2 h-4 w-4" /> Add New Invoice
           </Button>
           <Button
@@ -535,7 +599,8 @@ const InvoicePage = () => {
             {statusFilterControl}
           </div>
           <div className="text-muted-foreground text-sm">
-            Showing {flattenedData.length} invoice{flattenedData.length !== 1 ? 's' : ''}
+            Showing {flattenedData.length} invoice
+            {flattenedData.length !== 1 ? 's' : ''}
             {statusFilter !== 'All' && ` with status "${statusFilter}"`}
           </div>
         </div>
@@ -545,7 +610,8 @@ const InvoicePage = () => {
           {autoFinalizableInvoices.length > 0 ? (
             <>
               <div className="text-muted-foreground text-sm">
-                {autoFinalizableInvoices.length} invoice{autoFinalizableInvoices.length !== 1 ? 's' : ''} ready for
+                {autoFinalizableInvoices.length} invoice
+                {autoFinalizableInvoices.length !== 1 ? 's' : ''} ready for
                 auto-finalize
               </div>
               <Button
@@ -559,7 +625,9 @@ const InvoicePage = () => {
               </Button>
             </>
           ) : (
-            <div className="text-muted-foreground text-sm">No invoices ready for auto-finalize</div>
+            <div className="text-muted-foreground text-sm">
+              No invoices ready for auto-finalize
+            </div>
           )}
         </div>
       </div>
@@ -569,21 +637,29 @@ const InvoicePage = () => {
         <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-green-800">Auto-Finalize Ready</h3>
+              <h3 className="text-sm font-semibold text-green-800">
+                Auto-Finalize Ready
+              </h3>
               <p className="mt-1 text-xs text-green-600">
-                {autoFinalizableInvoices.length} draft invoice{autoFinalizableInvoices.length !== 1 ? 's' : ''} have
-                matching shipment and invoice values
+                {autoFinalizableInvoices.length} draft invoice
+                {autoFinalizableInvoices.length !== 1 ? 's' : ''} have matching
+                shipment and invoice values
               </p>
             </div>
             <div className="text-right">
               <div className="text-sm font-medium text-green-800">
                 Total Value:{' '}
                 {formatCurrency(
-                  autoFinalizableInvoices.reduce((sum, inv) => sum + inv.calculatedTotal, 0),
+                  autoFinalizableInvoices.reduce(
+                    (sum, inv) => sum + inv.calculatedTotal,
+                    0
+                  ),
                   'USD'
                 )}
               </div>
-              <div className="text-xs text-green-600">Ready for bulk finalization</div>
+              <div className="text-xs text-green-600">
+                Ready for bulk finalization
+              </div>
             </div>
           </div>
         </div>
@@ -639,13 +715,17 @@ const InvoicePage = () => {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteConfirm}>Continue</AlertDialogAction>
+            <AlertDialogCancel onClick={() => setInvoiceToDelete(null)}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteConfirm}>
+              Continue
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
+  );
+};
 
-export default InvoicePage
+export default InvoicePage;

@@ -1,215 +1,271 @@
 // src/pages/shipment/index.tsx
 // react-table imports not used here; table lives in a shared component
-import { invoke } from '@tauri-apps/api/core'
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, Plus, Upload, Filter, RefreshCw, Settings, Database, AlertTriangle } from 'lucide-react'
-import Papa from 'papaparse'
-import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import {
+  Download,
+  Plus,
+  Upload,
+  Filter,
+  RefreshCw,
+  Settings,
+  Database,
+  AlertTriangle,
+} from 'lucide-react';
+import Papa from 'papaparse';
+import { toast } from 'sonner';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { ResponsiveDataTable } from '@/components/ui/responsive-table'
-import { getShipmentColumns } from '@/components/shipment/columns'
-import { ShipmentForm } from '@/components/shipment/form'
-import { ShipmentViewDialog } from '@/components/shipment/view'
-import { Button } from '@/components/ui/button'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ResponsiveDataTable } from '@/components/ui/responsive-table';
+import { getShipmentColumns } from '@/components/shipment/columns';
+import { ShipmentForm } from '@/components/shipment/form';
+import { ShipmentViewDialog } from '@/components/shipment/view';
+import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu'
-import { formatText } from '@/lib/settings'
-import { useSettings } from '@/lib/use-settings'
-import { useResponsiveContext } from '@/providers/ResponsiveProvider'
-import type { Option } from '@/types/options'
-import type { Shipment } from '@/types/shipment'
-import type { Supplier } from '@/types/supplier'
+} from '@/components/ui/dropdown-menu';
+import { formatText } from '@/lib/settings';
+import { useSettings } from '@/lib/use-settings';
+import { useResponsiveContext } from '@/providers/ResponsiveProvider';
+import type { Option } from '@/types/options';
+import type { Shipment } from '@/types/shipment';
+import type { Supplier } from '@/types/supplier';
 
-type OptionType = 'category' | 'incoterm' | 'mode' | 'status' | 'type' | 'currency'
+type OptionType =
+  | 'category'
+  | 'incoterm'
+  | 'mode'
+  | 'status'
+  | 'type'
+  | 'currency';
 
 const ShipmentPage = () => {
-  const { settings } = useSettings()
-  const { getTextClass, getButtonClass, getSpacingClass } = useResponsiveContext()
-  const [shipments, setShipments] = React.useState<Shipment[]>([])
-  const [suppliers, setSuppliers] = React.useState<Option[]>([])
-  const [isFormOpen, setFormOpen] = React.useState(false)
-  const [isViewOpen, setViewOpen] = React.useState(false)
-  const [selectedShipment, setSelectedShipment] = React.useState<Shipment | null>(null)
-  const [shipmentToEdit, setShipmentToEdit] = React.useState<Shipment | null>(null)
+  const { settings } = useSettings();
+  const { getTextClass, getButtonClass, getSpacingClass } =
+    useResponsiveContext();
+  const [shipments, setShipments] = React.useState<Shipment[]>([]);
+  const [suppliers, setSuppliers] = React.useState<Option[]>([]);
+  const [isFormOpen, setFormOpen] = React.useState(false);
+  const [isViewOpen, setViewOpen] = React.useState(false);
+  const [selectedShipment, setSelectedShipment] =
+    React.useState<Shipment | null>(null);
+  const [shipmentToEdit, setShipmentToEdit] = React.useState<Shipment | null>(
+    null
+  );
 
-  const [categories, setCategories] = React.useState<Option[]>([])
-  const [incoterms, setIncoterms] = React.useState<Option[]>([])
-  const [modes, setModes] = React.useState<Option[]>([])
-  const [types, setTypes] = React.useState<Option[]>([])
-  const [statuses, setStatuses] = React.useState<Option[]>([])
-  const [currencies, setCurrencies] = React.useState<Option[]>([])
-  const [statusFilter, setStatusFilter] = React.useState('All')
+  const [categories, setCategories] = React.useState<Option[]>([]);
+  const [incoterms, setIncoterms] = React.useState<Option[]>([]);
+  const [modes, setModes] = React.useState<Option[]>([]);
+  const [types, setTypes] = React.useState<Option[]>([]);
+  const [statuses, setStatuses] = React.useState<Option[]>([]);
+  const [currencies, setCurrencies] = React.useState<Option[]>([]);
+  const [statusFilter, setStatusFilter] = React.useState('All');
 
   const fetchShipments = React.useCallback(async () => {
     try {
-      const fetchedShipments: Shipment[] = await invoke('get_shipments')
-      setShipments(fetchedShipments)
+      const fetchedShipments: Shipment[] = await invoke('get_shipments');
+      setShipments(fetchedShipments);
     } catch (error) {
-      console.error('Failed to fetch shipments:', error)
-      toast.error('Failed to load shipments from the database.')
+      console.error('Failed to fetch shipments:', error);
+      toast.error('Failed to load shipments from the database.');
     }
-  }, [])
+  }, []);
 
   const handleOpenFormForEdit = React.useCallback((shipment: Shipment) => {
-    setShipmentToEdit(shipment)
-    setFormOpen(true)
-  }, [])
+    setShipmentToEdit(shipment);
+    setFormOpen(true);
+  }, []);
 
   const handleOpenFormForAdd = React.useCallback(() => {
-    setShipmentToEdit(null)
-    setFormOpen(true)
-  }, [])
+    setShipmentToEdit(null);
+    setFormOpen(true);
+  }, []);
 
   const handleView = React.useCallback((shipment: Shipment) => {
-    setSelectedShipment(shipment)
-    setViewOpen(true)
-  }, [])
+    setSelectedShipment(shipment);
+    setViewOpen(true);
+  }, []);
 
   const handleMarkAsDelivered = React.useCallback(
     async (shipment: Shipment) => {
       try {
-        const today = new Date().toISOString().split('T')[0] // Format: YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
         await invoke('update_shipment_status', {
           shipmentId: shipment.id,
           status: 'delivered',
           dateOfDelivery: today,
-        })
-        toast.success(`Shipment ${shipment.invoiceNumber} marked as delivered.`)
-        fetchShipments()
+        });
+        toast.success(
+          `Shipment ${shipment.invoiceNumber} marked as delivered.`
+        );
+        fetchShipments();
       } catch (error) {
-        console.error('Failed to mark shipment as delivered:', error)
-        toast.error('Failed to mark shipment as delivered.')
+        console.error('Failed to mark shipment as delivered:', error);
+        toast.error('Failed to mark shipment as delivered.');
       }
     },
     [fetchShipments]
-  )
+  );
 
   const handleCheckStatusUpdates = React.useCallback(async () => {
     try {
-      await invoke('check_and_update_ready_for_delivery')
-      toast.success('Shipment status check completed.')
-      fetchShipments()
+      await invoke('check_and_update_ready_for_delivery');
+      toast.success('Shipment status check completed.');
+      fetchShipments();
     } catch (error) {
-      console.error('Failed to check shipment status updates:', error)
-      toast.error('Failed to check shipment status updates.')
+      console.error('Failed to check shipment status updates:', error);
+      toast.error('Failed to check shipment status updates.');
     }
-  }, [fetchShipments])
+  }, [fetchShipments]);
 
   const handleMigrateStatuses = React.useCallback(async () => {
     try {
-      await invoke('migrate_shipment_statuses')
-      toast.success('Shipment status migration completed.')
-      fetchShipments()
+      await invoke('migrate_shipment_statuses');
+      toast.success('Shipment status migration completed.');
+      fetchShipments();
     } catch (error) {
-      console.error('Failed to migrate shipment statuses:', error)
-      toast.error('Failed to migrate shipment statuses.')
+      console.error('Failed to migrate shipment statuses:', error);
+      toast.error('Failed to migrate shipment statuses.');
     }
-  }, [fetchShipments])
+  }, [fetchShipments]);
 
   // Filter shipments based on status
   const filteredShipments = React.useMemo(() => {
     // Debug: Log all unique status values
-    const uniqueStatuses = [...new Set(shipments.map((s) => s.status).filter(Boolean))]
-    console.log('Available statuses in shipments:', uniqueStatuses)
-    console.log('Current filter:', statusFilter)
+    const uniqueStatuses = [
+      ...new Set(shipments.map(s => s.status).filter(Boolean)),
+    ];
+    console.log('Available statuses in shipments:', uniqueStatuses);
+    console.log('Current filter:', statusFilter);
 
     if (statusFilter === 'All') {
-      return shipments
+      return shipments;
     }
 
     // More robust filtering that handles null/undefined and case sensitivity
-    const filtered = shipments.filter((shipment) => {
-      const shipmentStatus = shipment.status || ''
-      return shipmentStatus.toLowerCase() === statusFilter.toLowerCase()
-    })
+    const filtered = shipments.filter(shipment => {
+      const shipmentStatus = shipment.status || '';
+      return shipmentStatus.toLowerCase() === statusFilter.toLowerCase();
+    });
 
-    console.log('Filtered results:', filtered.length, 'shipments')
-    return filtered
-  }, [shipments, statusFilter])
+    console.log('Filtered results:', filtered.length, 'shipments');
+    return filtered;
+  }, [shipments, statusFilter]);
 
   const columns = React.useMemo(
-    () => getShipmentColumns(suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings),
-    [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered, settings]
-  )
+    () =>
+      getShipmentColumns(
+        suppliers,
+        handleView,
+        handleOpenFormForEdit,
+        handleMarkAsDelivered,
+        settings
+      ),
+    [
+      suppliers,
+      handleView,
+      handleOpenFormForEdit,
+      handleMarkAsDelivered,
+      settings,
+    ]
+  );
 
   const fetchOptions = async () => {
     try {
-      const [fetchedCategories, fetchedIncoterms, fetchedModes, fetchedTypes, fetchedStatuses, fetchedCurrencies] =
-        await Promise.all([
-          invoke('get_categories'),
-          invoke('get_incoterms'),
-          invoke('get_shipment_modes'),
-          invoke('get_shipment_types'),
-          invoke('get_shipment_statuses'),
-          invoke('get_currencies'),
-        ])
-      setCategories(fetchedCategories as Option[])
-      setIncoterms(fetchedIncoterms as Option[])
-      setModes(fetchedModes as Option[])
-      setTypes(fetchedTypes as Option[])
-      setStatuses(fetchedStatuses as Option[])
-      setCurrencies(fetchedCurrencies as Option[])
+      const [
+        fetchedCategories,
+        fetchedIncoterms,
+        fetchedModes,
+        fetchedTypes,
+        fetchedStatuses,
+        fetchedCurrencies,
+      ] = await Promise.all([
+        invoke('get_categories'),
+        invoke('get_incoterms'),
+        invoke('get_shipment_modes'),
+        invoke('get_shipment_types'),
+        invoke('get_shipment_statuses'),
+        invoke('get_currencies'),
+      ]);
+      setCategories(fetchedCategories as Option[]);
+      setIncoterms(fetchedIncoterms as Option[]);
+      setModes(fetchedModes as Option[]);
+      setTypes(fetchedTypes as Option[]);
+      setStatuses(fetchedStatuses as Option[]);
+      setCurrencies(fetchedCurrencies as Option[]);
     } catch (error) {
-      console.error('Failed to fetch options:', error)
-      toast.error('Could not load dropdown options from the database.')
+      console.error('Failed to fetch options:', error);
+      toast.error('Could not load dropdown options from the database.');
     }
-  }
+  };
 
   React.useEffect(() => {
     const fetchInitialData = async () => {
       try {
-        const fetchedSuppliers: Supplier[] = await invoke('get_suppliers')
-        const supplierOptions = fetchedSuppliers.map((s) => ({
+        const fetchedSuppliers: Supplier[] = await invoke('get_suppliers');
+        const supplierOptions = fetchedSuppliers.map(s => ({
           value: s.id,
           label: formatText(s.supplierName, settings.textFormat),
-        }))
-        setSuppliers(supplierOptions)
-        await fetchShipments()
-        await fetchOptions()
+        }));
+        setSuppliers(supplierOptions);
+        await fetchShipments();
+        await fetchOptions();
       } catch (error) {
-        console.error('Failed to load initial data:', error)
-        toast.error('Could not load initial data from the database.')
+        console.error('Failed to load initial data:', error);
+        toast.error('Could not load initial data from the database.');
       }
-    }
-    fetchInitialData()
-  }, [settings.textFormat, fetchShipments])
+    };
+    fetchInitialData();
+  }, [settings.textFormat, fetchShipments]);
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
     const isDuplicate = shipments.some(
-      (s) => s.invoiceNumber.toLowerCase() === shipmentData.invoiceNumber.toLowerCase() && s.id !== shipmentToEdit?.id
-    )
+      s =>
+        s.invoiceNumber.toLowerCase() ===
+          shipmentData.invoiceNumber.toLowerCase() &&
+        s.id !== shipmentToEdit?.id
+    );
 
     if (isDuplicate) {
-      toast.error(`A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`)
-      return
+      toast.error(
+        `A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`
+      );
+      return;
     }
 
     try {
       if (shipmentToEdit) {
-        const updatedShipment = { ...shipmentToEdit, ...shipmentData }
-        await invoke('update_shipment', { shipment: updatedShipment })
-        toast.success(`Shipment ${updatedShipment.invoiceNumber} updated.`)
+        const updatedShipment = { ...shipmentToEdit, ...shipmentData };
+        await invoke('update_shipment', { shipment: updatedShipment });
+        toast.success(`Shipment ${updatedShipment.invoiceNumber} updated.`);
       } else {
-        const maxId = shipments.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')), 0)
-        const newId = `SHP-${(maxId + 1).toString().padStart(3, '0')}`
-        const newShipment: Shipment = { id: newId, ...shipmentData }
-        await invoke('add_shipment', { shipment: newShipment })
-        toast.success(`Shipment ${newShipment.invoiceNumber} created.`)
+        const maxId = shipments.reduce(
+          (max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')),
+          0
+        );
+        const newId = `SHP-${(maxId + 1).toString().padStart(3, '0')}`;
+        const newShipment: Shipment = { id: newId, ...shipmentData };
+        await invoke('add_shipment', { shipment: newShipment });
+        toast.success(`Shipment ${newShipment.invoiceNumber} created.`);
       }
-      fetchShipments()
-      setFormOpen(false)
+      fetchShipments();
+      setFormOpen(false);
     } catch (error) {
-      console.error('Failed to save shipment:', error)
-      toast.error('Failed to save shipment.')
+      console.error('Failed to save shipment:', error);
+      toast.error('Failed to save shipment.');
     }
   }
 
@@ -233,47 +289,55 @@ const ShipmentPage = () => {
       'eta',
       'status',
       'dateOfDelivery',
-    ]
-    const csv = headers.join(',')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'shipment_template.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.info('Shipment template downloaded.')
-  }
+    ];
+    const csv = headers.join(',');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'shipment_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.info('Shipment template downloaded.');
+  };
 
   async function handleImport() {
     try {
       const selectedPath = await open({
         multiple: false,
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
       if (!selectedPath) {
-        toast.info('Import cancelled.')
-        return
+        toast.info('Import cancelled.');
+        return;
       }
 
-      const content = await readTextFile(selectedPath as string)
+      const content = await readTextFile(selectedPath as string);
       const results = Papa.parse<Record<string, string>>(content, {
         header: true,
         skipEmptyLines: true,
-      })
+      });
 
-      const seenInvoiceNumbers = new Set(shipments.map((s) => s.invoiceNumber.toLowerCase()))
-      let maxId = shipments.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')), 0)
+      const seenInvoiceNumbers = new Set(
+        shipments.map(s => s.invoiceNumber.toLowerCase())
+      );
+      let maxId = shipments.reduce(
+        (max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')),
+        0
+      );
 
-      const newShipments: Shipment[] = []
+      const newShipments: Shipment[] = [];
       for (const row of results.data) {
-        if (!row.invoiceNumber || seenInvoiceNumbers.has(row.invoiceNumber.toLowerCase())) {
-          continue // Skip duplicates or rows without an invoice number
+        if (
+          !row.invoiceNumber ||
+          seenInvoiceNumbers.has(row.invoiceNumber.toLowerCase())
+        ) {
+          continue; // Skip duplicates or rows without an invoice number
         }
-        maxId++
+        maxId++;
 
         // Use supplier ID as is - validation will catch invalid values
-        const supplierId = row.supplierId || ''
+        const supplierId = row.supplierId || '';
 
         newShipments.push({
           id: `SHP-${maxId.toString().padStart(3, '0')}`,
@@ -296,8 +360,8 @@ const ShipmentPage = () => {
           status: row.status,
           dateOfDelivery: row.dateOfDelivery,
           isFrozen: false,
-        })
-        seenInvoiceNumbers.add(row.invoiceNumber.toLowerCase())
+        });
+        seenInvoiceNumbers.add(row.invoiceNumber.toLowerCase());
       }
 
       if (newShipments.length > 0) {
@@ -305,11 +369,11 @@ const ShipmentPage = () => {
           // First validate the shipments
           const validationErrors = (await invoke('validate_shipment_import', {
             shipments: newShipments,
-          })) as string[]
+          })) as string[];
 
           if (validationErrors && validationErrors.length > 0) {
             // Show validation errors in a detailed notification
-            const errorMessage = validationErrors.join('\n')
+            const errorMessage = validationErrors.join('\n');
             toast.error(`Import validation failed:\n${errorMessage}`, {
               duration: 10000, // Show for 10 seconds
               style: {
@@ -318,24 +382,26 @@ const ShipmentPage = () => {
                 maxHeight: '400px',
                 overflow: 'auto',
               },
-            })
-            return
+            });
+            return;
           }
 
           // If validation passes, proceed with import
-          await invoke('add_shipments_bulk', { shipments: newShipments })
-          toast.success(`${newShipments.length} new shipments imported successfully!`)
-          fetchShipments()
+          await invoke('add_shipments_bulk', { shipments: newShipments });
+          toast.success(
+            `${newShipments.length} new shipments imported successfully!`
+          );
+          fetchShipments();
         } catch (error) {
-          console.error('Failed to import shipments:', error)
-          toast.error(`Failed to import shipments: ${error}`)
+          console.error('Failed to import shipments:', error);
+          toast.error(`Failed to import shipments: ${error}`);
         }
       } else {
-        toast.info('No new shipments to import.')
+        toast.info('No new shipments to import.');
       }
     } catch (error) {
-      console.error('Failed to import shipments:', error)
-      toast.error('Failed to import shipments. Please check the file format.')
+      console.error('Failed to import shipments:', error);
+      toast.error('Failed to import shipments. Please check the file format.');
     }
   }
 
@@ -343,10 +409,12 @@ const ShipmentPage = () => {
   // Export helper used by inline handlers (kept for future toolbar wiring)
   // Reference from commented toolbar below; kept for future use
   // Declare and immediately use; keeps function referenced so TS doesn't flag unused in strict mode
-  const exportShipmentsData = async (_dataToExport: Shipment[]): Promise<void> => {
+  const exportShipmentsData = async (
+    _dataToExport: Shipment[]
+  ): Promise<void> => {
     if (_dataToExport.length === 0) {
-      toast.warning('No data available to export.')
-      return
+      toast.warning('No data available to export.');
+      return;
     }
 
     const csvHeaders = [
@@ -369,10 +437,10 @@ const ShipmentPage = () => {
       'eta',
       'status',
       'dateOfDelivery',
-    ]
+    ];
 
     const exportableData = _dataToExport.map((shipment: Shipment) => {
-      const supplier = suppliers.find((s) => s.value === shipment.supplierId)
+      const supplier = suppliers.find(s => s.value === shipment.supplierId);
       return {
         id: shipment.id || '',
         supplierName: supplier ? supplier.label : 'Unknown',
@@ -393,35 +461,38 @@ const ShipmentPage = () => {
         eta: shipment.eta || '',
         status: shipment.status || '',
         dateOfDelivery: shipment.dateOfDelivery || '',
-      }
-    })
+      };
+    });
 
     const csv = Papa.unparse({
       fields: csvHeaders,
       data: exportableData,
-    })
+    });
 
     try {
       const filePath = await save({
         defaultPath: 'shipments.csv',
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
       if (filePath) {
-        await writeTextFile(filePath, csv)
-        toast.success('Shipments exported successfully!')
+        await writeTextFile(filePath, csv);
+        toast.success('Shipments exported successfully!');
       }
     } catch (error) {
-      console.error('Failed to export shipments:', error)
-      toast.error('Failed to export shipments.')
+      console.error('Failed to export shipments:', error);
+      toast.error('Failed to export shipments.');
     }
-  }
-  void exportShipmentsData
+  };
+  void exportShipmentsData;
 
   // Keep functions but do not create unused vars to satisfy linter
   // export handlers are wired in UI below via inline lambdas
 
   async function handleOptionCreate(type: OptionType, newOption: Option) {
-    const correctlyCasedOption = { value: newOption.label, label: newOption.label }
+    const correctlyCasedOption = {
+      value: newOption.label,
+      label: newOption.label,
+    };
     const stateUpdater = {
       category: setCategories,
       incoterm: setIncoterms,
@@ -429,17 +500,22 @@ const ShipmentPage = () => {
       type: setTypes,
       status: setStatuses,
       currency: setCurrencies,
-    }
+    };
 
-    stateUpdater[type]((prev) => [...prev, correctlyCasedOption])
+    stateUpdater[type](prev => [...prev, correctlyCasedOption]);
     try {
-      await invoke('add_option', { optionType: type, option: correctlyCasedOption })
-      toast.success(`New ${type} "${correctlyCasedOption.label}" saved.`)
+      await invoke('add_option', {
+        optionType: type,
+        option: correctlyCasedOption,
+      });
+      toast.success(`New ${type} "${correctlyCasedOption.label}" saved.`);
     } catch (error) {
-      console.error(`Failed to save new ${type}:`, error)
-      toast.error(`Failed to save new ${type}.`)
+      console.error(`Failed to save new ${type}:`, error);
+      toast.error(`Failed to save new ${type}.`);
 
-      stateUpdater[type]((prev) => prev.filter((opt) => opt.value !== correctlyCasedOption.value))
+      stateUpdater[type](prev =>
+        prev.filter(opt => opt.value !== correctlyCasedOption.value)
+      );
     }
   }
 
@@ -464,13 +540,12 @@ const ShipmentPage = () => {
 
   return (
     <div className="w-full max-w-full px-6 py-10">
-      <div className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}>
+      <div
+        className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
+      >
         <h1 className={`${getTextClass('2xl')} font-bold`}>Shipments</h1>
         <div className={`flex items-center ${getSpacingClass()}`}>
-          <Button
-            onClick={handleOpenFormForAdd}
-            className={getButtonClass()}
-          >
+          <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
             <Plus className="mr-2 h-4 w-4" />
             Add New
           </Button>
@@ -497,7 +572,15 @@ const ShipmentPage = () => {
         columns={columns}
         data={filteredShipments}
         searchPlaceholder="Search shipments..."
-        hideColumnsOnSmall={['supplierName', 'category', 'incoterm', 'mode', 'type', 'currency', 'notes']}
+        hideColumnsOnSmall={[
+          'supplierName',
+          'category',
+          'incoterm',
+          'mode',
+          'type',
+          'currency',
+          'notes',
+        ]}
         columnWidths={{
           invoiceNumber: { minWidth: '120px', maxWidth: '150px' },
           invoiceDate: { minWidth: '100px', maxWidth: '120px' },
@@ -517,25 +600,27 @@ const ShipmentPage = () => {
           <div className="flex items-center gap-2">
             <Filter className="text-muted-foreground h-4 w-4" />
             <span className="text-sm font-medium">Status:</span>
-            <Select
-              value={statusFilter}
-              onValueChange={setStatusFilter}
-            >
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Statuses</SelectItem>
                 <SelectItem value="docs-rcvd">Document Received</SelectItem>
-                <SelectItem value="docu-received">Document Received (Legacy)</SelectItem>
+                <SelectItem value="docu-received">
+                  Document Received (Legacy)
+                </SelectItem>
                 <SelectItem value="in-transit">In Transit</SelectItem>
-                <SelectItem value="customs-clearance">Customs Clearance</SelectItem>
+                <SelectItem value="customs-clearance">
+                  Customs Clearance
+                </SelectItem>
                 <SelectItem value="ready-dly">Ready for Delivery</SelectItem>
                 <SelectItem value="delivered">Delivered</SelectItem>
               </SelectContent>
             </Select>
             <div className="text-muted-foreground text-sm">
-              {filteredShipments.length} shipment{filteredShipments.length !== 1 ? 's' : ''}
+              {filteredShipments.length} shipment
+              {filteredShipments.length !== 1 ? 's' : ''}
               {statusFilter !== 'All' && ` (${statusFilter})`}
             </div>
           </div>
@@ -552,10 +637,7 @@ const ShipmentPage = () => {
                 Status Actions
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="w-56"
-            >
+            <DropdownMenuContent align="end" className="w-56">
               <DropdownMenuItem onClick={handleCheckStatusUpdates}>
                 <RefreshCw className="mr-2 h-4 w-4" />
                 Check Status Updates
@@ -567,10 +649,14 @@ const ShipmentPage = () => {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 onClick={() => {
-                  const uniqueStatuses = [...new Set(shipments.map((s) => s.status).filter(Boolean))]
-                  console.log('All shipments:', shipments)
-                  console.log('Unique statuses:', uniqueStatuses)
-                  toast.info(`Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`)
+                  const uniqueStatuses = [
+                    ...new Set(shipments.map(s => s.status).filter(Boolean)),
+                  ];
+                  console.log('All shipments:', shipments);
+                  console.log('Unique statuses:', uniqueStatuses);
+                  toast.info(
+                    `Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`
+                  );
                 }}
               >
                 <AlertTriangle className="mr-2 h-4 w-4" />
@@ -601,7 +687,7 @@ const ShipmentPage = () => {
         suppliers={suppliers}
       />
     </div>
-  )
-}
+  );
+};
 
-export default ShipmentPage
+export default ShipmentPage;
