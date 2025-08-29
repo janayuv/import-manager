@@ -29,7 +29,8 @@ jobs:
         run: npm run format:check
       - name: Validate Windows-only Runner
         run: |
-          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
             Write-Output "Error: Non-Windows runner detected"
             exit 1
           }
@@ -74,7 +75,8 @@ jobs:
           cargo deny check --config deny.toml
       - name: Validate Windows-only Runner
         run: |
-          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
             Write-Output "Error: Non-Windows runner detected"
             exit 1
           }
@@ -111,7 +113,8 @@ jobs:
           name: codecov-umbrella
       - name: Validate Windows-only Runner
         run: |
-          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
             Write-Output "Error: Non-Windows runner detected"
             exit 1
           }
@@ -157,7 +160,8 @@ jobs:
           path: src-tauri/target/release/
       - name: Validate Windows-only Runner
         run: |
-          if (Get-Content .github/workflows/ci.yml | Select-String "runs-on:.*ubuntu-latest") {
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
             Write-Output "Error: Non-Windows runner detected"
             exit 1
           }
