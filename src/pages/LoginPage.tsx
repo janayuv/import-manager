@@ -1,59 +1,67 @@
-import { toast } from 'sonner'
+import { toast } from 'sonner';
 
-import { useState } from 'react'
+import { useState } from 'react';
 
-import { useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { authenticateUser, setAuthenticated } from '@/lib/auth'
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { authenticateUser, setAuthenticated } from '@/lib/auth';
 
 export function LoginPage() {
-  const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
+  const navigate = useNavigate();
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!username || !password) {
-      toast.error('Please enter both username and password')
-      return
+      toast.error('Please enter both username and password');
+      return;
     }
 
-    setIsLoading(true)
+    setIsLoading(true);
 
     try {
-      const result = await authenticateUser({ username, password })
+      const result = await authenticateUser({ username, password });
 
       if (result.success) {
-        setAuthenticated(true, result.user)
-        toast.success('Login successful!')
-        navigate('/')
+        setAuthenticated(true, result.user);
+        toast.success('Login successful!');
+        navigate('/');
       } else {
-        toast.error(result.message)
+        toast.error(result.message);
       }
     } catch (error) {
-      console.error('Login error:', error)
-      toast.error('Login failed. Please try again.')
+      console.error('Login error:', error);
+      toast.error('Login failed. Please try again.');
     } finally {
-      setIsLoading(false)
+      setIsLoading(false);
     }
-  }
+  };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isLoading) {
-      handleLogin()
+      handleLogin();
     }
-  }
+  };
 
   return (
     <div className="bg-background flex min-h-screen items-center justify-center">
       <Card className="mx-auto max-w-sm">
         <CardHeader>
           <CardTitle className="text-2xl">Login</CardTitle>
-          <CardDescription>Enter your username and password to access the Import Manager</CardDescription>
+          <CardDescription>
+            Enter your username and password to access the Import Manager
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid gap-4">
@@ -65,7 +73,7 @@ export function LoginPage() {
                 placeholder="Enter username"
                 required
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                onChange={e => setUsername(e.target.value)}
                 disabled={isLoading}
               />
             </div>
@@ -79,7 +87,7 @@ export function LoginPage() {
                 placeholder="Enter password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={e => setPassword(e.target.value)}
                 onKeyPress={handleKeyPress}
                 disabled={isLoading}
               />
@@ -96,5 +104,5 @@ export function LoginPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

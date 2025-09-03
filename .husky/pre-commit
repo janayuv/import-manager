@@ -11,6 +11,30 @@ npx lint-staged
 echo "Running ESLint security checks..."
 npx eslint . --ext .ts,.tsx,.js,.jsx,.yml,.yaml --max-warnings 0
 
+# Run TypeScript type checking (incremental mode for speed)
+echo "Running TypeScript type check..."
+npx tsc --noEmit --incremental
+
+# Run secrets scanning with gitleaks
+echo "Running secrets scanning..."
+if command -v gitleaks >/dev/null 2>&1; then
+    gitleaks detect --source . --verbose --redact
+else
+    echo "⚠️  gitleaks not installed. Install with: brew install gitleaks (macOS) or download from https://github.com/gitleaks/gitleaks"
+fi
+
+# Run dependency license check
+echo "Running dependency license check..."
+npx license-checker --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;CC0-1.0;Unlicense"
+
+# Run test coverage check (quick mode)
+echo "Running test coverage check..."
+npx vitest run --coverage --reporter=verbose --run
+
+# Run accessibility tests
+echo "Running accessibility tests..."
+npx playwright test tests/accessibility.spec.ts --reporter=list
+
 # Run custom security checks
 echo "Running custom security checks..."
 node scripts/security-check.js
@@ -18,5 +42,9 @@ node scripts/security-check.js
 # Run security audit
 echo "Running security audit..."
 npm audit --audit-level=moderate
+
+# Run MCP quality server checks
+echo "Running MCP quality server checks..."
+node scripts/quality-server.js --pre-commit
 
 echo "✅ Pre-commit checks passed!"

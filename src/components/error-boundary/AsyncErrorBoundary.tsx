@@ -1,27 +1,33 @@
-import { AlertTriangle, Bug, Copy, Home, RefreshCw, X } from 'lucide-react'
-import { toast } from 'sonner'
+import { AlertTriangle, Bug, Copy, Home, RefreshCw, X } from 'lucide-react';
+import { toast } from 'sonner';
 
-import { type ReactNode, useCallback, useEffect, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useState } from 'react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 interface Props {
-  children: ReactNode
-  fallback?: ReactNode
-  onError?: (error: Error) => void
-  resetKey?: string | number
-  showDetails?: boolean
-  componentName?: string
+  children: ReactNode;
+  fallback?: ReactNode;
+  onError?: (error: Error) => void;
+  resetKey?: string | number;
+  showDetails?: boolean;
+  componentName?: string;
 }
 
 interface State {
-  hasError: boolean
-  error: Error | null
-  showDetails: boolean
+  hasError: boolean;
+  error: Error | null;
+  showDetails: boolean;
 }
 
 export function AsyncErrorBoundary({
@@ -36,7 +42,7 @@ export function AsyncErrorBoundary({
     hasError: false,
     error: null,
     showDetails: defaultShowDetails,
-  })
+  });
 
   const logError = useCallback(
     (error: Error, source: string) => {
@@ -48,70 +54,79 @@ export function AsyncErrorBoundary({
         url: window.location.href,
         userAgent: navigator.userAgent,
         source,
-      }
+      };
 
-      console.error('Async Error Details:', errorData)
+      console.error('Async Error Details:', errorData);
 
       // In a production app, you might want to send this to an error reporting service
     },
     [componentName]
-  )
+  );
 
   useEffect(() => {
     // Handle unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('AsyncErrorBoundary caught unhandled rejection:', event.reason)
+      console.error(
+        'AsyncErrorBoundary caught unhandled rejection:',
+        event.reason
+      );
 
-      const error = event.reason instanceof Error ? event.reason : new Error(String(event.reason))
+      const error =
+        event.reason instanceof Error
+          ? event.reason
+          : new Error(String(event.reason));
 
       setState({
         hasError: true,
         error,
         showDetails: defaultShowDetails,
-      })
+      });
 
       if (onError) {
-        onError(error)
+        onError(error);
       }
 
-      logError(error, 'Unhandled Promise Rejection')
+      logError(error, 'Unhandled Promise Rejection');
 
       // Prevent the default browser behavior
-      event.preventDefault()
-    }
+      event.preventDefault();
+    };
 
     // Handle unhandled errors
     const handleError = (event: ErrorEvent) => {
-      console.error('AsyncErrorBoundary caught error:', event.error)
+      console.error('AsyncErrorBoundary caught error:', event.error);
 
-      const error = event.error || new Error(event.message)
+      const error = event.error || new Error(event.message);
 
       setState({
         hasError: true,
         error,
         showDetails: defaultShowDetails,
-      })
+      });
 
       if (onError) {
-        onError(error)
+        onError(error);
       }
 
-      logError(error, 'Unhandled Error')
+      logError(error, 'Unhandled Error');
 
       // Prevent the default browser behavior
-      event.preventDefault()
-    }
+      event.preventDefault();
+    };
 
     // Add event listeners
-    window.addEventListener('unhandledrejection', handleUnhandledRejection)
-    window.addEventListener('error', handleError)
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+    window.addEventListener('error', handleError);
 
     // Cleanup function
     return () => {
-      window.removeEventListener('unhandledrejection', handleUnhandledRejection)
-      window.removeEventListener('error', handleError)
-    }
-  }, [onError, defaultShowDetails, logError])
+      window.removeEventListener(
+        'unhandledrejection',
+        handleUnhandledRejection
+      );
+      window.removeEventListener('error', handleError);
+    };
+  }, [onError, defaultShowDetails, logError]);
 
   // Reset error state when resetKey changes
   useEffect(() => {
@@ -120,49 +135,49 @@ export function AsyncErrorBoundary({
         hasError: false,
         error: null,
         showDetails: defaultShowDetails,
-      })
+      });
     }
-  }, [resetKey, defaultShowDetails])
+  }, [resetKey, defaultShowDetails]);
 
   const handleReset = () => {
     setState({
       hasError: false,
       error: null,
       showDetails: defaultShowDetails,
-    })
+    });
 
-    toast.success('Async error boundary reset successfully')
-  }
+    toast.success('Async error boundary reset successfully');
+  };
 
   const handleReload = () => {
-    window.location.reload()
-  }
+    window.location.reload();
+  };
 
   const handleGoHome = () => {
-    window.location.href = '/'
-  }
+    window.location.href = '/';
+  };
 
   const handleCopyError = () => {
-    const errorText = `Async Error: ${state.error?.message}\n\nStack Trace:\n${state.error?.stack}`
+    const errorText = `Async Error: ${state.error?.message}\n\nStack Trace:\n${state.error?.stack}`;
 
     navigator.clipboard
       .writeText(errorText)
       .then(() => {
-        toast.success('Error details copied to clipboard')
+        toast.success('Error details copied to clipboard');
       })
       .catch(() => {
-        toast.error('Failed to copy error details')
-      })
-  }
+        toast.error('Failed to copy error details');
+      });
+  };
 
   const toggleDetails = () => {
-    setState((prev) => ({ ...prev, showDetails: !prev.showDetails }))
-  }
+    setState(prev => ({ ...prev, showDetails: !prev.showDetails }));
+  };
 
   if (state.hasError) {
     // Use custom fallback if provided
     if (fallback) {
-      return fallback
+      return fallback;
     }
 
     return (
@@ -175,7 +190,9 @@ export function AsyncErrorBoundary({
                   <AlertTriangle className="text-destructive h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-destructive">Async Operation Failed</CardTitle>
+                  <CardTitle className="text-destructive">
+                    Async Operation Failed
+                  </CardTitle>
                   <CardDescription>
                     {componentName ? (
                       <>Error in {componentName} async operation</>
@@ -191,39 +208,25 @@ export function AsyncErrorBoundary({
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Async Error Details</AlertTitle>
-                <AlertDescription>{state.error?.message || 'Unknown async error occurred'}</AlertDescription>
+                <AlertDescription>
+                  {state.error?.message || 'Unknown async error occurred'}
+                </AlertDescription>
               </Alert>
 
               <div className="flex flex-wrap gap-2">
-                <Button
-                  onClick={handleReset}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={handleReset} variant="outline" size="sm">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Try Again
                 </Button>
-                <Button
-                  onClick={handleReload}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={handleReload} variant="outline" size="sm">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Reload Page
                 </Button>
-                <Button
-                  onClick={handleGoHome}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={handleGoHome} variant="outline" size="sm">
                   <Home className="mr-2 h-4 w-4" />
                   Go Home
                 </Button>
-                <Button
-                  onClick={handleCopyError}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={handleCopyError} variant="outline" size="sm">
                   <Copy className="mr-2 h-4 w-4" />
                   Copy Error
                 </Button>
@@ -240,31 +243,31 @@ export function AsyncErrorBoundary({
                     <Bug className="h-4 w-4" />
                     {state.showDetails ? 'Hide' : 'Show'} Technical Details
                   </span>
-                  <X className={`h-4 w-4 transition-transform ${state.showDetails ? 'rotate-45' : ''}`} />
+                  <X
+                    className={`h-4 w-4 transition-transform ${state.showDetails ? 'rotate-45' : ''}`}
+                  />
                 </Button>
 
                 {state.showDetails && (
                   <div className="bg-muted/50 space-y-3 rounded-md border p-3">
                     <div>
-                      <Badge
-                        variant="secondary"
-                        className="mb-2"
-                      >
+                      <Badge variant="secondary" className="mb-2">
                         Error Message
                       </Badge>
-                      <pre className="text-muted-foreground text-sm">{state.error?.message}</pre>
+                      <pre className="text-muted-foreground text-sm">
+                        {state.error?.message}
+                      </pre>
                     </div>
 
                     <Separator />
 
                     <div>
-                      <Badge
-                        variant="secondary"
-                        className="mb-2"
-                      >
+                      <Badge variant="secondary" className="mb-2">
                         Stack Trace
                       </Badge>
-                      <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">{state.error?.stack}</pre>
+                      <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">
+                        {state.error?.stack}
+                      </pre>
                     </div>
                   </div>
                 )}
@@ -273,8 +276,8 @@ export function AsyncErrorBoundary({
           </Card>
         </div>
       </div>
-    )
+    );
   }
 
-  return <>{children}</>
+  return <>{children}</>;
 }

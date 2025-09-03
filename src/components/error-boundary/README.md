@@ -20,8 +20,8 @@ A class-based error boundary that catches React component errors and provides re
 **Usage:**
 
 ```tsx
-import { ErrorBoundary } from '@/components/error-boundary'
-;<ErrorBoundary
+import { ErrorBoundary } from '@/components/error-boundary';
+<ErrorBoundary
   componentName="MyComponent"
   showDetails={process.env.NODE_ENV === 'development'}
   onError={(error, errorInfo) => {
@@ -29,7 +29,7 @@ import { ErrorBoundary } from '@/components/error-boundary'
   }}
 >
   <MyComponent />
-</ErrorBoundary>
+</ErrorBoundary>;
 ```
 
 ### 2. AsyncErrorBoundary
@@ -47,15 +47,15 @@ A functional error boundary that catches asynchronous errors and unhandled promi
 **Usage:**
 
 ```tsx
-import { AsyncErrorBoundary } from '@/components/error-boundary'
-;<AsyncErrorBoundary
+import { AsyncErrorBoundary } from '@/components/error-boundary';
+<AsyncErrorBoundary
   componentName="MyAsyncComponent"
-  onError={(error) => {
+  onError={error => {
     // Custom async error handling
   }}
 >
   <MyAsyncComponent />
-</AsyncErrorBoundary>
+</AsyncErrorBoundary>;
 ```
 
 ### 3. ModuleErrorBoundary
@@ -73,15 +73,15 @@ A specialized error boundary for individual modules/pages with module-specific e
 **Usage:**
 
 ```tsx
-import { ModuleErrorBoundary } from '@/components/error-boundary'
-;<ModuleErrorBoundary
+import { ModuleErrorBoundary } from '@/components/error-boundary';
+<ModuleErrorBoundary
   moduleName="Expenses"
   showDetails={process.env.NODE_ENV === 'development'}
   allowRetry={true}
   allowNavigation={true}
 >
   <ExpensesPage />
-</ModuleErrorBoundary>
+</ModuleErrorBoundary>;
 ```
 
 ## Hooks
@@ -102,44 +102,44 @@ A custom hook that provides consistent error handling patterns throughout the ap
 **Usage:**
 
 ```tsx
-import { ErrorContexts, useErrorHandler } from '@/components/error-boundary'
+import { ErrorContexts, useErrorHandler } from '@/components/error-boundary';
 
 const MyComponent = () => {
   const { handleError, handleAsyncError, wrapAsyncFunction } = useErrorHandler({
     fallbackMessage: 'Something went wrong',
     showToast: true,
     logToConsole: true,
-  })
+  });
 
   // Handle synchronous errors
   const handleClick = () => {
     try {
       // Some operation that might fail
     } catch (error) {
-      handleError(error, ErrorContexts.dataFetch('MyComponent'))
+      handleError(error, ErrorContexts.dataFetch('MyComponent'));
     }
-  }
+  };
 
   // Handle asynchronous errors
   const loadData = async () => {
     const result = await handleAsyncError(async () => {
-      const data = await fetch('/api/data')
-      return data.json()
-    }, ErrorContexts.dataFetch('MyComponent'))
+      const data = await fetch('/api/data');
+      return data.json();
+    }, ErrorContexts.dataFetch('MyComponent'));
 
     if (result) {
       // Handle success
     }
-  }
+  };
 
   // Wrap async functions
   const wrappedFetch = wrapAsyncFunction(async (url: string) => {
-    const response = await fetch(url)
-    return response.json()
-  }, ErrorContexts.dataFetch('MyComponent'))
+    const response = await fetch(url);
+    return response.json();
+  }, ErrorContexts.dataFetch('MyComponent'));
 
-  return <div>...</div>
-}
+  return <div>...</div>;
+};
 ```
 
 ## Error Contexts
@@ -148,17 +148,47 @@ Predefined error contexts for common operations:
 
 ```tsx
 export const ErrorContexts = {
-  dataFetch: (componentName: string) => ({ componentName, operation: 'Data Fetch' }),
-  dataSave: (componentName: string) => ({ componentName, operation: 'Data Save' }),
-  dataDelete: (componentName: string) => ({ componentName, operation: 'Data Delete' }),
-  formSubmit: (componentName: string) => ({ componentName, operation: 'Form Submit' }),
-  fileUpload: (componentName: string) => ({ componentName, operation: 'File Upload' }),
-  fileDownload: (componentName: string) => ({ componentName, operation: 'File Download' }),
-  navigation: (componentName: string) => ({ componentName, operation: 'Navigation' }),
-  validation: (componentName: string) => ({ componentName, operation: 'Validation' }),
-  authentication: (componentName: string) => ({ componentName, operation: 'Authentication' }),
-  authorization: (componentName: string) => ({ componentName, operation: 'Authorization' }),
-}
+  dataFetch: (componentName: string) => ({
+    componentName,
+    operation: 'Data Fetch',
+  }),
+  dataSave: (componentName: string) => ({
+    componentName,
+    operation: 'Data Save',
+  }),
+  dataDelete: (componentName: string) => ({
+    componentName,
+    operation: 'Data Delete',
+  }),
+  formSubmit: (componentName: string) => ({
+    componentName,
+    operation: 'Form Submit',
+  }),
+  fileUpload: (componentName: string) => ({
+    componentName,
+    operation: 'File Upload',
+  }),
+  fileDownload: (componentName: string) => ({
+    componentName,
+    operation: 'File Download',
+  }),
+  navigation: (componentName: string) => ({
+    componentName,
+    operation: 'Navigation',
+  }),
+  validation: (componentName: string) => ({
+    componentName,
+    operation: 'Validation',
+  }),
+  authentication: (componentName: string) => ({
+    componentName,
+    operation: 'Authentication',
+  }),
+  authorization: (componentName: string) => ({
+    componentName,
+    operation: 'Authorization',
+  }),
+};
 ```
 
 ## Integration Examples
@@ -167,7 +197,7 @@ export const ErrorContexts = {
 
 ```tsx
 // src/App.tsx
-import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary'
+import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
 
 function App() {
   return (
@@ -181,7 +211,7 @@ function App() {
         </Router>
       </ErrorBoundary>
     </AsyncErrorBoundary>
-  )
+  );
 }
 ```
 
@@ -189,7 +219,7 @@ function App() {
 
 ```tsx
 // src/pages/expenses.tsx
-import { ModuleErrorBoundary } from '@/components/error-boundary'
+import { ModuleErrorBoundary } from '@/components/error-boundary';
 
 const ExpensesPage = () => {
   return (
@@ -199,33 +229,33 @@ const ExpensesPage = () => {
     >
       {/* Page content */}
     </ModuleErrorBoundary>
-  )
-}
+  );
+};
 ```
 
 ### 3. Component-Level Error Handling
 
 ```tsx
 // src/components/expenses/expense-form.tsx
-import { ErrorContexts, useErrorHandler } from '@/components/error-boundary'
+import { ErrorContexts, useErrorHandler } from '@/components/error-boundary';
 
 const ExpenseForm = () => {
   const { handleAsyncError } = useErrorHandler({
     fallbackMessage: 'Failed to save expense',
-  })
+  });
 
   const handleSubmit = async (data: ExpenseData) => {
     const result = await handleAsyncError(async () => {
-      return await invoke('save_expense', { data })
-    }, ErrorContexts.formSubmit('ExpenseForm'))
+      return await invoke('save_expense', { data });
+    }, ErrorContexts.formSubmit('ExpenseForm'));
 
     if (result) {
       // Handle success
     }
-  }
+  };
 
-  return <form onSubmit={handleSubmit}>...</form>
-}
+  return <form onSubmit={handleSubmit}>...</form>;
+};
 ```
 
 ## Error Recovery Strategies
@@ -305,14 +335,14 @@ const ExpenseForm = () => {
 ```tsx
 // Force an error to test error boundary
 const TestComponent = () => {
-  const [shouldError, setShouldError] = useState(false)
+  const [shouldError, setShouldError] = useState(false);
 
   if (shouldError) {
-    throw new Error('Test error for error boundary')
+    throw new Error('Test error for error boundary');
   }
 
-  return <button onClick={() => setShouldError(true)}>Trigger Error</button>
-}
+  return <button onClick={() => setShouldError(true)}>Trigger Error</button>;
+};
 ```
 
 ### 2. Async Error Testing
@@ -321,11 +351,11 @@ const TestComponent = () => {
 // Test async error boundary
 const TestAsyncComponent = () => {
   const triggerAsyncError = () => {
-    Promise.reject(new Error('Test async error'))
-  }
+    Promise.reject(new Error('Test async error'));
+  };
 
-  return <button onClick={triggerAsyncError}>Trigger Async Error</button>
-}
+  return <button onClick={triggerAsyncError}>Trigger Async Error</button>;
+};
 ```
 
 This error boundary system provides comprehensive error handling for the Import Manager application, ensuring a robust and user-friendly experience even when errors occur.

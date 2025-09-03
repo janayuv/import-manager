@@ -1,8 +1,8 @@
 // src/components/invoice/data.ts (MODIFIED - Changed bcd and igst to numbers)
-import type { Invoice } from '@/types/invoice'
-import type { Item } from '@/types/item'
-import type { Shipment } from '@/types/shipment'
-import type { Supplier } from '@/types/supplier'
+import type { Invoice } from '@/types/invoice';
+import type { Item } from '@/types/item';
+import type { Shipment } from '@/types/shipment';
+import type { Supplier } from '@/types/supplier';
 
 // FIXED: Added missing properties to match the Supplier type
 export const dummySuppliers: Supplier[] = [
@@ -27,7 +27,7 @@ export const dummySuppliers: Supplier[] = [
     email: 'sales@ppc.jp',
     isActive: false,
   },
-]
+];
 
 export const dummyInvoices: Invoice[] = [
   {
@@ -56,7 +56,7 @@ export const dummyInvoices: Invoice[] = [
       { id: 'li-4', itemId: 'ITM-001', quantity: 20, unitPrice: 100 },
     ],
   },
-]
+];
 
 export const dummyShipments: Shipment[] = [
   {
@@ -119,7 +119,7 @@ export const dummyShipments: Shipment[] = [
     status: 'Completed',
     isFrozen: false,
   },
-]
+];
 
 export const dummyItems: Item[] = [
   // FIX: Changed bcd and igst from string to number
@@ -159,4 +159,4 @@ export const dummyItems: Item[] = [
     igst: 28,
     isActive: true,
   },
-]
+];

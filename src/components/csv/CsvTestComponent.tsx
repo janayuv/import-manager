@@ -1,60 +1,81 @@
 // src/components/csv/CsvTestComponent.tsx
 // Comprehensive CSV import/export test component with edge case handling
-import { AlertCircle, AlertTriangle, CheckCircle, FileText, Info, Upload, X } from 'lucide-react'
-import { toast } from 'sonner'
+import {
+  AlertCircle,
+  AlertTriangle,
+  CheckCircle,
+  FileText,
+  Info,
+  Upload,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-import { useState } from 'react'
+import { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   type CsvValidationResult,
   generateCsvTemplate,
   normalizeCsvEncoding,
   validateCsvContent,
-} from '@/lib/csv-helpers'
+} from '@/lib/csv-helpers';
 
 interface TestResult {
-  timestamp: string
-  testType: string
-  success: boolean
-  message: string
-  details?: string
+  timestamp: string;
+  testType: string;
+  success: boolean;
+  message: string;
+  details?: string;
 }
 
 export function CsvTestComponent() {
-  const [activeTab, setActiveTab] = useState('validation')
-  const [csvContent, setCsvContent] = useState('')
-  const [validationResult, setValidationResult] = useState<CsvValidationResult | null>(null)
-  const [testResults, setTestResults] = useState<TestResult[]>([])
-  const [selectedDataType, setSelectedDataType] = useState<'items' | 'shipments' | 'suppliers' | 'boes'>('items')
+  const [activeTab, setActiveTab] = useState('validation');
+  const [csvContent, setCsvContent] = useState('');
+  const [validationResult, setValidationResult] =
+    useState<CsvValidationResult | null>(null);
+  const [testResults, setTestResults] = useState<TestResult[]>([]);
+  const [selectedDataType, setSelectedDataType] = useState<
+    'items' | 'shipments' | 'suppliers' | 'boes'
+  >('items');
 
   const addTestResult = (result: TestResult) => {
-    setTestResults((prev) => [result, ...prev.slice(0, 9)]) // Keep last 10 results
-  }
+    setTestResults(prev => [result, ...prev.slice(0, 9)]); // Keep last 10 results
+  };
 
   const runValidationTest = () => {
     if (!csvContent.trim()) {
-      toast.error('Please enter CSV content first')
-      return
+      toast.error('Please enter CSV content first');
+      return;
     }
 
     try {
       const requiredHeaders = {
-        items: ['partNumber', 'itemDescription', 'unit', 'currency', 'unitPrice'],
+        items: [
+          'partNumber',
+          'itemDescription',
+          'unit',
+          'currency',
+          'unitPrice',
+        ],
         shipments: ['invoiceNumber', 'invoiceDate', 'invoiceValue'],
         suppliers: ['supplierName', 'country'],
         boes: ['beNumber', 'beDate'],
-      }[selectedDataType]
+      }[selectedDataType];
 
-      const result = validateCsvContent(csvContent, requiredHeaders, selectedDataType)
-      setValidationResult(result)
+      const result = validateCsvContent(
+        csvContent,
+        requiredHeaders,
+        selectedDataType
+      );
+      setValidationResult(result);
 
       addTestResult({
         timestamp: new Date().toISOString(),
@@ -62,42 +83,43 @@ export function CsvTestComponent() {
         success: result.isValid,
         message: result.isValid ? 'Validation passed' : 'Validation failed',
         details: `Errors: ${result.errors.length}, Warnings: ${result.warnings.length}`,
-      })
+      });
 
       if (result.isValid) {
-        toast.success('CSV validation passed!')
+        toast.success('CSV validation passed!');
       } else {
-        toast.error(`Validation failed with ${result.errors.length} errors`)
+        toast.error(`Validation failed with ${result.errors.length} errors`);
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      toast.error(`Validation error: ${errorMessage}`)
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Validation error: ${errorMessage}`);
       addTestResult({
         timestamp: new Date().toISOString(),
         testType: 'CSV Validation',
         success: false,
         message: 'Validation error',
         details: errorMessage,
-      })
+      });
     }
-  }
+  };
 
   const loadTemplate = () => {
-    const template = generateCsvTemplate(selectedDataType)
-    setCsvContent(template)
-    toast.success('Template loaded successfully')
-  }
+    const template = generateCsvTemplate(selectedDataType);
+    setCsvContent(template);
+    toast.success('Template loaded successfully');
+  };
 
   const testEncodingNormalization = () => {
     if (!csvContent.trim()) {
-      toast.error('Please enter CSV content first')
-      return
+      toast.error('Please enter CSV content first');
+      return;
     }
 
     try {
-      const normalized = normalizeCsvEncoding(csvContent)
-      const originalSize = new Blob([csvContent]).size
-      const normalizedSize = new Blob([normalized]).size
+      const normalized = normalizeCsvEncoding(csvContent);
+      const originalSize = new Blob([csvContent]).size;
+      const normalizedSize = new Blob([normalized]).size;
 
       addTestResult({
         timestamp: new Date().toISOString(),
@@ -105,52 +127,54 @@ export function CsvTestComponent() {
         success: true,
         message: 'Encoding normalized successfully',
         details: `Original: ${originalSize} bytes, Normalized: ${normalizedSize} bytes`,
-      })
+      });
 
-      toast.success('Encoding normalization completed')
+      toast.success('Encoding normalization completed');
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-      toast.error(`Encoding error: ${errorMessage}`)
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      toast.error(`Encoding error: ${errorMessage}`);
       addTestResult({
         timestamp: new Date().toISOString(),
         testType: 'Encoding Normalization',
         success: false,
         message: 'Encoding error',
         details: errorMessage,
-      })
+      });
     }
-  }
+  };
 
   const testLargeFileSimulation = () => {
     // Simulate a large CSV file
-    const largeCsv = generateLargeCsv(selectedDataType, 5000) // 5000 rows
-    const sizeInMB = new Blob([largeCsv]).size / (1024 * 1024)
+    const largeCsv = generateLargeCsv(selectedDataType, 5000); // 5000 rows
+    const sizeInMB = new Blob([largeCsv]).size / (1024 * 1024);
 
     addTestResult({
       timestamp: new Date().toISOString(),
       testType: 'Large File Simulation',
       success: sizeInMB <= 10, // 10MB limit
-      message: sizeInMB <= 10 ? 'File size within limits' : 'File size exceeds limit',
+      message:
+        sizeInMB <= 10 ? 'File size within limits' : 'File size exceeds limit',
       details: `Generated: ${sizeInMB.toFixed(2)}MB, Limit: 10MB`,
-    })
+    });
 
     if (sizeInMB <= 10) {
-      toast.success('Large file simulation passed')
+      toast.success('Large file simulation passed');
     } else {
-      toast.error('File size exceeds 10MB limit')
+      toast.error('File size exceeds 10MB limit');
     }
-  }
+  };
 
   const testMaliciousContent = () => {
     const maliciousCsv = `partNumber,itemDescription,unit,currency,unitPrice
 ABC-001,<script>alert('xss')</script>,PC,USD,10.50
 ABC-002,Item with "quotes" and 'apostrophes',PC,USD,20.00
 ABC-003,Item with \n newlines \r and \t tabs,PC,USD,30.00
-ABC-004,Item with very long description that exceeds the recommended column length limit of 1000 characters ${'A'.repeat(1000)},PC,USD,40.00`
+ABC-004,Item with very long description that exceeds the recommended column length limit of 1000 characters ${'A'.repeat(1000)},PC,USD,40.00`;
 
-    setCsvContent(maliciousCsv)
-    toast.info('Malicious content loaded for testing')
-  }
+    setCsvContent(maliciousCsv);
+    toast.info('Malicious content loaded for testing');
+  };
 
   const testInvalidData = () => {
     const invalidCsv = `partNumber,itemDescription,unit,currency,unitPrice
@@ -158,11 +182,11 @@ ABC-004,Item with very long description that exceeds the recommended column leng
 ABC-002,Item with invalid price,PC,USD,invalid
 ABC-003,Item with negative price,PC,USD,-10.00
 ABC-004,Item with invalid tax rate,PC,USD,10.50
-ABC-005,Item with invalid email,PC,USD,10.50`
+ABC-005,Item with invalid email,PC,USD,10.50`;
 
-    setCsvContent(invalidCsv)
-    toast.info('Invalid data loaded for testing')
-  }
+    setCsvContent(invalidCsv);
+    toast.info('Invalid data loaded for testing');
+  };
 
   const generateLargeCsv = (dataType: string, rowCount: number): string => {
     const headers =
@@ -174,9 +198,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
         suppliers:
           'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive',
         boes: 'beNumber,beDate,location,totalAssessmentValue,dutyAmount,paymentDate,dutyPaid,challanNumber,refId,transactionId',
-      }[dataType] || ''
+      }[dataType] || '';
 
-    const rows = []
+    const rows = [];
     for (let i = 1; i <= rowCount; i++) {
       const row =
         {
@@ -184,24 +208,25 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           shipments: `INV-${i.toString().padStart(6, '0')},2024-01-15,${(Math.random() * 100000).toFixed(2)},USD,SUP-${i.toString().padStart(3, '0')},Electronics,FOB,Sea,FCL`,
           suppliers: `Supplier ${i},SUP${i},China,supplier${i}@example.com,+86-123-456-7890,Beneficiary ${i},Bank ${i},Branch ${i},Address ${i},1234567890,IBAN${i},SWIFT${i},true`,
           boes: `BE${i.toString().padStart(6, '0')},2024-01-15,Mumbai,${(Math.random() * 100000).toFixed(2)},${(Math.random() * 10000).toFixed(2)},2024-01-16,${(Math.random() * 10000).toFixed(2)},CHL${i},REF${i},TXN${i}`,
-        }[dataType] || ''
-      rows.push(row)
+        }[dataType] || '';
+      rows.push(row);
     }
 
-    return [headers, ...rows].join('\n')
-  }
+    return [headers, ...rows].join('\n');
+  };
 
   return (
     <div className="container mx-auto space-y-6 p-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">CSV Import/Export Edge Cases & Robustness Test</h1>
-          <p className="text-muted-foreground">Comprehensive testing of CSV functionality with edge case handling</p>
+          <h1 className="text-3xl font-bold">
+            CSV Import/Export Edge Cases & Robustness Test
+          </h1>
+          <p className="text-muted-foreground">
+            Comprehensive testing of CSV functionality with edge case handling
+          </p>
         </div>
-        <Badge
-          variant="outline"
-          className="text-sm"
-        >
+        <Badge variant="outline" className="text-sm">
           Enhanced CSV System
         </Badge>
       </div>
@@ -218,10 +243,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           <TabsTrigger value="results">Test Results</TabsTrigger>
         </TabsList>
 
-        <TabsContent
-          value="validation"
-          className="space-y-4"
-        >
+        <TabsContent value="validation" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -235,7 +257,11 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 <select
                   id="data-type"
                   value={selectedDataType}
-                  onChange={(e) => setSelectedDataType(e.target.value as 'items' | 'suppliers' | 'shipments')}
+                  onChange={e =>
+                    setSelectedDataType(
+                      e.target.value as 'items' | 'suppliers' | 'shipments'
+                    )
+                  }
                   className="rounded border px-3 py-1"
                 >
                   <option value="items">Items</option>
@@ -243,11 +269,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                   <option value="suppliers">Suppliers</option>
                   <option value="boes">BOEs</option>
                 </select>
-                <Button
-                  onClick={loadTemplate}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={loadTemplate} variant="outline" size="sm">
                   Load Template
                 </Button>
               </div>
@@ -257,7 +279,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 <Textarea
                   id="csv-content"
                   value={csvContent}
-                  onChange={(e) => setCsvContent(e.target.value)}
+                  onChange={e => setCsvContent(e.target.value)}
                   placeholder="Paste your CSV content here..."
                   className="min-h-[200px] font-mono text-sm"
                 />
@@ -271,10 +293,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                   <Upload className="h-4 w-4" />
                   Run Validation
                 </Button>
-                <Button
-                  onClick={testEncodingNormalization}
-                  variant="outline"
-                >
+                <Button onClick={testEncodingNormalization} variant="outline">
                   Test Encoding
                 </Button>
               </div>
@@ -284,7 +303,11 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                   <Separator />
                   <div className="flex items-center gap-2">
                     <h3 className="font-semibold">Validation Results:</h3>
-                    <Badge variant={validationResult.isValid ? 'default' : 'destructive'}>
+                    <Badge
+                      variant={
+                        validationResult.isValid ? 'default' : 'destructive'
+                      }
+                    >
                       {validationResult.isValid ? 'Valid' : 'Invalid'}
                     </Badge>
                   </div>
@@ -303,11 +326,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                         <div className="space-y-2">
                           <div className="font-semibold">Errors:</div>
                           {validationResult.errors.map((error, index) => (
-                            <div
-                              key={index}
-                              className="text-sm"
-                            >
-                              Row {error.row}, Column {error.column}: {error.message}
+                            <div key={index} className="text-sm">
+                              Row {error.row}, Column {error.column}:{' '}
+                              {error.message}
                             </div>
                           ))}
                         </div>
@@ -322,11 +343,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                         <div className="space-y-2">
                           <div className="font-semibold">Warnings:</div>
                           {validationResult.warnings.map((warning, index) => (
-                            <div
-                              key={index}
-                              className="text-sm"
-                            >
-                              Row {warning.row}, Column {warning.column}: {warning.message}
+                            <div key={index} className="text-sm">
+                              Row {warning.row}, Column {warning.column}:{' '}
+                              {warning.message}
                             </div>
                           ))}
                         </div>
@@ -339,10 +358,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           </Card>
         </TabsContent>
 
-        <TabsContent
-          value="edge-cases"
-          className="space-y-4"
-        >
+        <TabsContent value="edge-cases" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -359,7 +375,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 >
                   <div className="text-center">
                     <div className="font-semibold">Large File Test</div>
-                    <div className="text-muted-foreground text-xs">Test 10MB limit</div>
+                    <div className="text-muted-foreground text-xs">
+                      Test 10MB limit
+                    </div>
                   </div>
                 </Button>
 
@@ -370,7 +388,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 >
                   <div className="text-center">
                     <div className="font-semibold">Invalid Data Test</div>
-                    <div className="text-muted-foreground text-xs">Test validation errors</div>
+                    <div className="text-muted-foreground text-xs">
+                      Test validation errors
+                    </div>
                   </div>
                 </Button>
 
@@ -381,7 +401,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 >
                   <div className="text-center">
                     <div className="font-semibold">Security Test</div>
-                    <div className="text-muted-foreground text-xs">Test XSS & injection</div>
+                    <div className="text-muted-foreground text-xs">
+                      Test XSS & injection
+                    </div>
                   </div>
                 </Button>
 
@@ -392,7 +414,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                 >
                   <div className="text-center">
                     <div className="font-semibold">Encoding Test</div>
-                    <div className="text-muted-foreground text-xs">Test UTF-8 handling</div>
+                    <div className="text-muted-foreground text-xs">
+                      Test UTF-8 handling
+                    </div>
                   </div>
                 </Button>
               </div>
@@ -414,10 +438,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           </Card>
         </TabsContent>
 
-        <TabsContent
-          value="security"
-          className="space-y-4"
-        >
+        <TabsContent value="security" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -471,10 +492,7 @@ ABC-005,Item with invalid email,PC,USD,10.50`
           </Card>
         </TabsContent>
 
-        <TabsContent
-          value="results"
-          className="space-y-4"
-        >
+        <TabsContent value="results" className="space-y-4">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -486,7 +504,9 @@ ABC-005,Item with invalid email,PC,USD,10.50`
               {testResults.length === 0 ? (
                 <div className="text-muted-foreground py-8 text-center">
                   <Info className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>No test results yet. Run some tests to see results here.</p>
+                  <p>
+                    No test results yet. Run some tests to see results here.
+                  </p>
                 </div>
               ) : (
                 <div className="space-y-2">
@@ -494,15 +514,17 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                     <div
                       key={index}
                       className={`rounded-lg border p-3 ${
-                        result.success ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'
+                        result.success
+                          ? 'border-success/20 bg-success/5'
+                          : 'border-destructive/20 bg-destructive/5'
                       }`}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {result.success ? (
-                            <CheckCircle className="h-4 w-4 text-green-600" />
+                            <CheckCircle className="text-success h-4 w-4" />
                           ) : (
-                            <X className="h-4 w-4 text-red-600" />
+                            <X className="text-destructive h-4 w-4" />
                           )}
                           <span className="font-medium">{result.testType}</span>
                           <Badge
@@ -516,8 +538,14 @@ ABC-005,Item with invalid email,PC,USD,10.50`
                           {new Date(result.timestamp).toLocaleTimeString()}
                         </span>
                       </div>
-                      <div className="text-muted-foreground mt-1 text-sm">{result.message}</div>
-                      {result.details && <div className="text-muted-foreground mt-1 text-xs">{result.details}</div>}
+                      <div className="text-muted-foreground mt-1 text-sm">
+                        {result.message}
+                      </div>
+                      {result.details && (
+                        <div className="text-muted-foreground mt-1 text-xs">
+                          {result.details}
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -527,5 +555,5 @@ ABC-005,Item with invalid email,PC,USD,10.50`
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

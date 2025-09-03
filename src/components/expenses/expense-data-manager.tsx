@@ -1,72 +1,89 @@
-import { invoke } from '@tauri-apps/api/core'
-import { AlertTriangle, Trash2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core';
+import { confirm } from '@tauri-apps/plugin-dialog';
+import { AlertTriangle, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 
 const ExpenseDataManager: React.FC = () => {
-  const [isClearing, setIsClearing] = useState(false)
-  const [message, setMessage] = useState<string | null>(null)
+  const [isClearing, setIsClearing] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   const clearExpenseData = async () => {
-    if (
-      !confirm('Are you sure you want to clear all expense types and service providers? This action cannot be undone.')
-    ) {
-      return
+    const confirmed = await confirm(
+      'Are you sure you want to clear all expense types and service providers? This action cannot be undone.',
+      {
+        title: 'Clear Expense Data',
+        kind: 'warning',
+      }
+    );
+
+    if (!confirmed) {
+      return;
     }
 
-    setIsClearing(true)
-    setMessage(null)
+    setIsClearing(true);
+    setMessage(null);
 
     try {
-      const result = await invoke<string>('clear_expense_data')
-      setMessage(result)
-      toast.success('Expense data cleared successfully')
+      const result = await invoke<string>('clear_expense_data');
+      setMessage(result);
+      toast.success('Expense data cleared successfully');
     } catch (error) {
-      console.error('Failed to clear expense data:', error)
-      setMessage(`Error: ${error}`)
-      toast.error('Failed to clear expense data')
+      console.error('Failed to clear expense data:', error);
+      setMessage(`Error: ${error}`);
+      toast.error('Failed to clear expense data');
     } finally {
-      setIsClearing(false)
+      setIsClearing(false);
     }
-  }
+  };
 
   const debugExpenseData = async () => {
     try {
-      const result = await invoke<string>('debug_expense_data')
-      setMessage(result)
-      console.log('Debug result:', result)
+      const result = await invoke<string>('debug_expense_data');
+      setMessage(result);
+      console.log('Debug result:', result);
     } catch (error) {
-      console.error('Failed to debug expense data:', error)
-      setMessage(`Error: ${error}`)
-      toast.error('Failed to debug expense data')
+      console.error('Failed to debug expense data:', error);
+      setMessage(`Error: ${error}`);
+      toast.error('Failed to debug expense data');
     }
-  }
+  };
 
   const cleanupOrphanedExpenses = async () => {
-    if (
-      !confirm(
-        'Are you sure you want to clean up orphaned expense data? This will remove expenses and invoices that are not properly linked.'
-      )
-    ) {
-      return
+    const confirmed = await confirm(
+      'Are you sure you want to clean up orphaned expense data? This will remove expenses and invoices that are not properly linked.',
+      {
+        title: 'Cleanup Orphaned Data',
+        kind: 'warning',
+      }
+    );
+
+    if (!confirmed) {
+      return;
     }
 
     try {
-      const result = await invoke<string>('cleanup_orphaned_expenses')
-      setMessage(result)
-      console.log('Cleanup result:', result)
-      toast.success('Orphaned expense data cleaned up successfully')
+      const result = await invoke<string>('cleanup_orphaned_expenses');
+      setMessage(result);
+      console.log('Cleanup result:', result);
+      toast.success('Orphaned expense data cleaned up successfully');
     } catch (error) {
-      console.error('Failed to cleanup orphaned expenses:', error)
-      setMessage(`Error: ${error}`)
-      toast.error('Failed to cleanup orphaned expenses')
+      console.error('Failed to cleanup orphaned expenses:', error);
+      setMessage(`Error: ${error}`);
+      toast.error('Failed to cleanup orphaned expenses');
     }
-  }
+  };
 
   return (
     <div className="space-y-6">
@@ -76,14 +93,17 @@ const ExpenseDataManager: React.FC = () => {
             <Trash2 className="h-5 w-5" />
             Expense Data Manager
           </CardTitle>
-          <CardDescription>Manage expense types and service providers data</CardDescription>
+          <CardDescription>
+            Manage expense types and service providers data
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              This will remove all existing expense types and service providers from the database. You will need to add
-              them manually after clearing.
+              This will remove all existing expense types and service providers
+              from the database. You will need to add them manually after
+              clearing.
             </AlertDescription>
           </Alert>
 
@@ -96,17 +116,11 @@ const ExpenseDataManager: React.FC = () => {
               {isClearing ? 'Clearing...' : 'Clear All Expense Data'}
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={debugExpenseData}
-            >
+            <Button variant="outline" onClick={debugExpenseData}>
               Debug Expense Data
             </Button>
 
-            <Button
-              variant="outline"
-              onClick={cleanupOrphanedExpenses}
-            >
+            <Button variant="outline" onClick={cleanupOrphanedExpenses}>
               Cleanup Orphaned Data
             </Button>
           </div>
@@ -119,7 +133,7 @@ const ExpenseDataManager: React.FC = () => {
         </CardContent>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default ExpenseDataManager
+export default ExpenseDataManager;

@@ -1,17 +1,22 @@
-import { useState } from 'react'
+import { useState } from 'react';
 
-import { Panel, PanelGroup, type PanelGroupProps, PanelResizeHandle } from 'react-resizable-panels'
+import {
+  Panel,
+  PanelGroup,
+  type PanelGroupProps,
+  PanelResizeHandle,
+} from 'react-resizable-panels';
 
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils';
 
 interface ResizableLayoutProps extends Omit<PanelGroupProps, 'children'> {
-  children: React.ReactNode[]
-  storageKey?: string
-  defaultSizes?: number[]
-  minSizes?: number[]
-  maxSizes?: number[]
-  className?: string
-  onLayoutChange?: (sizes: number[]) => void
+  children: React.ReactNode[];
+  storageKey?: string;
+  defaultSizes?: number[];
+  minSizes?: number[];
+  maxSizes?: number[];
+  className?: string;
+  onLayoutChange?: (sizes: number[]) => void;
 }
 
 export function ResizableLayout({
@@ -26,42 +31,36 @@ export function ResizableLayout({
 }: ResizableLayoutProps) {
   const [sizes, setSizes] = useState<number[]>(() => {
     try {
-      const stored = localStorage.getItem(storageKey)
+      const stored = localStorage.getItem(storageKey);
       if (stored) {
-        const parsed = JSON.parse(stored)
+        const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length === children.length) {
-          return parsed
+          return parsed;
         }
       }
     } catch (e) {
-      console.warn('Failed to load saved layout:', e)
+      console.warn('Failed to load saved layout:', e);
     }
-    return defaultSizes
-  })
+    return defaultSizes;
+  });
 
   const handleLayoutChange = (newSizes: number[]) => {
-    setSizes(newSizes)
-    onLayoutChange?.(newSizes)
+    setSizes(newSizes);
+    onLayoutChange?.(newSizes);
 
     // Save to localStorage
     try {
-      localStorage.setItem(storageKey, JSON.stringify(newSizes))
+      localStorage.setItem(storageKey, JSON.stringify(newSizes));
     } catch (e) {
-      console.warn('Failed to save layout:', e)
+      console.warn('Failed to save layout:', e);
     }
-  }
+  };
 
   return (
     <div className={cn('h-full w-full', className)}>
-      <PanelGroup
-        onLayout={handleLayoutChange}
-        {...props}
-      >
+      <PanelGroup onLayout={handleLayoutChange} {...props}>
         {children.map((child, index) => (
-          <div
-            key={index}
-            className="flex flex-col"
-          >
+          <div key={index} className="flex flex-col">
             <Panel
               defaultSize={sizes[index] || defaultSizes[index] || 50}
               minSize={minSizes[index] || 20}
@@ -77,7 +76,7 @@ export function ResizableLayout({
         ))}
       </PanelGroup>
     </div>
-  )
+  );
 }
 
 // Vertical layout variant
@@ -103,15 +102,15 @@ export function ResizableVerticalLayout({
     >
       {children}
     </ResizableLayout>
-  )
+  );
 }
 
 // Layout controls component
 interface LayoutControlsProps {
-  onReset: () => void
-  onToggleDirection?: () => void
-  direction?: 'horizontal' | 'vertical'
-  className?: string
+  onReset: () => void;
+  onToggleDirection?: () => void;
+  direction?: 'horizontal' | 'vertical';
+  className?: string;
 }
 
 export function LayoutControls({
@@ -140,29 +139,29 @@ export function LayoutControls({
         ↺
       </button>
     </div>
-  )
+  );
 }
 
 // Hook for managing layout preferences
 export function useLayoutPreferences(storageKey: string) {
   const [preferences, setPreferences] = useState(() => {
     try {
-      const stored = localStorage.getItem(storageKey)
-      return stored ? JSON.parse(stored) : {}
+      const stored = localStorage.getItem(storageKey);
+      return stored ? JSON.parse(stored) : {};
     } catch {
-      return {}
+      return {};
     }
-  })
+  });
 
   const savePreferences = (newPreferences: Record<string, unknown>) => {
-    const updated = { ...preferences, ...newPreferences }
-    setPreferences(updated)
+    const updated = { ...preferences, ...newPreferences };
+    setPreferences(updated);
     try {
-      localStorage.setItem(storageKey, JSON.stringify(updated))
+      localStorage.setItem(storageKey, JSON.stringify(updated));
     } catch (e) {
-      console.warn('Failed to save layout preferences:', e)
+      console.warn('Failed to save layout preferences:', e);
     }
-  }
+  };
 
-  return { preferences, savePreferences }
+  return { preferences, savePreferences };
 }

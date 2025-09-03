@@ -1,69 +1,69 @@
-import { invoke } from '@tauri-apps/api/core'
-import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core';
+import { toast } from 'sonner';
 
-import { useState } from 'react'
+import { useState } from 'react';
 
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export function ExpenseDebug() {
-  const [debugInfo, setDebugInfo] = useState<string>('')
-  const [loading, setLoading] = useState(false)
+  const [debugInfo, setDebugInfo] = useState<string>('');
+  const [loading, setLoading] = useState(false);
   const [newExpenseType, setNewExpenseType] = useState({
     name: '',
     cgstRate: 9, // 9% as percentage
     sgstRate: 9, // 9% as percentage
     igstRate: 0, // 0% as percentage
-  })
+  });
 
   const debugExpenseTypes = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const info = await invoke<string>('debug_expense_types')
-      setDebugInfo(info)
+      const info = await invoke<string>('debug_expense_types');
+      setDebugInfo(info);
     } catch (error) {
-      console.error('Failed to debug expense types:', error)
-      toast.error('Failed to debug expense types')
+      console.error('Failed to debug expense types:', error);
+      toast.error('Failed to debug expense types');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const addExpenseType = async () => {
     if (!newExpenseType.name.trim()) {
-      toast.error('Please enter an expense type name')
-      return
+      toast.error('Please enter an expense type name');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
     try {
       await invoke('add_expense_type_with_rates', {
         name: newExpenseType.name,
         cgstRate: newExpenseType.cgstRate * 100, // Convert percentage to basis points for backend
         sgstRate: newExpenseType.sgstRate * 100,
         igstRate: newExpenseType.igstRate * 100,
-      })
-      toast.success(`Added expense type: ${newExpenseType.name}`)
+      });
+      toast.success(`Added expense type: ${newExpenseType.name}`);
       setNewExpenseType({
         name: '',
         cgstRate: 9,
         sgstRate: 9,
         igstRate: 0,
-      })
+      });
       // Refresh debug info
-      await debugExpenseTypes()
+      await debugExpenseTypes();
     } catch (error) {
-      console.error('Failed to add expense type:', error)
-      toast.error('Failed to add expense type')
+      console.error('Failed to add expense type:', error);
+      toast.error('Failed to add expense type');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const addSampleExpenseTypes = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
       const sampleTypes = [
         { name: 'Transport Charges-LCL', cgst: 9, sgst: 9, igst: 0 },
@@ -72,7 +72,7 @@ export function ExpenseDebug() {
         { name: 'Customs Duty', cgst: 9, sgst: 9, igst: 0 },
         { name: 'Freight Charges', cgst: 0, sgst: 0, igst: 18 },
         { name: 'Handling Charges', cgst: 9, sgst: 9, igst: 0 },
-      ]
+      ];
 
       for (const type of sampleTypes) {
         await invoke('add_expense_type_with_rates', {
@@ -80,74 +80,76 @@ export function ExpenseDebug() {
           cgstRate: type.cgst * 100, // Convert percentage to basis points for backend
           sgstRate: type.sgst * 100,
           igstRate: type.igst * 100,
-        })
+        });
       }
 
-      toast.success('Added sample expense types')
-      await debugExpenseTypes()
+      toast.success('Added sample expense types');
+      await debugExpenseTypes();
     } catch (error) {
-      console.error('Failed to add sample expense types:', error)
-      toast.error('Failed to add sample expense types')
+      console.error('Failed to add sample expense types:', error);
+      toast.error('Failed to add sample expense types');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fixExpenseTypes = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await invoke<string>('fix_expense_types')
-      setDebugInfo(result)
-      toast.success('Fixed expense types with correct rates')
+      const result = await invoke<string>('fix_expense_types');
+      setDebugInfo(result);
+      toast.success('Fixed expense types with correct rates');
     } catch (error) {
-      console.error('Failed to fix expense types:', error)
-      toast.error('Failed to fix expense types')
+      console.error('Failed to fix expense types:', error);
+      toast.error('Failed to fix expense types');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fixExistingExpenses = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await invoke<string>('fix_existing_expenses')
-      setDebugInfo(result)
-      toast.success('Fixed existing expenses with correct rates and recalculated amounts')
+      const result = await invoke<string>('fix_existing_expenses');
+      setDebugInfo(result);
+      toast.success(
+        'Fixed existing expenses with correct rates and recalculated amounts'
+      );
     } catch (error) {
-      console.error('Failed to fix existing expenses:', error)
-      toast.error('Failed to fix existing expenses')
+      console.error('Failed to fix existing expenses:', error);
+      toast.error('Failed to fix existing expenses');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fixLclChargesRate = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await invoke<string>('fix_lcl_charges_rate')
-      setDebugInfo(result)
-      toast.success('Fixed LCL Charges rate')
+      const result = await invoke<string>('fix_lcl_charges_rate');
+      setDebugInfo(result);
+      toast.success('Fixed LCL Charges rate');
     } catch (error) {
-      console.error('Failed to fix LCL Charges rate:', error)
-      toast.error('Failed to fix LCL Charges rate')
+      console.error('Failed to fix LCL Charges rate:', error);
+      toast.error('Failed to fix LCL Charges rate');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const cleanupOrphanedExpenseInvoices = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const result = await invoke<string>('cleanup_orphaned_expense_invoices')
-      setDebugInfo(result)
-      toast.success('Cleaned up orphaned expense invoices')
+      const result = await invoke<string>('cleanup_orphaned_expense_invoices');
+      setDebugInfo(result);
+      toast.success('Cleaned up orphaned expense invoices');
     } catch (error) {
-      console.error('Failed to cleanup orphaned expense invoices:', error)
-      toast.error('Failed to cleanup orphaned expense invoices')
+      console.error('Failed to cleanup orphaned expense invoices:', error);
+      toast.error('Failed to cleanup orphaned expense invoices');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="space-y-6 p-6">
@@ -159,10 +161,7 @@ export function ExpenseDebug() {
           {/* Debug Section */}
           <div className="space-y-4">
             <div className="flex gap-4">
-              <Button
-                onClick={debugExpenseTypes}
-                disabled={loading}
-              >
+              <Button onClick={debugExpenseTypes} disabled={loading}>
                 {loading ? 'Loading...' : 'Debug Expense Types'}
               </Button>
               <Button
@@ -203,7 +202,7 @@ export function ExpenseDebug() {
             </div>
 
             {debugInfo && (
-              <div className="rounded-lg bg-gray-700 p-4">
+              <div className="bg-muted rounded-lg p-4">
                 <h3 className="mb-2 font-semibold">Debug Information:</h3>
                 <pre className="text-sm whitespace-pre-wrap">{debugInfo}</pre>
               </div>
@@ -218,7 +217,12 @@ export function ExpenseDebug() {
                 <Label>Name</Label>
                 <Input
                   value={newExpenseType.name}
-                  onChange={(e) => setNewExpenseType((prev) => ({ ...prev, name: e.target.value }))}
+                  onChange={e =>
+                    setNewExpenseType(prev => ({
+                      ...prev,
+                      name: e.target.value,
+                    }))
+                  }
                   placeholder="Expense type name"
                 />
               </div>
@@ -228,9 +232,12 @@ export function ExpenseDebug() {
                   type="number"
                   step="1"
                   value={newExpenseType.cgstRate}
-                  onChange={(e) => {
-                    const percentage = parseFloat(e.target.value) || 0
-                    setNewExpenseType((prev) => ({ ...prev, cgstRate: percentage }))
+                  onChange={e => {
+                    const percentage = parseFloat(e.target.value) || 0;
+                    setNewExpenseType(prev => ({
+                      ...prev,
+                      cgstRate: percentage,
+                    }));
                   }}
                   placeholder="9"
                 />
@@ -241,9 +248,12 @@ export function ExpenseDebug() {
                   type="number"
                   step="1"
                   value={newExpenseType.sgstRate}
-                  onChange={(e) => {
-                    const percentage = parseFloat(e.target.value) || 0
-                    setNewExpenseType((prev) => ({ ...prev, sgstRate: percentage }))
+                  onChange={e => {
+                    const percentage = parseFloat(e.target.value) || 0;
+                    setNewExpenseType(prev => ({
+                      ...prev,
+                      sgstRate: percentage,
+                    }));
                   }}
                   placeholder="9"
                 />
@@ -254,9 +264,12 @@ export function ExpenseDebug() {
                   type="number"
                   step="1"
                   value={newExpenseType.igstRate}
-                  onChange={(e) => {
-                    const percentage = parseFloat(e.target.value) || 0
-                    setNewExpenseType((prev) => ({ ...prev, igstRate: percentage }))
+                  onChange={e => {
+                    const percentage = parseFloat(e.target.value) || 0;
+                    setNewExpenseType(prev => ({
+                      ...prev,
+                      igstRate: percentage,
+                    }));
                   }}
                   placeholder="0"
                 />
@@ -271,18 +284,29 @@ export function ExpenseDebug() {
           </div>
 
           {/* Instructions */}
-          <div className="rounded-lg bg-gray-500 p-4">
-            <h3 className="mb-2 font-semibold text-blue-900">Instructions:</h3>
-            <ul className="space-y-1 text-sm text-blue-800">
-              <li>• Click "Debug Expense Types" to see current expense types and their rates</li>
-              <li>• Click "Add Sample Expense Types" to add common expense types with correct rates</li>
+          <div className="bg-muted rounded-lg p-4">
+            <h3 className="text-foreground mb-2 font-semibold">
+              Instructions:
+            </h3>
+            <ul className="text-foreground space-y-1 text-sm">
+              <li>
+                • Click "Debug Expense Types" to see current expense types and
+                their rates
+              </li>
+              <li>
+                • Click "Add Sample Expense Types" to add common expense types
+                with correct rates
+              </li>
               <li>• Or manually add expense types using the form above</li>
               <li>• Rates should be entered as percentages (e.g., 9 for 9%)</li>
-              <li>• The system converts percentages to basis points for storage (9% = 900 basis points)</li>
+              <li>
+                • The system converts percentages to basis points for storage
+                (9% = 900 basis points)
+              </li>
             </ul>
           </div>
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

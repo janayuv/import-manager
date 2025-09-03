@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use crate::db::DbState;
 use crate::expense::{
     ExpenseReportFilters, ExpenseReportResponse, ExpenseService, ExpenseSummaryByMonth,

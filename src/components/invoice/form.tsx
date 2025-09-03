@@ -1,13 +1,13 @@
 // src/components/invoice/form.tsx (MODIFIED - Correctly applies supplier-based part filtering)
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, Loader2, Plus, Upload, X } from 'lucide-react'
-import Papa from 'papaparse'
-import { toast } from 'sonner'
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { Download, Loader2, Plus, Upload, X } from 'lucide-react';
+import Papa from 'papaparse';
+import { toast } from 'sonner';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Combobox } from '@/components/invoice/combobox'
+import { Combobox } from '@/components/invoice/combobox';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,8 +18,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogClose,
@@ -28,26 +28,51 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import type { Invoice, InvoiceLineItem } from '@/types/invoice'
-import type { Item } from '@/types/item'
-import type { Shipment } from '@/types/shipment'
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import type { Invoice, InvoiceLineItem } from '@/types/invoice';
+import type { Item } from '@/types/item';
+import type { Shipment } from '@/types/shipment';
+
+// Helper function to normalize currency codes for Intl.NumberFormat
+const normalizeCurrencyCode = (currencyCode: string): string => {
+  const normalized = currencyCode?.trim().toUpperCase() || 'USD';
+
+  // Common currency code mappings
+  const currencyMap: Record<string, string> = {
+    EURO: 'EUR',
+    DOLLAR: 'USD',
+    POUND: 'GBP',
+    YEN: 'JPY',
+    WON: 'KRW',
+    RUPEE: 'INR',
+    YUAN: 'CNY',
+  };
+
+  return currencyMap[normalized] || normalized;
+};
 
 // Extended type for form handling with isNew flag
 interface FormInvoiceLineItem extends InvoiceLineItem {
-  isNew?: boolean
+  isNew?: boolean;
 }
 
 interface InvoiceFormProps {
-  isOpen: boolean
-  onOpenChange: (isOpen: boolean) => void
-  onSubmit: (invoiceData: Omit<Invoice, 'id'>, id?: string) => void
-  shipments: Shipment[]
-  items: Item[]
-  invoiceToEdit?: Invoice | null
+  isOpen: boolean;
+  onOpenChange: (isOpen: boolean) => void;
+  onSubmit: (invoiceData: Omit<Invoice, 'id'>, id?: string) => void;
+  shipments: Shipment[];
+  items: Item[];
+  invoiceToEdit?: Invoice | null;
 }
 
 export const InvoiceForm: React.FC<InvoiceFormProps> = ({
@@ -58,175 +83,213 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   items,
   invoiceToEdit,
 }) => {
-  const [selectedShipment, setSelectedShipment] = React.useState<Shipment | null>(null)
-  const [lineItems, setLineItems] = React.useState<FormInvoiceLineItem[]>([])
-  const [calculatedTotal, setCalculatedTotal] = React.useState(0)
-  const [isSubmitting, setIsSubmitting] = React.useState(false)
+  const [selectedShipment, setSelectedShipment] =
+    React.useState<Shipment | null>(null);
+  const [lineItems, setLineItems] = React.useState<FormInvoiceLineItem[]>([]);
+  const [calculatedTotal, setCalculatedTotal] = React.useState(0);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
 
-  const shipmentOptions = shipments.map((s) => ({
+  const shipmentOptions = shipments.map(s => ({
     value: s.id,
     label: `${s.invoiceNumber} (${s.invoiceCurrency})`,
-  }))
-  const currency = selectedShipment?.invoiceCurrency || 'USD'
+  }));
+  const currency = selectedShipment?.invoiceCurrency || 'USD';
 
   const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(amount)
-  }
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: normalizeCurrencyCode(currency),
+    }).format(amount);
+  };
 
   // Filter available items based on the selected supplier from the shipment
   const availableItemOptions = React.useMemo(() => {
-    const supplierId = selectedShipment?.supplierId
-    if (!supplierId) return []
+    const supplierId = selectedShipment?.supplierId;
+    if (!supplierId) return [];
 
     // NOTE: This assumes `supplierId` is added to the Item type.
     // The `as any` assertion is used because the original type file was not provided to be modified.
     return items
-      .filter((item) => item.supplierId === supplierId)
-      .map((item) => ({ value: item.id, label: item.partNumber }))
-  }, [selectedShipment, items])
+      .filter(item => item.supplierId === supplierId)
+      .map(item => ({ value: item.id, label: item.partNumber }));
+  }, [selectedShipment, items]);
 
   React.useEffect(() => {
     if (invoiceToEdit && isOpen) {
-      const shipment = shipments.find((s) => s.id === invoiceToEdit.shipmentId)
-      setSelectedShipment(shipment || null)
-      setLineItems(invoiceToEdit.lineItems || [])
+      const shipment = shipments.find(s => s.id === invoiceToEdit.shipmentId);
+      setSelectedShipment(shipment || null);
+      setLineItems(invoiceToEdit.lineItems || []);
     } else {
-      setSelectedShipment(null)
-      setLineItems([])
+      setSelectedShipment(null);
+      setLineItems([]);
     }
-  }, [invoiceToEdit, isOpen, shipments])
+  }, [invoiceToEdit, isOpen, shipments]);
 
   React.useEffect(() => {
     // Round to 2 decimal places to avoid floating-point precision issues
-    const total = lineItems.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0)
-    setCalculatedTotal(Math.round(total * 100) / 100)
-  }, [lineItems])
+    const total = lineItems.reduce(
+      (sum, item) => sum + item.quantity * item.unitPrice,
+      0
+    );
+    setCalculatedTotal(Math.round(total * 100) / 100);
+  }, [lineItems]);
 
   const handleShipmentSelect = (shipmentId: string) => {
-    const shipment = shipments.find((s: Shipment) => s.id === shipmentId)
-    setSelectedShipment(shipment || null)
-    setLineItems([])
-  }
+    const shipment = shipments.find((s: Shipment) => s.id === shipmentId);
+    setSelectedShipment(shipment || null);
+    setLineItems([]);
+  };
   const handleAddItem = () =>
-    setLineItems([...lineItems, { id: `item-${Date.now()}`, itemId: '', quantity: 1, unitPrice: 0, isNew: true }])
-  const handleRemoveItem = (id: string) => setLineItems(lineItems.filter((item) => item.id !== id))
-  const handleLineItemChange = (id: string, field: keyof FormInvoiceLineItem, value: string | number) => {
-    setLineItems((prevItems) =>
-      prevItems.map((item) => {
+    setLineItems([
+      ...lineItems,
+      {
+        id: `item-${Date.now()}`,
+        itemId: '',
+        quantity: 1,
+        unitPrice: 0,
+        isNew: true,
+      },
+    ]);
+  const handleRemoveItem = (id: string) =>
+    setLineItems(lineItems.filter(item => item.id !== id));
+  const handleLineItemChange = (
+    id: string,
+    field: keyof FormInvoiceLineItem,
+    value: string | number
+  ) => {
+    setLineItems(prevItems =>
+      prevItems.map(item => {
         if (item.id === id) {
-          const updatedItem = { ...item, [field]: value }
+          const updatedItem = { ...item, [field]: value };
           // Only set unit price from item master for new items (isNew flag)
           if (field === 'itemId' && (item as FormInvoiceLineItem).isNew) {
-            const selectedItem = items.find((i: Item) => i.id === value)
+            const selectedItem = items.find((i: Item) => i.id === value);
             if (selectedItem) {
-              updatedItem.unitPrice = selectedItem.unitPrice
+              updatedItem.unitPrice = selectedItem.unitPrice;
               // Remove the isNew flag after setting the unit price
-              delete (updatedItem as FormInvoiceLineItem).isNew
+              delete (updatedItem as FormInvoiceLineItem).isNew;
             }
           }
-          return updatedItem
+          return updatedItem;
         }
-        return item
+        return item;
       })
-    )
-  }
+    );
+  };
 
   const handleTemplateDownload = async () => {
-    const templateData = [{ partNumber: 'EXAMPLE-PN-1', quantity: 10, unitPrice: 12.5 }]
-    const csv = Papa.unparse(templateData)
+    const templateData = [
+      { partNumber: 'EXAMPLE-PN-1', quantity: 10, unitPrice: 12.5 },
+    ];
+    const csv = Papa.unparse(templateData);
     try {
       const filePath = await save({
         defaultPath: 'item_import_template.csv',
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
       if (filePath) {
-        await writeTextFile(filePath, csv)
-        toast.success('Template downloaded successfully!')
+        await writeTextFile(filePath, csv);
+        toast.success('Template downloaded successfully!');
       }
     } catch (error) {
-      console.error('Failed to download template:', error)
-      toast.error('Failed to download template.')
+      console.error('Failed to download template:', error);
+      toast.error('Failed to download template.');
     }
-  }
+  };
 
   const handleItemImport = async () => {
     try {
       const selectedPath = await open({
         multiple: false,
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
       if (typeof selectedPath === 'string') {
-        const content = await readTextFile(selectedPath)
+        const content = await readTextFile(selectedPath);
         interface InvoiceLineItemCsvRow {
-          partNumber: string
-          quantity: string
-          unitPrice: string
+          partNumber: string;
+          quantity: string;
+          unitPrice: string;
         }
 
         Papa.parse(content, {
           header: true,
           skipEmptyLines: true,
           complete: (results: Papa.ParseResult<InvoiceLineItemCsvRow>) => {
-            const itemsToAdd: InvoiceLineItem[] = []
-            const notFoundItems: string[] = []
-            const duplicateItems: string[] = []
+            const itemsToAdd: InvoiceLineItem[] = [];
+            const notFoundItems: string[] = [];
+            const duplicateItems: string[] = [];
 
             results.data.forEach((row: InvoiceLineItemCsvRow) => {
-              if (!row.partNumber) return
-              const item = items.find((i) => i.partNumber === row.partNumber)
+              if (!row.partNumber) return;
+              const item = items.find(i => i.partNumber === row.partNumber);
               if (!item) {
-                notFoundItems.push(row.partNumber)
-                return
+                notFoundItems.push(row.partNumber);
+                return;
               }
               const isDuplicate =
-                lineItems.some((li) => li.itemId === item.id) || itemsToAdd.some((li) => li.itemId === item.id)
+                lineItems.some(li => li.itemId === item.id) ||
+                itemsToAdd.some(li => li.itemId === item.id);
               if (isDuplicate) {
-                duplicateItems.push(row.partNumber)
-                return
+                duplicateItems.push(row.partNumber);
+                return;
               }
               itemsToAdd.push({
                 id: `imported-${Date.now()}-${Math.random()}`,
                 itemId: item.id,
                 quantity: parseFloat(row.quantity) || 0,
                 unitPrice: parseFloat(row.unitPrice) || item.unitPrice,
-              })
-            })
+              });
+            });
 
-            setLineItems((prev) => [...prev, ...itemsToAdd])
-            if (itemsToAdd.length > 0) toast.success(`${itemsToAdd.length} items imported successfully!`)
+            setLineItems(prev => [...prev, ...itemsToAdd]);
+            if (itemsToAdd.length > 0)
+              toast.success(
+                `${itemsToAdd.length} items imported successfully!`
+              );
             if (notFoundItems.length > 0)
-              toast.warning(`Skipped ${notFoundItems.length} items not found: ${notFoundItems.join(', ')}`)
+              toast.warning(
+                `Skipped ${notFoundItems.length} items not found: ${notFoundItems.join(', ')}`
+              );
             if (duplicateItems.length > 0)
-              toast.info(`Skipped ${duplicateItems.length} duplicate items: ${duplicateItems.join(', ')}`)
-            if (itemsToAdd.length === 0 && notFoundItems.length === 0 && duplicateItems.length === 0)
-              toast.info('No new items were imported.')
+              toast.info(
+                `Skipped ${duplicateItems.length} duplicate items: ${duplicateItems.join(', ')}`
+              );
+            if (
+              itemsToAdd.length === 0 &&
+              notFoundItems.length === 0 &&
+              duplicateItems.length === 0
+            )
+              toast.info('No new items were imported.');
           },
           error: (err: Error) => {
-            toast.error('Failed to parse CSV file.')
-            console.error('CSV parsing error:', err)
+            toast.error('Failed to parse CSV file.');
+            console.error('CSV parsing error:', err);
           },
-        })
+        });
       }
     } catch (error) {
-      console.error('Failed to import items:', error)
-      toast.error('Failed to import items.')
+      console.error('Failed to import items:', error);
+      toast.error('Failed to import items.');
     }
-  }
+  };
 
   const handleSave = (status: 'Draft' | 'Finalized') => {
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     // Simulate network delay
     setTimeout(() => {
       if (!selectedShipment) {
-        setIsSubmitting(false)
-        return toast.error('Please select a shipment first.')
+        setIsSubmitting(false);
+        return toast.error('Please select a shipment first.');
       }
       // Use tolerance-based comparison for floating-point numbers
-      const tolerance = 0.01 // Allow 1 cent difference
-      const isMatched = Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
+      const tolerance = 0.01; // Allow 1 cent difference
+      const isMatched =
+        Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance;
       if (status === 'Finalized' && !isMatched) {
-        setIsSubmitting(false)
-        return toast.error('Cannot finalize. The calculated total must match the shipment value.')
+        setIsSubmitting(false);
+        return toast.error(
+          'Cannot finalize. The calculated total must match the shipment value.'
+        );
       }
 
       const invoiceData: Omit<Invoice, 'id'> = {
@@ -237,47 +300,55 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         calculatedTotal,
         shipmentTotal: selectedShipment.invoiceValue,
         lineItems,
-      }
-      onSubmit(invoiceData, invoiceToEdit?.id)
-      setIsSubmitting(false)
-    }, 500)
-  }
+      };
+      onSubmit(invoiceData, invoiceToEdit?.id);
+      setIsSubmitting(false);
+    }, 500);
+  };
 
-  const [showQuickFinalizeDialog, setShowQuickFinalizeDialog] = React.useState(false)
+  const [showQuickFinalizeDialog, setShowQuickFinalizeDialog] =
+    React.useState(false);
 
   const handleQuickFinalize = () => {
     if (!selectedShipment) {
-      return toast.error('Please select a shipment first.')
+      return toast.error('Please select a shipment first.');
     }
 
     // Use tolerance-based comparison for floating-point numbers
-    const tolerance = 0.01 // Allow 1 cent difference
-    const isMatched = Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
+    const tolerance = 0.01; // Allow 1 cent difference
+    const isMatched =
+      Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance;
 
     if (!isMatched) {
-      return toast.error('Cannot finalize. The calculated total must match the shipment value.')
+      return toast.error(
+        'Cannot finalize. The calculated total must match the shipment value.'
+      );
     }
 
     // Show confirmation dialog
-    setShowQuickFinalizeDialog(true)
-  }
+    setShowQuickFinalizeDialog(true);
+  };
 
   // Use tolerance-based comparison for floating-point numbers
-  const tolerance = 0.01 // Allow 1 cent difference
-  const isMatch = selectedShipment ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance : false
-  const matchDifference = selectedShipment ? calculatedTotal - selectedShipment.invoiceValue : 0
-  const formTitle = invoiceToEdit ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}` : 'Create New Invoice'
+  const tolerance = 0.01; // Allow 1 cent difference
+  const isMatch = selectedShipment
+    ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
+    : false;
+  const matchDifference = selectedShipment
+    ? calculatedTotal - selectedShipment.invoiceValue
+    : 0;
+  const formTitle = invoiceToEdit
+    ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}`
+    : 'Create New Invoice';
 
   return (
-    <Dialog
-      open={isOpen}
-      onOpenChange={onOpenChange}
-    >
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-5xl">
         <DialogHeader>
           <DialogTitle>{formTitle}</DialogTitle>
           <DialogDescription>
-            Create or edit an invoice by selecting a shipment and adding line items.
+            Create or edit an invoice by selecting a shipment and adding line
+            items.
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-1 gap-4 border-b pb-4 md:grid-cols-3">
@@ -293,17 +364,11 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           </div>
           <div>
             <Label>Invoice Number</Label>
-            <Input
-              value={selectedShipment?.invoiceNumber || ''}
-              readOnly
-            />
+            <Input value={selectedShipment?.invoiceNumber || ''} readOnly />
           </div>
           <div>
             <Label>Invoice Date</Label>
-            <Input
-              value={selectedShipment?.invoiceDate || ''}
-              readOnly
-            />
+            <Input value={selectedShipment?.invoiceDate || ''} readOnly />
           </div>
         </div>
 
@@ -331,7 +396,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               </div>
               <div className="max-h-64 overflow-y-auto rounded-md border pr-2">
                 <Table>
-                  <TableHeader className="sticky top-0 z-10 bg-pink-800">
+                  <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10">
                     <TableRow>
                       <TableHead className="w-[200px]">Part No</TableHead>
                       <TableHead>Description</TableHead>
@@ -343,8 +408,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {lineItems.map((lineItem) => {
-                      const fullItem = items.find((i) => i.id === lineItem.itemId)
+                    {lineItems.map(lineItem => {
+                      const fullItem = items.find(
+                        i => i.id === lineItem.itemId
+                      );
                       return (
                         <TableRow key={lineItem.id}>
                           <TableCell>
@@ -352,20 +419,32 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             <Combobox
                               options={availableItemOptions}
                               value={lineItem.itemId}
-                              onChange={(value) => handleLineItemChange(lineItem.id, 'itemId', value)}
+                              onChange={value =>
+                                handleLineItemChange(
+                                  lineItem.id,
+                                  'itemId',
+                                  value
+                                )
+                              }
                               searchPlaceholder="Search Part No..."
                               notFoundText="No parts for this supplier."
                               disabled={!selectedShipment}
                             />
                           </TableCell>
-                          <TableCell>{fullItem?.itemDescription || '-'}</TableCell>
+                          <TableCell>
+                            {fullItem?.itemDescription || '-'}
+                          </TableCell>
                           <TableCell>{fullItem?.unit || '-'}</TableCell>
                           <TableCell>
                             <Input
                               type="number"
                               value={lineItem.quantity}
-                              onChange={(e) =>
-                                handleLineItemChange(lineItem.id, 'quantity', parseFloat(e.target.value) || 0)
+                              onChange={e =>
+                                handleLineItemChange(
+                                  lineItem.id,
+                                  'quantity',
+                                  parseFloat(e.target.value) || 0
+                                )
                               }
                             />
                           </TableCell>
@@ -373,41 +452,50 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             <Input
                               type="number"
                               value={lineItem.unitPrice}
-                              onChange={(e) =>
-                                handleLineItemChange(lineItem.id, 'unitPrice', parseFloat(e.target.value) || 0)
+                              onChange={e =>
+                                handleLineItemChange(
+                                  lineItem.id,
+                                  'unitPrice',
+                                  parseFloat(e.target.value) || 0
+                                )
                               }
                             />
                           </TableCell>
                           <TableCell>
                             <Input
-                              value={formatCurrency(lineItem.quantity * lineItem.unitPrice)}
+                              value={formatCurrency(
+                                lineItem.quantity * lineItem.unitPrice
+                              )}
                               readOnly
-                              className="bg-gray-100"
+                              className="bg-muted"
                             />
                           </TableCell>
                           <TableCell>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                >
-                                  <X className="h-4 w-4 text-red-500" />
+                                <Button variant="ghost" size="icon">
+                                  <X className="text-destructive h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                                  <AlertDialogTitle>
+                                    Are you sure?
+                                  </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    This will permanently remove the item from this invoice. This action cannot be
-                                    undone.
+                                    This will permanently remove the item from
+                                    this invoice. This action cannot be undone.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel className="custom-alert-action-cancel">Cancel</AlertDialogCancel>
+                                  <AlertDialogCancel className="custom-alert-action-cancel">
+                                    Cancel
+                                  </AlertDialogCancel>
                                   <AlertDialogAction
                                     className="custom-alert-action-ok"
-                                    onClick={() => handleRemoveItem(lineItem.id)}
+                                    onClick={() =>
+                                      handleRemoveItem(lineItem.id)
+                                    }
                                   >
                                     Continue
                                   </AlertDialogAction>
@@ -416,7 +504,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                             </AlertDialog>
                           </TableCell>
                         </TableRow>
-                      )
+                      );
                     })}
                   </TableBody>
                 </Table>
@@ -433,27 +521,39 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             <div className="flex items-center justify-between border-t pt-4">
               <div className="flex items-center gap-6">
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">Shipment Value</p>
-                  <p className="text-lg font-bold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</p>
+                  <p className="text-muted-foreground text-sm">
+                    Shipment Value
+                  </p>
+                  <p className="text-lg font-bold">
+                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
+                  </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm text-gray-500">Calculated Total</p>
-                  <p className="text-lg font-bold">{formatCurrency(calculatedTotal)}</p>
+                  <p className="text-muted-foreground text-sm">
+                    Calculated Total
+                  </p>
+                  <p className="text-lg font-bold">
+                    {formatCurrency(calculatedTotal)}
+                  </p>
                 </div>
                 <div
-                  className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-green-600' : 'text-red-600'}`}
+                  className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-success' : 'text-destructive'}`}
                 >
-                  {isMatch ? '✅ Match' : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
+                  {isMatch
+                    ? '✅ Match'
+                    : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
                 </div>
               </div>
               {isMatch && (
                 <Button
                   type="button"
-                  className="bg-green-600 text-white hover:bg-green-700"
+                  variant="success"
                   onClick={handleQuickFinalize}
                   disabled={isSubmitting}
                 >
-                  {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  {isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   🚀 Quick Finalize
                 </Button>
               )}
@@ -480,7 +580,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             onClick={() => handleSave('Draft')}
             disabled={isSubmitting || !selectedShipment}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save as Draft
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{' '}
+            Save as Draft
           </Button>
           <Button
             type="submit"
@@ -488,7 +589,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             onClick={() => handleSave('Finalized')}
             disabled={isSubmitting || !selectedShipment}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Finalize Invoice
+            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{' '}
+            Finalize Invoice
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -502,19 +604,24 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
           <AlertDialogHeader>
             <AlertDialogTitle>Finalize Invoice</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to finalize invoice <strong>{selectedShipment?.invoiceNumber}</strong>?
+              Are you sure you want to finalize invoice{' '}
+              <strong>{selectedShipment?.invoiceNumber}</strong>?
               <br />
               <br />
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span>Shipment Value:</span>
-                  <span className="font-semibold">{formatCurrency(selectedShipment?.invoiceValue || 0)}</span>
+                  <span className="font-semibold">
+                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
                   <span>Calculated Total:</span>
-                  <span className="font-semibold">{formatCurrency(calculatedTotal)}</span>
+                  <span className="font-semibold">
+                    {formatCurrency(calculatedTotal)}
+                  </span>
                 </div>
-                <div className="flex justify-between text-green-600">
+                <div className="text-success flex justify-between">
                   <span>Status:</span>
                   <span className="font-semibold">✅ Match</span>
                 </div>
@@ -524,12 +631,14 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="custom-alert-action-cancel">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="custom-alert-action-cancel">
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction
               className="custom-alert-action-ok"
               onClick={() => {
-                setShowQuickFinalizeDialog(false)
-                handleSave('Finalized')
+                setShowQuickFinalizeDialog(false);
+                handleSave('Finalized');
               }}
             >
               Finalize Invoice
@@ -538,5 +647,5 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
-  )
-}
+  );
+};

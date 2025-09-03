@@ -1,4 +1,4 @@
-import bcrypt from 'bcryptjs'
+import bcrypt from 'bcryptjs';
 
 // Environment variables for authentication (Vite uses import.meta.env)
 // Safe fallback for when running outside of Vite environment
@@ -6,42 +6,43 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
   try {
     // Explicitly check for specific environment variables to avoid injection
     if (key === 'VITE_ADMIN_USERNAME') {
-      return import.meta.env.VITE_ADMIN_USERNAME || defaultValue
+      return import.meta.env.VITE_ADMIN_USERNAME || defaultValue;
     }
     if (key === 'VITE_ADMIN_PASSWORD_HASH') {
-      return import.meta.env.VITE_ADMIN_PASSWORD_HASH || defaultValue
+      return import.meta.env.VITE_ADMIN_PASSWORD_HASH || defaultValue;
     }
-    return defaultValue
+    return defaultValue;
   } catch {
-    return defaultValue
+    return defaultValue;
   }
-}
+};
 
-const ADMIN_USERNAME = getEnvVar('VITE_ADMIN_USERNAME', 'Jana')
-const ADMIN_PASSWORD_HASH = getEnvVar('VITE_ADMIN_PASSWORD_HASH', '')
+const ADMIN_USERNAME = getEnvVar('VITE_ADMIN_USERNAME', 'Jana');
+const ADMIN_PASSWORD_HASH = getEnvVar('VITE_ADMIN_PASSWORD_HASH', '');
 
 // Default password hash for 'inzi@123$%' (should be replaced with environment variable)
 // This is a bcrypt hash of 'inzi@123$%' with 12 salt rounds
-const DEFAULT_PASSWORD_HASH = '$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq'
+const DEFAULT_PASSWORD_HASH =
+  '$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq';
 
 export interface AuthCredentials {
-  username: string
-  password: string
+  username: string;
+  password: string;
 }
 
 export interface AuthResult {
-  success: boolean
-  message: string
-  user?: User
+  success: boolean;
+  message: string;
+  user?: User;
 }
 
 export interface User {
-  id: string
-  username: string
-  name: string
-  email: string
-  role: string
-  avatar?: string
+  id: string;
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  avatar?: string;
 }
 
 /**
@@ -49,16 +50,18 @@ export interface User {
  * @param credentials - Username and password
  * @returns Authentication result
  */
-export async function authenticateUser(credentials: AuthCredentials): Promise<AuthResult> {
+export async function authenticateUser(
+  credentials: AuthCredentials
+): Promise<AuthResult> {
   try {
-    const { username, password } = credentials
+    const { username, password } = credentials;
 
     // Validate input
     if (!username || !password) {
       return {
         success: false,
         message: 'Username and password are required',
-      }
+      };
     }
 
     // Check username
@@ -66,18 +69,18 @@ export async function authenticateUser(credentials: AuthCredentials): Promise<Au
       return {
         success: false,
         message: 'Invalid username or password',
-      }
+      };
     }
 
     // Verify password hash
-    const passwordHash = ADMIN_PASSWORD_HASH || DEFAULT_PASSWORD_HASH
-    const isValidPassword = await bcrypt.compare(password, passwordHash)
+    const passwordHash = ADMIN_PASSWORD_HASH || DEFAULT_PASSWORD_HASH;
+    const isValidPassword = await bcrypt.compare(password, passwordHash);
 
     if (!isValidPassword) {
       return {
         success: false,
         message: 'Invalid username or password',
-      }
+      };
     }
 
     // Create user object
@@ -88,19 +91,19 @@ export async function authenticateUser(credentials: AuthCredentials): Promise<Au
       email: 'admin@importmanager.com',
       role: 'admin',
       avatar: '/avatars/admin.jpg',
-    }
+    };
 
     return {
       success: true,
       message: 'Authentication successful',
       user,
-    }
+    };
   } catch (error) {
-    console.error('Authentication error:', error)
+    console.error('Authentication error:', error);
     return {
       success: false,
       message: 'Authentication failed',
-    }
+    };
   }
 }
 
@@ -110,8 +113,8 @@ export async function authenticateUser(credentials: AuthCredentials): Promise<Au
  * @returns Hashed password
  */
 export async function hashPassword(password: string): Promise<string> {
-  const saltRounds = 12
-  return await bcrypt.hash(password, saltRounds)
+  const saltRounds = 12;
+  return await bcrypt.hash(password, saltRounds);
 }
 
 /**
@@ -119,7 +122,7 @@ export async function hashPassword(password: string): Promise<string> {
  * @returns boolean
  */
 export function isAuthenticated(): boolean {
-  return localStorage.getItem('isAuthenticated') === 'true'
+  return localStorage.getItem('isAuthenticated') === 'true';
 }
 
 /**
@@ -128,12 +131,12 @@ export function isAuthenticated(): boolean {
  */
 export function getCurrentUser(): User | null {
   try {
-    const userStr = localStorage.getItem('currentUser')
-    if (!userStr) return null
-    return JSON.parse(userStr) as User
+    const userStr = localStorage.getItem('currentUser');
+    if (!userStr) return null;
+    return JSON.parse(userStr) as User;
   } catch (error) {
-    console.error('Error parsing user data:', error)
-    return null
+    console.error('Error parsing user data:', error);
+    return null;
   }
 }
 
@@ -144,16 +147,16 @@ export function getCurrentUser(): User | null {
  */
 export function setAuthenticated(authenticated: boolean, user?: User): void {
   if (authenticated && user) {
-    localStorage.setItem('isAuthenticated', 'true')
-    localStorage.setItem('currentUser', JSON.stringify(user))
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('currentUser', JSON.stringify(user));
     // Also set legacy user data for backward compatibility
-    localStorage.setItem('user_name', user.name)
-    localStorage.setItem('user_email', user.email)
+    localStorage.setItem('user_name', user.name);
+    localStorage.setItem('user_email', user.email);
   } else {
-    localStorage.removeItem('isAuthenticated')
-    localStorage.removeItem('currentUser')
-    localStorage.removeItem('user_name')
-    localStorage.removeItem('user_email')
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('currentUser');
+    localStorage.removeItem('user_name');
+    localStorage.removeItem('user_email');
   }
 }
 
@@ -161,11 +164,11 @@ export function setAuthenticated(authenticated: boolean, user?: User): void {
  * Logout user
  */
 export function logout(): void {
-  localStorage.removeItem('isAuthenticated')
-  localStorage.removeItem('currentUser')
-  localStorage.removeItem('user_name')
-  localStorage.removeItem('user_email')
-  window.location.href = '/login'
+  localStorage.removeItem('isAuthenticated');
+  localStorage.removeItem('currentUser');
+  localStorage.removeItem('user_name');
+  localStorage.removeItem('user_email');
+  window.location.href = '/login';
 }
 
 /**
@@ -173,8 +176,8 @@ export function logout(): void {
  * @returns User ID or 'system' as fallback
  */
 export function getCurrentUserId(): string {
-  const user = getCurrentUser()
-  return user?.id || 'system'
+  const user = getCurrentUser();
+  return user?.id || 'system';
 }
 
 /**
@@ -182,6 +185,6 @@ export function getCurrentUserId(): string {
  * @returns User name or 'system' as fallback
  */
 export function getCurrentUserName(): string {
-  const user = getCurrentUser()
-  return user?.name || 'system'
+  const user = getCurrentUser();
+  return user?.name || 'system';
 }

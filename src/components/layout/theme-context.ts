@@ -1,5 +1,5 @@
 // src/components/ui/layout/theme-context.ts
-import { createContext, useContext } from 'react'
+import { createContext, useContext } from 'react';
 
 // Based on your themes.d.ts file
 export type ThemeColor =
@@ -24,22 +24,22 @@ export type ThemeColor =
   | 'indigo'
   | 'purple'
   | 'fuchsia'
-  | 'pink'
-export type ThemeMode = 'dark' | 'light' | 'system'
+  | 'pink';
+export type ThemeMode = 'dark' | 'light' | 'system';
 
 export interface Theme {
-  mode: ThemeMode
-  color: ThemeColor
+  mode: ThemeMode;
+  color: ThemeColor;
 }
 
 export interface ThemeProviderState {
-  theme: Theme
-  setTheme: (theme: Theme) => void
-  toggleMode: () => void
-  setColor: (color: ThemeColor) => void
-  isDark: boolean
-  isLight: boolean
-  isSystem: boolean
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleMode: () => void;
+  setColor: (color: ThemeColor) => void;
+  isDark: boolean;
+  isLight: boolean;
+  isSystem: boolean;
 }
 
 export const ThemeProviderContext = createContext<ThemeProviderState>({
@@ -50,10 +50,11 @@ export const ThemeProviderContext = createContext<ThemeProviderState>({
   isDark: false,
   isLight: false,
   isSystem: true,
-})
+});
 
 export const useTheme = () => {
-  const context = useContext(ThemeProviderContext)
-  if (context === undefined) throw new Error('useTheme must be used within a ThemeProvider')
-  return context
-}
+  const context = useContext(ThemeProviderContext);
+  if (context === undefined)
+    throw new Error('useTheme must be used within a ThemeProvider');
+  return context;
+};

@@ -1,8 +1,8 @@
-import { Package2 } from 'lucide-react'
+import { Package2 } from 'lucide-react';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Separator } from '@/components/ui/separator'
+import { Separator } from '@/components/ui/separator';
 import {
   Sidebar,
   SidebarContent,
@@ -11,15 +11,15 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-} from '@/components/ui/sidebar'
-import { useUser } from '@/lib/user-context'
+} from '@/components/ui/sidebar';
+import { useUser } from '@/lib/user-context';
 
-import { navItems } from './nav-data'
-import { NavMain } from './nav-main'
-import { NavUser } from './nav-user'
+import { navItems } from './nav-data';
+import { NavMain } from './nav-main';
+import { NavUser } from './nav-user';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useUser()
+  const { user } = useUser();
 
   // Fallback user data if no user is logged in
   const userData = user
@@ -32,27 +32,23 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         name: 'Guest User',
         email: 'guest@importmanager.com',
         avatar: '/avatars/placeholder.jpg',
-      }
+      };
 
   return (
-    <Sidebar
-      className="h-full"
-      {...props}
-    >
+    <Sidebar className="h-full" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              size="lg"
-              asChild
-            >
+            <SidebarMenuButton size="lg" asChild>
               <a href="/">
                 <div className="bg-primary text-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Package2 className="size-5" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">Import Manager</span>
-                  <span className="text-muted-foreground truncate text-xs">by JANA</span>
+                  <span className="text-muted-foreground truncate text-xs">
+                    by JANA
+                  </span>
                 </div>
               </a>
             </SidebarMenuButton>
@@ -70,5 +66,5 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavUser user={userData} />
       </SidebarFooter>
     </Sidebar>
-  )
+  );
 }

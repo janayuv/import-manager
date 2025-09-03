@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useState } from 'react';
 
 import {
   OptimizedButton,
@@ -8,10 +8,10 @@ import {
   OptimizedImage,
   OptimizedList,
   OptimizedSkeleton,
-} from '@/components/performance/OptimizedComponents'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+} from '@/components/performance/OptimizedComponents';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   useCachedData,
   useOptimizedForm,
@@ -21,15 +21,15 @@ import {
   useOptimizedScroll,
   useOptimizedWindowSize,
   usePerformanceMonitor,
-} from '@/hooks/usePerformance'
-import { CACHE_TTL, cache } from '@/lib/cache'
+} from '@/hooks/usePerformance';
+import { CACHE_TTL, cache } from '@/lib/cache';
 import {
   BundleAnalyzer,
   MemoryManager,
   PerformanceObserver,
   PerformanceReporter,
   performanceUtils,
-} from '@/lib/performance'
+} from '@/lib/performance';
 
 // Sample data for testing
 const sampleData = Array.from({ length: 100 }, (_, i) => ({
@@ -38,19 +38,22 @@ const sampleData = Array.from({ length: 100 }, (_, i) => ({
   value: Math.random() * 1000,
   category: ['A', 'B', 'C'][Math.floor(Math.random() * 3)],
   date: new Date(Date.now() - Math.random() * 10000000000).toISOString(),
-}))
+}));
 
 // Remove unused sample data
 
 export const PerformanceTest = () => {
-  usePerformanceMonitor('PerformanceTest')
+  usePerformanceMonitor('PerformanceTest');
 
-  const [activeTab, setActiveTab] = useState('caching')
-  const [testResults, setTestResults] = useState<Record<string, number | string>>({})
-  const [isRunning, setIsRunning] = useState(false)
+  const [activeTab, setActiveTab] = useState('caching');
+  const [testResults, setTestResults] = useState<
+    Record<string, number | string>
+  >({});
+  const [isRunning, setIsRunning] = useState(false);
 
   // Performance monitoring
-  const { renderCount, isTransitioning } = usePerformanceMonitor('PerformanceTest')
+  const { renderCount, isTransitioning } =
+    usePerformanceMonitor('PerformanceTest');
 
   // Cached data example
   const {
@@ -61,11 +64,11 @@ export const PerformanceTest = () => {
     'performance-test-data',
     async () => {
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 1000))
-      return sampleData.slice(0, 10)
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      return sampleData.slice(0, 10);
     },
     { ttl: CACHE_TTL.SHORT }
-  )
+  );
 
   // Remove unused tauri data
 
@@ -77,26 +80,31 @@ export const PerformanceTest = () => {
   } = useOptimizedList(
     async ({ page, pageSize, filters }) => {
       // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      const filtered = sampleData.filter((item) => !filters?.category || item.category === filters.category)
-      const start = (page - 1) * pageSize
-      const end = start + pageSize
+      await new Promise(resolve => setTimeout(resolve, 500));
+      const filtered = sampleData.filter(
+        item => !filters?.category || item.category === filters.category
+      );
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
       return {
         data: filtered.slice(start, end),
         total: filtered.length,
         page,
         pageSize,
-      }
+      };
     },
     { initialPageSize: 10 }
-  )
+  );
 
   // Optimized form example
   const {
     data: formData,
     updateData,
     reset,
-  } = useOptimizedForm({ name: '', email: '', message: '' }, { debounceMs: 300 })
+  } = useOptimizedForm(
+    { name: '', email: '', message: '' },
+    { debounceMs: 300 }
+  );
 
   // Optimized table example
 
@@ -105,85 +113,88 @@ export const PerformanceTest = () => {
     src: imageSrc,
     loading: imageLoading,
     error: imageError,
-  } = useOptimizedImage('https://picsum.photos/200/200', { cacheType: 'memory' })
+  } = useOptimizedImage('https://picsum.photos/200/200', {
+    cacheType: 'memory',
+  });
 
   // Optimized scroll example
-  const { scrollPosition } = useOptimizedScroll('performance-test')
+  const { scrollPosition } = useOptimizedScroll('performance-test');
 
   // Optimized window size example
-  const windowSize = useOptimizedWindowSize()
+  const windowSize = useOptimizedWindowSize();
 
   // Optimized intersection observer example
-  const { ref: intersectionRef, isIntersecting } = useOptimizedIntersectionObserver()
+  const { ref: intersectionRef, isIntersecting } =
+    useOptimizedIntersectionObserver();
 
   // Performance tests
   const runPerformanceTests = useCallback(async () => {
-    setIsRunning(true)
-    const results: Record<string, number | string> = {}
+    setIsRunning(true);
+    const results: Record<string, number | string> = {};
 
     try {
       // Cache performance test
-      const cacheStart = performance.now()
+      const cacheStart = performance.now();
       for (let i = 0; i < 1000; i++) {
-        cache.memory.set(`test-${i}`, { data: i, timestamp: Date.now() })
+        cache.memory.set(`test-${i}`, { data: i, timestamp: Date.now() });
       }
-      const cacheEnd = performance.now()
-      results.cacheWrite = cacheEnd - cacheStart
+      const cacheEnd = performance.now();
+      results.cacheWrite = cacheEnd - cacheStart;
 
-      const cacheReadStart = performance.now()
+      const cacheReadStart = performance.now();
       for (let i = 0; i < 1000; i++) {
-        cache.memory.get(`test-${i}`)
+        cache.memory.get(`test-${i}`);
       }
-      const cacheReadEnd = performance.now()
-      results.cacheRead = cacheReadEnd - cacheReadStart
+      const cacheReadEnd = performance.now();
+      results.cacheRead = cacheReadEnd - cacheReadStart;
 
       // Memory usage test
-      const memoryUsage = MemoryManager.getMemoryUsage()
-      results.memoryUsage = memoryUsage
+      const memoryUsage = MemoryManager.getMemoryUsage();
+      results.memoryUsage = JSON.stringify(memoryUsage);
 
       // Bundle analysis test
-      const bundleStats = BundleAnalyzer.getBundleStats()
-      results.bundleStats = bundleStats
+      const bundleStats = BundleAnalyzer.getBundleStats();
+      results.bundleStats = JSON.stringify(bundleStats);
 
       // Performance metrics test
-      const observer = PerformanceObserver.getInstance()
-      const metrics = observer.getMetrics()
-      results.performanceMetrics = metrics
+      const observer = PerformanceObserver.getInstance();
+      const metrics = observer.getMetrics();
+      results.performanceMetrics = JSON.stringify(metrics);
 
       // Function timing test
       const timingResult = performanceUtils.measureTime(() => {
-        let sum = 0
+        let sum = 0;
         for (let i = 0; i < 1000000; i++) {
-          sum += i
+          sum += i;
         }
-        return sum
-      }, 'Sum calculation')
-      results.functionTiming = timingResult
+        return sum;
+      }, 'Sum calculation');
+      results.functionTiming = timingResult;
 
-      setTestResults(results)
+      setTestResults(results);
     } catch (error) {
-      console.error('Performance test failed:', error)
+      console.error('Performance test failed:', error);
     } finally {
-      setIsRunning(false)
+      setIsRunning(false);
     }
-  }, [])
+  }, []);
 
   // Clear cache test
   const clearCache = useCallback(() => {
-    cache.clearAll()
-    console.log('All caches cleared')
-  }, [])
+    cache.clearAll();
+    console.log('All caches cleared');
+  }, []);
 
   // Memory cleanup test
   const triggerMemoryCleanup = useCallback(() => {
-    MemoryManager.checkMemoryUsage()
-    console.log('Memory cleanup triggered')
-  }, [])
+    MemoryManager.checkMemoryUsage();
+    console.log('Memory cleanup triggered');
+  }, []);
 
   // Export performance report
   const exportReport = useCallback(() => {
-    const reports = PerformanceReporter.getReports()
-    const averageMetrics = PerformanceReporter.getAverageMetrics()
+    const reports = PerformanceReporter.getReports();
+    const averageMetrics = PerformanceReporter.getAverageMetrics();
     const report = {
       reports,
       averageMetrics,
@@ -191,37 +202,35 @@ export const PerformanceTest = () => {
       cacheStats: cache.getStats(),
       memoryUsage: MemoryManager.getMemoryUsage(),
       bundleStats: BundleAnalyzer.getBundleStats(),
-    }
+    };
 
-    const blob = new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'performance-report.json'
-    a.click()
-    URL.revokeObjectURL(url)
-  }, [])
+    const blob = new Blob([JSON.stringify(report, null, 2)], {
+      type: 'application/json',
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'performance-report.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
 
   return (
-    <OptimizedContainer
-      maxWidth="full"
-      padding="lg"
-    >
+    <OptimizedContainer maxWidth="full" padding="lg">
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             Performance Optimization & Caching Test
             <div className="flex items-center space-x-2">
               <Badge variant="outline">Renders: {renderCount}</Badge>
-              {isTransitioning && <Badge variant="secondary">Transitioning</Badge>}
+              {isTransitioning && (
+                <Badge variant="secondary">Transitioning</Badge>
+              )}
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-          >
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-6">
               <TabsTrigger value="caching">Caching</TabsTrigger>
               <TabsTrigger value="hooks">Hooks</TabsTrigger>
@@ -231,10 +240,7 @@ export const PerformanceTest = () => {
               <TabsTrigger value="results">Results</TabsTrigger>
             </TabsList>
 
-            <TabsContent
-              value="caching"
-              className="space-y-6"
-            >
+            <TabsContent value="caching" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -242,28 +248,43 @@ export const PerformanceTest = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex space-x-2">
-                      <OptimizedButton onClick={() => cache.memory.set('test-key', 'test-value')}>
+                      <OptimizedButton
+                        onClick={() =>
+                          cache.memory.set('test-key', 'test-value')
+                        }
+                      >
                         Set Memory Cache
                       </OptimizedButton>
-                      <OptimizedButton onClick={() => cache.session.set('test-key', 'test-value')}>
+                      <OptimizedButton
+                        onClick={() =>
+                          cache.session.set('test-key', 'test-value')
+                        }
+                      >
                         Set Session Cache
                       </OptimizedButton>
-                      <OptimizedButton onClick={() => cache.persistent.set('test-key', 'test-value')}>
+                      <OptimizedButton
+                        onClick={() =>
+                          cache.persistent.set('test-key', 'test-value')
+                        }
+                      >
                         Set Persistent Cache
                       </OptimizedButton>
                     </div>
                     <div className="flex space-x-2">
-                      <OptimizedButton onClick={() => console.log(cache.memory.get('test-key'))}>
+                      <OptimizedButton
+                        onClick={() =>
+                          console.log(cache.memory.get('test-key'))
+                        }
+                      >
                         Get Memory Cache
                       </OptimizedButton>
-                      <OptimizedButton onClick={() => console.log(cache.smart.get('test-key'))}>
+                      <OptimizedButton
+                        onClick={() => console.log(cache.smart.get('test-key'))}
+                      >
                         Get Smart Cache
                       </OptimizedButton>
                     </div>
-                    <OptimizedButton
-                      onClick={clearCache}
-                      variant="destructive"
-                    >
+                    <OptimizedButton onClick={clearCache} variant="destructive">
                       Clear All Caches
                     </OptimizedButton>
                   </CardContent>
@@ -274,16 +295,15 @@ export const PerformanceTest = () => {
                     <CardTitle>Cache Statistics</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <pre className="bg-muted rounded p-2 text-xs">{JSON.stringify(cache.getStats(), null, 2)}</pre>
+                    <pre className="bg-muted rounded p-2 text-xs">
+                      {JSON.stringify(cache.getStats(), null, 2)}
+                    </pre>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent
-              value="hooks"
-              className="space-y-6"
-            >
+            <TabsContent value="hooks" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -297,7 +317,10 @@ export const PerformanceTest = () => {
                       {cachedLoading ? 'Loading...' : 'Fetch Data'}
                     </OptimizedButton>
                     <div className="text-sm">
-                      <p>Data: {cachedData ? `${cachedData.length} items` : 'No data'}</p>
+                      <p>
+                        Data:{' '}
+                        {cachedData ? `${cachedData.length} items` : 'No data'}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>
@@ -308,9 +331,19 @@ export const PerformanceTest = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="flex space-x-2">
-                      <OptimizedButton onClick={() => updateFilters({ category: 'A' })}>Filter A</OptimizedButton>
-                      <OptimizedButton onClick={() => updateFilters({ category: 'B' })}>Filter B</OptimizedButton>
-                      <OptimizedButton onClick={() => updateFilters({})}>Clear Filter</OptimizedButton>
+                      <OptimizedButton
+                        onClick={() => updateFilters({ category: 'A' })}
+                      >
+                        Filter A
+                      </OptimizedButton>
+                      <OptimizedButton
+                        onClick={() => updateFilters({ category: 'B' })}
+                      >
+                        Filter B
+                      </OptimizedButton>
+                      <OptimizedButton onClick={() => updateFilters({})}>
+                        Clear Filter
+                      </OptimizedButton>
                     </div>
                     <div className="text-sm">
                       <p>Items: {listData?.length || 0}</p>
@@ -328,23 +361,25 @@ export const PerformanceTest = () => {
                       type="text"
                       placeholder="Name"
                       value={formData.name}
-                      onChange={(e) => updateData({ name: e.target.value })}
+                      onChange={e => updateData({ name: e.target.value })}
                       className="w-full rounded border p-2"
                     />
                     <input
                       type="email"
                       placeholder="Email"
                       value={formData.email}
-                      onChange={(e) => updateData({ email: e.target.value })}
+                      onChange={e => updateData({ email: e.target.value })}
                       className="w-full rounded border p-2"
                     />
                     <textarea
                       placeholder="Message"
                       value={formData.message}
-                      onChange={(e) => updateData({ message: e.target.value })}
+                      onChange={e => updateData({ message: e.target.value })}
                       className="w-full rounded border p-2"
                     />
-                    <OptimizedButton onClick={() => reset()}>Reset Form</OptimizedButton>
+                    <OptimizedButton onClick={() => reset()}>
+                      Reset Form
+                    </OptimizedButton>
                   </CardContent>
                 </Card>
 
@@ -365,31 +400,34 @@ export const PerformanceTest = () => {
               </div>
             </TabsContent>
 
-            <TabsContent
-              value="components"
-              className="space-y-6"
-            >
+            <TabsContent value="components" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <div className="rounded border p-4">
-                  <p className="text-muted-foreground">Data display component placeholder</p>
+                  <p className="text-muted-foreground">
+                    Data display component placeholder
+                  </p>
                 </div>
 
                 <OptimizedList
                   items={sampleData.slice(0, 10)}
-                  renderItem={(item) => (
+                  renderItem={item => (
                     <div
                       key={(item as { id: string }).id}
                       className="flex items-center justify-between rounded border p-2"
                     >
                       <span>{(item as { name: string }).name}</span>
-                      <span>{(item as { value: number }).value.toFixed(2)}</span>
+                      <span>
+                        {(item as { value: number }).value.toFixed(2)}
+                      </span>
                     </div>
                   )}
                   containerHeight={200}
                 />
 
                 <div className="rounded border p-4">
-                  <p className="text-muted-foreground">Table component placeholder</p>
+                  <p className="text-muted-foreground">
+                    Table component placeholder
+                  </p>
                 </div>
 
                 <OptimizedCard title="Optimized Image">
@@ -399,31 +437,27 @@ export const PerformanceTest = () => {
                     className="h-32 w-full rounded object-cover"
                   />
                   {imageLoading && <p>Loading image...</p>}
-                  {imageError && <p className="text-destructive">Failed to load image</p>}
+                  {imageError && (
+                    <p className="text-destructive">Failed to load image</p>
+                  )}
                 </OptimizedCard>
 
-                <OptimizedGrid
-                  cols={3}
-                  gap="md"
-                >
-                  <OptimizedSkeleton
-                    count={3}
-                    height="h-8"
-                  />
+                <OptimizedGrid cols={3} gap="md">
+                  <OptimizedSkeleton count={3} height="h-8" />
                 </OptimizedGrid>
 
-                <div ref={intersectionRef}>
+                <div ref={intersectionRef as React.RefObject<HTMLDivElement>}>
                   <OptimizedCard title="Intersection Observer Test">
-                    <p>This card is {isIntersecting ? 'visible' : 'not visible'} in the viewport</p>
+                    <p>
+                      This card is {isIntersecting ? 'visible' : 'not visible'}{' '}
+                      in the viewport
+                    </p>
                   </OptimizedCard>
                 </div>
               </div>
             </TabsContent>
 
-            <TabsContent
-              value="monitoring"
-              className="space-y-6"
-            >
+            <TabsContent value="monitoring" className="space-y-6">
               <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <Card>
                   <CardHeader>
@@ -431,7 +465,11 @@ export const PerformanceTest = () => {
                   </CardHeader>
                   <CardContent>
                     <pre className="bg-muted rounded p-2 text-xs">
-                      {JSON.stringify(PerformanceObserver.getInstance().getMetrics(), null, 2)}
+                      {JSON.stringify(
+                        PerformanceObserver.getInstance().getMetrics(),
+                        null,
+                        2
+                      )}
                     </pre>
                   </CardContent>
                 </Card>
@@ -470,19 +508,27 @@ export const PerformanceTest = () => {
                   </CardHeader>
                   <CardContent className="space-y-4">
                     <div className="text-sm">
-                      <p>Total Reports: {PerformanceReporter.getReports().length}</p>
-                      <p>Average Metrics: {Object.keys(PerformanceReporter.getAverageMetrics()).length} metrics</p>
+                      <p>
+                        Total Reports: {PerformanceReporter.getReports().length}
+                      </p>
+                      <p>
+                        Average Metrics:{' '}
+                        {
+                          Object.keys(PerformanceReporter.getAverageMetrics())
+                            .length
+                        }{' '}
+                        metrics
+                      </p>
                     </div>
-                    <OptimizedButton onClick={exportReport}>Export Report</OptimizedButton>
+                    <OptimizedButton onClick={exportReport}>
+                      Export Report
+                    </OptimizedButton>
                   </CardContent>
                 </Card>
               </div>
             </TabsContent>
 
-            <TabsContent
-              value="tests"
-              className="space-y-6"
-            >
+            <TabsContent value="tests" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Performance Tests</CardTitle>
@@ -518,10 +564,7 @@ export const PerformanceTest = () => {
               </Card>
             </TabsContent>
 
-            <TabsContent
-              value="results"
-              className="space-y-6"
-            >
+            <TabsContent value="results" className="space-y-6">
               <Card>
                 <CardHeader>
                   <CardTitle>Test Results</CardTitle>
@@ -532,7 +575,9 @@ export const PerformanceTest = () => {
                       {JSON.stringify(testResults, null, 2)}
                     </pre>
                   ) : (
-                    <p className="text-muted-foreground">No test results available. Run tests first.</p>
+                    <p className="text-muted-foreground">
+                      No test results available. Run tests first.
+                    </p>
                   )}
                 </CardContent>
               </Card>
@@ -541,7 +586,7 @@ export const PerformanceTest = () => {
         </CardContent>
       </Card>
     </OptimizedContainer>
-  )
-}
+  );
+};
 
-export default PerformanceTest
+export default PerformanceTest;

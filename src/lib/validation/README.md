@@ -116,53 +116,52 @@ src-tauri/src/
 #### Basic Form Validation
 
 ```tsx
-import { supplierSchema, useValidation } from '@/lib/validation'
+import { supplierSchema, useValidation } from '@/lib/validation';
 
 const SupplierForm = () => {
   const validation = useValidation({
     schema: supplierSchema,
     validateOnBlur: true,
     showToast: true,
-  })
+  });
 
   const handleSubmit = async () => {
-    const success = await validation.submit(async (data) => {
+    const success = await validation.submit(async data => {
       // Submit validated data
-      await saveSupplier(data)
-    })
+      await saveSupplier(data);
+    });
 
     if (!success) {
-      console.log('Validation failed')
+      console.log('Validation failed');
     }
-  }
+  };
 
   return (
     <form>
       <input
         value={validation.data.supplierName || ''}
-        onChange={(e) => validation.setField('supplierName', e.target.value)}
+        onChange={e => validation.setField('supplierName', e.target.value)}
         onBlur={() => validation.setTouched('supplierName', true)}
         className={validation.hasFieldError('supplierName') ? 'error' : ''}
       />
       {validation.hasFieldError('supplierName') && (
-        <span className="error">{validation.getFieldError('supplierName')}</span>
+        <span className="error">
+          {validation.getFieldError('supplierName')}
+        </span>
       )}
 
-      <button
-        onClick={handleSubmit}
-        disabled={validation.isSubmitting}
-      >
+      <button onClick={handleSubmit} disabled={validation.isSubmitting}>
         Submit
       </button>
     </form>
-  )
-}
+  );
+};
 ```
 
 #### File Validation
 
 ```tsx
-import { useFileValidation } from '@/lib/validation'
+import { useFileValidation } from '@/lib/validation';
 
 const FileUpload = () => {
   const { validateFile } = useFileValidation({
@@ -170,49 +169,44 @@ const FileUpload = () => {
     allowedTypes: ['text/csv'],
     allowedExtensions: ['csv'],
     showToast: true,
-  })
+  });
 
-  const handleFileChange = (event) => {
-    const file = event.target.files[0]
-    const result = validateFile(file)
+  const handleFileChange = event => {
+    const file = event.target.files[0];
+    const result = validateFile(file);
 
     if (result.success) {
       // Process valid file
-      processFile(result.file)
+      processFile(result.file);
     }
-  }
+  };
 
-  return (
-    <input
-      type="file"
-      onChange={handleFileChange}
-    />
-  )
-}
+  return <input type="file" onChange={handleFileChange} />;
+};
 ```
 
 #### CSV Validation
 
 ```tsx
-import { itemSchema, useCsvValidation } from '@/lib/validation'
+import { itemSchema, useCsvValidation } from '@/lib/validation';
 
 const CsvImport = () => {
-  const { validateCsv } = useCsvValidation(itemSchema)
+  const { validateCsv } = useCsvValidation(itemSchema);
 
-  const handleCsvImport = (csvData) => {
-    const result = validateCsv(csvData)
+  const handleCsvImport = csvData => {
+    const result = validateCsv(csvData);
 
-    console.log(`${result.valid.length} valid records`)
-    console.log(`${result.invalid.length} invalid records`)
+    console.log(`${result.valid.length} valid records`);
+    console.log(`${result.invalid.length} invalid records`);
 
     // Process valid records
-    result.valid.forEach((record) => {
-      saveItem(record)
-    })
-  }
+    result.valid.forEach(record => {
+      saveItem(record);
+    });
+  };
 
-  return <button onClick={() => handleCsvImport(data)}>Import CSV</button>
-}
+  return <button onClick={() => handleCsvImport(data)}>Import CSV</button>;
+};
 ```
 
 ### Backend Validation
@@ -378,15 +372,15 @@ pub fn process_user_input(input: String) -> Result<String, String> {
 ```tsx
 const validation = useValidation({
   schema: supplierSchema,
-  onValidationError: (errors) => {
-    console.error('Validation errors:', errors)
+  onValidationError: errors => {
+    console.error('Validation errors:', errors);
     // Custom error handling
   },
-  onValidationSuccess: (data) => {
-    console.log('Validation successful:', data)
+  onValidationSuccess: data => {
+    console.log('Validation successful:', data);
     // Custom success handling
   },
-})
+});
 ```
 
 ### Backend Error Handling
@@ -409,10 +403,10 @@ if !validation_result.is_valid {
 Use the `ValidationTest` component to test all validation features:
 
 ```tsx
-import ValidationTest from '@/components/validation/ValidationTest'
+import ValidationTest from '@/components/validation/ValidationTest';
 
 // Add to your routes or pages
-;<ValidationTest />
+<ValidationTest />;
 ```
 
 ### Test Features
@@ -450,9 +444,9 @@ const validation = useValidation({
   validateOnChange: false, // Validate on every change
   validateOnBlur: true, // Validate on blur
   showToast: true, // Show toast notifications
-  onValidationSuccess: (data) => {}, // Success callback
-  onValidationError: (errors) => {}, // Error callback
-})
+  onValidationSuccess: data => {}, // Success callback
+  onValidationError: errors => {}, // Error callback
+});
 ```
 
 ### File Validation Options
@@ -463,7 +457,7 @@ const { validateFile } = useFileValidation({
   allowedTypes: ['text/csv'], // MIME types
   allowedExtensions: ['csv'], // File extensions
   showToast: true, // Show notifications
-})
+});
 ```
 
 ### Input Validation Options
@@ -475,7 +469,7 @@ const { validateInput } = useInputValidation({
   checkSqlInjection: true, // Check for SQL injection
   checkXss: true, // Check for XSS
   showToast: true, // Show notifications
-})
+});
 ```
 
 ## 🚨 Error Codes

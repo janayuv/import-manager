@@ -1,64 +1,72 @@
 // src/lib/settings.ts
 export interface NumberFormatSettings {
-  decimalPlaces: number
-  useThousandsSeparator: boolean
-  currencySymbol: string
-  currencyPosition: 'before' | 'after'
-  showCurrency: boolean
-  useCompactNotation: boolean
-  compactThreshold: number
-  useScientificNotation: boolean
-  scientificThreshold: number
-  negativeFormat: 'minus' | 'parentheses' | 'brackets'
-  zeroFormat: '0' | '0.00' | '-'
+  decimalPlaces: number;
+  useThousandsSeparator: boolean;
+  currencySymbol: string;
+  currencyPosition: 'before' | 'after';
+  showCurrency: boolean;
+  useCompactNotation: boolean;
+  compactThreshold: number;
+  useScientificNotation: boolean;
+  scientificThreshold: number;
+  negativeFormat: 'minus' | 'parentheses' | 'brackets';
+  zeroFormat: '0' | '0.00' | '-';
 }
 
 export interface DateFormatSettings {
-  format: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD' | 'DD-MM-YYYY'
-  includeTime: boolean
-  timeFormat: '12h' | '24h'
+  format: 'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY-MM-DD' | 'DD-MM-YYYY';
+  includeTime: boolean;
+  timeFormat: '12h' | '24h';
 }
 
 export interface TextFormatSettings {
-  case: 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase'
-  trimWhitespace: boolean
+  case: 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase';
+  trimWhitespace: boolean;
 }
 
 export interface ModuleFieldSettings {
-  visible: boolean
-  order: number
-  width?: string
-  case?: 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase' | 'none'
-  trimWhitespace?: boolean
-  numberFormat?: 'currency' | 'percentage' | 'decimal' | 'integer' | 'scientific'
-  precision?: number
-  showSign?: boolean
+  visible: boolean;
+  order: number;
+  width?: string;
+  case?: 'lowercase' | 'uppercase' | 'titlecase' | 'sentencecase' | 'none';
+  trimWhitespace?: boolean;
+  numberFormat?:
+    | 'currency'
+    | 'percentage'
+    | 'decimal'
+    | 'integer'
+    | 'scientific';
+  precision?: number;
+  showSign?: boolean;
 }
 
 export interface ModuleSettings {
-  fields: Record<string, ModuleFieldSettings>
-  showTotals: boolean
-  showActions: boolean
-  itemsPerPage: number
+  fields: Record<string, ModuleFieldSettings>;
+  showTotals: boolean;
+  showActions: boolean;
+  itemsPerPage: number;
 }
 
 export interface AppSettings {
-  numberFormat: NumberFormatSettings
-  dateFormat: DateFormatSettings
-  textFormat: TextFormatSettings
+  numberFormat: NumberFormatSettings;
+  dateFormat: DateFormatSettings;
+  textFormat: TextFormatSettings;
   modules: {
-    shipment: ModuleSettings
-    invoice: ModuleSettings
-    boe: ModuleSettings
-    boeSummary: ModuleSettings
-    supplier: ModuleSettings
-    itemMaster: ModuleSettings
-    expenses: ModuleSettings
-  }
+    shipment: ModuleSettings;
+    invoice: ModuleSettings;
+    boe: ModuleSettings;
+    boeSummary: ModuleSettings;
+    supplier: ModuleSettings;
+    itemMaster: ModuleSettings;
+    expenses: ModuleSettings;
+  };
 }
 
 // Default module field configurations - Updated to match actual data structure
-const defaultModuleFields: Record<string, Record<string, ModuleFieldSettings>> = {
+const defaultModuleFields: Record<
+  string,
+  Record<string, ModuleFieldSettings>
+> = {
   shipment: {
     supplierId: {
       visible: true,
@@ -160,8 +168,20 @@ const defaultModuleFields: Record<string, Record<string, ModuleFieldSettings>> =
       precision: 2,
       showSign: false,
     },
-    etd: { visible: true, order: 15, width: '100px', case: 'none' as const, trimWhitespace: false },
-    eta: { visible: true, order: 16, width: '100px', case: 'none' as const, trimWhitespace: false },
+    etd: {
+      visible: true,
+      order: 15,
+      width: '100px',
+      case: 'none' as const,
+      trimWhitespace: false,
+    },
+    eta: {
+      visible: true,
+      order: 16,
+      width: '100px',
+      case: 'none' as const,
+      trimWhitespace: false,
+    },
     status: {
       visible: true,
       order: 17,
@@ -520,7 +540,13 @@ const defaultModuleFields: Record<string, Record<string, ModuleFieldSettings>> =
       case: 'titlecase' as const,
       trimWhitespace: true,
     },
-    phone: { visible: true, order: 5, width: '120px', case: 'none' as const, trimWhitespace: true },
+    phone: {
+      visible: true,
+      order: 5,
+      width: '120px',
+      case: 'none' as const,
+      trimWhitespace: true,
+    },
     email: {
       visible: true,
       order: 6,
@@ -874,7 +900,7 @@ const defaultModuleFields: Record<string, Record<string, ModuleFieldSettings>> =
       trimWhitespace: false,
     },
   },
-}
+};
 
 // Default settings
 export const defaultSettings: AppSettings = {
@@ -944,11 +970,14 @@ export const defaultSettings: AppSettings = {
       itemsPerPage: 10,
     },
   },
-}
+};
 
 // Deep merge function for settings
-function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial<T>): T {
-  const result = { ...target }
+function deepMerge<T extends Record<string, unknown>>(
+  target: T,
+  source: Partial<T>
+): T {
+  const result = { ...target };
 
   for (const key in source) {
     if (
@@ -957,44 +986,47 @@ function deepMerge<T extends Record<string, unknown>>(target: T, source: Partial
       typeof source[key] === 'object' &&
       !Array.isArray(source[key])
     ) {
-      const targetValue = (target[key] as Record<string, unknown>) || {}
+      const targetValue = (target[key] as Record<string, unknown>) || {};
 
-      const sourceValue = source[key] as Record<string, unknown>
+      const sourceValue = source[key] as Record<string, unknown>;
 
-      result[key] = deepMerge(targetValue, sourceValue) as T[Extract<keyof T, string>]
+      result[key] = deepMerge(targetValue, sourceValue) as T[Extract<
+        keyof T,
+        string
+      >];
     } else if (source[key] !== undefined) {
-      result[key] = source[key] as T[Extract<keyof T, string>]
+      result[key] = source[key] as T[Extract<keyof T, string>];
     }
   }
 
-  return result
+  return result;
 }
 
 // Settings storage key
-const SETTINGS_STORAGE_KEY = 'import-manager-settings'
+const SETTINGS_STORAGE_KEY = 'import-manager-settings';
 
 // Load settings from localStorage
 export function loadSettings(): AppSettings {
   try {
-    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY)
+    const stored = localStorage.getItem(SETTINGS_STORAGE_KEY);
 
     if (stored) {
-      const parsed = JSON.parse(stored)
+      const parsed = JSON.parse(stored);
 
       // Check if the stored settings have the old supplier fields structure
       const hasOldSupplierFields =
         parsed.modules?.supplier?.fields &&
         (parsed.modules.supplier.fields.name ||
           parsed.modules.supplier.fields.gstin ||
-          parsed.modules.supplier.fields.state)
+          parsed.modules.supplier.fields.state);
 
       if (hasOldSupplierFields) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-        return defaultSettings
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
       }
 
       // Check if shipment module is missing new fields
-      const shipmentFields = parsed.modules?.shipment?.fields
+      const shipmentFields = parsed.modules?.shipment?.fields;
       const hasOldShipmentFields =
         shipmentFields &&
         (!shipmentFields.blAwbDate ||
@@ -1002,16 +1034,18 @@ export function loadSettings(): AppSettings {
           !shipmentFields.shipmentType ||
           !shipmentFields.containerNumber ||
           !shipmentFields.grossWeightKg ||
-          !shipmentFields.dateOfDelivery)
+          !shipmentFields.dateOfDelivery);
 
       if (hasOldShipmentFields) {
-        console.log('🔧 loadSettings - Detected old shipment fields structure, clearing settings...')
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-        return defaultSettings
+        console.log(
+          '🔧 loadSettings - Detected old shipment fields structure, clearing settings...'
+        );
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
       }
 
       // Check if invoice module is missing new fields
-      const invoiceFields = parsed.modules?.invoice?.fields
+      const invoiceFields = parsed.modules?.invoice?.fields;
       const hasOldInvoiceFields =
         invoiceFields &&
         (!invoiceFields.invoiceId ||
@@ -1026,94 +1060,104 @@ export function loadSettings(): AppSettings {
           !invoiceFields.lineTotal ||
           !invoiceFields.bcd ||
           !invoiceFields.igst ||
-          !invoiceFields.invoiceTotal)
+          !invoiceFields.invoiceTotal);
 
       if (hasOldInvoiceFields) {
-        console.log('🔧 loadSettings - Detected old invoice fields structure, clearing settings...')
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-        return defaultSettings
+        console.log(
+          '🔧 loadSettings - Detected old invoice fields structure, clearing settings...'
+        );
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
       }
 
       // Check if BOE module is missing new fields
-      const boeFields = parsed.modules?.boe?.fields
-      const hasOldBoeFields = boeFields && (!boeFields.id || !boeFields.refId || !boeFields.transactionId)
+      const boeFields = parsed.modules?.boe?.fields;
+      const hasOldBoeFields =
+        boeFields &&
+        (!boeFields.id || !boeFields.refId || !boeFields.transactionId);
 
       if (hasOldBoeFields) {
-        console.log('🔧 loadSettings - Detected old BOE fields structure, clearing settings...')
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-        return defaultSettings
+        console.log(
+          '🔧 loadSettings - Detected old BOE fields structure, clearing settings...'
+        );
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
       }
 
       // Check if expenses module is missing new fields
-      const expensesFields = parsed.modules?.expenses?.fields
+      const expensesFields = parsed.modules?.expenses?.fields;
       const hasOldExpensesFields =
         expensesFields &&
         (!expensesFields.id ||
           !expensesFields.shipmentId ||
           !expensesFields.createdBy ||
           !expensesFields.createdAt ||
-          !expensesFields.updatedAt)
+          !expensesFields.updatedAt);
 
       if (hasOldExpensesFields) {
-        console.log('🔧 loadSettings - Detected old expenses fields structure, clearing settings...')
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-        return defaultSettings
+        console.log(
+          '🔧 loadSettings - Detected old expenses fields structure, clearing settings...'
+        );
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
       }
 
       // Check if item master module is missing new fields
-      const itemMasterFields = parsed.modules?.itemMaster?.fields
-      const hasOldItemMasterFields = itemMasterFields && !itemMasterFields.id
+      const itemMasterFields = parsed.modules?.itemMaster?.fields;
+      const hasOldItemMasterFields = itemMasterFields && !itemMasterFields.id;
 
       if (hasOldItemMasterFields) {
-        console.log('🔧 loadSettings - Detected old item master fields structure, clearing settings...')
-        localStorage.removeItem(SETTINGS_STORAGE_KEY)
-        return defaultSettings
+        console.log(
+          '🔧 loadSettings - Detected old item master fields structure, clearing settings...'
+        );
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
       }
 
       // Deep merge with defaults to ensure all properties exist
       const mergedSettings = deepMerge(
         defaultSettings as unknown as Record<string, unknown>,
         parsed as unknown as Record<string, unknown>
-      ) as unknown as AppSettings
+      ) as unknown as AppSettings;
 
       // Force shipmentType to be uppercase (fix for existing settings)
       if (mergedSettings.modules?.shipment?.fields?.shipmentType) {
-        mergedSettings.modules.shipment.fields.shipmentType.case = 'uppercase'
+        mergedSettings.modules.shipment.fields.shipmentType.case = 'uppercase';
       }
 
-      return mergedSettings
+      return mergedSettings;
     }
   } catch (error) {
-    console.error('🔧 loadSettings - Failed to load settings:', error)
+    console.error('🔧 loadSettings - Failed to load settings:', error);
   }
 
-  return defaultSettings
+  return defaultSettings;
 }
 
 // Save settings to localStorage
 export function saveSettings(settings: AppSettings): void {
   try {
-    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings))
+    localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify(settings));
   } catch (error) {
-    console.error('🔧 saveSettings - Failed to save settings:', error)
+    console.error('🔧 saveSettings - Failed to save settings:', error);
   }
 }
 
 // Clear all settings and reset to defaults
 export function clearSettings(): void {
   try {
-    localStorage.clear()
-    console.log('🔧 Settings cleared successfully')
-    window.location.reload()
+    localStorage.clear();
+    console.log('🔧 Settings cleared successfully');
+    window.location.reload();
   } catch (error) {
-    console.error('Failed to clear settings:', error)
+    console.error('Failed to clear settings:', error);
   }
 }
 
 // Force refresh settings to apply new defaults
 export function refreshSettings(): AppSettings {
-  clearSettings()
-  return loadSettings()
+  clearSettings();
+  return loadSettings();
 }
 
 // Clear table page size settings to force refresh from module settings
@@ -1129,40 +1173,47 @@ export function clearTablePageSizeSettings(): void {
       'item-table-page-size',
       'item-master-table-page-size',
       'expense-table-page-size',
-    ]
+    ];
 
-    keysToRemove.forEach((key) => {
-      localStorage.removeItem(key)
-    })
+    keysToRemove.forEach(key => {
+      localStorage.removeItem(key);
+    });
 
     // Also clear the main settings to force refresh
-    localStorage.removeItem('import-manager-settings')
+    localStorage.removeItem('import-manager-settings');
 
-    console.log('🔧 Table page size settings and main settings cleared successfully')
+    console.log(
+      '🔧 Table page size settings and main settings cleared successfully'
+    );
 
     // Force page reload to apply new settings
-    window.location.reload()
+    window.location.reload();
   } catch (error) {
-    console.error('Failed to clear table page size settings:', error)
+    console.error('Failed to clear table page size settings:', error);
   }
 }
 
 // Make it available globally for console access
 if (typeof window !== 'undefined') {
-  ;(window as unknown as Record<string, unknown>).clearTablePageSizeSettings = clearTablePageSizeSettings
-  ;(window as unknown as Record<string, unknown>).clearAllSettings = clearSettings
-  ;(window as unknown as Record<string, unknown>).forceReloadSettings = () => {
-    localStorage.clear()
-    window.location.reload()
-  }
+  (window as unknown as Record<string, unknown>).clearTablePageSizeSettings =
+    clearTablePageSizeSettings;
+  (window as unknown as Record<string, unknown>).clearAllSettings =
+    clearSettings;
+  (window as unknown as Record<string, unknown>).forceReloadSettings = () => {
+    localStorage.clear();
+    window.location.reload();
+  };
 }
 
 // Update specific setting
-export function updateSettings<K extends keyof AppSettings>(key: K, value: AppSettings[K]): AppSettings {
-  const current = loadSettings()
-  const updated = { ...current, [key]: value }
-  saveSettings(updated)
-  return updated
+export function updateSettings<K extends keyof AppSettings>(
+  key: K,
+  value: AppSettings[K]
+): AppSettings {
+  const current = loadSettings();
+  const updated = { ...current, [key]: value };
+  saveSettings(updated);
+  return updated;
 }
 
 // Format number based on settings
@@ -1172,36 +1223,39 @@ export function formatNumber(
   fieldSettings?: Partial<ModuleFieldSettings>
 ): string {
   if (value === null || value === undefined) {
-    if (settings.zeroFormat === '-') return '-'
-    if (settings.zeroFormat === '0') return '0'
-    if (settings.zeroFormat === '0.00') return '0.00'
-    return '-'
+    if (settings.zeroFormat === '-') return '-';
+    if (settings.zeroFormat === '0') return '0';
+    if (settings.zeroFormat === '0.00') return '0.00';
+    return '-';
   }
 
   // Handle zero values
   if (value === 0) {
-    if (settings.zeroFormat === '-') return '-'
-    if (settings.zeroFormat === '0') return '0'
-    if (settings.zeroFormat === '0.00') return '0.00'
+    if (settings.zeroFormat === '-') return '-';
+    if (settings.zeroFormat === '0') return '0';
+    if (settings.zeroFormat === '0.00') return '0.00';
   }
 
   // Handle negative values
-  const isNegative = value < 0
-  const absValue = Math.abs(value)
+  const isNegative = value < 0;
+  const absValue = Math.abs(value);
 
   // Determine precision from field settings or global settings
-  const precision = fieldSettings?.precision ?? settings.decimalPlaces
+  const precision = fieldSettings?.precision ?? settings.decimalPlaces;
 
   // Handle scientific notation
-  if (settings.useScientificNotation && absValue >= settings.scientificThreshold) {
+  if (
+    settings.useScientificNotation &&
+    absValue >= settings.scientificThreshold
+  ) {
     const options: Intl.NumberFormatOptions = {
       notation: 'scientific',
       minimumFractionDigits: precision,
       maximumFractionDigits: precision,
       useGrouping: settings.useThousandsSeparator,
-    }
-    const formatted = new Intl.NumberFormat('en-US', options).format(absValue)
-    return isNegative ? `-${formatted}` : formatted
+    };
+    const formatted = new Intl.NumberFormat('en-US', options).format(absValue);
+    return isNegative ? `-${formatted}` : formatted;
   }
 
   // Handle compact notation (K, M, B)
@@ -1211,18 +1265,18 @@ export function formatNumber(
       minimumFractionDigits: precision,
       maximumFractionDigits: precision,
       useGrouping: settings.useThousandsSeparator,
-    }
-    const formatted = new Intl.NumberFormat('en-US', options).format(absValue)
-    return isNegative ? `-${formatted}` : formatted
+    };
+    const formatted = new Intl.NumberFormat('en-US', options).format(absValue);
+    return isNegative ? `-${formatted}` : formatted;
   }
 
   // Handle different number formats
-  let formatted: string
+  let formatted: string;
   const baseOptions: Intl.NumberFormatOptions = {
     minimumFractionDigits: precision,
     maximumFractionDigits: precision,
     useGrouping: settings.useThousandsSeparator,
-  }
+  };
 
   switch (fieldSettings?.numberFormat) {
     case 'currency':
@@ -1231,69 +1285,77 @@ export function formatNumber(
           ...baseOptions,
           style: 'currency',
           currency: 'INR',
-        }
-        formatted = new Intl.NumberFormat('en-US', currencyOptions).format(absValue)
+        };
+        formatted = new Intl.NumberFormat('en-US', currencyOptions).format(
+          absValue
+        );
       } else {
-        formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue)
+        formatted = new Intl.NumberFormat('en-US', baseOptions).format(
+          absValue
+        );
         if (settings.currencySymbol) {
           formatted =
             settings.currencyPosition === 'before'
               ? `${settings.currencySymbol}${formatted}`
-              : `${formatted}${settings.currencySymbol}`
+              : `${formatted}${settings.currencySymbol}`;
         }
       }
-      break
+      break;
 
     case 'percentage':
       // Don't use style: 'percent' to avoid automatic % symbol
-      formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue)
-      break
+      formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue);
+      break;
 
     case 'integer': {
       const integerOptions: Intl.NumberFormatOptions = {
         ...baseOptions,
         minimumFractionDigits: 0,
         maximumFractionDigits: 0,
-      }
-      formatted = new Intl.NumberFormat('en-US', integerOptions).format(absValue)
-      break
+      };
+      formatted = new Intl.NumberFormat('en-US', integerOptions).format(
+        absValue
+      );
+      break;
     }
 
     case 'scientific': {
       const scientificOptions: Intl.NumberFormatOptions = {
         ...baseOptions,
         notation: 'scientific',
-      }
-      formatted = new Intl.NumberFormat('en-US', scientificOptions).format(absValue)
-      break
+      };
+      formatted = new Intl.NumberFormat('en-US', scientificOptions).format(
+        absValue
+      );
+      break;
     }
 
     default: // decimal
-      formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue)
-      break
+      formatted = new Intl.NumberFormat('en-US', baseOptions).format(absValue);
+      break;
   }
 
   // Handle negative formatting
   if (isNegative) {
     switch (settings.negativeFormat) {
       case 'minus':
-        formatted = `-${formatted}`
-        break
+        formatted = `-${formatted}`;
+        break;
       case 'parentheses':
-        formatted = `(${formatted})`
-        break
+        formatted = `(${formatted})`;
+        break;
       case 'brackets':
-        formatted = `[${formatted}]`
-        break
+        formatted = `[${formatted}]`;
+        break;
     }
   }
 
   // Handle sign display
   if (fieldSettings?.showSign && !isNegative && value > 0) {
-    formatted = `+${formatted}`
+    formatted = `+${formatted}`;
   }
 
-  return formatted
+  return formatted;
 }
 
 // Format currency based on settings
@@ -1301,15 +1363,15 @@ export function formatCurrency(
   value: number | null | undefined,
   settings: NumberFormatSettings = loadSettings().numberFormat
 ): string {
-  if (value === null || value === undefined) return '-'
+  if (value === null || value === undefined) return '-';
 
   const options: Intl.NumberFormatOptions = {
     minimumFractionDigits: settings.decimalPlaces,
     maximumFractionDigits: settings.decimalPlaces,
     useGrouping: settings.useThousandsSeparator,
-  }
+  };
 
-  return new Intl.NumberFormat('en-US', options).format(value)
+  return new Intl.NumberFormat('en-US', options).format(value);
 }
 
 // Format date based on settings
@@ -1317,46 +1379,46 @@ export function formatDate(
   date: string | Date | null | undefined,
   settings: DateFormatSettings = loadSettings().dateFormat
 ): string {
-  if (!date) return '-'
+  if (!date) return '-';
 
-  const dateObj = typeof date === 'string' ? new Date(date) : date
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
 
-  if (isNaN(dateObj.getTime())) return '-'
+  if (isNaN(dateObj.getTime())) return '-';
 
-  const day = dateObj.getDate().toString().padStart(2, '0')
-  const month = (dateObj.getMonth() + 1).toString().padStart(2, '0')
-  const year = dateObj.getFullYear()
+  const day = dateObj.getDate().toString().padStart(2, '0');
+  const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+  const year = dateObj.getFullYear();
 
-  let formatted = ''
+  let formatted = '';
   switch (settings.format) {
     case 'DD/MM/YYYY':
-      formatted = `${day}/${month}/${year}`
-      break
+      formatted = `${day}/${month}/${year}`;
+      break;
     case 'MM/DD/YYYY':
-      formatted = `${month}/${day}/${year}`
-      break
+      formatted = `${month}/${day}/${year}`;
+      break;
     case 'YYYY-MM-DD':
-      formatted = `${year}-${month}-${day}`
-      break
+      formatted = `${year}-${month}-${day}`;
+      break;
     case 'DD-MM-YYYY':
-      formatted = `${day}-${month}-${year}`
-      break
+      formatted = `${day}-${month}-${year}`;
+      break;
   }
 
   if (settings.includeTime) {
-    const hours = dateObj.getHours()
-    const minutes = dateObj.getMinutes().toString().padStart(2, '0')
+    const hours = dateObj.getHours();
+    const minutes = dateObj.getMinutes().toString().padStart(2, '0');
 
     if (settings.timeFormat === '12h') {
-      const ampm = hours >= 12 ? 'PM' : 'AM'
-      const displayHours = hours % 12 || 12
-      formatted += ` ${displayHours}:${minutes} ${ampm}`
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      const displayHours = hours % 12 || 12;
+      formatted += ` ${displayHours}:${minutes} ${ampm}`;
     } else {
-      formatted += ` ${hours.toString().padStart(2, '0')}:${minutes}`
+      formatted += ` ${hours.toString().padStart(2, '0')}:${minutes}`;
     }
   }
 
-  return formatted
+  return formatted;
 }
 
 // Format text based on settings
@@ -1364,44 +1426,50 @@ export function formatText(
   text: string | null | undefined,
   settings: TextFormatSettings = loadSettings().textFormat
 ): string {
-  if (!text) return '-'
+  if (!text) return '-';
 
-  let formatted = text
+  let formatted = text;
 
   if (settings.trimWhitespace) {
-    formatted = formatted.trim()
+    formatted = formatted.trim();
   }
 
   switch (settings.case) {
     case 'lowercase':
-      formatted = formatted.toLowerCase()
-      break
+      formatted = formatted.toLowerCase();
+      break;
     case 'uppercase':
-      formatted = formatted.toUpperCase()
-      break
+      formatted = formatted.toUpperCase();
+      break;
     case 'titlecase':
-      formatted = formatted.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase())
-      break
+      formatted = formatted.replace(
+        /\w\S*/g,
+        txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
+      );
+      break;
     case 'sentencecase':
-      formatted = formatted.charAt(0).toUpperCase() + formatted.slice(1).toLowerCase()
-      break
+      formatted =
+        formatted.charAt(0).toUpperCase() + formatted.slice(1).toLowerCase();
+      break;
   }
 
-  return formatted
+  return formatted;
 }
 
 // Module settings helpers
-export function getModuleSettings(moduleName: keyof AppSettings['modules']): ModuleSettings {
-  const settings = loadSettings()
+export function getModuleSettings(
+  moduleName: keyof AppSettings['modules']
+): ModuleSettings {
+  const settings = loadSettings();
 
-  return settings.modules[moduleName]
+  return settings.modules[moduleName];
 }
 
 export function updateModuleSettings(
   moduleName: keyof AppSettings['modules'],
   updates: Partial<ModuleSettings>
 ): AppSettings {
-  const current = loadSettings()
+  const current = loadSettings();
   const updated = {
     ...current,
     modules: {
@@ -1411,9 +1479,9 @@ export function updateModuleSettings(
         ...updates,
       },
     },
-  }
-  saveSettings(updated)
-  return updated
+  };
+  saveSettings(updated);
+  return updated;
 }
 
 export function updateModuleField(
@@ -1421,9 +1489,9 @@ export function updateModuleField(
   fieldName: string,
   updates: Partial<ModuleFieldSettings>
 ): AppSettings {
-  const current = loadSettings()
+  const current = loadSettings();
 
-  const moduleSettings = current.modules[moduleName]
+  const moduleSettings = current.modules[moduleName];
 
   const updated = {
     ...current,
@@ -1440,36 +1508,38 @@ export function updateModuleField(
         },
       },
     },
-  }
+  };
 
-  saveSettings(updated)
-  return updated
+  saveSettings(updated);
+  return updated;
 }
 
-export function getVisibleFields(moduleName: keyof AppSettings['modules']): string[] {
-  const moduleSettings = getModuleSettings(moduleName)
+export function getVisibleFields(
+  moduleName: keyof AppSettings['modules']
+): string[] {
+  const moduleSettings = getModuleSettings(moduleName);
   return Object.entries(moduleSettings.fields)
     .filter(([, config]) => config.visible)
     .sort(([, a], [, b]) => a.order - b.order)
-    .map(([fieldName]) => fieldName)
+    .map(([fieldName]) => fieldName);
 }
 
 export function getFieldConfig(
   moduleName: keyof AppSettings['modules'],
   fieldName: string
 ): ModuleFieldSettings | undefined {
-  const moduleSettings = getModuleSettings(moduleName)
+  const moduleSettings = getModuleSettings(moduleName);
 
-  return moduleSettings.fields[fieldName]
+  return moduleSettings.fields[fieldName];
 }
 
 // Make it available globally for console access
 if (typeof window !== 'undefined') {
   // @ts-expect-error - Adding properties to window object
-  window.clearAllSettings = clearSettings
+  window.clearAllSettings = clearSettings;
   // @ts-expect-error - Adding properties to window object
   window.forceReloadSettings = () => {
-    localStorage.clear()
-    window.location.reload()
-  }
+    localStorage.clear();
+    window.location.reload();
+  };
 }

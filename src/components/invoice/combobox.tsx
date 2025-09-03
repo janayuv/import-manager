@@ -1,21 +1,32 @@
 // src/components/ui/combobox.tsx (CORRECTED)
-import { Check, ChevronsUpDown } from 'lucide-react'
+import { Check, ChevronsUpDown } from 'lucide-react';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Button } from '@/components/ui/button'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
 
 interface ComboboxProps {
-  options: { value: string; label: string }[]
-  value: string
-  onChange: (value: string) => void
-  placeholder?: string
-  searchPlaceholder?: string
-  notFoundText?: string
-  disabled?: boolean
+  options: { value: string; label: string }[];
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  notFoundText?: string;
+  disabled?: boolean;
 }
 
 export function Combobox({
@@ -27,13 +38,10 @@ export function Combobox({
   notFoundText = 'Nothing found.',
   disabled = false,
 }: ComboboxProps) {
-  const [open, setOpen] = React.useState(false)
+  const [open, setOpen] = React.useState(false);
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -42,7 +50,9 @@ export function Combobox({
           className="w-full justify-between"
           disabled={disabled}
         >
-          {value ? options.find((option) => option.value === value)?.label : placeholder}
+          {value
+            ? options.find(option => option.value === value)?.label
+            : placeholder}
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
@@ -52,7 +62,7 @@ export function Combobox({
           <CommandList>
             <CommandEmpty>{notFoundText}</CommandEmpty>
             <CommandGroup>
-              {options.map((option) => (
+              {options.map(option => (
                 <CommandItem
                   key={option.value}
                   // FIX: Use the visible label for the 'value' to enable searching on it
@@ -62,14 +72,19 @@ export function Combobox({
                     // 'value' is the prop passed to the Combobox (the current ID)
                     // 'option.value' is the ID of the item being clicked
                     if (value === option.value) {
-                      onChange('') // Deselect if clicking the same item
+                      onChange(''); // Deselect if clicking the same item
                     } else {
-                      onChange(option.value) // Select new item
+                      onChange(option.value); // Select new item
                     }
-                    setOpen(false)
+                    setOpen(false);
                   }}
                 >
-                  <Check className={cn('mr-2 h-4 w-4', value === option.value ? 'opacity-100' : 'opacity-0')} />
+                  <Check
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      value === option.value ? 'opacity-100' : 'opacity-0'
+                    )}
+                  />
                   {option.label}
                 </CommandItem>
               ))}
@@ -78,5 +93,5 @@ export function Combobox({
         </Command>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

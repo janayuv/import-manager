@@ -1,15 +1,19 @@
-import React from 'react'
-import { cn } from '@/lib/utils'
+import React from 'react';
+import { cn } from '@/lib/utils';
 
 // Responsive scaling props interface
 interface ResponsiveProps {
-  size?: 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl'
-  className?: string
-  children?: React.ReactNode
+  size?: 'xs' | 'sm' | 'base' | 'lg' | 'xl' | '2xl' | '3xl';
+  className?: string;
+  children?: React.ReactNode;
 }
 
 // Responsive Text Component
-export const ResponsiveText: React.FC<ResponsiveProps> = ({ size = 'base', className, children }) => {
+export const ResponsiveText: React.FC<ResponsiveProps> = ({
+  size = 'base',
+  className,
+  children,
+}) => {
   const sizeClasses = {
     xs: 'text-fluid-xs',
     sm: 'text-fluid-sm',
@@ -18,17 +22,17 @@ export const ResponsiveText: React.FC<ResponsiveProps> = ({ size = 'base', class
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
-  return <span className={cn(sizeClasses[size], className)}>{children}</span>
-}
+  return <span className={cn(sizeClasses[size], className)}>{children}</span>;
+};
 
 // Responsive Button Component
 interface ResponsiveButtonProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg'
-  onClick?: () => void
-  disabled?: boolean
-  type?: 'button' | 'submit' | 'reset'
+  variant?: 'default' | 'sm' | 'lg';
+  onClick?: () => void;
+  disabled?: boolean;
+  type?: 'button' | 'submit' | 'reset';
 }
 
 export const ResponsiveButton: React.FC<ResponsiveButtonProps> = ({
@@ -45,7 +49,7 @@ export const ResponsiveButton: React.FC<ResponsiveButtonProps> = ({
     default: 'btn-fluid',
     sm: 'btn-fluid-sm',
     lg: 'btn-fluid-lg',
-  }
+  };
 
   const sizeClasses = {
     xs: 'text-fluid-xs',
@@ -55,7 +59,7 @@ export const ResponsiveButton: React.FC<ResponsiveButtonProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
   return (
     <button
@@ -72,17 +76,17 @@ export const ResponsiveButton: React.FC<ResponsiveButtonProps> = ({
     >
       {children}
     </button>
-  )
-}
+  );
+};
 
 // Responsive Input Component
 interface ResponsiveInputProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg'
-  placeholder?: string
-  value?: string
-  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void
-  type?: string
-  disabled?: boolean
+  variant?: 'default' | 'sm' | 'lg';
+  placeholder?: string;
+  value?: string;
+  onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  type?: string;
+  disabled?: boolean;
 }
 
 export const ResponsiveInput: React.FC<ResponsiveInputProps> = ({
@@ -100,7 +104,7 @@ export const ResponsiveInput: React.FC<ResponsiveInputProps> = ({
     default: 'input-fluid',
     sm: 'input-fluid-sm',
     lg: 'input-fluid-lg',
-  }
+  };
 
   const sizeClasses = {
     xs: 'text-fluid-xs',
@@ -110,7 +114,7 @@ export const ResponsiveInput: React.FC<ResponsiveInputProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
   return (
     <input
@@ -127,14 +131,14 @@ export const ResponsiveInput: React.FC<ResponsiveInputProps> = ({
       disabled={disabled}
       {...props}
     />
-  )
-}
+  );
+};
 
 // Responsive Table Component
 interface ResponsiveTableProps extends ResponsiveProps {
-  children: React.ReactNode
-  variant?: 'default' | 'compact' | 'auto'
-  container?: boolean
+  children: React.ReactNode;
+  variant?: 'default' | 'compact' | 'auto';
+  container?: boolean;
 }
 
 export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
@@ -152,31 +156,37 @@ export const ResponsiveTable: React.FC<ResponsiveTableProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
   const variantClasses = {
     default: 'table-fluid',
     compact: 'table-fluid-compact',
     auto: 'table-fluid-auto',
-  }
+  };
 
-  const tableElement = <table className={cn(variantClasses[variant], sizeClasses[size], className)}>{children}</table>
+  const tableElement = (
+    <table
+      className={cn(variantClasses[variant], sizeClasses[size], className)}
+    >
+      {children}
+    </table>
+  );
 
   if (container) {
     return (
       <div className="table-container-fluid">
         <div className="table-wrapper-fluid">{tableElement}</div>
       </div>
-    )
+    );
   }
 
-  return tableElement
-}
+  return tableElement;
+};
 
 // Responsive Card Component
 interface ResponsiveCardProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg'
-  children: React.ReactNode
+  variant?: 'default' | 'sm' | 'lg';
+  children: React.ReactNode;
 }
 
 export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({
@@ -189,7 +199,7 @@ export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({
     default: 'card-fluid',
     sm: 'card-fluid-sm',
     lg: 'card-fluid-lg',
-  }
+  };
 
   const sizeClasses = {
     xs: 'text-fluid-xs',
@@ -199,7 +209,7 @@ export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
   return (
     <div
@@ -212,30 +222,36 @@ export const ResponsiveCard: React.FC<ResponsiveCardProps> = ({
     >
       {children}
     </div>
-  )
-}
+  );
+};
 
 // Responsive Icon Component
 interface ResponsiveIconProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg' | 'xl'
-  children: React.ReactNode
+  variant?: 'default' | 'sm' | 'lg' | 'xl';
+  children: React.ReactNode;
 }
 
-export const ResponsiveIcon: React.FC<ResponsiveIconProps> = ({ variant = 'default', className, children }) => {
+export const ResponsiveIcon: React.FC<ResponsiveIconProps> = ({
+  variant = 'default',
+  className,
+  children,
+}) => {
   const variantClasses = {
     default: 'icon-fluid',
     sm: 'icon-fluid-sm',
     lg: 'icon-fluid-lg',
     xl: 'icon-fluid-xl',
-  }
+  };
 
-  return <div className={cn(variantClasses[variant], className)}>{children}</div>
-}
+  return (
+    <div className={cn(variantClasses[variant], className)}>{children}</div>
+  );
+};
 
 // Responsive Container Component
 interface ResponsiveContainerProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg' | 'xl'
-  children: React.ReactNode
+  variant?: 'default' | 'sm' | 'lg' | 'xl';
+  children: React.ReactNode;
 }
 
 export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
@@ -249,7 +265,7 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
     sm: 'p-fluid-sm',
     lg: 'p-fluid-lg',
     xl: 'p-fluid-xl',
-  }
+  };
 
   const sizeClasses = {
     xs: 'text-fluid-xs',
@@ -259,15 +275,19 @@ export const ResponsiveContainer: React.FC<ResponsiveContainerProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
-  return <div className={cn(variantClasses[variant], sizeClasses[size], className)}>{children}</div>
-}
+  return (
+    <div className={cn(variantClasses[variant], sizeClasses[size], className)}>
+      {children}
+    </div>
+  );
+};
 
 // Responsive Grid Component
 interface ResponsiveGridProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg'
-  children: React.ReactNode
+  variant?: 'default' | 'sm' | 'lg';
+  children: React.ReactNode;
 }
 
 export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
@@ -280,7 +300,7 @@ export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
     default: 'grid-fluid',
     sm: 'grid-fluid-sm',
     lg: 'grid-fluid-lg',
-  }
+  };
 
   const sizeClasses = {
     xs: 'text-fluid-xs',
@@ -290,15 +310,26 @@ export const ResponsiveGrid: React.FC<ResponsiveGridProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
-  return <div className={cn('grid', variantClasses[variant], sizeClasses[size], className)}>{children}</div>
-}
+  return (
+    <div
+      className={cn(
+        'grid',
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+};
 
 // Responsive Spacing Component
 interface ResponsiveSpacingProps extends ResponsiveProps {
-  variant?: 'default' | 'sm' | 'lg' | 'xl'
-  children: React.ReactNode
+  variant?: 'default' | 'sm' | 'lg' | 'xl';
+  children: React.ReactNode;
 }
 
 export const ResponsiveSpacing: React.FC<ResponsiveSpacingProps> = ({
@@ -312,7 +343,7 @@ export const ResponsiveSpacing: React.FC<ResponsiveSpacingProps> = ({
     sm: 'space-fluid-sm',
     lg: 'space-fluid-lg',
     xl: 'space-fluid-xl',
-  }
+  };
 
   const sizeClasses = {
     xs: 'text-fluid-xs',
@@ -322,7 +353,18 @@ export const ResponsiveSpacing: React.FC<ResponsiveSpacingProps> = ({
     xl: 'text-fluid-xl',
     '2xl': 'text-fluid-2xl',
     '3xl': 'text-fluid-3xl',
-  }
+  };
 
-  return <div className={cn('flex', variantClasses[variant], sizeClasses[size], className)}>{children}</div>
-}
+  return (
+    <div
+      className={cn(
+        'flex',
+        variantClasses[variant],
+        sizeClasses[size],
+        className
+      )}
+    >
+      {children}
+    </div>
+  );
+};

@@ -1,4 +1,6 @@
 /// <reference types="vite/client" />
+/// <reference types="react" />
+/// <reference types="react-dom" />
 
 // Tauri window type declaration
 declare global {
@@ -6,11 +8,11 @@ declare global {
     __TAURI__?: {
       window: {
         getCurrent: () => Promise<{
-          setTheme: (theme: string) => void
-        }>
-      }
-    }
+          setTheme: (theme: string) => void;
+        }>;
+      };
+    };
   }
 }
 
-export {}
+export {};

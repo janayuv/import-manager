@@ -6,7 +6,7 @@
 | A confirmation dialog to prevent accidental deletion of saved BOE records.   |
 ================================================================================
 */
-'use client'
+'use client';
 
 import {
   AlertDialog,
@@ -17,8 +17,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import type { SavedBoe } from '@/types/boe-entry'
+} from '@/components/ui/alert-dialog';
+import type { SavedBoe } from '@/types/boe-entry';
 
 /*
 ================================================================================
@@ -75,22 +75,24 @@ import type { SavedBoe } from '@/types/boe-entry'
 */
 
 interface DeleteConfirmDialogProps {
-  boe: SavedBoe
-  onConfirm: () => void
-  onCancel: () => void
+  boe: SavedBoe;
+  onConfirm: () => void;
+  onCancel: () => void;
 }
 
-export function DeleteConfirmDialog({ boe, onConfirm, onCancel }: DeleteConfirmDialogProps) {
+export function DeleteConfirmDialog({
+  boe,
+  onConfirm,
+  onCancel,
+}: DeleteConfirmDialogProps) {
   return (
-    <AlertDialog
-      open={true}
-      onOpenChange={(isOpen) => !isOpen && onCancel()}
-    >
+    <AlertDialog open={true} onOpenChange={isOpen => !isOpen && onCancel()}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
           <AlertDialogDescription>
-            This action cannot be undone. This will permanently delete the BOE calculation for invoice{' '}
+            This action cannot be undone. This will permanently delete the BOE
+            calculation for invoice{' '}
             <span className="font-semibold">{boe.invoiceNumber}</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
@@ -100,5 +102,5 @@ export function DeleteConfirmDialog({ boe, onConfirm, onCancel }: DeleteConfirmD
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>
-  )
+  );
 }

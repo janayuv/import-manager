@@ -1,31 +1,40 @@
-import { invoke } from '@tauri-apps/api/core'
+import { invoke } from '@tauri-apps/api/core';
 
-import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from 'react';
 
-import { CACHE_TTL, cache } from '@/lib/cache'
+import { CACHE_TTL, cache } from '@/lib/cache';
 
 // Performance monitoring hook
 export function usePerformanceMonitor(componentName: string) {
-  const renderCount = useRef(0)
-  const lastRenderTime = useRef(performance.now())
-  const [isTransitioning, startTransition] = useTransition()
+  const renderCount = useRef(0);
+  const lastRenderTime = useRef(performance.now());
+  const [isTransitioning, startTransition] = useTransition();
 
   useEffect(() => {
-    renderCount.current++
-    const now = performance.now()
-    const timeSinceLastRender = now - lastRenderTime.current
-    lastRenderTime.current = now
+    renderCount.current++;
+    const now = performance.now();
+    const timeSinceLastRender = now - lastRenderTime.current;
+    lastRenderTime.current = now;
 
     if (process.env.NODE_ENV === 'development') {
-      console.log(`[${componentName}] Render #${renderCount.current} (${timeSinceLastRender.toFixed(2)}ms)`)
+      console.log(
+        `[${componentName}] Render #${renderCount.current} (${timeSinceLastRender.toFixed(2)}ms)`
+      );
     }
-  })
+  });
 
   return {
     renderCount: renderCount.current,
     isTransitioning,
     startTransition,
-  }
+  };
 }
 
 // Optimized data fetching with caching
@@ -33,13 +42,13 @@ export function useCachedData<T>(
   key: string,
   fetchFn: () => Promise<T>,
   options: {
-    ttl?: number
-    cacheType?: 'memory' | 'session' | 'persistent' | 'smart'
-    enabled?: boolean
-    onError?: (error: Error) => void
-    onSuccess?: (data: T) => void
-    refetchOnMount?: boolean
-    refetchOnWindowFocus?: boolean
+    ttl?: number;
+    cacheType?: 'memory' | 'session' | 'persistent' | 'smart';
+    enabled?: boolean;
+    onError?: (error: Error) => void;
+    onSuccess?: (data: T) => void;
+    refetchOnMount?: boolean;
+    refetchOnWindowFocus?: boolean;
   } = {}
 ) {
   const {
@@ -50,82 +59,82 @@ export function useCachedData<T>(
     onSuccess,
     refetchOnMount = true,
     refetchOnWindowFocus = false,
-  } = options
+  } = options;
 
-  const [data, setData] = useState<T | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
-  const [lastFetched, setLastFetched] = useState<number | null>(null)
+  const [data, setData] = useState<T | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+  const [lastFetched, setLastFetched] = useState<number | null>(null);
 
-  const cacheInstance = cache[cacheType]
+  const cacheInstance = cache[cacheType];
 
   const fetchData = useCallback(
     async (force = false) => {
-      if (!enabled) return
+      if (!enabled) return;
 
       // Check cache first (unless forced)
       if (!force) {
-        const cachedData = cacheInstance.get<T>(key)
+        const cachedData = cacheInstance.get<T>(key);
         if (cachedData !== null) {
-          setData(cachedData)
-          setError(null)
-          return
+          setData(cachedData);
+          setError(null);
+          return;
         }
       }
 
-      setLoading(true)
-      setError(null)
+      setLoading(true);
+      setError(null);
 
       try {
-        const result = await fetchFn()
+        const result = await fetchFn();
 
         // Cache the result
-        cacheInstance.set(key, result, ttl)
+        cacheInstance.set(key, result, ttl);
 
-        setData(result)
-        setLastFetched(Date.now())
-        onSuccess?.(result)
+        setData(result);
+        setLastFetched(Date.now());
+        onSuccess?.(result);
       } catch (err) {
-        const error = err instanceof Error ? err : new Error(String(err))
-        setError(error)
-        onError?.(error)
-        console.error(`Failed to fetch data for key "${key}":`, error)
+        const error = err instanceof Error ? err : new Error(String(err));
+        setError(error);
+        onError?.(error);
+        console.error(`Failed to fetch data for key "${key}":`, error);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     },
     [key, fetchFn, ttl, enabled, onSuccess, onError, cacheInstance]
-  )
+  );
 
-  const refetch = useCallback(() => fetchData(true), [fetchData])
+  const refetch = useCallback(() => fetchData(true), [fetchData]);
 
   const invalidate = useCallback(() => {
-    cacheInstance.delete(key)
-    setData(null)
-    setLastFetched(null)
-  }, [key, cacheInstance])
+    cacheInstance.delete(key);
+    setData(null);
+    setLastFetched(null);
+  }, [key, cacheInstance]);
 
   // Initial fetch
   useEffect(() => {
     if (refetchOnMount) {
-      fetchData()
+      fetchData();
     }
-  }, [fetchData, refetchOnMount])
+  }, [fetchData, refetchOnMount]);
 
   // Refetch on window focus
   useEffect(() => {
-    if (!refetchOnWindowFocus) return
+    if (!refetchOnWindowFocus) return;
 
     const handleFocus = () => {
       // Only refetch if data is stale (older than TTL)
       if (lastFetched && Date.now() - lastFetched > ttl) {
-        fetchData()
+        fetchData();
       }
-    }
+    };
 
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [fetchData, refetchOnWindowFocus, lastFetched, ttl])
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [fetchData, refetchOnWindowFocus, lastFetched, ttl]);
 
   return {
     data,
@@ -134,7 +143,7 @@ export function useCachedData<T>(
     refetch,
     invalidate,
     lastFetched,
-  }
+  };
 }
 
 // Optimized data fetching for Tauri commands
@@ -142,41 +151,45 @@ export function useTauriData<T>(
   command: string,
   params: Record<string, unknown> = {},
   options: {
-    ttl?: number
-    cacheType?: 'memory' | 'session' | 'persistent' | 'smart'
-    enabled?: boolean
-    onError?: (error: Error) => void
-    onSuccess?: (data: T) => void
-    refetchOnMount?: boolean
-    refetchOnWindowFocus?: boolean
+    ttl?: number;
+    cacheType?: 'memory' | 'session' | 'persistent' | 'smart';
+    enabled?: boolean;
+    onError?: (error: Error) => void;
+    onSuccess?: (data: T) => void;
+    refetchOnMount?: boolean;
+    refetchOnWindowFocus?: boolean;
   } = {}
 ) {
   const cacheKey = useMemo(() => {
-    const paramString = JSON.stringify(params)
-    return `${command}:${paramString}`
-  }, [command, params])
+    const paramString = JSON.stringify(params);
+    return `${command}:${paramString}`;
+  }, [command, params]);
 
   const fetchFn = useCallback(async (): Promise<T> => {
-    return invoke<T>(command, params)
-  }, [command, params])
+    return invoke<T>(command, params);
+  }, [command, params]);
 
-  return useCachedData(cacheKey, fetchFn, options)
+  return useCachedData(cacheKey, fetchFn, options);
 }
 
 // Optimized list data with pagination and filtering
 export function useOptimizedList<T>(
-  fetchFn: (params: { page: number; pageSize: number; filters?: Record<string, unknown> }) => Promise<{
-    data: T[]
-    total: number
-    page: number
-    pageSize: number
+  fetchFn: (params: {
+    page: number;
+    pageSize: number;
+    filters?: Record<string, unknown>;
+  }) => Promise<{
+    data: T[];
+    total: number;
+    page: number;
+    pageSize: number;
   }>,
   options: {
-    initialPage?: number
-    initialPageSize?: number
-    initialFilters?: Record<string, unknown>
-    ttl?: number
-    cacheType?: 'memory' | 'session' | 'persistent' | 'smart'
+    initialPage?: number;
+    initialPageSize?: number;
+    initialFilters?: Record<string, unknown>;
+    ttl?: number;
+    cacheType?: 'memory' | 'session' | 'persistent' | 'smart';
   } = {}
 ) {
   const {
@@ -185,67 +198,71 @@ export function useOptimizedList<T>(
     initialFilters = {},
     ttl = CACHE_TTL.SHORT,
     cacheType = 'memory',
-  } = options
+  } = options;
 
-  const [page, setPage] = useState(initialPage)
-  const [pageSize, setPageSize] = useState(initialPageSize)
-  const [filters, setFilters] = useState(initialFilters)
-  const [data, setData] = useState<T[]>([])
-  const [total, setTotal] = useState(0)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<Error | null>(null)
+  const [page, setPage] = useState(initialPage);
+  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [filters, setFilters] = useState(initialFilters);
+  const [data, setData] = useState<T[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
-  const cacheInstance = cache[cacheType]
+  const cacheInstance = cache[cacheType];
 
   const fetchData = useCallback(async () => {
-    const cacheKey = `list:${JSON.stringify({ page, pageSize, filters })}`
+    const cacheKey = `list:${JSON.stringify({ page, pageSize, filters })}`;
 
     // Check cache first
-    const cached = cacheInstance.get<{ data: T[]; total: number }>(cacheKey)
+    const cached = cacheInstance.get<{ data: T[]; total: number }>(cacheKey);
     if (cached) {
-      setData(cached.data)
-      setTotal(cached.total)
-      return
+      setData(cached.data);
+      setTotal(cached.total);
+      return;
     }
 
-    setLoading(true)
-    setError(null)
+    setLoading(true);
+    setError(null);
 
     try {
-      const result = await fetchFn({ page, pageSize, filters })
+      const result = await fetchFn({ page, pageSize, filters });
 
       // Cache the result
-      cacheInstance.set(cacheKey, { data: result.data, total: result.total }, ttl)
+      cacheInstance.set(
+        cacheKey,
+        { data: result.data, total: result.total },
+        ttl
+      );
 
-      setData(result.data)
-      setTotal(result.total)
+      setData(result.data);
+      setTotal(result.total);
     } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err))
-      setError(error)
-      console.error('Failed to fetch list data:', error)
+      const error = err instanceof Error ? err : new Error(String(err));
+      setError(error);
+      console.error('Failed to fetch list data:', error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }, [fetchFn, page, pageSize, filters, cacheInstance, ttl])
+  }, [fetchFn, page, pageSize, filters, cacheInstance, ttl]);
 
   const updateFilters = useCallback((newFilters: Record<string, unknown>) => {
-    setFilters(newFilters)
-    setPage(1) // Reset to first page when filters change
-  }, [])
+    setFilters(newFilters);
+    setPage(1); // Reset to first page when filters change
+  }, []);
 
   const goToPage = useCallback((newPage: number) => {
-    setPage(newPage)
-  }, [])
+    setPage(newPage);
+  }, []);
 
   const updatePageSize = useCallback((newPageSize: number) => {
-    setPageSize(newPageSize)
-    setPage(1) // Reset to first page when page size changes
-  }, [])
+    setPageSize(newPageSize);
+    setPage(1); // Reset to first page when page size changes
+  }, []);
 
   // Fetch data when dependencies change
   useEffect(() => {
-    fetchData()
-  }, [fetchData])
+    fetchData();
+  }, [fetchData]);
 
   return {
     data,
@@ -259,83 +276,88 @@ export function useOptimizedList<T>(
     goToPage,
     updatePageSize,
     refetch: fetchData,
-  }
+  };
 }
 
 // Optimized form state with debounced updates
 export function useOptimizedForm<T extends Record<string, unknown>>(
   initialData: T,
   options: {
-    debounceMs?: number
-    validateOnChange?: boolean
-    validateFn?: (data: T) => string[] | null
-    onDataChange?: (data: T) => void
+    debounceMs?: number;
+    validateOnChange?: boolean;
+    validateFn?: (data: T) => string[] | null;
+    onDataChange?: (data: T) => void;
   } = {}
 ) {
-  const { debounceMs = 300, validateOnChange = false, validateFn, onDataChange } = options
+  const {
+    debounceMs = 300,
+    validateOnChange = false,
+    validateFn,
+    onDataChange,
+  } = options;
 
-  const [data, setData] = useState<T>(initialData)
-  const [errors, setErrors] = useState<string[]>([])
-  const [isValidating, setIsValidating] = useState(false)
-  const debounceRef = useRef<NodeJS.Timeout | null>(null)
+  const [data, setData] = useState<T>(initialData);
+  const [errors, setErrors] = useState<string[]>([]);
+  const [isValidating, setIsValidating] = useState(false);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   const validate = useCallback(
     async (formData: T) => {
-      if (!validateFn) return null
+      if (!validateFn) return null;
 
-      setIsValidating(true)
+      setIsValidating(true);
       try {
-        const validationErrors = await validateFn(formData)
-        setErrors(validationErrors || [])
-        return validationErrors
+        const validationErrors = await validateFn(formData);
+        setErrors(validationErrors || []);
+        return validationErrors;
       } finally {
-        setIsValidating(false)
+        setIsValidating(false);
       }
     },
     [validateFn]
-  )
+  );
 
   const updateData = useCallback(
     (updates: Partial<T>) => {
-      const newData = { ...data, ...updates }
-      setData(newData)
+      const newData = { ...data, ...updates };
+      setData(newData);
 
       // Clear existing debounce
       if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
+        clearTimeout(debounceRef.current);
       }
 
       // Debounce the callback
       debounceRef.current = setTimeout(() => {
-        onDataChange?.(newData)
+        onDataChange?.(newData);
         if (validateOnChange) {
-          validate(newData)
+          validate(newData);
         }
-      }, debounceMs)
+      }, debounceMs);
     },
     [data, onDataChange, validateOnChange, validate, debounceMs]
-  )
+  );
 
   const reset = useCallback(
     (newData?: T) => {
-      const resetData = newData || initialData
-      setData(resetData)
-      setErrors([])
+      const resetData = newData || initialData;
+      setData(resetData);
+      setErrors([]);
       if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
+        clearTimeout(debounceRef.current);
       }
     },
     [initialData]
-  )
+  );
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
+        clearTimeout(debounceRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   return {
     data,
@@ -344,49 +366,59 @@ export function useOptimizedForm<T extends Record<string, unknown>>(
     updateData,
     reset,
     validate: () => validate(data),
-  }
+  };
 }
 
 // Optimized table state with caching
 export function useOptimizedTable<T>(
   _data: T[],
   options: {
-    storageKey?: string
-    initialPageSize?: number
-    enableCaching?: boolean
+    storageKey?: string;
+    initialPageSize?: number;
+    enableCaching?: boolean;
   } = {}
 ) {
-  const { storageKey = 'table-state', initialPageSize = 50, enableCaching = true } = options
+  const {
+    storageKey = 'table-state',
+    initialPageSize = 50,
+    enableCaching = true,
+  } = options;
 
-  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>([])
-  const [columnFilters, setColumnFilters] = useState<Array<{ id: string; value: unknown }>>([])
-  const [columnVisibility, setColumnVisibility] = useState<Record<string, boolean>>({})
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({})
-  const [globalFilter, setGlobalFilter] = useState('')
-  const [pageSize, setPageSize] = useState(initialPageSize)
+  const [sorting, setSorting] = useState<Array<{ id: string; desc: boolean }>>(
+    []
+  );
+  const [columnFilters, setColumnFilters] = useState<
+    Array<{ id: string; value: unknown }>
+  >([]);
+  const [columnVisibility, setColumnVisibility] = useState<
+    Record<string, boolean>
+  >({});
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
+  const [globalFilter, setGlobalFilter] = useState('');
+  const [pageSize, setPageSize] = useState(initialPageSize);
 
   // Load cached state on mount
   useEffect(() => {
-    if (!enableCaching) return
+    if (!enableCaching) return;
 
     const cached = cache.session.get<{
-      sorting: Array<{ id: string; desc: boolean }>
-      columnFilters: Array<{ id: string; value: unknown }>
-      columnVisibility: Record<string, boolean>
-      pageSize: number
-    }>(`${storageKey}:state`)
+      sorting: Array<{ id: string; desc: boolean }>;
+      columnFilters: Array<{ id: string; value: unknown }>;
+      columnVisibility: Record<string, boolean>;
+      pageSize: number;
+    }>(`${storageKey}:state`);
 
     if (cached) {
-      setSorting(cached.sorting)
-      setColumnFilters(cached.columnFilters)
-      setColumnVisibility(cached.columnVisibility)
-      setPageSize(cached.pageSize)
+      setSorting(cached.sorting);
+      setColumnFilters(cached.columnFilters);
+      setColumnVisibility(cached.columnVisibility);
+      setPageSize(cached.pageSize);
     }
-  }, [storageKey, enableCaching])
+  }, [storageKey, enableCaching]);
 
   // Cache state changes
   const cacheState = useCallback(() => {
-    if (!enableCaching) return
+    if (!enableCaching) return;
 
     cache.session.set(
       `${storageKey}:state`,
@@ -397,12 +429,19 @@ export function useOptimizedTable<T>(
         pageSize,
       },
       CACHE_TTL.LONG
-    )
-  }, [sorting, columnFilters, columnVisibility, pageSize, storageKey, enableCaching])
+    );
+  }, [
+    sorting,
+    columnFilters,
+    columnVisibility,
+    pageSize,
+    storageKey,
+    enableCaching,
+  ]);
 
   useEffect(() => {
-    cacheState()
-  }, [cacheState])
+    cacheState();
+  }, [cacheState]);
 
   return {
     sorting,
@@ -417,142 +456,142 @@ export function useOptimizedTable<T>(
     setGlobalFilter,
     pageSize,
     setPageSize,
-  }
+  };
 }
 
 // Optimized image loading with caching
 export function useOptimizedImage(
   src: string | null,
   options: {
-    placeholder?: string
-    fallback?: string
-    cacheType?: 'memory' | 'session' | 'persistent'
+    placeholder?: string;
+    fallback?: string;
+    cacheType?: 'memory' | 'session' | 'persistent';
   } = {}
 ) {
   const {
     placeholder = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkxvYWRpbmcuLi48L3RleHQ+PC9zdmc+',
     fallback = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjZjNmNGY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzY2NzM4NyIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPkVycm9yPC90ZXh0Pjwvc3ZnPg==',
     cacheType = 'memory',
-  } = options
+  } = options;
 
-  const [imageSrc, setImageSrc] = useState<string>(placeholder)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(false)
+  const [imageSrc, setImageSrc] = useState<string>(placeholder);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(false);
 
-  const cacheInstance = cache[cacheType]
+  const cacheInstance = cache[cacheType];
 
   useEffect(() => {
     if (!src) {
-      setImageSrc(placeholder)
-      setError(false)
-      return
+      setImageSrc(placeholder);
+      setError(false);
+      return;
     }
 
     // Check cache first
-    const cached = cacheInstance.get<string>(`image:${src}`)
+    const cached = cacheInstance.get<string>(`image:${src}`);
     if (cached) {
-      setImageSrc(cached)
-      setError(false)
-      return
+      setImageSrc(cached);
+      setError(false);
+      return;
     }
 
-    setLoading(true)
-    setError(false)
+    setLoading(true);
+    setError(false);
 
-    const img = new Image()
+    const img = new Image();
 
     img.onload = () => {
-      setImageSrc(src)
-      setLoading(false)
-      setError(false)
+      setImageSrc(src);
+      setLoading(false);
+      setError(false);
       // Cache the successful image
-      cacheInstance.set(`image:${src}`, src, CACHE_TTL.LONG)
-    }
+      cacheInstance.set(`image:${src}`, src, CACHE_TTL.LONG);
+    };
 
     img.onerror = () => {
-      setImageSrc(fallback)
-      setLoading(false)
-      setError(true)
-    }
+      setImageSrc(fallback);
+      setLoading(false);
+      setError(true);
+    };
 
-    img.src = src
+    img.src = src;
 
     return () => {
-      img.onload = null
-      img.onerror = null
-    }
-  }, [src, placeholder, fallback, cacheInstance])
+      img.onload = null;
+      img.onerror = null;
+    };
+  }, [src, placeholder, fallback, cacheInstance]);
 
   return {
     src: imageSrc,
     loading,
     error,
-  }
+  };
 }
 
 // Optimized scroll position with caching
 export function useOptimizedScroll(
   key: string,
   options: {
-    debounceMs?: number
-    cacheType?: 'session' | 'persistent'
+    debounceMs?: number;
+    cacheType?: 'session' | 'persistent';
   } = {}
 ) {
-  const { debounceMs = 100, cacheType = 'session' } = options
+  const { debounceMs = 100, cacheType = 'session' } = options;
 
-  const [scrollPosition, setScrollPosition] = useState(0)
-  const debounceRef = useRef<NodeJS.Timeout | null>(null)
-  const cacheInstance = cache[cacheType]
+  const [scrollPosition, setScrollPosition] = useState(0);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const cacheInstance = cache[cacheType];
 
   // Load cached position on mount
   useEffect(() => {
-    const cached = cacheInstance.get<number>(`scroll:${key}`)
+    const cached = cacheInstance.get<number>(`scroll:${key}`);
     if (cached !== null) {
-      setScrollPosition(cached)
-      window.scrollTo(0, cached)
+      setScrollPosition(cached);
+      window.scrollTo(0, cached);
     }
-  }, [key, cacheInstance])
+  }, [key, cacheInstance]);
 
   // Save scroll position
   const saveScrollPosition = useCallback(
     (position: number) => {
-      setScrollPosition(position)
+      setScrollPosition(position);
 
       if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
+        clearTimeout(debounceRef.current);
       }
 
       debounceRef.current = setTimeout(() => {
-        cacheInstance.set(`scroll:${key}`, position, CACHE_TTL.LONG)
-      }, debounceMs)
+        cacheInstance.set(`scroll:${key}`, position, CACHE_TTL.LONG);
+      }, debounceMs);
     },
     [key, cacheInstance, debounceMs]
-  )
+  );
 
   // Scroll event handler
   useEffect(() => {
     const handleScroll = () => {
-      const position = window.scrollY
-      saveScrollPosition(position)
-    }
+      const position = window.scrollY;
+      saveScrollPosition(position);
+    };
 
-    window.addEventListener('scroll', handleScroll, { passive: true })
-    return () => window.removeEventListener('scroll', handleScroll)
-  }, [saveScrollPosition])
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, [saveScrollPosition]);
 
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (debounceRef.current) {
-        clearTimeout(debounceRef.current)
+        clearTimeout(debounceRef.current);
       }
-    }
-  }, [])
+    };
+  }, []);
 
   return {
     scrollPosition,
     saveScrollPosition,
-  }
+  };
 }
 
 // Optimized window size with debouncing
@@ -560,66 +599,66 @@ export function useOptimizedWindowSize() {
   const [size, setSize] = useState({
     width: window.innerWidth,
     height: window.innerHeight,
-  })
+  });
 
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout
+    let timeoutId: NodeJS.Timeout;
 
     const handleResize = () => {
-      clearTimeout(timeoutId)
+      clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
         setSize({
           width: window.innerWidth,
           height: window.innerHeight,
-        })
-      }, 100)
-    }
+        });
+      }, 100);
+    };
 
-    window.addEventListener('resize', handleResize, { passive: true })
+    window.addEventListener('resize', handleResize, { passive: true });
     return () => {
-      window.removeEventListener('resize', handleResize)
-      clearTimeout(timeoutId)
-    }
-  }, [])
+      window.removeEventListener('resize', handleResize);
+      clearTimeout(timeoutId);
+    };
+  }, []);
 
-  return size
+  return size;
 }
 
 // Optimized intersection observer
 export function useOptimizedIntersectionObserver(
   options: {
-    threshold?: number | number[]
-    rootMargin?: string
-    root?: Element | null
+    threshold?: number | number[];
+    rootMargin?: string;
+    root?: Element | null;
   } = {}
 ) {
-  const [isIntersecting, setIsIntersecting] = useState(false)
-  const [entry, setEntry] = useState<IntersectionObserverEntry | null>(null)
-  const elementRef = useRef<Element | null>(null)
+  const [isIntersecting, setIsIntersecting] = useState(false);
+  const [entry, setEntry] = useState<IntersectionObserverEntry | null>(null);
+  const elementRef = useRef<Element | null>(null);
 
   useEffect(() => {
-    if (!elementRef.current) return
+    if (!elementRef.current) return;
 
     const observer = new IntersectionObserver(([entry]) => {
-      setIsIntersecting(entry.isIntersecting)
-      setEntry(entry)
-    }, options)
+      setIsIntersecting(entry.isIntersecting);
+      setEntry(entry);
+    }, options);
 
-    const element = elementRef.current
+    const element = elementRef.current;
     if (element) {
-      observer.observe(element)
+      observer.observe(element);
     }
 
     return () => {
       if (element) {
-        observer.unobserve(element)
+        observer.unobserve(element);
       }
-    }
-  }, [options])
+    };
+  }, [options]);
 
   return {
     ref: elementRef,
     isIntersecting,
     entry,
-  }
+  };
 }

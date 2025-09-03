@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useState } from 'react';
 
 export type ThemeColor =
   | 'zinc'
@@ -22,64 +22,68 @@ export type ThemeColor =
   | 'purple'
   | 'fuchsia'
   | 'pink'
-  | 'rose'
+  | 'rose';
 
 export type Theme = {
-  mode: 'light' | 'dark' | 'system'
-  color: ThemeColor
-}
+  mode: 'light' | 'dark' | 'system';
+  color: ThemeColor;
+};
 
 interface ThemeProviderState {
-  theme: Theme
-  setTheme: (theme: Theme) => void
-  toggleMode: () => void
-  setColor: (color: ThemeColor) => void
-  isDark: boolean
-  isLight: boolean
-  isSystem: boolean
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
+  toggleMode: () => void;
+  setColor: (color: ThemeColor) => void;
+  isDark: boolean;
+  isLight: boolean;
+  isSystem: boolean;
 }
 
-const ThemeProviderContext = createContext<ThemeProviderState | undefined>(undefined)
+const ThemeProviderContext = createContext<ThemeProviderState | undefined>(
+  undefined
+);
 
 export function useTheme() {
-  const context = useContext(ThemeProviderContext)
+  const context = useContext(ThemeProviderContext);
   if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider')
+    throw new Error('useTheme must be used within a ThemeProvider');
   }
-  return context
+  return context;
 }
 
 // Hook for getting the effective theme mode (resolved system preference)
 export function useEffectiveTheme() {
-  const { theme } = useTheme()
-  const [effectiveMode, setEffectiveMode] = useState<'light' | 'dark'>('light')
+  const { theme } = useTheme();
+  const [effectiveMode, setEffectiveMode] = useState<'light' | 'dark'>('light');
 
   useEffect(() => {
     const getEffectiveMode = () => {
       if (theme.mode === 'system') {
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        return window.matchMedia('(prefers-color-scheme: dark)').matches
+          ? 'dark'
+          : 'light';
       }
-      return theme.mode
-    }
+      return theme.mode;
+    };
 
-    setEffectiveMode(getEffectiveMode())
+    setEffectiveMode(getEffectiveMode());
 
     if (theme.mode === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      const handleChange = () => setEffectiveMode(getEffectiveMode())
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handleChange = () => setEffectiveMode(getEffectiveMode());
 
-      mediaQuery.addEventListener('change', handleChange)
-      return () => mediaQuery.removeEventListener('change', handleChange)
+      mediaQuery.addEventListener('change', handleChange);
+      return () => mediaQuery.removeEventListener('change', handleChange);
     }
-  }, [theme.mode])
+  }, [theme.mode]);
 
-  return effectiveMode
+  return effectiveMode;
 }
 
 // Hook for theme-aware color utilities
 export function useThemeColors() {
-  const { theme } = useTheme()
-  const effectiveMode = useEffectiveTheme()
+  const { theme } = useTheme();
+  const effectiveMode = useEffectiveTheme();
 
   return {
     primary: `hsl(var(--${theme.color}-${effectiveMode === 'dark' ? '400' : '600'}))`,
@@ -89,13 +93,13 @@ export function useThemeColors() {
     border: `hsl(var(--${theme.color}-${effectiveMode === 'dark' ? '700' : '200'}))`,
     background: `hsl(var(--${theme.color}-${effectiveMode === 'dark' ? '950' : '50'}))`,
     foreground: `hsl(var(--${theme.color}-${effectiveMode === 'dark' ? '50' : '950'}))`,
-  }
+  };
 }
 
 // Utility for theme-aware CSS variables
 export function getThemeCSSVariables(theme: Theme, mode: 'light' | 'dark') {
-  const color = theme.color
-  const isDark = mode === 'dark'
+  const color = theme.color;
+  const isDark = mode === 'dark';
 
   return {
     '--background': `hsl(var(--${color}-${isDark ? '950' : '50'}))`,
@@ -118,7 +122,7 @@ export function getThemeCSSVariables(theme: Theme, mode: 'light' | 'dark') {
     '--input': `hsl(var(--${color}-${isDark ? '800' : '200'}))`,
     '--ring': `hsl(var(--${color}-${isDark ? '400' : '600'}))`,
     '--radius': '0.5rem',
-  }
+  };
 }
 
-export { ThemeProviderContext }
+export { ThemeProviderContext };

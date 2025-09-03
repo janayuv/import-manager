@@ -1,119 +1,130 @@
 // src/pages/supplier.tsx
-import type { Column, ColumnDef } from '@tanstack/react-table'
-import { invoke } from '@tauri-apps/api/core'
-import { open } from '@tauri-apps/plugin-dialog'
-import { readTextFile } from '@tauri-apps/plugin-fs'
-import { ArrowDown, ArrowUp, ArrowUpDown, Download, Upload } from 'lucide-react'
-import { toast } from 'sonner'
+import type { Column, ColumnDef } from '@tanstack/react-table';
+import { invoke } from '@tauri-apps/api/core';
+import { open } from '@tauri-apps/plugin-dialog';
+import { readTextFile } from '@tauri-apps/plugin-fs';
+import {
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  Download,
+  Upload,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { SupplierActions } from '@/components/supplier/actions'
-import { EditSupplierDialog } from '@/components/supplier/edit'
-import { AddSupplierForm } from '@/components/supplier/form'
-import { ResponsiveDataTable } from '@/components/ui/responsive-table'
-import { ViewSupplierDialog } from '@/components/supplier/view'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Checkbox } from '@/components/ui/checkbox'
-import { formatText } from '@/lib/settings'
-import { useSettings } from '@/lib/use-settings'
-import { useResponsiveContext } from '@/providers/ResponsiveProvider'
-import type { Supplier } from '@/types/supplier'
+import { SupplierActions } from '@/components/supplier/actions';
+import { EditSupplierDialog } from '@/components/supplier/edit';
+import { AddSupplierForm } from '@/components/supplier/form';
+import { ResponsiveDataTable } from '@/components/ui/responsive-table';
+import { ViewSupplierDialog } from '@/components/supplier/view';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { formatText } from '@/lib/settings';
+import { useSettings } from '@/lib/use-settings';
+import { useResponsiveContext } from '@/providers/ResponsiveProvider';
+import type { Supplier } from '@/types/supplier';
 
 const SupplierPage = () => {
-  const { settings } = useSettings()
-  const { getTextClass, getButtonClass, getSpacingClass } = useResponsiveContext()
-  const [suppliers, setSuppliers] = React.useState<Supplier[]>([])
-  const [isViewOpen, setViewOpen] = React.useState(false)
-  const [isEditOpen, setEditOpen] = React.useState(false)
-  const [selectedSupplier, setSelectedSupplier] = React.useState<Supplier | null>(null)
+  const { settings } = useSettings();
+  const { getTextClass, getButtonClass, getSpacingClass } =
+    useResponsiveContext();
+  const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
+  const [isViewOpen, setViewOpen] = React.useState(false);
+  const [isEditOpen, setEditOpen] = React.useState(false);
+  const [selectedSupplier, setSelectedSupplier] =
+    React.useState<Supplier | null>(null);
 
   const fetchSuppliers = async () => {
     try {
-      const fetchedSuppliers: Supplier[] = await invoke('get_suppliers')
-      setSuppliers(fetchedSuppliers)
+      const fetchedSuppliers: Supplier[] = await invoke('get_suppliers');
+      setSuppliers(fetchedSuppliers);
     } catch (error) {
-      console.error('Failed to fetch suppliers:', error)
-      toast.error('Failed to fetch suppliers.')
+      console.error('Failed to fetch suppliers:', error);
+      toast.error('Failed to fetch suppliers.');
     }
-  }
+  };
 
   React.useEffect(() => {
-    fetchSuppliers()
-  }, [])
+    fetchSuppliers();
+  }, []);
 
   const handleView = (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setViewOpen(true)
-  }
+    setSelectedSupplier(supplier);
+    setViewOpen(true);
+  };
 
   const handleEdit = (supplier: Supplier) => {
-    setSelectedSupplier(supplier)
-    setEditOpen(true)
-  }
+    setSelectedSupplier(supplier);
+    setEditOpen(true);
+  };
 
   const handleAdd = async (newSupplierData: Omit<Supplier, 'id'>) => {
     const maxId = suppliers.reduce((max, s) => {
-      const num = parseInt(s.id.split('-')[1])
-      return num > max ? num : max
-    }, 0)
-    const newId = `Sup-${(maxId + 1).toString().padStart(3, '0')}`
-    const newSupplier: Supplier = { id: newId, ...newSupplierData }
+      const num = parseInt(s.id.split('-')[1]);
+      return num > max ? num : max;
+    }, 0);
+    const newId = `Sup-${(maxId + 1).toString().padStart(3, '0')}`;
+    const newSupplier: Supplier = { id: newId, ...newSupplierData };
 
     try {
-      await invoke('add_supplier', { supplier: newSupplier })
-      toast.success('Supplier added successfully!')
-      fetchSuppliers()
+      await invoke('add_supplier', { supplier: newSupplier });
+      toast.success('Supplier added successfully!');
+      fetchSuppliers();
     } catch (error) {
-      console.error('Failed to add supplier:', error)
-      toast.error('Failed to add supplier.')
+      console.error('Failed to add supplier:', error);
+      toast.error('Failed to add supplier.');
     }
-  }
+  };
 
   const handleSave = async (updatedSupplier: Supplier) => {
     try {
-      await invoke('update_supplier', { supplier: updatedSupplier })
-      toast.success('Supplier updated successfully!')
-      fetchSuppliers()
+      await invoke('update_supplier', { supplier: updatedSupplier });
+      toast.success('Supplier updated successfully!');
+      fetchSuppliers();
     } catch (error) {
-      console.error('Failed to update supplier:', error)
-      toast.error('Failed to update supplier.')
+      console.error('Failed to update supplier:', error);
+      toast.error('Failed to update supplier.');
     }
-  }
+  };
 
   const handleDownloadTemplate = () => {
     const headers =
-      'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive'
-    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = 'supplier_template.csv'
-    a.click()
-    URL.revokeObjectURL(url)
-    toast.info('Supplier template downloaded.')
-  }
+      'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive';
+    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'supplier_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast.info('Supplier template downloaded.');
+  };
 
   const handleImport = async () => {
     try {
       const selectedPath = await open({
         multiple: false,
         filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+      });
 
       if (!selectedPath) {
-        toast.info('Import cancelled.')
-        return
+        toast.info('Import cancelled.');
+        return;
       }
 
-      const content = await readTextFile(selectedPath as string)
-      const lines = content.split('\n').slice(1) // Skip header
-      const newSuppliers: Supplier[] = []
-      let maxId = suppliers.reduce((max, s) => Math.max(max, parseInt(s.id.split('-')[1])), 0)
+      const content = await readTextFile(selectedPath as string);
+      const lines = content.split('\n').slice(1); // Skip header
+      const newSuppliers: Supplier[] = [];
+      let maxId = suppliers.reduce(
+        (max, s) => Math.max(max, parseInt(s.id.split('-')[1])),
+        0
+      );
 
       for (const line of lines) {
-        if (line.trim() === '') continue
+        if (line.trim() === '') continue;
         const [
           supplierName,
           shortName,
@@ -128,10 +139,10 @@ const SupplierPage = () => {
           iban,
           swiftCode,
           isActiveStr,
-        ] = line.split(',')
+        ] = line.split(',');
 
-        maxId++
-        const newId = `Sup-${maxId.toString().padStart(3, '0')}`
+        maxId++;
+        const newId = `Sup-${maxId.toString().padStart(3, '0')}`;
 
         newSuppliers.push({
           id: newId,
@@ -148,43 +159,48 @@ const SupplierPage = () => {
           iban,
           swiftCode,
           isActive: isActiveStr.trim().toLowerCase() === 'true',
-        })
+        });
       }
 
       if (newSuppliers.length > 0) {
-        await invoke('add_suppliers_bulk', { suppliers: newSuppliers })
-        toast.success(`${newSuppliers.length} suppliers imported successfully!`)
-        fetchSuppliers()
+        await invoke('add_suppliers_bulk', { suppliers: newSuppliers });
+        toast.success(
+          `${newSuppliers.length} suppliers imported successfully!`
+        );
+        fetchSuppliers();
       } else {
-        toast.warning('No new suppliers found in the file.')
+        toast.warning('No new suppliers found in the file.');
       }
     } catch (error) {
-      console.error('Failed to import suppliers:', error)
-      toast.error('Failed to import suppliers. Please check the file format.')
+      console.error('Failed to import suppliers:', error);
+      toast.error('Failed to import suppliers. Please check the file format.');
     }
-  }
+  };
 
   const SortIndicator = ({ column }: { column: Column<Supplier, unknown> }) => {
-    const sorted = column.getIsSorted()
-    if (sorted === 'asc') return <ArrowUp className="ml-2 h-4 w-4" />
-    if (sorted === 'desc') return <ArrowDown className="ml-2 h-4 w-4" />
-    return <ArrowUpDown className="ml-2 h-4 w-4" />
-  }
+    const sorted = column.getIsSorted();
+    if (sorted === 'asc') return <ArrowUp className="ml-2 h-4 w-4" />;
+    if (sorted === 'desc') return <ArrowDown className="ml-2 h-4 w-4" />;
+    return <ArrowUpDown className="ml-2 h-4 w-4" />;
+  };
 
   const columns: ColumnDef<Supplier>[] = [
     {
       id: 'select',
       header: ({ table }) => (
         <Checkbox
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
       ),
       cell: ({ row }) => (
         <Checkbox
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onCheckedChange={value => row.toggleSelected(!!value)}
           aria-label="Select row"
         />
       ),
@@ -215,14 +231,20 @@ const SupplierPage = () => {
           <SortIndicator column={column} />
         </Button>
       ),
-      cell: ({ row }) => formatText(row.getValue('supplierName'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.supplierName?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('supplierName'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.supplierName?.visible ?? true,
+      },
     },
     {
       accessorKey: 'shortName',
       header: 'Short Name',
-      cell: ({ row }) => formatText(row.getValue('shortName'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.shortName?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('shortName'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.shortName?.visible ?? true,
+      },
     },
     {
       accessorKey: 'country',
@@ -235,50 +257,73 @@ const SupplierPage = () => {
           <SortIndicator column={column} />
         </Button>
       ),
-      cell: ({ row }) => formatText(row.getValue('country'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.country?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('country'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.country?.visible ?? true,
+      },
     },
     {
       accessorKey: 'phone',
       header: 'Phone',
       cell: ({ row }) => formatText(row.getValue('phone'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.phone?.visible ?? true },
+      meta: {
+        visible: settings.modules.supplier.fields.phone?.visible ?? true,
+      },
     },
     {
       accessorKey: 'email',
       header: 'Email',
       cell: ({ row }) => formatText(row.getValue('email'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.email?.visible ?? true },
+      meta: {
+        visible: settings.modules.supplier.fields.email?.visible ?? true,
+      },
     },
     {
       accessorKey: 'beneficiaryName',
       header: 'Beneficiary Name',
-      cell: ({ row }) => formatText(row.getValue('beneficiaryName'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.beneficiaryName?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('beneficiaryName'), settings.textFormat),
+      meta: {
+        visible:
+          settings.modules.supplier.fields.beneficiaryName?.visible ?? true,
+      },
     },
     {
       accessorKey: 'bankName',
       header: 'Bank Name',
-      cell: ({ row }) => formatText(row.getValue('bankName'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.bankName?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('bankName'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.bankName?.visible ?? true,
+      },
     },
     {
       accessorKey: 'branch',
       header: 'Branch',
-      cell: ({ row }) => formatText(row.getValue('branch'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.branch?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('branch'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.branch?.visible ?? true,
+      },
     },
     {
       accessorKey: 'bankAddress',
       header: 'Bank Address',
-      cell: ({ row }) => formatText(row.getValue('bankAddress'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.bankAddress?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('bankAddress'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.bankAddress?.visible ?? true,
+      },
     },
     {
       accessorKey: 'accountNo',
       header: 'Account No.',
-      cell: ({ row }) => formatText(row.getValue('accountNo'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.accountNo?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('accountNo'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.accountNo?.visible ?? true,
+      },
     },
     {
       accessorKey: 'iban',
@@ -289,21 +334,26 @@ const SupplierPage = () => {
     {
       accessorKey: 'swiftCode',
       header: 'SWIFT Code',
-      cell: ({ row }) => formatText(row.getValue('swiftCode'), settings.textFormat),
-      meta: { visible: settings.modules.supplier.fields.swiftCode?.visible ?? true },
+      cell: ({ row }) =>
+        formatText(row.getValue('swiftCode'), settings.textFormat),
+      meta: {
+        visible: settings.modules.supplier.fields.swiftCode?.visible ?? true,
+      },
     },
     {
       accessorKey: 'isActive',
       header: 'Status',
       cell: ({ row }) => {
-        const isActive = row.getValue('isActive')
+        const isActive = row.getValue('isActive');
         return (
-          <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
+          <Badge variant={isActive ? 'success' : 'destructive'}>
             {isActive ? 'Active' : 'Inactive'}
           </Badge>
-        )
+        );
       },
-      meta: { visible: settings.modules.supplier.fields.isActive?.visible ?? true },
+      meta: {
+        visible: settings.modules.supplier.fields.isActive?.visible ?? true,
+      },
     },
     {
       id: 'actions',
@@ -314,13 +364,17 @@ const SupplierPage = () => {
           onEdit={() => handleEdit(row.original)}
         />
       ),
-      meta: { visible: settings.modules.supplier.fields.actions?.visible ?? true },
+      meta: {
+        visible: settings.modules.supplier.fields.actions?.visible ?? true,
+      },
     },
-  ]
+  ];
 
   return (
     <div className="container mx-auto py-10">
-      <div className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}>
+      <div
+        className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
+      >
         <h1 className={`${getTextClass('2xl')} font-bold`}>Suppliers</h1>
         <div className={`flex items-center ${getSpacingClass()}`}>
           <Button
@@ -331,10 +385,7 @@ const SupplierPage = () => {
             <Download className="mr-2 h-4 w-4" />
             Download Template
           </Button>
-          <Button
-            onClick={handleImport}
-            className={getButtonClass()}
-          >
+          <Button onClick={handleImport} className={getButtonClass()}>
             <Upload className="mr-2 h-4 w-4" />
             Import
           </Button>
@@ -346,7 +397,15 @@ const SupplierPage = () => {
         columns={columns}
         data={suppliers}
         searchPlaceholder="Search suppliers..."
-        hideColumnsOnSmall={['phone', 'bankName', 'branch', 'bankAddress', 'accountNo', 'iban', 'swiftCode']}
+        hideColumnsOnSmall={[
+          'phone',
+          'bankName',
+          'branch',
+          'bankAddress',
+          'accountNo',
+          'iban',
+          'swiftCode',
+        ]}
         columnWidths={{
           supplierName: { minWidth: '200px', maxWidth: '300px' },
           email: { minWidth: '180px', maxWidth: '250px' },
@@ -365,7 +424,7 @@ const SupplierPage = () => {
         onSave={handleSave}
       />
     </div>
-  )
-}
+  );
+};
 
-export default SupplierPage
+export default SupplierPage;

@@ -4,6 +4,12 @@ use std::path::Path;
 fn main() {
     tauri_build::build();
 
+    // Only copy DLLs if we're not in CI environment
+    if env::var("CI").is_ok() {
+        println!("Skipping DLL copy in CI environment");
+        return;
+    }
+
     // Copy SQLCipher and OpenSSL DLLs to output directory
     let out_dir = env::var("OUT_DIR").unwrap();
     let target_dir = Path::new(&out_dir)
@@ -22,30 +28,43 @@ fn main() {
         "zlib1.dll",
     ];
 
-    // Try to copy from vcpkg installation directory
-    let vcpkg_bin_dir = "C:\\Users\\Yogeswari\\vcpkg\\installed\\x64-windows\\bin";
+    // Try multiple possible vcpkg installation directories
+    let possible_vcpkg_dirs = [
+        "C:\\Users\\Yogeswari\\vcpkg\\installed\\x64-windows\\bin",
+        "C:\\vcpkg\\installed\\x64-windows\\bin",
+        "C:\\Users\\runneradmin\\vcpkg\\installed\\x64-windows\\bin",
+    ];
 
     for dll in &required_dlls {
-        let source_path = Path::new(vcpkg_bin_dir).join(dll);
-        let target_path = target_dir.join(dll);
+        let mut copied = false;
+        
+        // Try vcpkg paths first
+        for vcpkg_dir in &possible_vcpkg_dirs {
+            let source_path = Path::new(vcpkg_dir).join(dll);
+            let target_path = target_dir.join(dll);
 
-        // Try vcpkg path first
-        if source_path.exists() {
-            if let Err(e) = std::fs::copy(&source_path, &target_path) {
-                eprintln!("Failed to copy {dll} from vcpkg: {e}");
-            } else {
-                println!("✓ Copied {dll} from vcpkg");
+            if source_path.exists() {
+                if let Err(e) = std::fs::copy(&source_path, &target_path) {
+                    eprintln!("Failed to copy {dll} from {vcpkg_dir}: {e}");
+                } else {
+                    println!("✓ Copied {dll} from {vcpkg_dir}");
+                    copied = true;
+                    break;
+                }
             }
-        } else {
-            // Fallback to current directory
+        }
+
+        // Fallback to current directory if not found in vcpkg
+        if !copied {
             if Path::new(dll).exists() {
+                let target_path = target_dir.join(dll);
                 if let Err(e) = std::fs::copy(dll, &target_path) {
                     eprintln!("Failed to copy {dll} from current directory: {e}");
                 } else {
                     println!("✓ Copied {dll} from current directory");
                 }
             } else {
-                eprintln!("⚠ {dll} not found in vcpkg or current directory");
+                eprintln!("⚠ {dll} not found in any vcpkg directory or current directory");
             }
         }
     }

@@ -1,11 +1,11 @@
-import js from '@eslint/js'
-import prettier from 'eslint-plugin-prettier'
-import reactHooks from 'eslint-plugin-react-hooks'
-import reactRefresh from 'eslint-plugin-react-refresh'
-import security from 'eslint-plugin-security'
-import { globalIgnores } from 'eslint/config'
-import globals from 'globals'
-import tseslint from 'typescript-eslint'
+import js from '@eslint/js';
+import prettier from 'eslint-plugin-prettier';
+import reactHooks from 'eslint-plugin-react-hooks';
+import reactRefresh from 'eslint-plugin-react-refresh';
+import security from 'eslint-plugin-security';
+import { globalIgnores } from 'eslint/config';
+import globals from 'globals';
+import tseslint from 'typescript-eslint';
 
 export default tseslint.config([
   globalIgnores([
@@ -54,12 +54,16 @@ export default tseslint.config([
       'no-restricted-syntax': [
         'error',
         {
-          selector: 'CallExpression[callee.object.name="sqlite3"][callee.property.name="Database"]',
-          message: 'Use SQLCipher with PRAGMA key for encrypted SQLite databases',
+          selector:
+            'CallExpression[callee.object.name="sqlite3"][callee.property.name="Database"]',
+          message:
+            'Use SQLCipher with PRAGMA key for encrypted SQLite databases',
         },
         {
-          selector: 'NewExpression[callee.object.name="sqlite3"][callee.property.name="Database"]',
-          message: 'Use SQLCipher with PRAGMA key for encrypted SQLite databases',
+          selector:
+            'NewExpression[callee.object.name="sqlite3"][callee.property.name="Database"]',
+          message:
+            'Use SQLCipher with PRAGMA key for encrypted SQLite databases',
         },
       ],
     },
@@ -75,9 +79,10 @@ export default tseslint.config([
         'error',
         {
           selector: 'Literal[value*="-----BEGIN PRIVATE KEY-----"]',
-          message: 'Do not hardcode private keys in YAML files. Use GitHub Secrets instead.',
+          message:
+            'Do not hardcode private keys in YAML files. Use GitHub Secrets instead.',
         },
       ],
     },
   },
-])
+]);
