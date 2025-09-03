@@ -18,7 +18,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { formatDateForDisplay, formatDateForInput } from '@/lib/date-format';
+
 import type { Option } from '@/types/options';
 import type { Shipment } from '@/types/shipment';
 
@@ -76,7 +76,8 @@ export function ShipmentForm({
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { id, value, type } = e.target;
     if (type === 'date') {
-      setFormData(prev => ({ ...prev, [id]: formatDateForDisplay(value) }));
+      // Store dates in yyyy-MM-dd format for HTML date inputs
+      setFormData(prev => ({ ...prev, [id]: value }));
     } else {
       setFormData(prev => ({
         ...prev,
@@ -128,16 +129,12 @@ export function ShipmentForm({
 
   const calculateTransitDays = () => {
     if (formData.etd && formData.eta) {
-      const etdParts = formData.etd.split('-');
-      const etaParts = formData.eta.split('-');
-      if (etdParts.length === 3 && etaParts.length === 3) {
-        const etd = new Date(`${etdParts[2]}-${etdParts[1]}-${etdParts[0]}`);
-        const eta = new Date(`${etaParts[2]}-${etaParts[1]}-${etaParts[0]}`);
-        if (!isNaN(etd.getTime()) && !isNaN(eta.getTime())) {
-          const diffTime = Math.abs(eta.getTime() - etd.getTime());
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          return diffDays;
-        }
+      const etd = new Date(formData.etd);
+      const eta = new Date(formData.eta);
+      if (!isNaN(etd.getTime()) && !isNaN(eta.getTime())) {
+        const diffTime = Math.abs(eta.getTime() - etd.getTime());
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
       }
     }
     return 'N/A';
@@ -214,7 +211,7 @@ export function ShipmentForm({
                   <Input
                     id="invoiceDate"
                     type="date"
-                    value={formatDateForInput(formData.invoiceDate)}
+                    value={formData.invoiceDate || ''}
                     onChange={handleChange}
                   />
                 </div>
@@ -322,7 +319,7 @@ export function ShipmentForm({
                   <Input
                     id="blAwbDate"
                     type="date"
-                    value={formatDateForInput(formData.blAwbDate)}
+                    value={formData.blAwbDate || ''}
                     onChange={handleChange}
                   />
                 </div>
@@ -371,7 +368,7 @@ export function ShipmentForm({
                   <Input
                     id="etd"
                     type="date"
-                    value={formatDateForInput(formData.etd)}
+                    value={formData.etd || ''}
                     onChange={handleChange}
                   />
                 </div>
@@ -380,7 +377,7 @@ export function ShipmentForm({
                   <Input
                     id="eta"
                     type="date"
-                    value={formatDateForInput(formData.eta)}
+                    value={formData.eta || ''}
                     onChange={handleChange}
                   />
                 </div>
@@ -410,7 +407,7 @@ export function ShipmentForm({
                     <Input
                       id="dateOfDelivery"
                       type="date"
-                      value={formatDateForInput(formData.dateOfDelivery)}
+                      value={formData.dateOfDelivery || ''}
                       onChange={handleChange}
                     />
                   </div>

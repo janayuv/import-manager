@@ -1,6 +1,11 @@
 import { Monitor, Moon, Palette, SidebarIcon, Sun } from 'lucide-react';
 
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+
 import { useTheme } from '@/components/layout/theme-context';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { NotificationSheet } from '@/components/notifications/NotificationSheet';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
 import { Button } from '@/components/ui/button';
 import {
@@ -11,10 +16,22 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Separator } from '@/components/ui/separator';
 import { useSidebar } from '@/components/ui/use-sidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar();
   const { theme, setTheme, toggleMode } = useTheme();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
+
+  const handleViewAllNotifications = () => {
+    if (isMobile) {
+      setNotificationSheetOpen(true);
+    } else {
+      navigate('/notifications');
+    }
+  };
 
   const colorOptions: {
     key: typeof theme.color;
@@ -88,6 +105,9 @@ export function SiteHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          {/* Notifications */}
+          <NotificationBell onViewAll={handleViewAllNotifications} />
+
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -163,6 +183,12 @@ export function SiteHeader() {
           </Button>
         </div>
       </div>
+
+      {/* Mobile Notification Sheet */}
+      <NotificationSheet
+        open={notificationSheetOpen}
+        onOpenChange={setNotificationSheetOpen}
+      />
     </header>
   );
 }

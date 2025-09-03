@@ -7,11 +7,20 @@ import {
   Download,
   Plus,
   Upload,
-  Filter,
   RefreshCw,
   Settings,
   Database,
   AlertTriangle,
+  Search,
+  Package,
+  Clock,
+  Truck,
+  Globe,
+  Calendar,
+  DollarSign,
+  Activity,
+  Copy,
+  Ship,
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { toast } from 'sonner';
@@ -20,9 +29,19 @@ import * as React from 'react';
 
 import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import { getShipmentColumns } from '@/components/shipment/columns';
-import { ShipmentForm } from '@/components/shipment/form';
-import { ShipmentViewDialog } from '@/components/shipment/view';
+import { ProfessionalShipmentForm } from '@/components/shipment/form-professional';
+import { ProfessionalShipmentViewDialog } from '@/components/shipment/view-professional';
+import { ShipmentMultilineForm } from '@/components/shipment/shipment-multiline-form';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -54,11 +73,11 @@ type OptionType =
 
 const ShipmentPage = () => {
   const { settings } = useSettings();
-  const { getTextClass, getButtonClass, getSpacingClass } =
-    useResponsiveContext();
+  const { getTextClass, getButtonClass } = useResponsiveContext();
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
   const [isFormOpen, setFormOpen] = React.useState(false);
+  const [isMultilineFormOpen, setMultilineFormOpen] = React.useState(false);
   const [isViewOpen, setViewOpen] = React.useState(false);
   const [selectedShipment, setSelectedShipment] =
     React.useState<Shipment | null>(null);
@@ -73,6 +92,8 @@ const ShipmentPage = () => {
   const [statuses, setStatuses] = React.useState<Option[]>([]);
   const [currencies, setCurrencies] = React.useState<Option[]>([]);
   const [statusFilter, setStatusFilter] = React.useState('All');
+  const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('cards');
+  const [searchTerm, setSearchTerm] = React.useState('');
 
   const fetchShipments = React.useCallback(async () => {
     try {
@@ -142,28 +163,68 @@ const ShipmentPage = () => {
     }
   }, [fetchShipments]);
 
-  // Filter shipments based on status
-  const filteredShipments = React.useMemo(() => {
-    // Debug: Log all unique status values
-    const uniqueStatuses = [
-      ...new Set(shipments.map(s => s.status).filter(Boolean)),
-    ];
-    console.log('Available statuses in shipments:', uniqueStatuses);
-    console.log('Current filter:', statusFilter);
+  const handleCopyShipmentId = async (shipmentId: string) => {
+    try {
+      await navigator.clipboard.writeText(shipmentId);
+      toast.success(`Shipment ID "${shipmentId}" copied to clipboard!`);
+    } catch (error) {
+      console.error('Failed to copy shipment ID:', error);
+      toast.error('Failed to copy shipment ID to clipboard.');
+    }
+  };
 
-    if (statusFilter === 'All') {
-      return shipments;
+  // Calculate metrics
+  const metrics = React.useMemo(() => {
+    const docsReceived = shipments.filter(
+      s => s.status === 'docs-rcvd' || s.status === 'docu-received'
+    ).length;
+    const inTransit = shipments.filter(s => s.status === 'in-transit').length;
+    const customsClearance = shipments.filter(
+      s => s.status === 'customs-clearance'
+    ).length;
+    const readyForDelivery = shipments.filter(
+      s => s.status === 'ready-dly'
+    ).length;
+
+    return {
+      docsReceived,
+      inTransit,
+      customsClearance,
+      readyForDelivery,
+    };
+  }, [shipments]);
+
+  // Filter shipments based on status and search
+  const filteredShipments = React.useMemo(() => {
+    let filtered = shipments;
+
+    // Status filter
+    if (statusFilter !== 'All') {
+      filtered = filtered.filter(shipment => {
+        const shipmentStatus = shipment.status || '';
+        return shipmentStatus.toLowerCase() === statusFilter.toLowerCase();
+      });
     }
 
-    // More robust filtering that handles null/undefined and case sensitivity
-    const filtered = shipments.filter(shipment => {
-      const shipmentStatus = shipment.status || '';
-      return shipmentStatus.toLowerCase() === statusFilter.toLowerCase();
-    });
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        shipment =>
+          shipment.invoiceNumber
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          shipment.blAwbNumber
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          shipment.containerNumber
+            ?.toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          shipment.vesselName?.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-    console.log('Filtered results:', filtered.length, 'shipments');
     return filtered;
-  }, [shipments, statusFilter]);
+  }, [shipments, statusFilter, searchTerm]);
 
   const columns = React.useMemo(
     () =>
@@ -519,90 +580,320 @@ const ShipmentPage = () => {
     }
   }
 
-  // Export toolbar UI (not currently connected to table header)
-  /* const exportToolbar = (
-    <div className="flex items-center gap-2">
-      <Button
-        variant="outline"
-        onClick={() => toast.warning('Export selected is temporarily disabled during refactoring.')}
-        disabled
-      >
-        <FileOutput className="mr-2 h-4 w-4" /> Export Selected
-      </Button>
-      <Button
-        variant="outline"
-        onClick={() => exportShipmentsData(shipments)}
-      >
-        <Download className="mr-2 h-4 w-4" /> Export All
-      </Button>
-    </div>
-  ) */
+  // Helper function to format currency
+  const formatCurrency = (amount: number, currency: string) => {
+    try {
+      return new Intl.NumberFormat('en-US', {
+        style: 'currency',
+        currency: currency?.toUpperCase() || 'USD',
+      }).format(amount);
+    } catch {
+      return `${currency} ${amount.toFixed(2)}`;
+    }
+  };
+
+  // Helper function to get status badge variant
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered':
+        return 'success';
+      case 'in-transit':
+        return 'default';
+      case 'ready-dly':
+        return 'warning';
+      case 'customs-clearance':
+        return 'secondary';
+      case 'docs-rcvd':
+      case 'docu-received':
+        return 'info';
+      default:
+        return 'outline';
+    }
+  };
+
+  // Helper function to get status display name
+  const getStatusDisplayName = (status: string) => {
+    switch (status?.toLowerCase()) {
+      case 'delivered':
+        return 'Delivered';
+      case 'in-transit':
+        return 'In Transit';
+      case 'ready-dly':
+        return 'Ready for Delivery';
+      case 'customs-clearance':
+        return 'Customs Clearance';
+      case 'docs-rcvd':
+      case 'docu-received':
+        return 'Document Received';
+      default:
+        return status || 'Unknown';
+    }
+  };
+
+  // CRM Card Component
+  const ShipmentCard = ({ shipment }: { shipment: Shipment }) => {
+    const supplier = suppliers.find(s => s.value === shipment.supplierId);
+
+    return (
+      <Card className="cursor-pointer transition-shadow duration-200 hover:shadow-lg">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="mb-1 text-lg font-semibold text-gray-900">
+                {shipment.invoiceNumber}
+              </CardTitle>
+              <CardDescription className="mb-2 text-sm text-gray-600">
+                {supplier?.label || 'Unknown Supplier'}
+              </CardDescription>
+              <div className="flex items-center gap-2">
+                <Badge
+                  variant={getStatusBadgeVariant(shipment.status || '')}
+                  className="text-xs"
+                >
+                  {getStatusDisplayName(shipment.status || '')}
+                </Badge>
+                <div className="flex items-center gap-1">
+                  <span className="text-xs text-gray-500">#{shipment.id}</span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={e => {
+                      e.stopPropagation();
+                      handleCopyShipmentId(shipment.id);
+                    }}
+                    className="h-6 w-6 p-0 hover:bg-gray-100"
+                    title="Copy Shipment ID"
+                  >
+                    <Copy className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleView(shipment)}
+                className="h-8 w-8 p-0"
+              >
+                <Search className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => handleOpenFormForEdit(shipment)}
+                className="h-8 w-8 p-0"
+              >
+                <Activity className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="space-y-3">
+            {/* Key Information */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <DollarSign className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-700">
+                  {formatCurrency(
+                    shipment.invoiceValue || 0,
+                    shipment.invoiceCurrency || 'USD'
+                  )}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-700">{shipment.goodsCategory}</span>
+              </div>
+              {shipment.grossWeightKg && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Ship className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-700">
+                    {shipment.grossWeightKg} kg
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Dates */}
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-700">
+                  Invoice: {shipment.invoiceDate}
+                </span>
+              </div>
+              {shipment.eta && (
+                <div className="flex items-center gap-2 text-sm">
+                  <Clock className="h-4 w-4 text-gray-400" />
+                  <span className="text-gray-700">ETA: {shipment.eta}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Shipping Details */}
+            {(shipment.blAwbNumber ||
+              shipment.vesselName ||
+              shipment.containerNumber) && (
+              <div className="border-t border-gray-100 pt-2">
+                <div className="mb-2 flex items-center gap-2 text-sm">
+                  <Ship className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium text-gray-700">
+                    Shipping Details
+                  </span>
+                </div>
+                {shipment.blAwbNumber && (
+                  <div className="mb-1 text-xs text-gray-600">
+                    <span className="font-medium">B/L:</span>{' '}
+                    {shipment.blAwbNumber}
+                  </div>
+                )}
+                {shipment.vesselName && (
+                  <div className="mb-1 text-xs text-gray-600">
+                    <span className="font-medium">Vessel:</span>{' '}
+                    {shipment.vesselName}
+                  </div>
+                )}
+                {shipment.containerNumber && (
+                  <div className="text-xs text-gray-600">
+                    <span className="font-medium">Container:</span>{' '}
+                    {shipment.containerNumber}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
 
   return (
-    <div className="w-full max-w-full px-6 py-10">
-      <div
-        className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
-      >
-        <h1 className={`${getTextClass('2xl')} font-bold`}>Shipments</h1>
-        <div className={`flex items-center ${getSpacingClass()}`}>
-          <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add New
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleDownloadTemplate}
-            className={getButtonClass()}
-          >
-            <Download className="mr-2 h-4 w-4" />
-            Template
-          </Button>
-          <Button
-            variant="outline"
-            onClick={handleImport}
-            className={getButtonClass()}
-          >
-            <Upload className="mr-2 h-4 w-4" />
-            Import
-          </Button>
+    <div className="container mx-auto px-4 py-6">
+      {/* CRM Header */}
+      <div className="mb-8">
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1
+              className={`${getTextClass('3xl')} mb-2 font-bold text-gray-900`}
+            >
+              Shipment Management
+            </h1>
+            <p className="text-gray-600">
+              Track and manage your international shipments and logistics
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleDownloadTemplate}
+              className={getButtonClass()}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Template
+            </Button>
+            <Button onClick={handleImport} className={getButtonClass()}>
+              <Upload className="mr-2 h-4 w-4" />
+              Import
+            </Button>
+            <Button
+              onClick={() => setMultilineFormOpen(true)}
+              className={getButtonClass()}
+              variant="secondary"
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              Multi-line Paste
+            </Button>
+            <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
+              <Plus className="mr-2 h-4 w-4" />
+              Add New
+            </Button>
+          </div>
         </div>
-      </div>
 
-      <ResponsiveDataTable
-        columns={columns}
-        data={filteredShipments}
-        searchPlaceholder="Search shipments..."
-        hideColumnsOnSmall={[
-          'supplierName',
-          'category',
-          'incoterm',
-          'mode',
-          'type',
-          'currency',
-          'notes',
-        ]}
-        columnWidths={{
-          invoiceNumber: { minWidth: '120px', maxWidth: '150px' },
-          invoiceDate: { minWidth: '100px', maxWidth: '120px' },
-          eta: { minWidth: '100px', maxWidth: '120px' },
-          etd: { minWidth: '100px', maxWidth: '120px' },
-          supplierId: { minWidth: '150px', maxWidth: '200px' },
-          goodsCategory: { minWidth: '120px', maxWidth: '150px' },
-          invoiceCurrency: { minWidth: '80px', maxWidth: '100px' },
-          invoiceValue: { minWidth: '120px', maxWidth: '150px' },
-          incoterm: { minWidth: '100px', maxWidth: '120px' },
-          vesselName: { minWidth: '120px', maxWidth: '150px' },
-          blAwbNumber: { minWidth: '120px', maxWidth: '150px' },
-          containerNumber: { minWidth: '120px', maxWidth: '150px' },
-          status: { minWidth: '120px', maxWidth: '150px' },
-        }}
-        statusFilter={
-          <div className="flex items-center gap-2">
-            <Filter className="text-muted-foreground h-4 w-4" />
-            <span className="text-sm font-medium">Status:</span>
+        {/* Metrics Dashboard */}
+        <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
+          <Card className="border-cyan-200 bg-gradient-to-r from-cyan-50 to-cyan-100">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-cyan-600">
+                    Document Received
+                  </p>
+                  <p className="text-lg font-bold text-cyan-900">
+                    {metrics.docsReceived}
+                  </p>
+                </div>
+                <Clock className="h-5 w-5 text-cyan-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-orange-200 bg-gradient-to-r from-orange-50 to-orange-100">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-orange-600">
+                    In Transit
+                  </p>
+                  <p className="text-lg font-bold text-orange-900">
+                    {metrics.inTransit}
+                  </p>
+                </div>
+                <Truck className="h-5 w-5 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-indigo-200 bg-gradient-to-r from-indigo-50 to-indigo-100">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-indigo-600">
+                    Customs Clearance
+                  </p>
+                  <p className="text-lg font-bold text-indigo-900">
+                    {metrics.customsClearance}
+                  </p>
+                </div>
+                <Globe className="h-5 w-5 text-indigo-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-yellow-200 bg-gradient-to-r from-yellow-50 to-yellow-100">
+            <CardContent className="p-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium text-yellow-600">
+                    Ready for Delivery
+                  </p>
+                  <p className="text-lg font-bold text-yellow-900">
+                    {metrics.readyForDelivery}
+                  </p>
+                </div>
+                <Package className="h-5 w-5 text-yellow-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Controls */}
+        <div className="mb-6 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
+              <Input
+                placeholder="Search shipments..."
+                value={searchTerm}
+                onChange={e => setSearchTerm(e.target.value)}
+                className="w-64 pl-10"
+              />
+            </div>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="Filter by status" />
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="All">All Statuses</SelectItem>
@@ -618,55 +909,113 @@ const ShipmentPage = () => {
                 <SelectItem value="delivered">Delivered</SelectItem>
               </SelectContent>
             </Select>
-            <div className="text-muted-foreground text-sm">
-              {filteredShipments.length} shipment
-              {filteredShipments.length !== 1 ? 's' : ''}
-              {statusFilter !== 'All' && ` (${statusFilter})`}
-            </div>
           </div>
-        }
-        statusActions={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
-              >
-                <Settings className="mr-2 h-4 w-4" />
-                Status Actions
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem onClick={handleCheckStatusUpdates}>
-                <RefreshCw className="mr-2 h-4 w-4" />
-                Check Status Updates
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={handleMigrateStatuses}>
-                <Database className="mr-2 h-4 w-4" />
-                Migrate Statuses
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => {
-                  const uniqueStatuses = [
-                    ...new Set(shipments.map(s => s.status).filter(Boolean)),
-                  ];
-                  console.log('All shipments:', shipments);
-                  console.log('Unique statuses:', uniqueStatuses);
-                  toast.info(
-                    `Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`
-                  );
-                }}
-              >
-                <AlertTriangle className="mr-2 h-4 w-4" />
-                Debug Statuses
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        }
-      />
-      <ShipmentForm
+          <div className="flex items-center gap-2">
+            <Button
+              variant={viewMode === 'cards' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('cards')}
+            >
+              Cards
+            </Button>
+            <Button
+              variant={viewMode === 'table' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setViewMode('table')}
+            >
+              Table
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-100"
+                >
+                  <Settings className="mr-2 h-4 w-4" />
+                  Actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem onClick={handleCheckStatusUpdates}>
+                  <RefreshCw className="mr-2 h-4 w-4" />
+                  Check Status Updates
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleMigrateStatuses}>
+                  <Database className="mr-2 h-4 w-4" />
+                  Migrate Statuses
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    const uniqueStatuses = [
+                      ...new Set(shipments.map(s => s.status).filter(Boolean)),
+                    ];
+                    console.log('All shipments:', shipments);
+                    console.log('Unique statuses:', uniqueStatuses);
+                    toast.info(
+                      `Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`
+                    );
+                  }}
+                >
+                  <AlertTriangle className="mr-2 h-4 w-4" />
+                  Debug Statuses
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        </div>
+
+        {/* Results Summary */}
+        <div className="mb-4">
+          <p className="text-sm text-gray-600">
+            Showing {filteredShipments.length} of {shipments.length} shipments
+            {statusFilter !== 'All' && ` (${statusFilter})`}
+            {searchTerm && ` matching "${searchTerm}"`}
+          </p>
+        </div>
+      </div>
+
+      {/* Content */}
+      {viewMode === 'cards' ? (
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {filteredShipments.map(shipment => (
+            <ShipmentCard key={shipment.id} shipment={shipment} />
+          ))}
+        </div>
+      ) : (
+        <ResponsiveDataTable
+          columns={columns}
+          data={filteredShipments}
+          searchPlaceholder="Search shipments..."
+          hideColumnsOnSmall={[
+            'supplierName',
+            'category',
+            'incoterm',
+            'mode',
+            'type',
+            'currency',
+            'notes',
+          ]}
+          columnWidths={{
+            invoiceNumber: { minWidth: '120px', maxWidth: '150px' },
+            invoiceDate: { minWidth: '100px', maxWidth: '120px' },
+            eta: { minWidth: '100px', maxWidth: '120px' },
+            etd: { minWidth: '100px', maxWidth: '120px' },
+            supplierId: { minWidth: '150px', maxWidth: '200px' },
+            goodsCategory: { minWidth: '120px', maxWidth: '150px' },
+            invoiceCurrency: { minWidth: '80px', maxWidth: '100px' },
+            invoiceValue: { minWidth: '120px', maxWidth: '150px' },
+            incoterm: { minWidth: '100px', maxWidth: '120px' },
+            vesselName: { minWidth: '120px', maxWidth: '150px' },
+            blAwbNumber: { minWidth: '120px', maxWidth: '150px' },
+            containerNumber: { minWidth: '120px', maxWidth: '150px' },
+            status: { minWidth: '120px', maxWidth: '150px' },
+          }}
+        />
+      )}
+
+      <ProfessionalShipmentForm
         isOpen={isFormOpen}
         onOpenChange={setFormOpen}
         onSubmit={handleSubmit}
@@ -680,7 +1029,20 @@ const ShipmentPage = () => {
         currencies={currencies}
         onOptionCreate={handleOptionCreate}
       />
-      <ShipmentViewDialog
+      <ShipmentMultilineForm
+        isOpen={isMultilineFormOpen}
+        onOpenChange={setMultilineFormOpen}
+        onSuccess={fetchShipments}
+        suppliers={suppliers}
+        categories={categories}
+        incoterms={incoterms}
+        modes={modes}
+        types={types}
+        statuses={statuses}
+        currencies={currencies}
+        existingShipments={shipments}
+      />
+      <ProfessionalShipmentViewDialog
         isOpen={isViewOpen}
         onOpenChange={setViewOpen}
         shipment={selectedShipment}
