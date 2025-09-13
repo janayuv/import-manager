@@ -124,7 +124,9 @@ impl DatabaseMigrations {
             .prepare("SELECT version, applied_on FROM refinery_schema_history ORDER BY version")?;
 
         let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            let version: i32 = row.get(0)?;
+            let applied_on: String = row.get(1)?;
+            Ok((version.to_string(), applied_on))
         })?;
 
         let mut status = Vec::new();
