@@ -1,7 +1,8 @@
-import { X } from 'lucide-react';
+import { X, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
   Sheet,
@@ -88,7 +89,9 @@ export function NotificationSheet({
         <ScrollArea className="flex-1">
           {recentNotifications.length === 0 ? (
             <div className="text-muted-foreground p-8 text-center">
+              <Bell className="mx-auto mb-3 h-8 w-8 opacity-50" />
               <div className="text-sm">No notifications yet</div>
+              <div className="mt-1 text-xs">You're all caught up!</div>
             </div>
           ) : (
             <div className="divide-y">
@@ -106,42 +109,37 @@ export function NotificationSheet({
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className={`hover:bg-muted/50 cursor-pointer p-4 ${!notification.read ? 'bg-muted/30' : ''} `}
+                      className={`group hover:bg-muted/50 cursor-pointer p-4 transition-all ${
+                        !notification.read
+                          ? 'bg-primary/5 border-l-primary border-l-2'
+                          : ''
+                      }`}
                       onClick={() => handleNotificationClick(notification)}
                     >
                       <div className="flex items-start gap-3">
                         {/* Category Icon */}
-                        <div className="mt-0.5 flex-shrink-0">
-                          <div className={`rounded-full p-2 ${colors.bg}`}>
-                            <span className={`h-4 w-4 ${colors.icon}`}>
-                              {CategoryIcon}
-                            </span>
+                        <div className="flex-shrink-0">
+                          <div
+                            className={`flex h-8 w-8 items-center justify-center rounded-full text-xs ${colors.bg}`}
+                          >
+                            {CategoryIcon}
                           </div>
                         </div>
 
                         {/* Content */}
                         <div className="min-w-0 flex-1">
-                          <div className="mb-1 flex items-center gap-2">
-                            <span className={`h-4 w-4 ${colors.icon}`}>
-                              {TypeIcon}
-                            </span>
-                            <h4 className="truncate text-sm font-medium">
-                              {notification.title}
-                            </h4>
-                            {!notification.read && (
-                              <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
-                            )}
-                          </div>
-
-                          <p className="text-muted-foreground mb-2 line-clamp-2 text-xs">
-                            {notification.message}
-                          </p>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground text-xs">
-                              {formatNotificationTime(notification.timestamp)}
-                            </span>
-
+                          <div className="mb-1 flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className={`h-4 w-4 ${colors.icon}`}>
+                                {TypeIcon}
+                              </span>
+                              <h4 className="text-sm leading-tight font-medium">
+                                {notification.title}
+                              </h4>
+                              {!notification.read && (
+                                <div className="bg-primary h-2 w-2 flex-shrink-0 rounded-full" />
+                              )}
+                            </div>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -149,10 +147,27 @@ export function NotificationSheet({
                                 e.stopPropagation();
                                 deleteNotification?.(notification.id);
                               }}
-                              className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                              className="h-6 w-6 p-0 opacity-0 transition-opacity group-hover:opacity-100"
                             >
                               <X className="h-3 w-3" />
                             </Button>
+                          </div>
+
+                          {notification.message && (
+                            <p className="text-muted-foreground mb-2 text-sm leading-relaxed">
+                              {notification.message}
+                            </p>
+                          )}
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-xs">
+                              {formatNotificationTime(notification.timestamp)}
+                            </span>
+                            {notification.category && (
+                              <Badge variant="outline" className="text-xs">
+                                {notification.category}
+                              </Badge>
+                            )}
                           </div>
                         </div>
                       </div>

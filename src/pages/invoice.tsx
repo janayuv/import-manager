@@ -4,7 +4,7 @@ import { open, save, confirm } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { Download, Loader2, Plus, Upload, Zap } from 'lucide-react';
 import Papa from 'papaparse';
-import { toast } from 'sonner';
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 
@@ -48,6 +48,7 @@ const InvoicePage = () => {
   const { settings } = useSettings();
   const { getTextClass, getButtonClass, getSpacingClass } =
     useResponsiveContext();
+  const notifications = useUnifiedNotifications();
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [unfinalizedShipments, setUnfinalizedShipments] = React.useState<
@@ -91,7 +92,7 @@ const InvoicePage = () => {
       setSuppliers(sup);
     } catch (error) {
       console.error('Failed to fetch data:', error);
-      toast.error('Failed to load initial data. Please try again.');
+      notifications.invoice.error('load initial data', String(error));
     } finally {
       setLoading(false);
     }
@@ -246,7 +247,10 @@ const InvoicePage = () => {
         // Find the invoice to get its current data
         const invoice = invoices.find(inv => inv.id === invoiceId);
         if (!invoice) {
-          toast.error('Invoice not found.');
+          notifications.error(
+            'Invoice Not Found',
+            'The requested invoice could not be found.'
+          );
           return;
         }
 
@@ -256,8 +260,9 @@ const InvoicePage = () => {
           Math.abs(invoice.shipmentTotal - invoice.calculatedTotal) < tolerance;
 
         if (!isMatched) {
-          toast.error(
-            'Cannot finalize. The calculated total must match the shipment value.'
+          notifications.error(
+            'Cannot Finalize',
+            'The calculated total must match the shipment value.'
           );
           return;
         }
@@ -284,14 +289,12 @@ const InvoicePage = () => {
           };
 
           await invoke('update_invoice', { id: invoiceId, payload });
-          toast.success(
-            `Invoice ${invoiceNumber} has been finalized successfully!`
-          );
+          notifications.invoice.finalized(invoiceNumber);
           fetchData();
         }
       } catch (error) {
         console.error('Failed to finalize invoice:', error);
-        toast.error('Failed to finalize invoice.');
+        notifications.invoice.error('finalize', String(error));
       }
     },
     [invoices, fetchData]
@@ -325,7 +328,7 @@ const InvoicePage = () => {
       );
 
       if (confirmed) {
-        const toastId = toast.loading(
+        notifications.loading(
           `Finalizing ${autoFinalizableInvoices.length} invoice(s)...`
         );
 
@@ -357,15 +360,15 @@ const InvoicePage = () => {
           }
         }
 
-        toast.success(
-          `Bulk finalization complete! ${successCount} invoice(s) finalized successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`,
-          { id: toastId }
+        notifications.success(
+          'Bulk Finalization Complete',
+          `${successCount} invoice(s) finalized successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`
         );
         fetchData();
       }
     } catch (error) {
       console.error('Failed to bulk auto-finalize invoices:', error);
-      toast.error('Failed to bulk auto-finalize invoices.');
+      notifications.invoice.error('bulk finalize', String(error));
     }
   }, [invoices, fetchData]);
 
@@ -373,13 +376,11 @@ const InvoicePage = () => {
     if (invoiceToDelete) {
       try {
         await invoke('delete_invoice', { id: invoiceToDelete.id });
-        toast.success(
-          `Invoice ${invoiceToDelete.number} deleted successfully.`
-        );
+        notifications.invoice.deleted(invoiceToDelete.number);
         fetchData();
       } catch (error) {
         console.error('Failed to delete invoice:', error);
-        toast.error('Failed to delete invoice.');
+        notifications.invoice.error('delete', String(error));
       }
     }
     setIsDeleteDialogOpen(false);
@@ -404,18 +405,19 @@ const InvoicePage = () => {
     try {
       if (id) {
         await invoke('update_invoice', { id, payload });
-        toast.success(`Invoice ${invoiceData.invoiceNumber} has been updated.`);
+        notifications.invoice.updated(invoiceData.invoiceNumber);
       } else {
         await invoke('add_invoice', { payload });
-        toast.success(
-          `Invoice ${invoiceData.invoiceNumber} has been saved as ${invoiceData.status}.`
+        notifications.invoice.created(
+          invoiceData.invoiceNumber,
+          invoiceData.status
         );
       }
       setFormOpen(false);
       fetchData();
     } catch (error) {
       console.error('Failed to save invoice:', error);
-      toast.error('Failed to save invoice.');
+      notifications.invoice.error('save', String(error));
     }
   };
 
@@ -428,10 +430,16 @@ const InvoicePage = () => {
       });
       if (filePath) {
         await writeTextFile(filePath, headers);
-        toast.success('Invoice import template downloaded successfully!');
+        notifications.success(
+          'Template Downloaded',
+          'Invoice import template downloaded successfully!'
+        );
       }
     } catch (err) {
-      toast.error(`Failed to download template: ${(err as Error).message}`);
+      notifications.error(
+        'Download Failed',
+        `Failed to download template: ${(err as Error).message}`
+      );
     }
   };
 
@@ -450,7 +458,10 @@ const InvoicePage = () => {
       });
 
       if (results.errors.length) {
-        toast.error('CSV parsing error. Please check the file format.');
+        notifications.error(
+          'CSV Parsing Error',
+          'Please check the file format.'
+        );
         return;
       }
 
@@ -502,12 +513,10 @@ const InvoicePage = () => {
       );
 
       await invoke('add_invoices_bulk', { payloads });
-      toast.success(
-        `${payloads.length} invoices have been imported as drafts.`
-      );
+      notifications.invoice.imported(payloads.length);
       fetchData();
     } catch (err) {
-      toast.error(`Failed to import invoices: ${(err as Error).message}`);
+      notifications.invoice.error('import', (err as Error).message);
     }
   };
 

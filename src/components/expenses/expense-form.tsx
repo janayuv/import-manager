@@ -1,9 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
 import * as z from 'zod';
 
 import React, { useEffect, useState } from 'react';
+
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { useForm } from 'react-hook-form';
 
@@ -59,6 +60,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
   onFormSubmit,
   onCancelEdit,
 }) => {
+  const notifications = useUnifiedNotifications();
   const [expenseTypes, setExpenseTypes] = useState<Option[]>([]);
   const [serviceProviders, setServiceProviders] = useState<Option[]>([]);
   const [totalAmount, setTotalAmount] = useState<number>(0);
@@ -147,7 +149,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         );
       } catch (error) {
         console.error('Failed to fetch data for expense form:', error);
-        toast.error('Failed to load expense form data');
+        notifications.error('Load Error', 'Failed to load expense form data');
       }
     };
     fetchData();
@@ -165,10 +167,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       };
       setExpenseTypes(prev => [...prev, newOption]);
       form.setValue('expenseTypeId', newExpenseType.id);
-      toast.success(`Expense type "${name}" created successfully`);
+      notifications.success(
+        'Expense Type Created',
+        `Expense type "${name}" created successfully`
+      );
     } catch (error) {
       console.error('Failed to create new expense type:', error);
-      toast.error('Failed to create expense type');
+      notifications.error('Creation Error', 'Failed to create expense type');
     }
   };
 
@@ -185,10 +190,16 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       };
       setServiceProviders(prev => [...prev, newOption]);
       form.setValue('serviceProviderId', newServiceProvider.id);
-      toast.success(`Service provider "${name}" created successfully`);
+      notifications.success(
+        'Service Provider Created',
+        `Service provider "${name}" created successfully`
+      );
     } catch (error) {
       console.error('Failed to create new service provider:', error);
-      toast.error('Failed to create service provider');
+      notifications.error(
+        'Creation Error',
+        'Failed to create service provider'
+      );
     }
   };
 
@@ -204,7 +215,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       const tdsRate = Number(values.tdsRate) || 0;
 
       if (baseAmount === 0 && (cgstAmt > 0 || sgstAmt > 0 || igstAmt > 0)) {
-        toast.error('Amount must be greater than 0 to enter GST amounts');
+        notifications.error(
+          'Validation Error',
+          'Amount must be greater than 0 to enter GST amounts'
+        );
         return;
       }
 
@@ -226,12 +240,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
           remarks: values.remarks,
         };
         await invoke('update_expense', { id: expenseToEdit.id, payload });
-        toast.success('Expense updated successfully');
+        notifications.expense.updated(expenseToEdit.invoiceNo || 'Unknown');
       } else {
         // Adding new expense - need to create both invoice and expense
         // For now, we'll use a simple approach with default invoice data
         // In the future, this should be handled by a proper invoice creation flow
-        toast.error(
+        notifications.error(
+          'Feature Limitation',
           'Adding new expenses requires invoice information. Please use the "Add Multiple Expenses" feature.'
         );
         return;
@@ -252,8 +267,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       });
     } catch (error) {
       console.error('Failed to submit expense:', error);
-      toast.error(
-        expenseToEdit ? 'Failed to update expense' : 'Failed to add expense'
+      notifications.expense.error(
+        expenseToEdit ? 'update expense' : 'add expense',
+        String(error)
       );
     } finally {
       setIsSubmitting(false);

@@ -22,11 +22,12 @@ import {
   XAxis,
   YAxis,
 } from 'recharts';
-import { toast } from 'sonner';
 import Papa from 'papaparse';
 import * as ExcelJS from 'exceljs';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -84,6 +85,7 @@ const COLORS = [
 ];
 
 const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
+  const notifications = useUnifiedNotifications();
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<ExpenseReportType>('detailed');
   const [filters, setFilters] = useState<ExpenseReportFilters>(() => {
@@ -134,150 +136,158 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         setShipments(shipmentsData);
       } catch (error) {
         console.error('Failed to load filter options:', error);
-        toast.error('Failed to load filter options');
+        notifications.error('Load Error', 'Failed to load filter options');
       }
     };
     loadOptions();
   }, []);
 
   // Generate report based on type
-  const generateReport = useCallback(async () => {
-    setLoading(true);
-    try {
-      // First, debug the data counts
-      console.log('🔍 [DEBUG] Getting expense data counts...');
-      const debugInfo = await invoke<string>('debug_expense_data_counts');
-      console.log('🔍 [DEBUG] Data counts:', debugInfo);
+  const generateReport = useCallback(
+    async (showNotification = true) => {
+      setLoading(true);
+      try {
+        // First, debug the data counts
+        console.log('🔍 [DEBUG] Getting expense data counts...');
+        const debugInfo = await invoke<string>('debug_expense_data_counts');
+        console.log('🔍 [DEBUG] Data counts:', debugInfo);
 
-      console.log(
-        '🔍 [DEBUG] Generating report with filters:',
-        JSON.stringify(filters, null, 2)
-      );
-      console.log('🔍 [DEBUG] Filter values breakdown:');
-      console.log(
-        '  - shipmentId:',
-        filters.shipmentId,
-        typeof filters.shipmentId
-      );
-      console.log(
-        '  - serviceProviderId:',
-        filters.serviceProviderId,
-        typeof filters.serviceProviderId
-      );
-      console.log(
-        '  - expenseTypeId:',
-        filters.expenseTypeId,
-        typeof filters.expenseTypeId
-      );
-      console.log('  - dateFrom:', filters.dateFrom, typeof filters.dateFrom);
-      console.log('  - dateTo:', filters.dateTo, typeof filters.dateTo);
-      console.log('  - currency:', filters.currency, typeof filters.currency);
-      console.log(
-        '  - minAmount:',
-        filters.minAmount,
-        typeof filters.minAmount
-      );
-      console.log(
-        '  - maxAmount:',
-        filters.maxAmount,
-        typeof filters.maxAmount
-      );
+        console.log(
+          '🔍 [DEBUG] Generating report with filters:',
+          JSON.stringify(filters, null, 2)
+        );
+        console.log('🔍 [DEBUG] Filter values breakdown:');
+        console.log(
+          '  - shipmentId:',
+          filters.shipmentId,
+          typeof filters.shipmentId
+        );
+        console.log(
+          '  - serviceProviderId:',
+          filters.serviceProviderId,
+          typeof filters.serviceProviderId
+        );
+        console.log(
+          '  - expenseTypeId:',
+          filters.expenseTypeId,
+          typeof filters.expenseTypeId
+        );
+        console.log('  - dateFrom:', filters.dateFrom, typeof filters.dateFrom);
+        console.log('  - dateTo:', filters.dateTo, typeof filters.dateTo);
+        console.log('  - currency:', filters.currency, typeof filters.currency);
+        console.log(
+          '  - minAmount:',
+          filters.minAmount,
+          typeof filters.minAmount
+        );
+        console.log(
+          '  - maxAmount:',
+          filters.maxAmount,
+          typeof filters.maxAmount
+        );
 
-      // Clean filters object - remove undefined values
-      const cleanFilters = Object.fromEntries(
-        Object.entries(filters).filter(([, value]) => value !== undefined)
-      );
-      console.log(
-        '🔍 [DEBUG] Clean filters being sent:',
-        JSON.stringify(cleanFilters, null, 2)
-      );
-      console.log(
-        '🔍 [DEBUG] Date range check: dateFrom =',
-        cleanFilters.dateFrom,
-        'dateTo =',
-        cleanFilters.dateTo
-      );
+        // Clean filters object - remove undefined values
+        const cleanFilters = Object.fromEntries(
+          Object.entries(filters).filter(([, value]) => value !== undefined)
+        );
+        console.log(
+          '🔍 [DEBUG] Clean filters being sent:',
+          JSON.stringify(cleanFilters, null, 2)
+        );
+        console.log(
+          '🔍 [DEBUG] Date range check: dateFrom =',
+          cleanFilters.dateFrom,
+          'dateTo =',
+          cleanFilters.dateTo
+        );
 
-      // Test with specific date range
-      const testFilters = {
-        dateFrom: '2025-05-01',
-        dateTo: '2025-05-01',
-      };
-      console.log(
-        '🔍 [DEBUG] Testing with specific date range:',
-        JSON.stringify(testFilters, null, 2)
-      );
+        // Test with specific date range
+        const testFilters = {
+          dateFrom: '2025-05-01',
+          dateTo: '2025-05-01',
+        };
+        console.log(
+          '🔍 [DEBUG] Testing with specific date range:',
+          JSON.stringify(testFilters, null, 2)
+        );
 
-      switch (reportType) {
-        case 'detailed': {
-          const detailed = await invoke<ExpenseReportResponse>(
-            'generate_detailed_expense_report',
-            {
-              filters: cleanFilters,
+        switch (reportType) {
+          case 'detailed': {
+            const detailed = await invoke<ExpenseReportResponse>(
+              'generate_detailed_expense_report',
+              {
+                filters: cleanFilters,
+              }
+            );
+            console.log('🔍 [FRONTEND] Detailed report data:', detailed); // Debug log
+            if (detailed && detailed.rows) {
+              console.log('🔍 [FRONTEND] First row sample:', detailed.rows[0]); // Debug log
+              console.log('🔍 [FRONTEND] Totals:', detailed.totals); // Debug log
             }
-          );
-          console.log('🔍 [FRONTEND] Detailed report data:', detailed); // Debug log
-          if (detailed && detailed.rows) {
-            console.log('🔍 [FRONTEND] First row sample:', detailed.rows[0]); // Debug log
-            console.log('🔍 [FRONTEND] Totals:', detailed.totals); // Debug log
+            setDetailedReport(detailed);
+            break;
           }
-          setDetailedReport(detailed);
-          break;
+          case 'summary-by-type': {
+            const byType = await invoke<ExpenseSummaryByType[]>(
+              'generate_expense_summary_by_type',
+              {
+                filters: cleanFilters,
+              }
+            );
+            setSummaryByType(byType);
+            break;
+          }
+          case 'summary-by-provider': {
+            const byProvider = await invoke<ExpenseSummaryByProvider[]>(
+              'generate_expense_summary_by_provider',
+              {
+                filters: cleanFilters,
+              }
+            );
+            setSummaryByProvider(byProvider);
+            break;
+          }
+          case 'summary-by-shipment': {
+            const byShipment = await invoke<ExpenseSummaryByShipment[]>(
+              'generate_expense_summary_by_shipment',
+              {
+                filters: cleanFilters,
+              }
+            );
+            setSummaryByShipment(byShipment);
+            break;
+          }
+          case 'summary-by-month': {
+            const byMonth = await invoke<ExpenseSummaryByMonth[]>(
+              'generate_expense_summary_by_month',
+              {
+                filters: cleanFilters,
+              }
+            );
+            setSummaryByMonth(byMonth);
+            break;
+          }
         }
-        case 'summary-by-type': {
-          const byType = await invoke<ExpenseSummaryByType[]>(
-            'generate_expense_summary_by_type',
-            {
-              filters: cleanFilters,
-            }
+        if (showNotification) {
+          notifications.success(
+            'Report Generated',
+            'Report generated successfully'
           );
-          setSummaryByType(byType);
-          break;
         }
-        case 'summary-by-provider': {
-          const byProvider = await invoke<ExpenseSummaryByProvider[]>(
-            'generate_expense_summary_by_provider',
-            {
-              filters: cleanFilters,
-            }
-          );
-          setSummaryByProvider(byProvider);
-          break;
-        }
-        case 'summary-by-shipment': {
-          const byShipment = await invoke<ExpenseSummaryByShipment[]>(
-            'generate_expense_summary_by_shipment',
-            {
-              filters: cleanFilters,
-            }
-          );
-          setSummaryByShipment(byShipment);
-          break;
-        }
-        case 'summary-by-month': {
-          const byMonth = await invoke<ExpenseSummaryByMonth[]>(
-            'generate_expense_summary_by_month',
-            {
-              filters: cleanFilters,
-            }
-          );
-          setSummaryByMonth(byMonth);
-          break;
-        }
+      } catch (error) {
+        console.error('Failed to generate report:', error);
+        notifications.error('Report Error', 'Failed to generate report');
+      } finally {
+        setLoading(false);
       }
-      toast.success('Report generated successfully');
-    } catch (error) {
-      console.error('Failed to generate report:', error);
-      toast.error('Failed to generate report');
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, reportType]);
+    },
+    [filters, reportType]
+  );
 
-  // Auto-generate report when filters change
+  // Auto-generate report when filters change (silent)
   useEffect(() => {
     if (filters.dateFrom && filters.dateTo) {
-      generateReport();
+      generateReport(false); // Silent generation - no notification
     }
   }, [filters, reportType, generateReport]);
 
@@ -426,7 +436,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       }
 
       if (data.length === 0) {
-        toast.error('No data available for export');
+        notifications.error('Export Error', 'No data available for export');
         return;
       }
 
@@ -442,10 +452,14 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           break;
       }
 
-      toast.success(`Report exported successfully as ${format.toUpperCase()}`);
+      notifications.success(
+        'Export Complete',
+        `Report exported successfully as ${format.toUpperCase()}`
+      );
     } catch (error) {
       console.error('Export error:', error);
-      toast.error(
+      notifications.error(
+        'Export Error',
         `Failed to export report: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
     } finally {
@@ -578,7 +592,8 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
     link.click();
     document.body.removeChild(link);
 
-    toast.info(
+    notifications.info(
+      'PDF Export',
       'PDF export is available as HTML file. For better PDF support, consider using jsPDF library.'
     );
   };
@@ -597,7 +612,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           <Button
             variant="outline"
             size="sm"
-            onClick={generateReport}
+            onClick={() => generateReport(true)}
             disabled={loading}
           >
             <RefreshCw
@@ -612,7 +627,6 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               try {
                 const result = await invoke<string>('create_test_expense_data');
                 console.log('Test data creation result:', result);
-                toast.success('Test data created successfully');
                 // Reload filter options after creating test data
                 const [providers, types] = await Promise.all([
                   invoke<ServiceProvider[]>('get_service_providers'),
@@ -622,7 +636,6 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 setExpenseTypes(types);
               } catch (error) {
                 console.error('Failed to create test data:', error);
-                toast.error('Failed to create test data');
               }
             }}
             disabled={loading}
@@ -638,10 +651,8 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                   'debug_expense_data_counts'
                 );
                 console.log('Data counts:', result);
-                toast.success('Check console for data counts');
               } catch (error) {
                 console.error('Failed to get data counts:', error);
-                toast.error('Failed to get data counts');
               }
             }}
             disabled={loading}
@@ -655,10 +666,8 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               try {
                 const result = await invoke<string>('debug_expense_dates');
                 console.log('Date debug result:', result);
-                toast.success('Check console for date debug info');
               } catch (error) {
                 console.error('Failed to debug dates:', error);
-                toast.error('Failed to debug dates');
               }
             }}
             disabled={loading}
@@ -698,10 +707,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                   resultNoDate
                 );
 
-                toast.success('Test completed - check console');
+                // Test completed - check console
               } catch (error) {
                 console.error('Test failed:', error);
-                toast.error('Test failed');
               }
             }}
             disabled={loading}
@@ -730,12 +738,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 );
                 console.log('🔍 [TEST] Exact date range test result:', result);
 
-                toast.success(
-                  'Exact date range test completed - check console'
-                );
+                // Exact date range test completed - check console
               } catch (error) {
                 console.error('Exact date range test failed:', error);
-                toast.error('Exact date range test failed');
               }
             }}
             disabled={loading}

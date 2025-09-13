@@ -2,6 +2,8 @@ import { invoke } from '@tauri-apps/api/core';
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
+
 import { ModuleErrorBoundary } from '@/components/error-boundary';
 import { ErrorContexts, useErrorHandler } from '@/components/error-boundary';
 import { ExpenseDebug } from '@/components/expenses/expense-debug';
@@ -26,6 +28,7 @@ import type { Shipment } from '@/types/shipment';
 
 const ExpensesPage = () => {
   const { settings } = useSettings();
+  const notifications = useUnifiedNotifications();
   const { handleAsyncError } = useErrorHandler({
     fallbackMessage: 'Failed to load expenses data',
   });
@@ -97,11 +100,36 @@ const ExpensesPage = () => {
 
       if (result) {
         setIsLoading(false);
+        // Data loaded silently - no notification needed for initial load
       }
     };
 
     loadData();
-  }, [handleAsyncError]);
+  }, [handleAsyncError, notifications]);
+
+  const handleRefresh = useCallback(async () => {
+    notifications.loading('Refreshing expense data...');
+    try {
+      const [shipmentsData, expenseTypesData, serviceProvidersData] =
+        await Promise.all([
+          invoke<Shipment[]>('get_shipments'),
+          invoke<ExpenseType[]>('get_expense_types'),
+          invoke<ServiceProvider[]>('get_service_providers'),
+        ]);
+
+      setShipments(shipmentsData);
+      setExpenseTypes(expenseTypesData);
+      setServiceProviders(serviceProvidersData);
+      setRefreshKey(prevKey => prevKey + 1);
+      notifications.success(
+        'Refresh Complete',
+        'Expense data refreshed successfully'
+      );
+    } catch (error) {
+      console.error('Failed to refresh expense data:', error);
+      notifications.expense.error('refresh data', String(error));
+    }
+  }, [notifications]);
 
   const handleImportSuccess = () => {
     setRefreshKey(prevKey => prevKey + 1);
@@ -120,21 +148,29 @@ const ExpensesPage = () => {
               Track and manage expenses for your shipments
             </p>
           </div>
-          {selectedShipment && (
-            <div className="text-right">
-              <Badge variant="outline" className="text-sm">
-                Shipment:{' '}
-                {formatText(
-                  selectedShipment.invoiceNumber,
-                  settings.textFormat
-                )}
-              </Badge>
-              <p className="text-muted-foreground mt-1 text-xs">
-                BL/AWB:{' '}
-                {formatText(selectedShipment.blAwbNumber, settings.textFormat)}
-              </p>
-            </div>
-          )}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleRefresh}>
+              Refresh Data
+            </Button>
+            {selectedShipment && (
+              <div className="text-right">
+                <Badge variant="outline" className="text-sm">
+                  Shipment:{' '}
+                  {formatText(
+                    selectedShipment.invoiceNumber,
+                    settings.textFormat
+                  )}
+                </Badge>
+                <p className="text-muted-foreground mt-1 text-xs">
+                  BL/AWB:{' '}
+                  {formatText(
+                    selectedShipment.blAwbNumber,
+                    settings.textFormat
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
         </div>
 
         {isLoading ? (

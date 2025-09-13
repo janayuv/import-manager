@@ -2,7 +2,8 @@
 'use client';
 
 import { invoke } from '@tauri-apps/api/core';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 
@@ -34,6 +35,7 @@ import type { SavedBoe, Shipment } from '@/types/boe-entry';
 // src/pages/boe-entry/index.tsx (FIXED)
 
 export default function BoeEntryPage() {
+  const notifications = useUnifiedNotifications();
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([]);
   const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([]);
@@ -54,9 +56,7 @@ export default function BoeEntryPage() {
       setSavedBoes(savedBoesData);
       setAllBoes(allBoesData);
     } catch (error) {
-      toast.error('Failed to load data from the database.', {
-        description: String(error),
-      });
+      notifications.boe.error('load data', String(error));
     }
   };
 
@@ -71,9 +71,7 @@ export default function BoeEntryPage() {
 
   const handleSaveOrUpdateBoe = async (boeData: SavedBoe) => {
     const isEditing = savedBoes.some(b => b.id === boeData.id);
-    const toastId = toast.loading(
-      isEditing ? 'Updating BOE...' : 'Saving BOE...'
-    );
+    notifications.loading(isEditing ? 'Updating BOE...' : 'Saving BOE...');
 
     try {
       if (isEditing) {
@@ -82,19 +80,14 @@ export default function BoeEntryPage() {
         await invoke('add_boe_calculation', { payload: boeData });
       }
       await fetchData();
-      toast.success(
-        isEditing ? 'BOE Updated Successfully' : 'BOE Saved Successfully',
-        {
-          id: toastId,
-          description: `Calculation for invoice ${boeData.invoiceNumber} has been saved.`,
-        }
-      );
+      if (isEditing) {
+        notifications.boe.updated(boeData.invoiceNumber);
+      } else {
+        notifications.boe.created(boeData.invoiceNumber);
+      }
       setEditingBoe(null);
     } catch (error) {
-      toast.error(isEditing ? 'Failed to update BOE' : 'Failed to save BOE', {
-        id: toastId,
-        description: String(error),
-      });
+      notifications.boe.error(isEditing ? 'update' : 'save', String(error));
     }
   };
 
@@ -120,20 +113,14 @@ export default function BoeEntryPage() {
 
   const handleConfirmDelete = async () => {
     if (!deletingBoe) return;
-    const toastId = toast.loading('Deleting BOE...');
+    notifications.loading('Deleting BOE...');
     try {
       await invoke('delete_boe_calculation', { id: deletingBoe.id });
       await fetchData();
-      toast.success('BOE Deleted', {
-        id: toastId,
-        description: `Calculation for invoice ${deletingBoe.invoiceNumber} has been deleted.`,
-      });
+      notifications.boe.deleted(deletingBoe.invoiceNumber);
       setDeletingBoe(null);
     } catch (error) {
-      toast.error('Failed to delete BOE', {
-        id: toastId,
-        description: String(error),
-      });
+      notifications.boe.error('delete', String(error));
     }
   };
 

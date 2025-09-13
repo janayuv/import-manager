@@ -1,7 +1,6 @@
 import { invoke } from '@tauri-apps/api/core';
 import { confirm } from '@tauri-apps/plugin-dialog';
 import { AlertTriangle, Trash2 } from 'lucide-react';
-import { toast } from 'sonner';
 
 import React, { useState } from 'react';
 
@@ -38,11 +37,9 @@ const ExpenseDataManager: React.FC = () => {
     try {
       const result = await invoke<string>('clear_expense_data');
       setMessage(result);
-      toast.success('Expense data cleared successfully');
     } catch (error) {
       console.error('Failed to clear expense data:', error);
       setMessage(`Error: ${error}`);
-      toast.error('Failed to clear expense data');
     } finally {
       setIsClearing(false);
     }
@@ -56,7 +53,6 @@ const ExpenseDataManager: React.FC = () => {
     } catch (error) {
       console.error('Failed to debug expense data:', error);
       setMessage(`Error: ${error}`);
-      toast.error('Failed to debug expense data');
     }
   };
 
@@ -77,11 +73,9 @@ const ExpenseDataManager: React.FC = () => {
       const result = await invoke<string>('cleanup_orphaned_expenses');
       setMessage(result);
       console.log('Cleanup result:', result);
-      toast.success('Orphaned expense data cleaned up successfully');
     } catch (error) {
       console.error('Failed to cleanup orphaned expenses:', error);
       setMessage(`Error: ${error}`);
-      toast.error('Failed to cleanup orphaned expenses');
     }
   };
 
