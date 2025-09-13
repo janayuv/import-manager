@@ -31,7 +31,7 @@ tauri-plugin-dialog = { version = "2.0.0-rc.8" }
 tauri-plugin-fs = { version = "2.0.0-rc.8" }
 chrono = { version = "0.4.41", features = ["serde"] }
 uuid = { version = "1.17.0", features = ["v4", "serde"] }
-thiserror = "1.0"
+thiserror = "2.0"
 regex = "1.0"
 lazy_static = "1.4"
 
