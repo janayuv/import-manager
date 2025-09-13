@@ -1,7 +1,7 @@
 import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
-
 import { useState } from 'react';
+
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
 export function ExpenseDebug() {
+  const notifications = useUnifiedNotifications();
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [newExpenseType, setNewExpenseType] = useState({
@@ -25,7 +26,7 @@ export function ExpenseDebug() {
       setDebugInfo(info);
     } catch (error) {
       console.error('Failed to debug expense types:', error);
-      toast.error('Failed to debug expense types');
+      notifications.error('Debug Error', 'Failed to debug expense types');
     } finally {
       setLoading(false);
     }
@@ -33,7 +34,10 @@ export function ExpenseDebug() {
 
   const addExpenseType = async () => {
     if (!newExpenseType.name.trim()) {
-      toast.error('Please enter an expense type name');
+      notifications.error(
+        'Validation Error',
+        'Please enter an expense type name'
+      );
       return;
     }
 
@@ -45,7 +49,10 @@ export function ExpenseDebug() {
         sgstRate: newExpenseType.sgstRate * 100,
         igstRate: newExpenseType.igstRate * 100,
       });
-      toast.success(`Added expense type: ${newExpenseType.name}`);
+      notifications.success(
+        'Expense Type Added',
+        `Added expense type: ${newExpenseType.name}`
+      );
       setNewExpenseType({
         name: '',
         cgstRate: 9,
@@ -56,7 +63,7 @@ export function ExpenseDebug() {
       await debugExpenseTypes();
     } catch (error) {
       console.error('Failed to add expense type:', error);
-      toast.error('Failed to add expense type');
+      notifications.error('Creation Error', 'Failed to add expense type');
     } finally {
       setLoading(false);
     }
@@ -83,11 +90,14 @@ export function ExpenseDebug() {
         });
       }
 
-      toast.success('Added sample expense types');
+      notifications.success('Sample Data Added', 'Added sample expense types');
       await debugExpenseTypes();
     } catch (error) {
       console.error('Failed to add sample expense types:', error);
-      toast.error('Failed to add sample expense types');
+      notifications.error(
+        'Creation Error',
+        'Failed to add sample expense types'
+      );
     } finally {
       setLoading(false);
     }
@@ -98,10 +108,13 @@ export function ExpenseDebug() {
     try {
       const result = await invoke<string>('fix_expense_types');
       setDebugInfo(result);
-      toast.success('Fixed expense types with correct rates');
+      notifications.success(
+        'Fix Applied',
+        'Fixed expense types with correct rates'
+      );
     } catch (error) {
       console.error('Failed to fix expense types:', error);
-      toast.error('Failed to fix expense types');
+      notifications.error('Fix Error', 'Failed to fix expense types');
     } finally {
       setLoading(false);
     }
@@ -112,12 +125,13 @@ export function ExpenseDebug() {
     try {
       const result = await invoke<string>('fix_existing_expenses');
       setDebugInfo(result);
-      toast.success(
+      notifications.success(
+        'Fix Applied',
         'Fixed existing expenses with correct rates and recalculated amounts'
       );
     } catch (error) {
       console.error('Failed to fix existing expenses:', error);
-      toast.error('Failed to fix existing expenses');
+      notifications.error('Fix Error', 'Failed to fix existing expenses');
     } finally {
       setLoading(false);
     }
@@ -128,10 +142,10 @@ export function ExpenseDebug() {
     try {
       const result = await invoke<string>('fix_lcl_charges_rate');
       setDebugInfo(result);
-      toast.success('Fixed LCL Charges rate');
+      notifications.success('Fix Applied', 'Fixed LCL Charges rate');
     } catch (error) {
       console.error('Failed to fix LCL Charges rate:', error);
-      toast.error('Failed to fix LCL Charges rate');
+      notifications.error('Fix Error', 'Failed to fix LCL Charges rate');
     } finally {
       setLoading(false);
     }
@@ -142,10 +156,16 @@ export function ExpenseDebug() {
     try {
       const result = await invoke<string>('cleanup_orphaned_expense_invoices');
       setDebugInfo(result);
-      toast.success('Cleaned up orphaned expense invoices');
+      notifications.success(
+        'Cleanup Complete',
+        'Cleaned up orphaned expense invoices'
+      );
     } catch (error) {
       console.error('Failed to cleanup orphaned expense invoices:', error);
-      toast.error('Failed to cleanup orphaned expense invoices');
+      notifications.error(
+        'Cleanup Error',
+        'Failed to cleanup orphaned expense invoices'
+      );
     } finally {
       setLoading(false);
     }

@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 import { Plus, Trash2, X } from 'lucide-react';
-import { toast } from 'sonner';
 
 import React, { useEffect, useState } from 'react';
 
@@ -82,7 +81,6 @@ export function ExpenseInvoiceForm({
       setExpenseTypes(types);
     } catch (error) {
       console.error('Failed to load data:', error);
-      toast.error('Failed to load service providers and expense types');
     }
   };
 
@@ -158,12 +156,10 @@ export function ExpenseInvoiceForm({
     e.preventDefault();
 
     if (!serviceProviderId || !invoiceNo || !invoiceDate) {
-      toast.error('Please fill in all required fields');
       return;
     }
 
     if (expenseLines.some(line => !line.expenseTypeId || line.amount <= 0)) {
-      toast.error('Please fill in all expense details');
       return;
     }
 
@@ -187,11 +183,9 @@ export function ExpenseInvoiceForm({
       };
 
       await invoke('add_expense_invoice_with_expenses', { payload });
-      toast.success('Expense invoice created successfully');
       onSuccess();
     } catch (error) {
       console.error('Failed to create expense invoice:', error);
-      toast.error('Failed to create expense invoice');
     } finally {
       setLoading(false);
     }

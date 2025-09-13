@@ -23,7 +23,7 @@ import {
   Ship,
 } from 'lucide-react';
 import Papa from 'papaparse';
-import { toast } from 'sonner';
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 
@@ -75,6 +75,7 @@ type OptionType =
 const ShipmentPage = () => {
   const { settings } = useSettings();
   const { getTextClass, getButtonClass } = useResponsiveContext();
+  const notifications = useUnifiedNotifications();
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
   const [isFormOpen, setFormOpen] = React.useState(false);
@@ -102,7 +103,7 @@ const ShipmentPage = () => {
       setShipments(fetchedShipments);
     } catch (error) {
       console.error('Failed to fetch shipments:', error);
-      toast.error('Failed to load shipments from the database.');
+      notifications.shipment.error('load', String(error));
     }
   }, []);
 
@@ -130,13 +131,11 @@ const ShipmentPage = () => {
           status: 'delivered',
           dateOfDelivery: today,
         });
-        toast.success(
-          `Shipment ${shipment.invoiceNumber} marked as delivered.`
-        );
+        notifications.shipment.delivered(shipment.invoiceNumber);
         fetchShipments();
       } catch (error) {
         console.error('Failed to mark shipment as delivered:', error);
-        toast.error('Failed to mark shipment as delivered.');
+        notifications.shipment.error('mark as delivered', String(error));
       }
     },
     [fetchShipments]
@@ -145,32 +144,44 @@ const ShipmentPage = () => {
   const handleCheckStatusUpdates = React.useCallback(async () => {
     try {
       await invoke('check_and_update_ready_for_delivery');
-      toast.success('Shipment status check completed.');
+      notifications.success(
+        'Status Check Complete',
+        'Shipment status check completed successfully'
+      );
       fetchShipments();
     } catch (error) {
       console.error('Failed to check shipment status updates:', error);
-      toast.error('Failed to check shipment status updates.');
+      notifications.shipment.error('check status updates', String(error));
     }
   }, [fetchShipments]);
 
   const handleMigrateStatuses = React.useCallback(async () => {
     try {
       await invoke('migrate_shipment_statuses');
-      toast.success('Shipment status migration completed.');
+      notifications.success(
+        'Migration Complete',
+        'Shipment status migration completed successfully'
+      );
       fetchShipments();
     } catch (error) {
       console.error('Failed to migrate shipment statuses:', error);
-      toast.error('Failed to migrate shipment statuses.');
+      notifications.shipment.error('migrate statuses', String(error));
     }
   }, [fetchShipments]);
 
   const handleCopyShipmentId = async (shipmentId: string) => {
     try {
       await navigator.clipboard.writeText(shipmentId);
-      toast.success(`Shipment ID "${shipmentId}" copied to clipboard!`);
+      notifications.success(
+        'Copied',
+        `Shipment ID "${shipmentId}" copied to clipboard!`
+      );
     } catch (error) {
       console.error('Failed to copy shipment ID:', error);
-      toast.error('Failed to copy shipment ID to clipboard.');
+      notifications.error(
+        'Copy Failed',
+        'Failed to copy shipment ID to clipboard.'
+      );
     }
   };
 
@@ -270,7 +281,7 @@ const ShipmentPage = () => {
       setCurrencies(fetchedCurrencies as Option[]);
     } catch (error) {
       console.error('Failed to fetch options:', error);
-      toast.error('Could not load dropdown options from the database.');
+      notifications.shipment.error('load dropdown options', String(error));
     }
   };
 
@@ -287,7 +298,7 @@ const ShipmentPage = () => {
         await fetchOptions();
       } catch (error) {
         console.error('Failed to load initial data:', error);
-        toast.error('Could not load initial data from the database.');
+        notifications.shipment.error('load initial data', String(error));
       }
     };
     fetchInitialData();
@@ -302,7 +313,8 @@ const ShipmentPage = () => {
     );
 
     if (isDuplicate) {
-      toast.error(
+      notifications.error(
+        'Duplicate Invoice',
         `A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`
       );
       return;
@@ -312,7 +324,7 @@ const ShipmentPage = () => {
       if (shipmentToEdit) {
         const updatedShipment = { ...shipmentToEdit, ...shipmentData };
         await invoke('update_shipment', { shipment: updatedShipment });
-        toast.success(`Shipment ${updatedShipment.invoiceNumber} updated.`);
+        notifications.shipment.updated(updatedShipment.invoiceNumber);
       } else {
         const maxId = shipments.reduce(
           (max, s) => Math.max(max, parseInt(s.id.split('-')[1] || '0')),
@@ -321,13 +333,13 @@ const ShipmentPage = () => {
         const newId = `SHP-${(maxId + 1).toString().padStart(3, '0')}`;
         const newShipment: Shipment = { id: newId, ...shipmentData };
         await invoke('add_shipment', { shipment: newShipment });
-        toast.success(`Shipment ${newShipment.invoiceNumber} created.`);
+        notifications.shipment.created(newShipment.invoiceNumber);
       }
       fetchShipments();
       setFormOpen(false);
     } catch (error) {
       console.error('Failed to save shipment:', error);
-      toast.error('Failed to save shipment.');
+      notifications.shipment.error('save', String(error));
     }
   }
 
@@ -360,7 +372,10 @@ const ShipmentPage = () => {
     a.download = 'shipment_template.csv';
     a.click();
     URL.revokeObjectURL(url);
-    toast.info('Shipment template downloaded.');
+    notifications.success(
+      'Template Downloaded',
+      'Shipment import template downloaded successfully!'
+    );
   };
 
   async function handleImport() {
@@ -436,34 +451,26 @@ const ShipmentPage = () => {
           if (validationErrors && validationErrors.length > 0) {
             // Show validation errors in a detailed notification
             const errorMessage = validationErrors.join('\n');
-            toast.error(`Import validation failed:\n${errorMessage}`, {
-              duration: 10000, // Show for 10 seconds
-              style: {
-                whiteSpace: 'pre-line',
-                maxWidth: '600px',
-                maxHeight: '400px',
-                overflow: 'auto',
-              },
+            notifications.error('Import Validation Failed', errorMessage, {
+              duration: 10000,
             });
             return;
           }
 
           // If validation passes, proceed with import
           await invoke('add_shipments_bulk', { shipments: newShipments });
-          toast.success(
-            `${newShipments.length} new shipments imported successfully!`
-          );
+          notifications.shipment.imported(newShipments.length);
           fetchShipments();
         } catch (error) {
           console.error('Failed to import shipments:', error);
-          toast.error(`Failed to import shipments: ${error}`);
+          notifications.shipment.error('import', String(error));
         }
       } else {
-        toast.info('No new shipments to import.');
+        notifications.info('No New Data', 'No new shipments to import.');
       }
     } catch (error) {
       console.error('Failed to import shipments:', error);
-      toast.error('Failed to import shipments. Please check the file format.');
+      notifications.shipment.error('import', 'Please check the file format.');
     }
   }
 
@@ -538,11 +545,11 @@ const ShipmentPage = () => {
       });
       if (filePath) {
         await writeTextFile(filePath, csv);
-        toast.success('Shipments exported successfully!');
+        notifications.shipment.exported(shipments.length);
       }
     } catch (error) {
       console.error('Failed to export shipments:', error);
-      toast.error('Failed to export shipments.');
+      notifications.shipment.error('export', String(error));
     }
   };
   void exportShipmentsData;
@@ -571,10 +578,13 @@ const ShipmentPage = () => {
         optionType: type,
         option: correctlyCasedOption,
       });
-      toast.success(`New ${type} "${correctlyCasedOption.label}" saved.`);
+      notifications.success(
+        'Option Added',
+        `New ${type} "${correctlyCasedOption.label}" saved.`
+      );
     } catch (error) {
       console.error(`Failed to save new ${type}:`, error);
-      toast.error(`Failed to save new ${type}.`);
+      notifications.error('Save Failed', `Failed to save new ${type}.`);
 
       stateUpdater[type](prev =>
         prev.filter(opt => opt.value !== correctlyCasedOption.value)

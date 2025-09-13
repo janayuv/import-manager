@@ -10,7 +10,7 @@ import {
   Download,
   Upload,
 } from 'lucide-react';
-import { toast } from 'sonner';
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 
@@ -31,6 +31,7 @@ const SupplierPage = () => {
   const { settings } = useSettings();
   const { getTextClass, getButtonClass, getSpacingClass } =
     useResponsiveContext();
+  const notifications = useUnifiedNotifications();
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [isViewOpen, setViewOpen] = React.useState(false);
   const [isEditOpen, setEditOpen] = React.useState(false);
@@ -43,7 +44,7 @@ const SupplierPage = () => {
       setSuppliers(fetchedSuppliers);
     } catch (error) {
       console.error('Failed to fetch suppliers:', error);
-      toast.error('Failed to fetch suppliers.');
+      notifications.supplier.error('fetch', String(error));
     }
   };
 
@@ -71,22 +72,22 @@ const SupplierPage = () => {
 
     try {
       await invoke('add_supplier', { supplier: newSupplier });
-      toast.success('Supplier added successfully!');
+      notifications.supplier.created(newSupplier.name);
       fetchSuppliers();
     } catch (error) {
       console.error('Failed to add supplier:', error);
-      toast.error('Failed to add supplier.');
+      notifications.supplier.error('add', String(error));
     }
   };
 
   const handleSave = async (updatedSupplier: Supplier) => {
     try {
       await invoke('update_supplier', { supplier: updatedSupplier });
-      toast.success('Supplier updated successfully!');
+      notifications.supplier.updated(updatedSupplier.name);
       fetchSuppliers();
     } catch (error) {
       console.error('Failed to update supplier:', error);
-      toast.error('Failed to update supplier.');
+      notifications.supplier.error('update', String(error));
     }
   };
 
@@ -100,7 +101,10 @@ const SupplierPage = () => {
     a.download = 'supplier_template.csv';
     a.click();
     URL.revokeObjectURL(url);
-    toast.info('Supplier template downloaded.');
+    notifications.success(
+      'Template Downloaded',
+      'Supplier import template downloaded successfully!'
+    );
   };
 
   const handleImport = async () => {
@@ -164,16 +168,17 @@ const SupplierPage = () => {
 
       if (newSuppliers.length > 0) {
         await invoke('add_suppliers_bulk', { suppliers: newSuppliers });
-        toast.success(
-          `${newSuppliers.length} suppliers imported successfully!`
-        );
+        notifications.supplier.imported(newSuppliers.length);
         fetchSuppliers();
       } else {
-        toast.warning('No new suppliers found in the file.');
+        notifications.warning(
+          'No New Data',
+          'No new suppliers found in the file.'
+        );
       }
     } catch (error) {
       console.error('Failed to import suppliers:', error);
-      toast.error('Failed to import suppliers. Please check the file format.');
+      notifications.supplier.error('import', 'Please check the file format.');
     }
   };
 

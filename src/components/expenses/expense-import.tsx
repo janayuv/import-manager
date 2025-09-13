@@ -1,9 +1,9 @@
 'use client';
 
 import * as ExcelJS from 'exceljs';
-import { toast } from 'sonner';
-
 import { useCallback, useState } from 'react';
+
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +60,7 @@ export default function ExpenseImport({
   onImportSuccess,
 }: ExpenseImportProps) {
   const { settings } = useSettings();
+  const notifications = useUnifiedNotifications();
   const [selectedShipment, setSelectedShipment] = useState<string>('');
   const [importData, setImportData] = useState<ImportExpenseRow[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -195,15 +196,11 @@ export default function ExpenseImport({
 
         if (errors.length === 0) {
           setImportData(data);
-          toast.success(`Successfully parsed ${data.length} expense records`);
-        } else {
-          toast.error(`Found ${errors.length} validation errors`);
         }
 
         setProgress(100);
       } catch (error) {
         console.error('Error parsing file:', error);
-        toast.error('Error parsing file. Please check the file format.');
         setValidationErrors([
           'Failed to parse file. Please ensure it matches the template format.',
         ]);
@@ -358,24 +355,29 @@ export default function ExpenseImport({
     a.download = 'expense-import-template.csv';
     a.click();
     URL.revokeObjectURL(url);
-
-    toast.success('Template downloaded successfully');
+    notifications.success(
+      'Template Downloaded',
+      'Expense import template downloaded successfully!'
+    );
   };
 
   // Handle import
   const handleImport = async () => {
     if (!selectedShipment) {
-      toast.error('Please select a shipment first');
+      notifications.error('Validation Error', 'Please select a shipment first');
       return;
     }
 
     if (importData.length === 0) {
-      toast.error('No data to import');
+      notifications.error('Validation Error', 'No data to import');
       return;
     }
 
     if (validationErrors.length > 0) {
-      toast.error('Please fix validation errors before importing');
+      notifications.error(
+        'Validation Error',
+        'Please fix validation errors before importing'
+      );
       return;
     }
 
@@ -428,20 +430,18 @@ export default function ExpenseImport({
 
       // Call the backend bulk import function
       const { invoke } = await import('@tauri-apps/api/core');
-      const invoiceId = await invoke('add_expenses_bulk', {
+      await invoke('add_expenses_bulk', {
         payload: bulkPayload,
       });
 
       setProgress(100);
-      toast.success(
-        `Successfully imported ${importData.length} expenses (Invoice ID: ${invoiceId})`
-      );
+      notifications.expense.imported(importData.length);
       setImportData([]);
       setSelectedShipment('');
       onImportSuccess();
     } catch (error) {
       console.error('Import error:', error);
-      toast.error(`Failed to import expenses: ${error}`);
+      notifications.expense.error('import expenses', String(error));
     } finally {
       setIsProcessing(false);
       setProgress(0);

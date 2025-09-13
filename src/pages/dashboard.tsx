@@ -24,6 +24,8 @@ import { Cell, Line, LineChart, Pie, PieChart } from 'recharts';
 
 import { useEffect, useMemo, useState } from 'react';
 
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
+
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -182,6 +184,7 @@ const aggregateData = (
 const DashboardPage = () => {
   const { getTextClass, getSpacingClass, getGridColumns } =
     useResponsiveContext();
+  const notifications = useUnifiedNotifications();
   const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('all');
   const [timeframe, setTimeframe] = useState<Timeframe>('monthly');
   const [currency, setCurrency] = useState('INR');
@@ -315,12 +318,59 @@ const DashboardPage = () => {
         setExpenseSummary({ total, count: all.length });
       } catch (e) {
         console.error('Failed to load dashboard data', e);
+        notifications.system.error('load dashboard data', String(e));
       } finally {
         setLoading(false);
       }
     };
     fetchAll();
   }, []);
+
+  const handleRefresh = async () => {
+    notifications.loading('Refreshing dashboard data...');
+    try {
+      setLoading(true);
+      const [sup, it, boe, shp] = await Promise.all([
+        invoke<Supplier[]>('get_suppliers'),
+        invoke<Item[]>('get_items'),
+        invoke<SavedBoe[]>('get_boe_calculations'),
+        invoke<ShipmentTs[]>('get_shipments'),
+      ]);
+      setSuppliers(sup);
+      setItems(it);
+      setBoes(boe);
+      setShipments(shp);
+
+      // Compute quick expense summary (sum totals for latest 10 shipments)
+      const latest = shp.slice(0, 10);
+      const expArrays = await Promise.all(
+        latest.map(s =>
+          invoke<Expense[]>('get_expenses_for_shipment', { shipmentId: s.id })
+        )
+      );
+      const all = expArrays.flat();
+      const total = all.reduce(
+        (sum, e) =>
+          sum +
+          (Number(e.totalAmount) ||
+            Number(e.amount) +
+              Number(e.cgstAmount || 0) +
+              Number(e.sgstAmount || 0) +
+              Number(e.igstAmount || 0)),
+        0
+      );
+      setExpenseSummary({ total, count: all.length });
+      notifications.success(
+        'Refresh Complete',
+        'Dashboard data refreshed successfully'
+      );
+    } catch (e) {
+      console.error('Failed to refresh dashboard data', e);
+      notifications.system.error('refresh dashboard data', String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading) {
     return <LoadingSkeleton />;
@@ -341,6 +391,15 @@ const DashboardPage = () => {
           </p>
         </div>
         <div className={`flex items-center ${getSpacingClass()}`}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            className="mr-2"
+          >
+            <TrendingUp className="mr-2 h-4 w-4" />
+            Refresh
+          </Button>
           <Select
             value={moduleFilter}
             onValueChange={(v: ModuleFilter) => setModuleFilter(v)}

@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
 
 import React, { useCallback, useEffect, useState } from 'react';
 
@@ -65,7 +64,6 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
       setExpenseTypes(new Map(types.map(t => [t.id, t.name])));
     } catch (error) {
       console.error('Failed to fetch related data:', error);
-      toast.error('Failed to load expense data');
     }
   }, []);
 
@@ -82,7 +80,6 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
       setExpenses(fetchedExpenses);
     } catch (error) {
       console.error('Failed to fetch expenses:', error);
-      toast.error('Failed to load expenses');
     } finally {
       setLoading(false);
     }
@@ -113,11 +110,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
     setDeletingExpenseId(expenseId);
     try {
       await invoke('delete_expense', { id: expenseId });
-      toast.success('Expense deleted successfully');
       onDelete(expenseId);
     } catch (error) {
       console.error('Failed to delete expense:', error);
-      toast.error('Failed to delete expense');
     } finally {
       setDeletingExpenseId(null);
     }
@@ -125,7 +120,6 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
 
   const handleEdit = (expense: ExpenseWithInvoice) => {
     onEdit(expense);
-    toast.info('Editing expense - please update the details below');
   };
 
   if (loading) {

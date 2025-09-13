@@ -1,6 +1,5 @@
 import { invoke } from '@tauri-apps/api/core';
 import { AlertTriangle, Calculator, Plus, Trash2, X } from 'lucide-react';
-import { toast } from 'sonner';
 
 import React, { useEffect, useState } from 'react';
 
@@ -111,7 +110,6 @@ export function ExpenseMultilineForm({
       setExpenseTypes(types);
     } catch (error) {
       console.error('Failed to load data:', error);
-      toast.error('Failed to load service providers and expense types');
     }
   };
 
@@ -172,7 +170,6 @@ export function ExpenseMultilineForm({
     });
 
     setExpenseLines(combinedLines);
-    toast.success('Duplicate expense types have been combined');
   };
 
   const updateExpenseLine = (
@@ -240,7 +237,6 @@ export function ExpenseMultilineForm({
 
   const handlePreview = async () => {
     if (!validateForm()) {
-      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -273,10 +269,8 @@ export function ExpenseMultilineForm({
       );
       setPreview(previewResult);
       setShowPreview(true);
-      toast.success('Preview calculated successfully');
     } catch (error) {
       console.error('Failed to preview invoice:', error);
-      toast.error('Failed to preview invoice calculations');
     } finally {
       setPreviewLoading(false);
     }
@@ -286,7 +280,6 @@ export function ExpenseMultilineForm({
     e.preventDefault();
 
     if (!validateForm()) {
-      toast.error('Please fill in all required fields');
       return;
     }
 
@@ -295,15 +288,7 @@ export function ExpenseMultilineForm({
     const uniqueIds = new Set(expenseTypeIds);
 
     if (expenseTypeIds.length !== uniqueIds.size) {
-      const duplicates = expenseTypeIds.filter(
-        (id, index) => expenseTypeIds.indexOf(id) !== index
-      );
-      const duplicateType = expenseTypes.find(
-        type => type.id === duplicates[0]
-      );
-      toast.error(
-        `Cannot submit: Duplicate expense type "${duplicateType?.name}" found. Please combine amounts or use different expense types.`
-      );
+      // Duplicate expense type found - validation will prevent submission
       return;
     }
 
@@ -330,26 +315,9 @@ export function ExpenseMultilineForm({
       };
 
       await invoke('create_expense_invoice', { payload });
-      toast.success('Expense invoice created successfully');
       onSuccess();
     } catch (error) {
       console.error('Failed to create expense invoice:', error);
-
-      // Provide more specific error messages
-      const errorMessage = error as string;
-      if (errorMessage.includes('Optimistic lock conflict')) {
-        toast.error(
-          'The invoice was modified by another user. Please refresh and try again.'
-        );
-      } else if (errorMessage.includes('Duplicate idempotency key')) {
-        toast.error(
-          'This invoice has already been created. Please check your records.'
-        );
-      } else if (errorMessage.includes('Validation error')) {
-        toast.error('Please check your input data and try again.');
-      } else {
-        toast.error('Failed to create expense invoice');
-      }
     } finally {
       setLoading(false);
     }
