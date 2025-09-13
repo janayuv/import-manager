@@ -54,7 +54,7 @@ impl DatabaseMigrations {
                             log::info!("Migration state reset successfully. Retrying migrations...");
                             // Retry migrations after reset
                             match migrations::runner().run(conn) {
-                                Ok(applied_migrations) => {
+                                Ok(_applied_migrations) => {
                                     log::info!("Migrations applied successfully after reset");
                                     Ok(())
                                 }
