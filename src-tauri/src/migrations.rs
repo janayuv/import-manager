@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use refinery::embed_migrations;
 use rusqlite::{Connection, Result};
 use std::path::Path;
@@ -15,7 +16,9 @@ impl DatabaseMigrations {
         // Create a backup before running migrations
         let backup_path = Path::new("import-manager.db.backup");
         if backup_path.exists() {
-            std::fs::remove_file(backup_path).expect("Failed to remove existing backup");
+            if let Err(e) = std::fs::remove_file(backup_path) {
+                log::warn!("Failed to remove existing backup: {}", e);
+            }
         }
 
         // Run migrations
@@ -30,19 +33,60 @@ impl DatabaseMigrations {
                     );
 
                     // Create backup after successful migration
-                    conn.execute(
-                        &format!("VACUUM INTO '{}'", backup_path.to_str().unwrap()),
-                        [],
-                    )?;
+                    let backup_str = backup_path.to_str().ok_or_else(|| {
+                        rusqlite::Error::InvalidPath("Invalid backup path".into())
+                    })?;
+                    conn.execute(&format!("VACUUM INTO '{}'", backup_str), [])?;
                     log::info!("Database backup created at import-manager.db.backup");
                 }
                 Ok(())
             }
             Err(e) => {
                 log::error!("Migration failed: {}", e);
-                Err(rusqlite::Error::InvalidPath(e.to_string().into()))
+
+                // Check if this is a migration mismatch error
+                if e.to_string().contains("different than filesystem") {
+                    log::warn!("Migration mismatch detected. Attempting to resolve...");
+
+                    // Try to reset the migration state by dropping and recreating the migration table
+                    match Self::reset_migration_state(conn) {
+                        Ok(_) => {
+                            log::info!(
+                                "Migration state reset successfully. Retrying migrations..."
+                            );
+                            // Retry migrations after reset
+                            match migrations::runner().run(conn) {
+                                Ok(_applied_migrations) => {
+                                    log::info!("Migrations applied successfully after reset");
+                                    Ok(())
+                                }
+                                Err(retry_e) => {
+                                    log::error!("Migration retry failed: {}", retry_e);
+                                    Err(rusqlite::Error::InvalidPath(retry_e.to_string().into()))
+                                }
+                            }
+                        }
+                        Err(reset_e) => {
+                            log::error!("Failed to reset migration state: {}", reset_e);
+                            Err(rusqlite::Error::InvalidPath(e.to_string().into()))
+                        }
+                    }
+                } else {
+                    Err(rusqlite::Error::InvalidPath(e.to_string().into()))
+                }
             }
         }
+    }
+
+    /// Reset migration state by dropping and recreating the migration table
+    fn reset_migration_state(conn: &Connection) -> Result<()> {
+        log::info!("Resetting migration state...");
+
+        // Drop the migration table if it exists
+        conn.execute("DROP TABLE IF EXISTS refinery_schema_history", [])?;
+
+        log::info!("Migration table dropped successfully");
+        Ok(())
     }
 
     /// Check if migrations are needed
@@ -80,7 +124,9 @@ impl DatabaseMigrations {
             .prepare("SELECT version, applied_on FROM refinery_schema_history ORDER BY version")?;
 
         let rows = stmt.query_map([], |row| {
-            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            let version: i32 = row.get(0)?;
+            let applied_on: String = row.get(1)?;
+            Ok((version.to_string(), applied_on))
         })?;
 
         let mut status = Vec::new();
@@ -97,20 +143,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_migration_status() {
-        let mut conn = Connection::open_in_memory().unwrap();
+    fn test_migration_status() -> Result<(), Box<dyn std::error::Error>> {
+        let mut conn = Connection::open_in_memory()
+            .map_err(|e| format!("Failed to create in-memory database: {}", e))?;
 
         // Should need migration for new database
-        assert!(DatabaseMigrations::needs_migration(&conn).unwrap());
+        assert!(DatabaseMigrations::needs_migration(&conn)
+            .map_err(|e| format!("Failed to check migration status: {}", e))?);
 
         // Run migrations
-        DatabaseMigrations::run_migrations(&mut conn).unwrap();
+        DatabaseMigrations::run_migrations(&mut conn)
+            .map_err(|e| format!("Failed to run migrations: {}", e))?;
 
         // Should not need migration after running
-        assert!(!DatabaseMigrations::needs_migration(&conn).unwrap());
+        assert!(!DatabaseMigrations::needs_migration(&conn)
+            .map_err(|e| format!("Failed to check migration status after running: {}", e))?);
 
         // Check status
-        let status = DatabaseMigrations::get_migration_status(&conn).unwrap();
+        let status = DatabaseMigrations::get_migration_status(&conn)
+            .map_err(|e| format!("Failed to get migration status: {}", e))?;
         assert!(!status.is_empty());
+
+        Ok(())
     }
 }

@@ -1,186 +1,3258 @@
-<testsuites id="" name="" tests="51" failures="1" skipped="0" errors="0" time="80.08559">
-<testsuite name="basic-navigation.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="1" skipped="0" time="64.841" errors="0">
-<testcase name="Basic Navigation › should load the application and navigate to different pages" classname="basic-navigation.spec.ts" time="21.448">
-<failure message="basic-navigation.spec.ts:4:3 should load the application and navigate to different pages" type="FAILURE">
-<![CDATA[  [chromium] › basic-navigation.spec.ts:4:3 › Basic Navigation › should load the application and navigate to different pages 
+<testsuites id="" name="" tests="219" failures="54" skipped="3" errors="0" time="274.148893">
+<testsuite name="accessibility.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="6" failures="0" skipped="0" time="42.509" errors="0">
+<testcase name="Accessibility Tests › homepage has no accessibility violations" classname="accessibility.spec.ts" time="7.191">
+</testcase>
+<testcase name="Accessibility Tests › keyboard navigation works correctly" classname="accessibility.spec.ts" time="6.872">
+</testcase>
+<testcase name="Accessibility Tests › color contrast meets accessibility standards" classname="accessibility.spec.ts" time="7.342">
+</testcase>
+<testcase name="Accessibility Tests › images have alt text" classname="accessibility.spec.ts" time="6.952">
+</testcase>
+<testcase name="Accessibility Tests › form elements have proper labels" classname="accessibility.spec.ts" time="7.06">
+</testcase>
+<testcase name="Accessibility Tests › headings are properly structured" classname="accessibility.spec.ts" time="7.092">
+</testcase>
+</testsuite>
+<testsuite name="e2e\basic-navigation.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="3" failures="0" skipped="0" time="13.411" errors="0">
+<testcase name="should load the application and navigate to different pages" classname="e2e\basic-navigation.spec.ts" time="3.729">
+</testcase>
+<testcase name="should handle page refresh gracefully" classname="e2e\basic-navigation.spec.ts" time="5.578">
+</testcase>
+<testcase name="should have basic app structure" classname="e2e\basic-navigation.spec.ts" time="4.104">
+</testcase>
+</testsuite>
+<testsuite name="e2e\dashboard.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="3" failures="0" skipped="0" time="11.897" errors="0">
+<testcase name="should load dashboard page successfully" classname="e2e\dashboard.spec.ts" time="4.058">
+</testcase>
+<testcase name="should display dashboard content" classname="e2e\dashboard.spec.ts" time="4.003">
+</testcase>
+<testcase name="should have basic app functionality" classname="e2e\dashboard.spec.ts" time="3.836">
+</testcase>
+</testsuite>
+<testsuite name="e2e\expenses.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="3" failures="0" skipped="0" time="9.372" errors="0">
+<testcase name="should load expenses page successfully" classname="e2e\expenses.spec.ts" time="2.821">
+</testcase>
+<testcase name="should display expenses content" classname="e2e\expenses.spec.ts" time="3.178">
+</testcase>
+<testcase name="should have basic app functionality" classname="e2e\expenses.spec.ts" time="3.373">
+</testcase>
+</testsuite>
+<testsuite name="e2e\simple-app.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="3" failures="0" skipped="0" time="18.25" errors="0">
+<testcase name="should load the application" classname="e2e\simple-app.spec.ts" time="4.426">
+</testcase>
+<testcase name="should load different pages" classname="e2e\simple-app.spec.ts" time="10.144">
+</testcase>
+<testcase name="should have basic HTML structure" classname="e2e\simple-app.spec.ts" time="3.68">
+</testcase>
+</testsuite>
+<testsuite name="e2e\smoke.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="2" failures="0" skipped="0" time="1.621" errors="0">
+<testcase name="should load the application" classname="e2e\smoke.spec.ts" time="0.654">
+</testcase>
+<testcase name="should have basic navigation structure" classname="e2e\smoke.spec.ts" time="0.967">
+</testcase>
+</testsuite>
+<testsuite name="e2e\user-workflow.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="3" failures="0" skipped="0" time="20.929" errors="0">
+<testcase name="should navigate between main pages" classname="e2e\user-workflow.spec.ts" time="10.518">
+</testcase>
+<testcase name="should handle basic app functionality" classname="e2e\user-workflow.spec.ts" time="3.053">
+</testcase>
+<testcase name="should maintain app state during navigation" classname="e2e\user-workflow.spec.ts" time="7.358">
+</testcase>
+</testsuite>
+<testsuite name="item-master-boe-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="12" failures="0" skipped="0" time="25.203" errors="0">
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="2.161">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Description" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Unit" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Currency" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Unit Price" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "HSN Code" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Supplier" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Status" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Country of Origin" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "BCD" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "SWS" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "IGST" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Category" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "End Use" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Net Weight (Kg)" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Purchase UOM" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 1366x768
+Header width: 56.875px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="1.678">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "BE No." is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "BE Date" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Location" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Total Assessment Value" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Duty Amount" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Payment Date" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Duty Paid" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Challan No." is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Ref ID" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Transaction ID" is truncated on boe at 1366x768
+Header width: 90.046875px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="1.497">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="1.352">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 1366x768
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="2.417">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Description" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Unit" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Currency" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Unit Price" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "HSN Code" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Supplier" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Status" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Country of Origin" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "BCD" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "SWS" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "IGST" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Category" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "End Use" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Net Weight (Kg)" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Purchase UOM" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="2.31">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "BE No." is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "BE Date" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Location" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Total Assessment Value" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Duty Amount" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Payment Date" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Duty Paid" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Challan No." is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Ref ID" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Transaction ID" is truncated on boe at 1920x1080
+Header width: 127.828125px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="1.962">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="1.465">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 1920x1080
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="3.042">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Description" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Unit" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Currency" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Unit Price" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "HSN Code" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Supplier" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Status" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Country of Origin" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "BCD" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "SWS" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "IGST" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Category" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "End Use" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Net Weight (Kg)" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Purchase UOM" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="2.86">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "BE No." is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "BE Date" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Location" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Total Assessment Value" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Duty Amount" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Payment Date" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Duty Paid" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Challan No." is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Ref ID" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Transaction ID" is truncated on boe at 2560x1440
+Header width: 127.828125px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="2.429">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="2.03">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 2560x1440
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="main-pages-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="15" failures="0" skipped="0" time="41.912" errors="0">
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="3.359">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="3.141">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="2.079">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot reports" classname="main-pages-responsive.spec.ts" time="2.193">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot settings" classname="main-pages-responsive.spec.ts" time="2.81">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="2.17">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="3.212">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="2.209">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot reports" classname="main-pages-responsive.spec.ts" time="1.873">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot settings" classname="main-pages-responsive.spec.ts" time="3.468">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="2.95">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="4.008">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="2.851">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot reports" classname="main-pages-responsive.spec.ts" time="2.732">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot settings" classname="main-pages-responsive.spec.ts" time="2.857">
+</testcase>
+</testsuite>
+<testsuite name="shipments-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="18" failures="18" skipped="0" time="203.455" errors="0">
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="6.366">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › shipments page loads correctly 
 
-    Error: Timed out 5000ms waiting for expect(locator).toBeVisible()
+    Error: expect(locator).toBeVisible() failed
 
-    Locator: locator('#root')
+    Locator:  locator('body')
     Expected: visible
     Received: hidden
+    Timeout:  5000ms
+
     Call log:
       - Expect "toBeVisible" with timeout 5000ms
-      - waiting for locator('#root')
-        7 × locator resolved to <div id="root"></div>
+      - waiting for locator('body')
+        9 × locator resolved to <body class="responsive-compact">…</body>
           - unexpected value "hidden"
-        - locator resolved to <div id="root">…</div>
-        - unexpected value "hidden"
 
 
-      10 |     
-      11 |     // Check if main content is visible
-    > 12 |     await expect(page.locator('#root')).toBeVisible()
-         |                                         ^
-      13 |     
-      14 |     // Wait for the app to load
-      15 |     await page.waitForTimeout(2000)
-        at D:\Import-Manager\tests\e2e\basic-navigation.spec.ts:12:41
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
 
     attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
-    ..\..\test-results\basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\test-failed-1.png
+    ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-chromium\test-failed-1.png
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
     attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
-    ..\..\test-results\basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\video.webm
+    ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-chromium\video.webm
     ────────────────────────────────────────────────────────────────────────────────────────────────
 
-    Error Context: ..\..\test-results\basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\error-context.md
+    Error Context: ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-chromium\error-context.md
 ]]>
 </failure>
 <system-out>
 <![CDATA[
-[[ATTACHMENT|basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\test-failed-1.png]]
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-chromium\test-failed-1.png]]
 
-[[ATTACHMENT|basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\video.webm]]
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-chromium\video.webm]]
 
-[[ATTACHMENT|basic-navigation-Basic-Nav-242be-navigate-to-different-pages-chromium\error-context.md]]
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-chromium\error-context.md]]
 ]]>
 </system-out>
 </testcase>
-<testcase name="Basic Navigation › should handle page refresh gracefully" classname="basic-navigation.spec.ts" time="22.395">
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="11.751">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-chromium\error-context.md]]
+]]>
+</system-out>
 </testcase>
-<testcase name="Basic Navigation › should have basic app structure" classname="basic-navigation.spec.ts" time="20.998">
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="12.279">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="12.168">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › column priorities are respected" classname="shipments-responsive.spec.ts" time="12.213">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="12.034">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="6.504">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body>…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="11.689">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="12.588">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="12.558">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › column priorities are respected" classname="shipments-responsive.spec.ts" time="12.659">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="12.179">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="6.413">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body>…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="11.529">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="11.979">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="12.843">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › column priorities are respected" classname="shipments-responsive.spec.ts" time="12.842">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-chromium\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="12.861">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [chromium] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-chromium\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-chromium\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-chromium\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-chromium\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-chromium\error-context.md]]
+]]>
+</system-out>
 </testcase>
 </testsuite>
-<testsuite name="dashboard.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="62.418" errors="0">
-<testcase name="Dashboard › should load dashboard page successfully" classname="dashboard.spec.ts" time="21.229">
+<testsuite name="ui.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="chromium" tests="5" failures="0" skipped="1" time="4.628" errors="0">
+<testcase name="UI Tests › homepage loads correctly" classname="ui.spec.ts" time="1.142">
 </testcase>
-<testcase name="Dashboard › should display dashboard content" classname="dashboard.spec.ts" time="20.556">
+<testcase name="UI Tests › font-size elements are visible" classname="ui.spec.ts" time="0.844">
 </testcase>
-<testcase name="Dashboard › should have basic app functionality" classname="dashboard.spec.ts" time="20.633">
+<testcase name="UI Tests › table is visible and adjusts properly" classname="ui.spec.ts" time="0.874">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
 </testcase>
-</testsuite>
-<testsuite name="expenses.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="9.357" errors="0">
-<testcase name="Expenses Module › should load expenses page successfully" classname="expenses.spec.ts" time="3.063">
+<testcase name="UI Tests › take screenshot for visual regression" classname="ui.spec.ts" time="0.885">
 </testcase>
-<testcase name="Expenses Module › should display expenses content" classname="expenses.spec.ts" time="3.091">
-</testcase>
-<testcase name="Expenses Module › should have basic app functionality" classname="expenses.spec.ts" time="3.203">
-</testcase>
-</testsuite>
-<testsuite name="simple-app.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="17.304" errors="0">
-<testcase name="Simple App Tests › should load the application" classname="simple-app.spec.ts" time="4.045">
-</testcase>
-<testcase name="Simple App Tests › should load different pages" classname="simple-app.spec.ts" time="9.449">
-</testcase>
-<testcase name="Simple App Tests › should have basic HTML structure" classname="simple-app.spec.ts" time="3.81">
+<testcase name="UI Tests › responsive design works correctly" classname="ui.spec.ts" time="0.883">
 </testcase>
 </testsuite>
-<testsuite name="smoke.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="2" failures="0" skipped="0" time="1.966" errors="0">
-<testcase name="Smoke Tests › should load the application" classname="smoke.spec.ts" time="0.989">
+<testsuite name="accessibility.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="6" failures="0" skipped="0" time="36.29" errors="0">
+<testcase name="Accessibility Tests › homepage has no accessibility violations" classname="accessibility.spec.ts" time="5.472">
 </testcase>
-<testcase name="Smoke Tests › should have basic navigation structure" classname="smoke.spec.ts" time="0.977">
+<testcase name="Accessibility Tests › keyboard navigation works correctly" classname="accessibility.spec.ts" time="5.289">
 </testcase>
-</testsuite>
-<testsuite name="user-workflow.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="chromium" tests="3" failures="0" skipped="0" time="19.606" errors="0">
-<testcase name="User Workflow › should navigate between main pages" classname="user-workflow.spec.ts" time="9.714">
+<testcase name="Accessibility Tests › color contrast meets accessibility standards" classname="accessibility.spec.ts" time="6.648">
 </testcase>
-<testcase name="User Workflow › should handle basic app functionality" classname="user-workflow.spec.ts" time="2.96">
+<testcase name="Accessibility Tests › images have alt text" classname="accessibility.spec.ts" time="5.103">
 </testcase>
-<testcase name="User Workflow › should maintain app state during navigation" classname="user-workflow.spec.ts" time="6.932">
+<testcase name="Accessibility Tests › form elements have proper labels" classname="accessibility.spec.ts" time="6.952">
 </testcase>
-</testsuite>
-<testsuite name="basic-navigation.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="22.087" errors="0">
-<testcase name="Basic Navigation › should load the application and navigate to different pages" classname="basic-navigation.spec.ts" time="6.362">
-</testcase>
-<testcase name="Basic Navigation › should handle page refresh gracefully" classname="basic-navigation.spec.ts" time="9.284">
-</testcase>
-<testcase name="Basic Navigation › should have basic app structure" classname="basic-navigation.spec.ts" time="6.441">
+<testcase name="Accessibility Tests › headings are properly structured" classname="accessibility.spec.ts" time="6.826">
 </testcase>
 </testsuite>
-<testsuite name="dashboard.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="18.885" errors="0">
-<testcase name="Dashboard › should load dashboard page successfully" classname="dashboard.spec.ts" time="6.886">
+<testsuite name="e2e\basic-navigation.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="3" failures="0" skipped="0" time="24.484" errors="0">
+<testcase name="should load the application and navigate to different pages" classname="e2e\basic-navigation.spec.ts" time="6.889">
 </testcase>
-<testcase name="Dashboard › should display dashboard content" classname="dashboard.spec.ts" time="6.564">
+<testcase name="should handle page refresh gracefully" classname="e2e\basic-navigation.spec.ts" time="11.031">
 </testcase>
-<testcase name="Dashboard › should have basic app functionality" classname="dashboard.spec.ts" time="5.435">
-</testcase>
-</testsuite>
-<testsuite name="expenses.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="17.274" errors="0">
-<testcase name="Expenses Module › should load expenses page successfully" classname="expenses.spec.ts" time="6.355">
-</testcase>
-<testcase name="Expenses Module › should display expenses content" classname="expenses.spec.ts" time="5.27">
-</testcase>
-<testcase name="Expenses Module › should have basic app functionality" classname="expenses.spec.ts" time="5.649">
+<testcase name="should have basic app structure" classname="e2e\basic-navigation.spec.ts" time="6.564">
 </testcase>
 </testsuite>
-<testsuite name="simple-app.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="29.268" errors="0">
-<testcase name="Simple App Tests › should load the application" classname="simple-app.spec.ts" time="6.271">
+<testsuite name="e2e\dashboard.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="3" failures="0" skipped="0" time="18.353" errors="0">
+<testcase name="should load dashboard page successfully" classname="e2e\dashboard.spec.ts" time="6.584">
 </testcase>
-<testcase name="Simple App Tests › should load different pages" classname="simple-app.spec.ts" time="16.514">
+<testcase name="should display dashboard content" classname="e2e\dashboard.spec.ts" time="6.056">
 </testcase>
-<testcase name="Simple App Tests › should have basic HTML structure" classname="simple-app.spec.ts" time="6.483">
-</testcase>
-</testsuite>
-<testsuite name="smoke.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="2" failures="0" skipped="0" time="6.673" errors="0">
-<testcase name="Smoke Tests › should load the application" classname="smoke.spec.ts" time="3.302">
-</testcase>
-<testcase name="Smoke Tests › should have basic navigation structure" classname="smoke.spec.ts" time="3.371">
+<testcase name="should have basic app functionality" classname="e2e\dashboard.spec.ts" time="5.713">
 </testcase>
 </testsuite>
-<testsuite name="user-workflow.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="firefox" tests="3" failures="0" skipped="0" time="38.245" errors="0">
-<testcase name="User Workflow › should navigate between main pages" classname="user-workflow.spec.ts" time="17.795">
+<testsuite name="e2e\expenses.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="3" failures="0" skipped="0" time="16.573" errors="0">
+<testcase name="should load expenses page successfully" classname="e2e\expenses.spec.ts" time="5.205">
 </testcase>
-<testcase name="User Workflow › should handle basic app functionality" classname="user-workflow.spec.ts" time="5.738">
+<testcase name="should display expenses content" classname="e2e\expenses.spec.ts" time="5.595">
 </testcase>
-<testcase name="User Workflow › should maintain app state during navigation" classname="user-workflow.spec.ts" time="14.712">
-</testcase>
-</testsuite>
-<testsuite name="basic-navigation.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="15.591" errors="0">
-<testcase name="Basic Navigation › should load the application and navigate to different pages" classname="basic-navigation.spec.ts" time="4.08">
-</testcase>
-<testcase name="Basic Navigation › should handle page refresh gracefully" classname="basic-navigation.spec.ts" time="7.133">
-</testcase>
-<testcase name="Basic Navigation › should have basic app structure" classname="basic-navigation.spec.ts" time="4.378">
+<testcase name="should have basic app functionality" classname="e2e\expenses.spec.ts" time="5.773">
 </testcase>
 </testsuite>
-<testsuite name="dashboard.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="11.893" errors="0">
-<testcase name="Dashboard › should load dashboard page successfully" classname="dashboard.spec.ts" time="4.256">
+<testsuite name="e2e\simple-app.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="3" failures="0" skipped="0" time="28.21" errors="0">
+<testcase name="should load the application" classname="e2e\simple-app.spec.ts" time="6.789">
 </testcase>
-<testcase name="Dashboard › should display dashboard content" classname="dashboard.spec.ts" time="4.403">
+<testcase name="should load different pages" classname="e2e\simple-app.spec.ts" time="14.629">
 </testcase>
-<testcase name="Dashboard › should have basic app functionality" classname="dashboard.spec.ts" time="3.234">
-</testcase>
-</testsuite>
-<testsuite name="expenses.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="12.02" errors="0">
-<testcase name="Expenses Module › should load expenses page successfully" classname="expenses.spec.ts" time="4.205">
-</testcase>
-<testcase name="Expenses Module › should display expenses content" classname="expenses.spec.ts" time="4.085">
-</testcase>
-<testcase name="Expenses Module › should have basic app functionality" classname="expenses.spec.ts" time="3.73">
+<testcase name="should have basic HTML structure" classname="e2e\simple-app.spec.ts" time="6.792">
 </testcase>
 </testsuite>
-<testsuite name="simple-app.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="20.815" errors="0">
-<testcase name="Simple App Tests › should load the application" classname="simple-app.spec.ts" time="4.504">
+<testsuite name="e2e\smoke.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="2" failures="0" skipped="0" time="7.177" errors="0">
+<testcase name="should load the application" classname="e2e\smoke.spec.ts" time="3.693">
 </testcase>
-<testcase name="Simple App Tests › should load different pages" classname="simple-app.spec.ts" time="11.574">
-</testcase>
-<testcase name="Simple App Tests › should have basic HTML structure" classname="simple-app.spec.ts" time="4.737">
+<testcase name="should have basic navigation structure" classname="e2e\smoke.spec.ts" time="3.484">
 </testcase>
 </testsuite>
-<testsuite name="smoke.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="2" failures="0" skipped="0" time="3.567" errors="0">
-<testcase name="Smoke Tests › should load the application" classname="smoke.spec.ts" time="1.889">
+<testsuite name="e2e\user-workflow.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="3" failures="0" skipped="0" time="34.358" errors="0">
+<testcase name="should navigate between main pages" classname="e2e\user-workflow.spec.ts" time="14.783">
 </testcase>
-<testcase name="Smoke Tests › should have basic navigation structure" classname="smoke.spec.ts" time="1.678">
+<testcase name="should handle basic app functionality" classname="e2e\user-workflow.spec.ts" time="5.785">
+</testcase>
+<testcase name="should maintain app state during navigation" classname="e2e\user-workflow.spec.ts" time="13.79">
 </testcase>
 </testsuite>
-<testsuite name="user-workflow.spec.ts" timestamp="2025-08-20T16:34:11.968Z" hostname="webkit" tests="3" failures="0" skipped="0" time="22.699" errors="0">
-<testcase name="User Workflow › should navigate between main pages" classname="user-workflow.spec.ts" time="11.184">
+<testsuite name="item-master-boe-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="12" failures="0" skipped="0" time="68.611" errors="0">
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="5.519">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 1366x768
+Header width: 56.866668701171875px
+Header "Description" is truncated on item-master at 1366x768
+Header width: 56.866668701171875px
+Header "Unit" is truncated on item-master at 1366x768
+Header width: 56.866668701171875px
+Header "Currency" is truncated on item-master at 1366x768
+Header width: 56.866668701171875px
+Header "Unit Price" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "HSN Code" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "Supplier" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "Status" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "Country of Origin" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "BCD" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "SWS" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "IGST" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "Category" is truncated on item-master at 1366x768
+Header width: 56.86663818359375px
+Header "End Use" is truncated on item-master at 1366x768
+Header width: 56.86669921875px
+Header "Net Weight (Kg)" is truncated on item-master at 1366x768
+Header width: 56.86669921875px
+Header "Purchase UOM" is truncated on item-master at 1366x768
+Header width: 56.86669921875px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 1366x768
+Header width: 56.86669921875px
+]]>
+</system-out>
 </testcase>
-<testcase name="User Workflow › should handle basic app functionality" classname="user-workflow.spec.ts" time="3.23">
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="5.513">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 1366x768
+Header width: 90.05001831054688px
+Header "BE No." is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "BE Date" is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Location" is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Total Assessment Value" is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Duty Amount" is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Payment Date" is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Duty Paid" is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Challan No." is truncated on boe at 1366x768
+Header width: 90.04998779296875px
+Header "Ref ID" is truncated on boe at 1366x768
+Header width: 90.050048828125px
+Header "Transaction ID" is truncated on boe at 1366x768
+Header width: 90.050048828125px
+]]>
+</system-out>
 </testcase>
-<testcase name="User Workflow › should maintain app state during navigation" classname="user-workflow.spec.ts" time="8.285">
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="5.039">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="5.043">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 1366x768
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="5.998">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Description" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Unit" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Currency" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Unit Price" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "HSN Code" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Supplier" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Status" is truncated on item-master at 1920x1080
+Header width: 80.73333740234375px
+Header "Country of Origin" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "BCD" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "SWS" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "IGST" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "Category" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "End Use" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "Net Weight (Kg)" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "Purchase UOM" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 1920x1080
+Header width: 80.7332763671875px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="6.696">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 1920x1080
+Header width: 127.83334350585938px
+Header "BE No." is truncated on boe at 1920x1080
+Header width: 127.83334350585938px
+Header "BE Date" is truncated on boe at 1920x1080
+Header width: 127.83331298828125px
+Header "Location" is truncated on boe at 1920x1080
+Header width: 127.83331298828125px
+Header "Total Assessment Value" is truncated on boe at 1920x1080
+Header width: 127.83331298828125px
+Header "Duty Amount" is truncated on boe at 1920x1080
+Header width: 127.83331298828125px
+Header "Payment Date" is truncated on boe at 1920x1080
+Header width: 127.8333740234375px
+Header "Duty Paid" is truncated on boe at 1920x1080
+Header width: 127.8333740234375px
+Header "Challan No." is truncated on boe at 1920x1080
+Header width: 127.8333740234375px
+Header "Ref ID" is truncated on boe at 1920x1080
+Header width: 127.8333740234375px
+Header "Transaction ID" is truncated on boe at 1920x1080
+Header width: 127.8333740234375px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="5.634">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="5.476">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 1920x1080
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="6.521">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 2560x1440
+Header width: 80.73333740234375px
+Header "Description" is truncated on item-master at 2560x1440
+Header width: 80.73333740234375px
+Header "Unit" is truncated on item-master at 2560x1440
+Header width: 80.73333740234375px
+Header "Currency" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Unit Price" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "HSN Code" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Supplier" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Status" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Country of Origin" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "BCD" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "SWS" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "IGST" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Category" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "End Use" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Net Weight (Kg)" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Purchase UOM" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 2560x1440
+Header width: 80.7332763671875px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="6.341">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 2560x1440
+Header width: 127.83331298828125px
+Header "BE No." is truncated on boe at 2560x1440
+Header width: 127.83331298828125px
+Header "BE Date" is truncated on boe at 2560x1440
+Header width: 127.83331298828125px
+Header "Location" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Total Assessment Value" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Duty Amount" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Payment Date" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Duty Paid" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Challan No." is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Ref ID" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+Header "Transaction ID" is truncated on boe at 2560x1440
+Header width: 127.8333740234375px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="5.541">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="5.29">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 2560x1440
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="main-pages-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="15" failures="0" skipped="0" time="89.208" errors="0">
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="5.577">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="6.277">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="4.832">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot reports" classname="main-pages-responsive.spec.ts" time="5.658">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot settings" classname="main-pages-responsive.spec.ts" time="5.725">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="5.291">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="6.05">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="6.176">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot reports" classname="main-pages-responsive.spec.ts" time="5.642">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot settings" classname="main-pages-responsive.spec.ts" time="5.633">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="6.131">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="7.654">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="5.72">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot reports" classname="main-pages-responsive.spec.ts" time="6.274">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot settings" classname="main-pages-responsive.spec.ts" time="6.568">
+</testcase>
+</testsuite>
+<testsuite name="shipments-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="18" failures="18" skipped="0" time="258.435" errors="0">
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="10.084">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body class="responsive-compact">…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="14.71">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="14.261">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="14.249">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › column priorities are respected" classname="shipments-responsive.spec.ts" time="14.022">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="13.915">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="9.6">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body>…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="15.359">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="16.088">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="15.899">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › column priorities are respected" classname="shipments-responsive.spec.ts" time="15.641">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="15.702">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="10.556">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body>…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="15.01">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="15.949">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="16.245">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › column priorities are respected" classname="shipments-responsive.spec.ts" time="15.801">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="15.344">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [firefox] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-firefox\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-firefox\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-firefox\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-firefox\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-firefox\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-firefox\error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="ui.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="firefox" tests="5" failures="0" skipped="1" time="27.886" errors="0">
+<testcase name="UI Tests › homepage loads correctly" classname="ui.spec.ts" time="5.359">
+</testcase>
+<testcase name="UI Tests › font-size elements are visible" classname="ui.spec.ts" time="3.814">
+</testcase>
+<testcase name="UI Tests › table is visible and adjusts properly" classname="ui.spec.ts" time="5.131">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="UI Tests › take screenshot for visual regression" classname="ui.spec.ts" time="4.141">
+</testcase>
+<testcase name="UI Tests › responsive design works correctly" classname="ui.spec.ts" time="9.441">
+</testcase>
+</testsuite>
+<testsuite name="accessibility.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="6" failures="0" skipped="0" time="22.535" errors="0">
+<testcase name="Accessibility Tests › homepage has no accessibility violations" classname="accessibility.spec.ts" time="3.571">
+</testcase>
+<testcase name="Accessibility Tests › keyboard navigation works correctly" classname="accessibility.spec.ts" time="2.932">
+</testcase>
+<testcase name="Accessibility Tests › color contrast meets accessibility standards" classname="accessibility.spec.ts" time="3.429">
+</testcase>
+<testcase name="Accessibility Tests › images have alt text" classname="accessibility.spec.ts" time="3.391">
+</testcase>
+<testcase name="Accessibility Tests › form elements have proper labels" classname="accessibility.spec.ts" time="4.728">
+</testcase>
+<testcase name="Accessibility Tests › headings are properly structured" classname="accessibility.spec.ts" time="4.484">
+</testcase>
+</testsuite>
+<testsuite name="e2e\basic-navigation.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="3" failures="0" skipped="0" time="19.219" errors="0">
+<testcase name="should load the application and navigate to different pages" classname="e2e\basic-navigation.spec.ts" time="5.488">
+</testcase>
+<testcase name="should handle page refresh gracefully" classname="e2e\basic-navigation.spec.ts" time="8.32">
+</testcase>
+<testcase name="should have basic app structure" classname="e2e\basic-navigation.spec.ts" time="5.411">
+</testcase>
+</testsuite>
+<testsuite name="e2e\dashboard.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="3" failures="0" skipped="0" time="12.06" errors="0">
+<testcase name="should load dashboard page successfully" classname="e2e\dashboard.spec.ts" time="4.205">
+</testcase>
+<testcase name="should display dashboard content" classname="e2e\dashboard.spec.ts" time="4.007">
+</testcase>
+<testcase name="should have basic app functionality" classname="e2e\dashboard.spec.ts" time="3.848">
+</testcase>
+</testsuite>
+<testsuite name="e2e\expenses.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="3" failures="0" skipped="0" time="12.079" errors="0">
+<testcase name="should load expenses page successfully" classname="e2e\expenses.spec.ts" time="4.333">
+</testcase>
+<testcase name="should display expenses content" classname="e2e\expenses.spec.ts" time="3.766">
+</testcase>
+<testcase name="should have basic app functionality" classname="e2e\expenses.spec.ts" time="3.98">
+</testcase>
+</testsuite>
+<testsuite name="e2e\simple-app.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="3" failures="0" skipped="0" time="24.57" errors="0">
+<testcase name="should load the application" classname="e2e\simple-app.spec.ts" time="5.236">
+</testcase>
+<testcase name="should load different pages" classname="e2e\simple-app.spec.ts" time="14.285">
+</testcase>
+<testcase name="should have basic HTML structure" classname="e2e\simple-app.spec.ts" time="5.049">
+</testcase>
+</testsuite>
+<testsuite name="e2e\smoke.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="2" failures="0" skipped="0" time="3.914" errors="0">
+<testcase name="should load the application" classname="e2e\smoke.spec.ts" time="1.8">
+</testcase>
+<testcase name="should have basic navigation structure" classname="e2e\smoke.spec.ts" time="2.114">
+</testcase>
+</testsuite>
+<testsuite name="e2e\user-workflow.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="3" failures="0" skipped="0" time="29.933" errors="0">
+<testcase name="should navigate between main pages" classname="e2e\user-workflow.spec.ts" time="14.239">
+</testcase>
+<testcase name="should handle basic app functionality" classname="e2e\user-workflow.spec.ts" time="4.514">
+</testcase>
+<testcase name="should maintain app state during navigation" classname="e2e\user-workflow.spec.ts" time="11.18">
+</testcase>
+</testsuite>
+<testsuite name="item-master-boe-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="12" failures="0" skipped="0" time="59.372" errors="0">
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="4.74">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Description" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Unit" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Currency" is truncated on item-master at 1366x768
+Header width: 56.890625px
+Header "Unit Price" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "HSN Code" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Supplier" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Status" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Country of Origin" is truncated on item-master at 1366x768
+Header width: 56.890625px
+Header "BCD" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "SWS" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "IGST" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Category" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "End Use" is truncated on item-master at 1366x768
+Header width: 56.890625px
+Header "Net Weight (Kg)" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Purchase UOM" is truncated on item-master at 1366x768
+Header width: 56.875px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 1366x768
+Header width: 56.875px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="3.744">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "BE No." is truncated on boe at 1366x768
+Header width: 90.0625px
+Header "BE Date" is truncated on boe at 1366x768
+Header width: 90.0625px
+Header "Location" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Total Assessment Value" is truncated on boe at 1366x768
+Header width: 90.0625px
+Header "Duty Amount" is truncated on boe at 1366x768
+Header width: 90.0625px
+Header "Payment Date" is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Duty Paid" is truncated on boe at 1366x768
+Header width: 90.0625px
+Header "Challan No." is truncated on boe at 1366x768
+Header width: 90.046875px
+Header "Ref ID" is truncated on boe at 1366x768
+Header width: 90.0625px
+Header "Transaction ID" is truncated on boe at 1366x768
+Header width: 90.0625px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="3.933">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1366x768 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="3.498">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 1366x768
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="5.947">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Description" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Unit" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Currency" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Unit Price" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "HSN Code" is truncated on item-master at 1920x1080
+Header width: 80.75px
+Header "Supplier" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Status" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Country of Origin" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "BCD" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "SWS" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "IGST" is truncated on item-master at 1920x1080
+Header width: 80.75px
+Header "Category" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "End Use" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Net Weight (Kg)" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Purchase UOM" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 1920x1080
+Header width: 80.734375px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="4.717">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "BE No." is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "BE Date" is truncated on boe at 1920x1080
+Header width: 127.84375px
+Header "Location" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Total Assessment Value" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Duty Amount" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Payment Date" is truncated on boe at 1920x1080
+Header width: 127.84375px
+Header "Duty Paid" is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Challan No." is truncated on boe at 1920x1080
+Header width: 127.828125px
+Header "Ref ID" is truncated on boe at 1920x1080
+Header width: 127.84375px
+Header "Transaction ID" is truncated on boe at 1920x1080
+Header width: 127.828125px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="4.451">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 1920x1080 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="3.62">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 1920x1080
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test item-master" classname="item-master-boe-responsive.spec.ts" time="7.096">
+<system-out>
+<![CDATA[Found table on item-master page with 19 headers
+Header "Part Number" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Description" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Unit" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Currency" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Unit Price" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "HSN Code" is truncated on item-master at 2560x1440
+Header width: 80.75px
+Header "Supplier" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Status" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Country of Origin" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "BCD" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "SWS" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "IGST" is truncated on item-master at 2560x1440
+Header width: 80.75px
+Header "Category" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "End Use" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Net Weight (Kg)" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Purchase UOM" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+Header "Gross Weight/UOM (Kg)" is truncated on item-master at 2560x1440
+Header width: 80.734375px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe" classname="item-master-boe-responsive.spec.ts" time="6.643">
+<system-out>
+<![CDATA[Found table on boe page with 12 headers
+Header "ID" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "BE No." is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "BE Date" is truncated on boe at 2560x1440
+Header width: 127.84375px
+Header "Location" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Total Assessment Value" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Duty Amount" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Payment Date" is truncated on boe at 2560x1440
+Header width: 127.84375px
+Header "Duty Paid" is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Challan No." is truncated on boe at 2560x1440
+Header width: 127.828125px
+Header "Ref ID" is truncated on boe at 2560x1440
+Header width: 127.84375px
+Header "Transaction ID" is truncated on boe at 2560x1440
+Header width: 127.828125px
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe-entry" classname="item-master-boe-responsive.spec.ts" time="5.829">
+<system-out>
+<![CDATA[No table found on boe-entry page
+]]>
+</system-out>
+</testcase>
+<testcase name="Item Master and BOE pages responsive tests › 2560x1440 › responsive test boe-summary" classname="item-master-boe-responsive.spec.ts" time="5.154">
+<system-out>
+<![CDATA[BOE Summary page loaded successfully at 2560x1440
+No table found on boe-summary page
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="main-pages-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="15" failures="0" skipped="0" time="88.929" errors="0">
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="4.67">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="5.501">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="4.732">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot reports" classname="main-pages-responsive.spec.ts" time="4.966">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1366x768 › snapshot settings" classname="main-pages-responsive.spec.ts" time="6.417">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="6.019">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="7.021">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="5.237">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot reports" classname="main-pages-responsive.spec.ts" time="5.121">
+</testcase>
+<testcase name="Main pages responsive snapshots › 1920x1080 › snapshot settings" classname="main-pages-responsive.spec.ts" time="7.078">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot dashboard" classname="main-pages-responsive.spec.ts" time="6.404">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot shipments" classname="main-pages-responsive.spec.ts" time="7.108">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot boe-entry" classname="main-pages-responsive.spec.ts" time="5.992">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot reports" classname="main-pages-responsive.spec.ts" time="5.656">
+</testcase>
+<testcase name="Main pages responsive snapshots › 2560x1440 › snapshot settings" classname="main-pages-responsive.spec.ts" time="7.007">
+</testcase>
+</testsuite>
+<testsuite name="shipments-responsive.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="18" failures="18" skipped="0" time="206.962" errors="0">
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="7.513">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › shipments page loads correctly 
+
+    Error: expect(locator).toContainText(expected) failed
+
+    Locator: locator('h1, h2, h3')
+    Expected pattern: /shipment/i
+    Received: <element(s) not found>
+    Timeout: 5000ms
+
+    Call log:
+      - Expect "toContainText" with timeout 5000ms
+      - waiting for locator('h1, h2, h3')
+
+
+      21 |         await expect(page.locator('body')).toBeVisible()
+      22 |         // Check if we're on the shipments page
+    > 23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+         |                                                  ^
+      24 |       })
+      25 |
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:23:50
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-ef8ec-pments-page-loads-correctly-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="12.648">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-c43d1--visible-without-truncation-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-c43d1--visible-without-truncation-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="12.721">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-dddea-ltips-for-truncated-content-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-dddea-ltips-for-truncated-content-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="12.616">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eafa-ntally-scrollable-if-needed-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › column priorities are respected" classname="shipments-responsive.spec.ts" time="12.334">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5aff2-mn-priorities-are-respected-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1366x768 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="11.757">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 1366x768 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-5f7cc-nshot-for-visual-regression-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="6.864">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body>…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-18a8d-pments-page-loads-correctly-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="12.479">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-f1542--visible-without-truncation-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-f1542--visible-without-truncation-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="12.67">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-b3a40-ltips-for-truncated-content-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="12.548">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-a1bad-ntally-scrollable-if-needed-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › column priorities are respected" classname="shipments-responsive.spec.ts" time="12.234">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1fdcd-mn-priorities-are-respected-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 1920x1080 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="12.01">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 1920x1080 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-3114b-nshot-for-visual-regression-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-3114b-nshot-for-visual-regression-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › shipments page loads correctly" classname="shipments-responsive.spec.ts" time="6.918">
+<failure message="shipments-responsive.spec.ts:20:7 shipments page loads correctly" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:20:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › shipments page loads correctly 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator:  locator('body')
+    Expected: visible
+    Received: hidden
+    Timeout:  5000ms
+
+    Call log:
+      - Expect "toBeVisible" with timeout 5000ms
+      - waiting for locator('body')
+        9 × locator resolved to <body>…</body>
+          - unexpected value "hidden"
+
+
+      19 |
+      20 |       test('shipments page loads correctly', async ({ page }) => {
+    > 21 |         await expect(page.locator('body')).toBeVisible()
+         |                                            ^
+      22 |         // Check if we're on the shipments page
+      23 |         await expect(page.locator('h1, h2, h3')).toContainText(/shipment/i)
+      24 |       })
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:21:44
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-7eba5-pments-page-loads-correctly-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › important columns are fully visible without truncation" classname="shipments-responsive.spec.ts" time="12.103">
+<failure message="shipments-responsive.spec.ts:26:7 important columns are fully visible without truncation" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:26:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › important columns are fully visible without truncation 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      26 |       test('important columns are fully visible without truncation', async ({ page }) => {
+      27 |         // Wait for table to load
+    > 28 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      29 |
+      30 |         // Check each important column
+      31 |         for (const columnName of importantColumns) {
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:28:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-d2a07--visible-without-truncation-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-d2a07--visible-without-truncation-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › table cells show tooltips for truncated content" classname="shipments-responsive.spec.ts" time="12.113">
+<failure message="shipments-responsive.spec.ts:48:7 table cells show tooltips for truncated content" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:48:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › table cells show tooltips for truncated content 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      47 |
+      48 |       test('table cells show tooltips for truncated content', async ({ page }) => {
+    > 49 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      50 |
+      51 |         // Check a few table cells for tooltip attributes
+      52 |         const cells = page.locator('td')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:49:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-69d75-ltips-for-truncated-content-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-69d75-ltips-for-truncated-content-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › table is horizontally scrollable if needed" classname="shipments-responsive.spec.ts" time="12.612">
+<failure message="shipments-responsive.spec.ts:82:7 table is horizontally scrollable if needed" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:82:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › table is horizontally scrollable if needed 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      81 |
+      82 |       test('table is horizontally scrollable if needed', async ({ page }) => {
+    > 83 |         await page.waitForSelector('table', { timeout: 10000 })
+         |                    ^
+      84 |
+      85 |         // Check if table container has horizontal scroll
+      86 |         const tableContainer = page.locator('table').locator('..')
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:83:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-8058a-ntally-scrollable-if-needed-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › column priorities are respected" classname="shipments-responsive.spec.ts" time="12.538">
+<failure message="shipments-responsive.spec.ts:100:7 column priorities are respected" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:100:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › column priorities are respected 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+       99 |
+      100 |       test('column priorities are respected', async ({ page }) => {
+    > 101 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      102 |
+      103 |         // Check that important columns have better flex properties
+      104 |         const importantColumnSelectors = [
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:101:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-03ce7-mn-priorities-are-respected-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+<testcase name="Shipments Page Responsive Tests › Screen Size: 2560x1440 › screenshot for visual regression" classname="shipments-responsive.spec.ts" time="12.284">
+<failure message="shipments-responsive.spec.ts:131:7 screenshot for visual regression" type="FAILURE">
+<![CDATA[  [webkit] › shipments-responsive.spec.ts:131:7 › Shipments Page Responsive Tests › Screen Size: 2560x1440 › screenshot for visual regression 
+
+    TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+    Call log:
+      - waiting for locator('table') to be visible
+
+
+      130 |
+      131 |       test('screenshot for visual regression', async ({ page }) => {
+    > 132 |         await page.waitForSelector('table', { timeout: 10000 })
+          |                    ^
+      133 |         await page.screenshot({
+      134 |           path: `test-results/shipments-${screenSize.name}.png`,
+      135 |           fullPage: true,
+        at D:\Import-Manager\tests\shipments-responsive.spec.ts:132:20
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-webkit\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    attachment #2: video (video/webm) ──────────────────────────────────────────────────────────────
+    ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-webkit\video.webm
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: ..\test-results\shipments-responsive-Shipm-1d419-nshot-for-visual-regression-webkit\error-context.md
+]]>
+</failure>
+<system-out>
+<![CDATA[
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-webkit\test-failed-1.png]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-webkit\video.webm]]
+
+[[ATTACHMENT|shipments-responsive-Shipm-1d419-nshot-for-visual-regression-webkit\error-context.md]]
+]]>
+</system-out>
+</testcase>
+</testsuite>
+<testsuite name="ui.spec.ts" timestamp="2025-08-29T14:25:39.191Z" hostname="webkit" tests="5" failures="0" skipped="1" time="7.196" errors="0">
+<testcase name="UI Tests › homepage loads correctly" classname="ui.spec.ts" time="1.512">
+</testcase>
+<testcase name="UI Tests › font-size elements are visible" classname="ui.spec.ts" time="1.319">
+</testcase>
+<testcase name="UI Tests › table is visible and adjusts properly" classname="ui.spec.ts" time="1.551">
+<properties>
+<property name="skip" value="">
+</property>
+</properties>
+<skipped>
+</skipped>
+</testcase>
+<testcase name="UI Tests › take screenshot for visual regression" classname="ui.spec.ts" time="1.544">
+</testcase>
+<testcase name="UI Tests › responsive design works correctly" classname="ui.spec.ts" time="1.27">
 </testcase>
 </testsuite>
 </testsuites>

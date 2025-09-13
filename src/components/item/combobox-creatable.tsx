@@ -1,23 +1,34 @@
 // src/components/ui/combobox-creatable.tsx
-import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react'
+import { Check, ChevronsUpDown, PlusCircle } from 'lucide-react';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Button } from '@/components/ui/button'
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { cn } from '@/lib/utils'
-import type { Option } from '@/types/options'
+import { Button } from '@/components/ui/button';
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from '@/components/ui/command';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import type { Option } from '@/types/options';
 
 interface CreatableComboboxProps {
-  options: Option[]
-  value: string
-  onChange: (value: string) => void
-  onOptionCreate: (newOption: Option) => void
-  placeholder?: string
-  searchPlaceholder?: string
-  notFoundText?: string
-  disabled?: boolean
+  options: Option[];
+  value: string;
+  onChange: (value: string) => void;
+  onOptionCreate: (newOption: Option) => void;
+  placeholder?: string;
+  searchPlaceholder?: string;
+  notFoundText?: string;
+  disabled?: boolean;
 }
 
 export function CreatableCombobox({
@@ -30,30 +41,29 @@ export function CreatableCombobox({
   notFoundText = 'Nothing found.',
   disabled = false,
 }: CreatableComboboxProps) {
-  const [open, setOpen] = React.useState(false)
-  const [searchQuery, setSearchQuery] = React.useState('')
+  const [open, setOpen] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
-  const selectedLabel = options.find((option) => option.value === value)?.label
+  const selectedLabel = options.find(option => option.value === value)?.label;
 
   const handleCreate = () => {
     if (searchQuery) {
       // The new option's value and label are the same initially.
       // The backend is responsible for creating a canonical record.
-      const newOption = { value: searchQuery, label: searchQuery }
-      onOptionCreate(newOption)
-      setSearchQuery('')
-      setOpen(false)
+      const newOption = { value: searchQuery, label: searchQuery };
+      onOptionCreate(newOption);
+      setSearchQuery('');
+      setOpen(false);
     }
-  }
+  };
 
   // Check if the current search query exactly matches an existing option's label
-  const exactMatch = options.some((option) => option.label.toLowerCase() === searchQuery.toLowerCase())
+  const exactMatch = options.some(
+    option => option.label.toLowerCase() === searchQuery.toLowerCase()
+  );
 
   return (
-    <Popover
-      open={open}
-      onOpenChange={setOpen}
-    >
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -95,18 +105,25 @@ export function CreatableCombobox({
             </CommandEmpty>
             <CommandGroup>
               {options
-                .filter((option) => option.label.toLowerCase().includes(searchQuery.toLowerCase()))
-                .map((option) => (
+                .filter(option =>
+                  option.label.toLowerCase().includes(searchQuery.toLowerCase())
+                )
+                .map(option => (
                   <CommandItem
                     key={option.value}
                     value={option.label}
                     onSelect={() => {
-                      onChange(option.value)
-                      setSearchQuery('')
-                      setOpen(false)
+                      onChange(option.value);
+                      setSearchQuery('');
+                      setOpen(false);
                     }}
                   >
-                    <Check className={cn('mr-2 h-4 w-4', value === option.value ? 'opacity-100' : 'opacity-0')} />
+                    <Check
+                      className={cn(
+                        'mr-2 h-4 w-4',
+                        value === option.value ? 'opacity-100' : 'opacity-0'
+                      )}
+                    />
                     {option.label}
                   </CommandItem>
                 ))}
@@ -115,5 +132,5 @@ export function CreatableCombobox({
         </Command>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

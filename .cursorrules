@@ -1,0 +1,82 @@
+# Cursor Rules for Import Manager Project
+# This file configures Cursor to use the MCP server for quality checks
+
+# MCP Server Configuration
+# The quality check MCP server provides tools for:
+# - lint_code: ESLint code quality checks
+# - type_check: TypeScript type safety checks  
+# - run_tests: Unit and integration test execution
+# - check_quality: Comprehensive code quality analysis
+# - check_backend_logic: Backend logic and API validation
+
+# Quality Check Workflow
+# 1. Before committing code, run quality checks using MCP tools
+# 2. Fix any errors or warnings identified by the tools
+# 3. Ensure all tests pass before merging
+# 4. Use the quality analysis to improve code maintainability
+
+# Code Quality Standards
+- Follow TypeScript strict mode guidelines
+- Use ESLint rules for consistent code style
+- Maintain test coverage for critical business logic
+- Follow security best practices for database operations
+- Use proper error handling in Tauri commands
+- Document complex business logic
+
+# Pre-commit Quality Gates
+- All TypeScript compilation errors must be resolved
+- ESLint warnings should be addressed (errors are blocking)
+- Unit tests must pass
+- E2E tests should pass for critical user flows
+- No security vulnerabilities should be detected
+- Database migrations should be properly tested
+
+# MCP Tool Usage Examples
+# Use these tools in Cursor to maintain code quality:
+
+# 1. Lint Code
+# Call lint_code tool to check for code style and potential issues
+# Parameters: files (optional), fix (boolean)
+
+# 2. Type Check  
+# Call type_check tool to verify TypeScript type safety
+# Parameters: strict (boolean), project (string)
+
+# 3. Run Tests
+# Call run_tests tool to execute unit and integration tests
+# Parameters: type (unit|integration|e2e|all), coverage (boolean), watch (boolean)
+
+# 4. Check Quality
+# Call check_quality tool for comprehensive analysis
+# Parameters: include_security (boolean), include_complexity (boolean), include_maintainability (boolean)
+
+# 5. Check Backend Logic
+# Call check_backend_logic tool to validate backend implementation
+# Parameters: check_database (boolean), check_api_endpoints (boolean), check_business_logic (boolean)
+
+# Integration with Development Workflow
+- Run quality checks before creating pull requests
+- Use MCP tools to identify technical debt
+- Monitor quality metrics over time
+- Address quality issues promptly to maintain code health
+
+# Security Considerations
+- Never commit sensitive data or credentials
+- Use environment variables for configuration
+- Validate all user inputs
+- Follow SQL injection prevention practices
+- Use proper authentication and authorization
+
+# Performance Guidelines
+- Optimize database queries
+- Minimize bundle size
+- Use proper caching strategies
+- Monitor application performance
+- Profile critical code paths
+
+# Documentation Requirements
+- Document complex business logic
+- Maintain up-to-date API documentation
+- Include setup and deployment instructions
+- Document security considerations
+- Provide troubleshooting guides

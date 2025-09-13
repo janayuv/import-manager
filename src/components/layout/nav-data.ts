@@ -8,7 +8,7 @@ import {
   Settings,
   Ship,
   Users,
-} from 'lucide-react'
+} from 'lucide-react';
 
 export const navItems = [
   {
@@ -30,6 +30,10 @@ export const navItems = [
     title: 'Invoice',
     url: '/invoice',
     icon: FileText,
+    items: [
+      { title: 'Invoices', url: '/invoice' },
+      { title: 'Invoice Wizard', url: '/invoice-wizard' },
+    ],
   },
   {
     title: 'Item Master',
@@ -66,4 +70,4 @@ export const navItems = [
     url: '/settings',
     icon: Settings,
   },
-]
+];

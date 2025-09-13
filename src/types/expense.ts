@@ -1,67 +1,67 @@
 export interface ServiceProvider {
-  id: string
-  name: string
-  gstin?: string
-  state?: string
-  contactPerson?: string
-  contactEmail?: string
-  contactPhone?: string
+  id: string;
+  name: string;
+  gstin?: string;
+  state?: string;
+  contactPerson?: string;
+  contactEmail?: string;
+  contactPhone?: string;
 }
 
 export interface ExpenseType {
-  id: string
-  name: string
-  defaultCgstRate: number // Now in basis points (900 = 9.00%)
-  defaultSgstRate: number // Now in basis points (900 = 9.00%)
-  defaultIgstRate: number // Now in basis points (900 = 9.00%)
-  isActive: boolean
+  id: string;
+  name: string;
+  defaultCgstRate: number; // Now in basis points (900 = 9.00%)
+  defaultSgstRate: number; // Now in basis points (900 = 9.00%)
+  defaultIgstRate: number; // Now in basis points (900 = 9.00%)
+  isActive: boolean;
 }
 
 // NEW: Expense Invoice interface
 export interface ExpenseInvoice {
-  id: string
-  shipmentId: string
-  serviceProviderId: string
-  invoiceNo: string
-  invoiceDate: string
-  totalAmount: number
-  totalCgstAmount: number
-  totalSgstAmount: number
-  totalIgstAmount: number
-  remarks?: string
-  createdBy?: string
-  createdAt: string
-  updatedAt: string
+  id: string;
+  shipmentId: string;
+  serviceProviderId: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  totalAmount: number;
+  totalCgstAmount: number;
+  totalSgstAmount: number;
+  totalIgstAmount: number;
+  remarks?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // UPDATED: Expense interface now references expense invoice
 export interface Expense {
-  id: string
-  expenseInvoiceId: string
-  expenseTypeId: string
-  amount: number
-  cgstRate: number
-  sgstRate: number
-  igstRate: number
-  tdsRate: number
-  cgstAmount: number
-  sgstAmount: number
-  igstAmount: number
-  tdsAmount: number
-  totalAmount: number
-  remarks?: string
-  createdBy?: string
-  createdAt: string
-  updatedAt: string
+  id: string;
+  expenseInvoiceId: string;
+  expenseTypeId: string;
+  amount: number;
+  cgstRate: number;
+  sgstRate: number;
+  igstRate: number;
+  tdsRate: number;
+  cgstAmount: number;
+  sgstAmount: number;
+  igstAmount: number;
+  tdsAmount: number;
+  totalAmount: number;
+  remarks?: string;
+  createdBy?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // NEW: Combined interface for creating expense invoice with expenses
 export interface ExpenseInvoiceWithExpenses {
-  shipmentId: string
-  serviceProviderId: string
-  invoiceNo: string
-  invoiceDate: string
-  remarks?: string
+  shipmentId: string;
+  serviceProviderId: string;
+  invoiceNo: string;
+  invoiceDate: string;
+  remarks?: string;
   expenses: Omit<
     Expense,
     | 'id'
@@ -74,24 +74,24 @@ export interface ExpenseInvoiceWithExpenses {
     | 'createdBy'
     | 'createdAt'
     | 'updatedAt'
-  >[]
+  >[];
 }
 
 // NEW: Interface for expense with invoice data for display
 export interface ExpenseWithInvoice extends Expense {
-  serviceProviderId: string
-  invoiceNo: string
-  invoiceDate: string
+  serviceProviderId: string;
+  invoiceNo: string;
+  invoiceDate: string;
 }
 
 export interface ExpenseAttachment {
-  id: string
-  expenseId: string
-  fileName: string
-  filePath: string
-  fileType?: string
-  uploadedAt: string
-  uploadedBy?: string
+  id: string;
+  expenseId: string;
+  fileName: string;
+  filePath: string;
+  fileType?: string;
+  uploadedAt: string;
+  uploadedBy?: string;
 }
 
 // ============================================================================
@@ -104,52 +104,52 @@ export interface ExpenseAttachment {
  * Tax rates are in percentages (9 = 9.00%) for frontend, converted to basis points for backend
  */
 export interface ExpenseLine {
-  expense_type_id: string
-  amount_paise: number
-  cgst_rate: number // Percentage (9 = 9.00%) in frontend, converted to basis points for backend
-  sgst_rate: number
-  igst_rate: number
-  tds_rate: number
-  remarks?: string
+  expense_type_id: string;
+  amount_paise: number;
+  cgst_rate: number; // Percentage (9 = 9.00%) in frontend, converted to basis points for backend
+  sgst_rate: number;
+  igst_rate: number;
+  tds_rate: number;
+  remarks?: string;
 }
 
 /**
  * Invoice payload for creation/updates
  */
 export interface ExpenseInvoicePayload {
-  shipment_id: string
-  service_provider_id: string
-  invoice_number: string
-  invoice_date: string
-  currency: string
-  idempotency_key?: string
-  lines: ExpenseLine[]
+  shipment_id: string;
+  service_provider_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  currency: string;
+  idempotency_key?: string;
+  lines: ExpenseLine[];
 }
 
 /**
  * Response from create/update operations
  */
 export interface ExpenseInvoiceResponse {
-  invoice_id: string
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  version: number
+  invoice_id: string;
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  version: number;
 }
 
 /**
  * Preview response with detailed line breakdown
  */
 export interface ExpenseInvoicePreview {
-  lines: ExpenseLinePreview[]
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  net_amount_paise: number
+  lines: ExpenseLinePreview[];
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  net_amount_paise: number;
 }
 
 /**
@@ -157,27 +157,27 @@ export interface ExpenseInvoicePreview {
  * Tax rates from backend are in basis points, but frontend displays as percentages
  */
 export interface ExpenseLinePreview {
-  expense_type_id: string
-  expense_type_name: string
-  amount_paise: number
-  cgst_rate: number // From backend in basis points, frontend converts to percentage for display
-  sgst_rate: number
-  igst_rate: number
-  tds_rate: number
-  cgst_amount_paise: number
-  sgst_amount_paise: number
-  igst_amount_paise: number
-  tds_amount_paise: number
-  total_amount_paise: number
-  net_amount_paise: number
-  remarks?: string
+  expense_type_id: string;
+  expense_type_name: string;
+  amount_paise: number;
+  cgst_rate: number; // From backend in basis points, frontend converts to percentage for display
+  sgst_rate: number;
+  igst_rate: number;
+  tds_rate: number;
+  cgst_amount_paise: number;
+  sgst_amount_paise: number;
+  igst_amount_paise: number;
+  tds_amount_paise: number;
+  total_amount_paise: number;
+  net_amount_paise: number;
+  remarks?: string;
 }
 
 /**
  * Request for combining duplicate expense lines
  */
 export interface CombineDuplicatesRequest {
-  separator?: string
+  separator?: string;
 }
 
 // ============================================================================
@@ -188,127 +188,127 @@ export interface CombineDuplicatesRequest {
  * Filters for expense reports
  */
 export interface ExpenseReportFilters {
-  shipmentId?: string
-  serviceProviderId?: string
-  expenseTypeId?: string
-  dateFrom?: string
-  dateTo?: string
-  currency?: string
-  minAmount?: number // in paise
-  maxAmount?: number // in paise
-  includeInactive?: boolean
+  shipmentId?: string;
+  serviceProviderId?: string;
+  expenseTypeId?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  currency?: string;
+  minAmount?: number; // in paise
+  maxAmount?: number; // in paise
+  includeInactive?: boolean;
 }
 
 /**
  * Individual row in expense report
  */
 export interface ExpenseReportRow {
-  invoice_id: string
-  invoice_number: string
-  invoice_date: string
-  shipment_id: string
-  shipment_number?: string
-  service_provider_id: string
-  service_provider_name: string
-  expense_type_id: string
-  expense_type_name: string
-  amount_paise: number
-  cgst_amount_paise: number
-  sgst_amount_paise: number
-  igst_amount_paise: number
-  tds_amount_paise: number
-  total_amount_paise: number
-  net_amount_paise: number
-  currency: string
-  remarks?: string
-  created_at: string
+  invoice_id: string;
+  invoice_number: string;
+  invoice_date: string;
+  shipment_id: string;
+  shipment_number?: string;
+  service_provider_id: string;
+  service_provider_name: string;
+  expense_type_id: string;
+  expense_type_name: string;
+  amount_paise: number;
+  cgst_amount_paise: number;
+  sgst_amount_paise: number;
+  igst_amount_paise: number;
+  tds_amount_paise: number;
+  total_amount_paise: number;
+  net_amount_paise: number;
+  currency: string;
+  remarks?: string;
+  created_at: string;
 }
 
 /**
  * Totals for expense report
  */
 export interface ExpenseReportTotals {
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  total_net_amount_paise: number
-  invoice_count: number
-  expense_line_count: number
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  total_net_amount_paise: number;
+  invoice_count: number;
+  expense_line_count: number;
 }
 
 /**
  * Complete expense report response
  */
 export interface ExpenseReportResponse {
-  rows: ExpenseReportRow[]
-  totals: ExpenseReportTotals
-  filtersApplied: ExpenseReportFilters
+  rows: ExpenseReportRow[];
+  totals: ExpenseReportTotals;
+  filtersApplied: ExpenseReportFilters;
 }
 
 /**
  * Summary grouped by expense type
  */
 export interface ExpenseSummaryByType {
-  expense_type_id: string
-  expense_type_name: string
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  total_net_amount_paise: number
-  line_count: number
+  expense_type_id: string;
+  expense_type_name: string;
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  total_net_amount_paise: number;
+  line_count: number;
 }
 
 /**
  * Summary grouped by service provider
  */
 export interface ExpenseSummaryByProvider {
-  service_provider_id: string
-  service_provider_name: string
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  total_net_amount_paise: number
-  invoice_count: number
-  line_count: number
+  service_provider_id: string;
+  service_provider_name: string;
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  total_net_amount_paise: number;
+  invoice_count: number;
+  line_count: number;
 }
 
 /**
  * Summary grouped by shipment
  */
 export interface ExpenseSummaryByShipment {
-  shipment_id: string
-  shipment_number?: string
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  total_net_amount_paise: number
-  invoice_count: number
-  line_count: number
+  shipment_id: string;
+  shipment_number?: string;
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  total_net_amount_paise: number;
+  invoice_count: number;
+  line_count: number;
 }
 
 /**
  * Summary grouped by month
  */
 export interface ExpenseSummaryByMonth {
-  year: number
-  month: number
-  month_name: string
-  total_amount_paise: number
-  total_cgst_amount_paise: number
-  total_sgst_amount_paise: number
-  total_igst_amount_paise: number
-  total_tds_amount_paise: number
-  total_net_amount_paise: number
-  invoice_count: number
-  line_count: number
+  year: number;
+  month: number;
+  month_name: string;
+  total_amount_paise: number;
+  total_cgst_amount_paise: number;
+  total_sgst_amount_paise: number;
+  total_igst_amount_paise: number;
+  total_tds_amount_paise: number;
+  total_net_amount_paise: number;
+  invoice_count: number;
+  line_count: number;
 }
 
 /**
@@ -319,9 +319,9 @@ export type ExpenseReportType =
   | 'summary-by-type'
   | 'summary-by-provider'
   | 'summary-by-shipment'
-  | 'summary-by-month'
+  | 'summary-by-month';
 
 /**
  * Export format options
  */
-export type ExpenseExportFormat = 'csv' | 'excel' | 'pdf'
+export type ExpenseExportFormat = 'csv' | 'excel' | 'pdf';

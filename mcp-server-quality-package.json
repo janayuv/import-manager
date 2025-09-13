@@ -1,0 +1,33 @@
+{
+  "name": "mcp-server-quality",
+  "version": "1.0.0",
+  "description": "MCP Server for Code & Backend Quality Checks",
+  "type": "module",
+  "main": "mcp-server-quality.js",
+  "bin": {
+    "mcp-server-quality": "./mcp-server-quality.js"
+  },
+  "scripts": {
+    "start": "node mcp-server-quality.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "quality",
+    "linting",
+    "testing",
+    "code-analysis"
+  ],
+  "author": "Import Manager Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

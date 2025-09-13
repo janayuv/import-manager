@@ -1,4 +1,4 @@
-import type { Supplier } from '@/types/supplier'
+import type { Supplier } from '@/types/supplier';
 
 export const dummySuppliers: Supplier[] = [
   {
@@ -37,4 +37,4 @@ export const dummySuppliers: Supplier[] = [
     phone: '1-800-555-0199',
     isActive: false,
   },
-]
+];

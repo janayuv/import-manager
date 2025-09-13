@@ -1,14 +1,28 @@
-import React, { Suspense, forwardRef, lazy, memo, useCallback, useMemo } from 'react'
+import React, {
+  Suspense,
+  forwardRef,
+  lazy,
+  memo,
+  useCallback,
+  useMemo,
+} from 'react';
+import { type ColumnDef } from '@tanstack/react-table';
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Skeleton } from '@/components/ui/skeleton'
-import { usePerformanceMonitor } from '@/hooks/usePerformance'
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
+import { usePerformanceMonitor } from '@/hooks/usePerformance';
 
 // Lazy-loaded components
-const LazyChart = lazy(() => import('recharts').then((module) => ({ default: module.LineChart })))
-const LazyTable = lazy(() => import('@/components/shared/data-table').then((module) => ({ default: module.DataTable })))
+const LazyChart = lazy(() =>
+  import('recharts').then(module => ({ default: module.LineChart }))
+);
+const LazyTable = lazy(() =>
+  import('@/components/shared/data-table').then(module => ({
+    default: module.DataTable,
+  }))
+);
 
 // Loading fallback components
 const LoadingFallback = memo(() => (
@@ -17,29 +31,26 @@ const LoadingFallback = memo(() => (
     <Skeleton className="h-4 w-1/2" />
     <Skeleton className="h-32 w-full" />
   </div>
-))
+));
 
 const TableLoadingFallback = memo(() => (
   <div className="space-y-2">
     <Skeleton className="h-10 w-full" />
     {Array.from({ length: 5 }).map((_, i) => (
-      <Skeleton
-        key={i}
-        className="h-12 w-full"
-      />
+      <Skeleton key={i} className="h-12 w-full" />
     ))}
   </div>
-))
+));
 
 // Optimized data display component
 interface OptimizedDataDisplayProps<T> {
-  data: T[]
-  title: string
-  renderItem: (item: T, index: number) => React.ReactNode
-  loading?: boolean
-  error?: string | null
-  emptyMessage?: string
-  className?: string
+  data: T[];
+  title: string;
+  renderItem: (item: T, index: number) => React.ReactNode;
+  loading?: boolean;
+  error?: string | null;
+  emptyMessage?: string;
+  className?: string;
 }
 
 export const OptimizedDataDisplay = memo(
@@ -52,14 +63,14 @@ export const OptimizedDataDisplay = memo(
     emptyMessage = 'No data available',
     className = '',
   }: OptimizedDataDisplayProps<T>) => {
-    usePerformanceMonitor('OptimizedDataDisplay')
+    usePerformanceMonitor('OptimizedDataDisplay');
 
     const memoizedItems = useMemo(() => {
-      return data.map((item, index) => renderItem(item, index))
-    }, [data, renderItem])
+      return data.map((item, index) => renderItem(item, index));
+    }, [data, renderItem]);
 
     if (loading) {
-      return <LoadingFallback />
+      return <LoadingFallback />;
     }
 
     if (error) {
@@ -72,7 +83,7 @@ export const OptimizedDataDisplay = memo(
             <p className="text-destructive">{error}</p>
           </CardContent>
         </Card>
-      )
+      );
     }
 
     if (data.length === 0) {
@@ -85,7 +96,7 @@ export const OptimizedDataDisplay = memo(
             <p className="text-muted-foreground">{emptyMessage}</p>
           </CardContent>
         </Card>
-      )
+      );
     }
 
     return (
@@ -97,20 +108,20 @@ export const OptimizedDataDisplay = memo(
           <div className="space-y-2">{memoizedItems}</div>
         </CardContent>
       </Card>
-    )
+    );
   }
-)
+);
 
 // Optimized list component with virtualization
 interface OptimizedListProps<T> {
-  items: T[]
-  renderItem: (item: T, index: number) => React.ReactNode
-  loading?: boolean
-  error?: string | null
-  emptyMessage?: string
-  className?: string
-  itemHeight?: number
-  containerHeight?: number
+  items: T[];
+  renderItem: (item: T, index: number) => React.ReactNode;
+  loading?: boolean;
+  error?: string | null;
+  emptyMessage?: string;
+  className?: string;
+  itemHeight?: number;
+  containerHeight?: number;
 }
 
 export const OptimizedList = memo(
@@ -124,26 +135,32 @@ export const OptimizedList = memo(
 
     containerHeight = 400,
   }: OptimizedListProps<T>) => {
-    usePerformanceMonitor('OptimizedList')
+    usePerformanceMonitor('OptimizedList');
 
     const memoizedItems = useMemo(() => {
-      return items.map((item, index) => renderItem(item, index))
-    }, [items, renderItem])
+      return items.map((item, index) => renderItem(item, index));
+    }, [items, renderItem]);
 
     if (loading) {
-      return <LoadingFallback />
+      return <LoadingFallback />;
     }
 
     if (error) {
       return (
-        <div className={`border-destructive rounded-md border p-4 ${className}`}>
+        <div
+          className={`border-destructive rounded-md border p-4 ${className}`}
+        >
           <p className="text-destructive">{error}</p>
         </div>
-      )
+      );
     }
 
     if (items.length === 0) {
-      return <div className={`text-muted-foreground p-4 text-center ${className}`}>{emptyMessage}</div>
+      return (
+        <div className={`text-muted-foreground p-4 text-center ${className}`}>
+          {emptyMessage}
+        </div>
+      );
     }
 
     return (
@@ -153,39 +170,34 @@ export const OptimizedList = memo(
       >
         <div className="space-y-1">{memoizedItems}</div>
       </div>
-    )
+    );
   }
-)
+);
 
 // Optimized table component
-interface OptimizedTableProps<T> {
-  data: T[]
-  columns: Array<{
-    key: string
-    header: string
-    cell?: (item: T) => React.ReactNode
-  }>
-  loading?: boolean
-  error?: string | null
-  emptyMessage?: string
-  className?: string
-  storageKey?: string
+interface OptimizedTableProps {
+  data: Record<string, unknown>[];
+  columns: ColumnDef<Record<string, unknown>, unknown>[];
+  loading?: boolean;
+  error?: string | null;
+  emptyMessage?: string;
+  className?: string;
+  storageKey?: string;
 }
 
 export const OptimizedTable = memo(
-  <T,>({
+  ({
     data,
     columns,
     loading = false,
     error = null,
-
     className = '',
     storageKey,
-  }: OptimizedTableProps<T>) => {
-    usePerformanceMonitor('OptimizedTable')
+  }: OptimizedTableProps) => {
+    usePerformanceMonitor('OptimizedTable');
 
     if (loading) {
-      return <TableLoadingFallback />
+      return <TableLoadingFallback />;
     }
 
     if (error) {
@@ -195,36 +207,43 @@ export const OptimizedTable = memo(
             <p className="text-destructive">{error}</p>
           </CardContent>
         </Card>
-      )
+      );
     }
 
     return (
       <div className={className}>
         <Suspense fallback={<TableLoadingFallback />}>
           <LazyTable
-            columns={columns}
-            data={data}
+            columns={columns as ColumnDef<unknown, unknown>[]}
+            data={data as unknown[]}
             storageKey={storageKey}
           />
         </Suspense>
       </div>
-    )
+    );
   }
-)
+);
 
 // Optimized chart component
 interface OptimizedChartProps {
-  data: Array<Record<string, string | number>>
-  loading?: boolean
-  error?: string | null
-  className?: string
-  height?: number
-  width?: number
+  data: Array<Record<string, string | number>>;
+  loading?: boolean;
+  error?: string | null;
+  className?: string;
+  height?: number;
+  width?: number;
 }
 
 export const OptimizedChart = memo(
-  ({ data, loading = false, error = null, className = '', height = 300, width = 600 }: OptimizedChartProps) => {
-    usePerformanceMonitor('OptimizedChart')
+  ({
+    data,
+    loading = false,
+    error = null,
+    className = '',
+    height = 300,
+    width = 600,
+  }: OptimizedChartProps) => {
+    usePerformanceMonitor('OptimizedChart');
 
     if (loading) {
       return (
@@ -233,7 +252,7 @@ export const OptimizedChart = memo(
             <Skeleton className="h-[300px] w-full" />
           </CardContent>
         </Card>
-      )
+      );
     }
 
     if (error) {
@@ -243,7 +262,7 @@ export const OptimizedChart = memo(
             <p className="text-destructive">{error}</p>
           </CardContent>
         </Card>
-      )
+      );
     }
 
     return (
@@ -261,30 +280,48 @@ export const OptimizedChart = memo(
           </CardContent>
         </Card>
       </Suspense>
-    )
+    );
   }
-)
+);
 
 // Optimized button component
-interface OptimizedButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'default' | 'destructive' | 'outline' | 'secondary' | 'ghost' | 'link'
-  size?: 'default' | 'sm' | 'lg' | 'icon'
-  loading?: boolean
-  children: React.ReactNode
+interface OptimizedButtonProps
+  extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?:
+    | 'default'
+    | 'destructive'
+    | 'outline'
+    | 'secondary'
+    | 'ghost'
+    | 'link';
+  size?: 'default' | 'sm' | 'lg' | 'icon';
+  loading?: boolean;
+  children: React.ReactNode;
 }
 
 export const OptimizedButton = memo(
   forwardRef<HTMLButtonElement, OptimizedButtonProps>(
-    ({ variant = 'default', size = 'default', loading = false, children, disabled, onClick, ...props }, ref) => {
-      usePerformanceMonitor('OptimizedButton')
+    (
+      {
+        variant = 'default',
+        size = 'default',
+        loading = false,
+        children,
+        disabled,
+        onClick,
+        ...props
+      },
+      ref
+    ) => {
+      usePerformanceMonitor('OptimizedButton');
 
       const handleClick = useCallback(
         (e: React.MouseEvent<HTMLButtonElement>) => {
-          if (loading || disabled) return
-          onClick?.(e)
+          if (loading || disabled) return;
+          onClick?.(e);
         },
         [loading, disabled, onClick]
-      )
+      );
 
       return (
         <Button
@@ -304,38 +341,49 @@ export const OptimizedButton = memo(
             children
           )}
         </Button>
-      )
+      );
     }
   )
-)
+);
 
 // Optimized card component
 interface OptimizedCardProps {
-  title?: string
-  subtitle?: string
-  children: React.ReactNode
-  className?: string
-  loading?: boolean
-  error?: string | null
+  title?: string;
+  subtitle?: string;
+  children: React.ReactNode;
+  className?: string;
+  loading?: boolean;
+  error?: string | null;
 }
 
 export const OptimizedCard = memo(
-  ({ title, subtitle, children, className = '', loading = false, error = null }: OptimizedCardProps) => {
-    usePerformanceMonitor('OptimizedCard')
+  ({
+    title,
+    subtitle,
+    children,
+    className = '',
+    loading = false,
+    error = null,
+  }: OptimizedCardProps) => {
+    usePerformanceMonitor('OptimizedCard');
 
     if (loading) {
-      return <LoadingFallback />
+      return <LoadingFallback />;
     }
 
     if (error) {
       return (
         <Card className={className}>
-          <CardHeader>{title && <CardTitle className="text-destructive">{title}</CardTitle>}</CardHeader>
+          <CardHeader>
+            {title && (
+              <CardTitle className="text-destructive">{title}</CardTitle>
+            )}
+          </CardHeader>
           <CardContent>
             <p className="text-destructive">{error}</p>
           </CardContent>
         </Card>
-      )
+      );
     }
 
     return (
@@ -348,39 +396,38 @@ export const OptimizedCard = memo(
         )}
         <CardContent>{children}</CardContent>
       </Card>
-    )
+    );
   }
-)
+);
 
 // Optimized badge component
 interface OptimizedBadgeProps {
-  children: React.ReactNode
-  variant?: 'default' | 'secondary' | 'destructive' | 'outline'
-  className?: string
+  children: React.ReactNode;
+  variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+  className?: string;
 }
 
-export const OptimizedBadge = memo(({ children, variant = 'default', className = '' }: OptimizedBadgeProps) => {
-  usePerformanceMonitor('OptimizedBadge')
+export const OptimizedBadge = memo(
+  ({ children, variant = 'default', className = '' }: OptimizedBadgeProps) => {
+    usePerformanceMonitor('OptimizedBadge');
 
-  return (
-    <Badge
-      variant={variant}
-      className={className}
-    >
-      {children}
-    </Badge>
-  )
-})
+    return (
+      <Badge variant={variant} className={className}>
+        {children}
+      </Badge>
+    );
+  }
+);
 
 // Optimized image component
 interface OptimizedImageProps {
-  src: string
-  alt: string
-  className?: string
-  loading?: 'lazy' | 'eager'
-  fallback?: string
-  onError?: () => void
-  onLoad?: () => void
+  src: string;
+  alt: string;
+  className?: string;
+  loading?: 'lazy' | 'eager';
+  fallback?: string;
+  onError?: () => void;
+  onLoad?: () => void;
 }
 
 export const OptimizedImage = memo(
@@ -393,15 +440,15 @@ export const OptimizedImage = memo(
     onError,
     onLoad,
   }: OptimizedImageProps) => {
-    usePerformanceMonitor('OptimizedImage')
+    usePerformanceMonitor('OptimizedImage');
 
     const handleError = useCallback(() => {
-      onError?.()
-    }, [onError])
+      onError?.();
+    }, [onError]);
 
     const handleLoad = useCallback(() => {
-      onLoad?.()
-    }, [onLoad])
+      onLoad?.();
+    }, [onLoad]);
 
     return (
       <img
@@ -412,60 +459,84 @@ export const OptimizedImage = memo(
         onError={handleError}
         onLoad={handleLoad}
       />
-    )
+    );
   }
-)
+);
 
 // Optimized text component
 interface OptimizedTextProps {
-  children: React.ReactNode
-  variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span'
-  className?: string
-  truncate?: boolean
+  children: React.ReactNode;
+  variant?: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6' | 'p' | 'span';
+  className?: string;
+  truncate?: boolean;
 }
 
 export const OptimizedText = memo(
-  ({ children, variant = 'p', className = '', truncate = false }: OptimizedTextProps) => {
-    usePerformanceMonitor('OptimizedText')
+  ({
+    children,
+    variant = 'p',
+    className = '',
+    truncate = false,
+  }: OptimizedTextProps) => {
+    usePerformanceMonitor('OptimizedText');
 
-    const truncateClass = truncate ? 'truncate' : ''
+    const truncateClass = truncate ? 'truncate' : '';
 
     const renderComponent = () => {
       switch (variant) {
         case 'h1':
-          return <h1 className={`${className} ${truncateClass}`}>{children}</h1>
+          return (
+            <h1 className={`${className} ${truncateClass}`}>{children}</h1>
+          );
         case 'h2':
-          return <h2 className={`${className} ${truncateClass}`}>{children}</h2>
+          return (
+            <h2 className={`${className} ${truncateClass}`}>{children}</h2>
+          );
         case 'h3':
-          return <h3 className={`${className} ${truncateClass}`}>{children}</h3>
+          return (
+            <h3 className={`${className} ${truncateClass}`}>{children}</h3>
+          );
         case 'h4':
-          return <h4 className={`${className} ${truncateClass}`}>{children}</h4>
+          return (
+            <h4 className={`${className} ${truncateClass}`}>{children}</h4>
+          );
         case 'h5':
-          return <h5 className={`${className} ${truncateClass}`}>{children}</h5>
+          return (
+            <h5 className={`${className} ${truncateClass}`}>{children}</h5>
+          );
         case 'h6':
-          return <h6 className={`${className} ${truncateClass}`}>{children}</h6>
+          return (
+            <h6 className={`${className} ${truncateClass}`}>{children}</h6>
+          );
         case 'span':
-          return <span className={`${className} ${truncateClass}`}>{children}</span>
+          return (
+            <span className={`${className} ${truncateClass}`}>{children}</span>
+          );
         default:
-          return <p className={`${className} ${truncateClass}`}>{children}</p>
+          return <p className={`${className} ${truncateClass}`}>{children}</p>;
       }
-    }
+    };
 
-    return renderComponent()
+    return renderComponent();
   }
-)
+);
 
 // Optimized container component
 interface OptimizedContainerProps {
-  children: React.ReactNode
-  className?: string
-  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full'
-  padding?: 'none' | 'sm' | 'md' | 'lg'
+  children: React.ReactNode;
+  className?: string;
+  maxWidth?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full';
+  padding?: 'none' | 'sm' | 'md' | 'lg';
 }
 
 export const OptimizedContainer = memo(
-  ({ children, className = '', maxWidth = 'lg', padding = 'md' }: OptimizedContainerProps) => {
-    usePerformanceMonitor('OptimizedContainer')
+  ({
+    children,
+    className = '',
+    maxWidth = 'lg',
+    padding = 'md',
+  }: OptimizedContainerProps) => {
+    usePerformanceMonitor('OptimizedContainer');
 
     const maxWidthClass = {
       sm: 'max-w-sm',
@@ -474,73 +545,85 @@ export const OptimizedContainer = memo(
       xl: 'max-w-xl',
       '2xl': 'max-w-2xl',
       full: 'max-w-full',
-    }[maxWidth]
+    }[maxWidth];
 
     const paddingClass = {
       none: '',
       sm: 'p-4',
       md: 'p-6',
       lg: 'p-8',
-    }[padding]
+    }[padding];
 
-    return <div className={`mx-auto ${maxWidthClass} ${paddingClass} ${className}`}>{children}</div>
+    return (
+      <div className={`mx-auto ${maxWidthClass} ${paddingClass} ${className}`}>
+        {children}
+      </div>
+    );
   }
-)
+);
 
 // Optimized grid component
 interface OptimizedGridProps {
-  children: React.ReactNode
-  className?: string
-  cols?: 1 | 2 | 3 | 4 | 5 | 6
-  gap?: 'none' | 'sm' | 'md' | 'lg'
+  children: React.ReactNode;
+  className?: string;
+  cols?: 1 | 2 | 3 | 4 | 5 | 6;
+  gap?: 'none' | 'sm' | 'md' | 'lg';
 }
 
-export const OptimizedGrid = memo(({ children, className = '', cols = 1, gap = 'md' }: OptimizedGridProps) => {
-  usePerformanceMonitor('OptimizedGrid')
+export const OptimizedGrid = memo(
+  ({ children, className = '', cols = 1, gap = 'md' }: OptimizedGridProps) => {
+    usePerformanceMonitor('OptimizedGrid');
 
-  const colsClass = {
-    1: 'grid-cols-1',
-    2: 'grid-cols-1 md:grid-cols-2',
-    3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
-    4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
-    5: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5',
-    6: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
-  }[cols]
+    const colsClass = {
+      1: 'grid-cols-1',
+      2: 'grid-cols-1 md:grid-cols-2',
+      3: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3',
+      4: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-4',
+      5: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-5',
+      6: 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6',
+    }[cols];
 
-  const gapClass = {
-    none: '',
-    sm: 'gap-2',
-    md: 'gap-4',
-    lg: 'gap-6',
-  }[gap]
+    const gapClass = {
+      none: '',
+      sm: 'gap-2',
+      md: 'gap-4',
+      lg: 'gap-6',
+    }[gap];
 
-  return <div className={`grid ${colsClass} ${gapClass} ${className}`}>{children}</div>
-})
+    return (
+      <div className={`grid ${colsClass} ${gapClass} ${className}`}>
+        {children}
+      </div>
+    );
+  }
+);
 
 // Optimized skeleton component
 interface OptimizedSkeletonProps {
-  className?: string
-  count?: number
-  height?: string
-  width?: string
+  className?: string;
+  count?: number;
+  height?: string;
+  width?: string;
 }
 
 export const OptimizedSkeleton = memo(
-  ({ className = '', count = 1, height = 'h-4', width = 'w-full' }: OptimizedSkeletonProps) => {
-    usePerformanceMonitor('OptimizedSkeleton')
+  ({
+    className = '',
+    count = 1,
+    height = 'h-4',
+    width = 'w-full',
+  }: OptimizedSkeletonProps) => {
+    usePerformanceMonitor('OptimizedSkeleton');
 
     const skeletons = useMemo(() => {
       return Array.from({ length: count }, (_, i) => (
-        <Skeleton
-          key={i}
-          className={`${height} ${width} ${className}`}
-        />
-      ))
-    }, [count, height, width, className])
+        <Skeleton key={i} className={`${height} ${width} ${className}`} />
+      ));
+    }, [count, height, width, className]);
 
-    return <>{skeletons}</>
+    return <>{skeletons}</>;
   }
-)
+);
 
 // Export all components
-export { LoadingFallback, TableLoadingFallback }
+export { LoadingFallback, TableLoadingFallback };

@@ -1,39 +1,38 @@
-import { useRef } from 'react'
+import { useRef } from 'react';
 
-import { Button } from '@/components/ui/button'
+import { Button } from '@/components/ui/button';
 
 // no-op util imports here
 
 type PdfProps = {
-  rows: Array<Record<string, unknown>>
+  rows: Array<Record<string, unknown>>;
   totals?: {
-    qty: number
-    assessable_value: number
-    bcd_amount: number
-    sws_amount: number
-    igst_amount: number
-    expenses_total: number
-  }
-}
+    qty: number;
+    assessable_value: number;
+    bcd_amount: number;
+    sws_amount: number;
+    igst_amount: number;
+    expenses_total: number;
+  };
+};
 
 export function ReportPdfView({ rows, totals }: PdfProps) {
-  const ref = useRef<HTMLDivElement>(null)
+  const ref = useRef<HTMLDivElement>(null);
 
   const handlePrint = () => {
-    window.print()
-  }
+    window.print();
+  };
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-end">
         <Button onClick={handlePrint}>Print / Save PDF</Button>
       </div>
-      <div
-        ref={ref}
-        className="bg-white p-4"
-      >
+      <div ref={ref} className="bg-white p-4">
         <h1 className="mb-2 text-xl font-bold">Consolidated Import Report</h1>
-        <div className="mb-4 text-sm">Generated: {new Date().toLocaleString()}</div>
+        <div className="mb-4 text-sm">
+          Generated: {new Date().toLocaleString()}
+        </div>
         <table className="w-full table-fixed border-collapse text-sm">
           <thead>
             <tr>
@@ -52,11 +51,8 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
                 'IGST',
                 'Expenses',
                 'LDC/qty',
-              ].map((h) => (
-                <th
-                  key={h}
-                  className="border px-2 py-1 text-left"
-                >
+              ].map(h => (
+                <th key={h} className="border px-2 py-1 text-left">
                   {h}
                 </th>
               ))}
@@ -72,32 +68,55 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
                 <td className="border px-2 py-1">{String(r.description)}</td>
                 <td className="border px-2 py-1">{String(r.unit)}</td>
                 <td className="border px-2 py-1 text-right">{String(r.qty)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.unit_price)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.assessable_value)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.bcd_amount)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.sws_amount)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.igst_amount)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.expenses_total)}</td>
-                <td className="border px-2 py-1 text-right">{String(r.ldc_per_qty)}</td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.unit_price)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.assessable_value)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.bcd_amount)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.sws_amount)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.igst_amount)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.expenses_total)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {String(r.ldc_per_qty)}
+                </td>
               </tr>
             ))}
           </tbody>
           {totals && (
             <tfoot>
               <tr className="font-semibold">
-                <td
-                  className="border px-2 py-1"
-                  colSpan={6}
-                >
+                <td className="border px-2 py-1" colSpan={6}>
                   Totals
                 </td>
-                <td className="border px-2 py-1 text-right">{totals.qty?.toFixed(2)}</td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.qty?.toFixed(2)}
+                </td>
                 <td className="border px-2 py-1" />
-                <td className="border px-2 py-1 text-right">{totals.assessable_value?.toFixed(2)}</td>
-                <td className="border px-2 py-1 text-right">{totals.bcd_amount?.toFixed(2)}</td>
-                <td className="border px-2 py-1 text-right">{totals.sws_amount?.toFixed(2)}</td>
-                <td className="border px-2 py-1 text-right">{totals.igst_amount?.toFixed(2)}</td>
-                <td className="border px-2 py-1 text-right">{totals.expenses_total?.toFixed(2)}</td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.assessable_value?.toFixed(2)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.bcd_amount?.toFixed(2)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.sws_amount?.toFixed(2)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.igst_amount?.toFixed(2)}
+                </td>
+                <td className="border px-2 py-1 text-right">
+                  {totals.expenses_total?.toFixed(2)}
+                </td>
                 <td className="border px-2 py-1" />
               </tr>
             </tfoot>
@@ -105,5 +124,5 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
         </table>
       </div>
     </div>
-  )
+  );
 }

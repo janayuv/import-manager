@@ -1,27 +1,60 @@
 // src/pages/dashboard.tsx
-import { invoke } from '@tauri-apps/api/core'
-import { format, parse, startOfMonth, startOfWeek, subDays } from 'date-fns'
-import { AlertTriangle, Calendar, CheckCircle, DollarSign, Factory, Package, Ship, TrendingUp } from 'lucide-react'
-import { Bar, BarChart, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { Cell, Line, LineChart, Pie, PieChart } from 'recharts'
+import { invoke } from '@tauri-apps/api/core';
+import { format, parse, startOfMonth, startOfWeek, subDays } from 'date-fns';
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  DollarSign,
+  Factory,
+  Package,
+  Ship,
+  TrendingUp,
+} from 'lucide-react';
+import {
+  Bar,
+  BarChart,
+  Legend,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
+import { Cell, Line, LineChart, Pie, PieChart } from 'recharts';
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react';
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { KPICard } from '@/components/ui/kpi-card'
-import { LayoutControls, ResizableLayout } from '@/components/ui/resizable-layout'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Skeleton } from '@/components/ui/skeleton'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { formatDateForDisplay } from '@/lib/date-format'
-import { useResponsiveContext } from '@/providers/ResponsiveProvider'
-import type { SavedBoe } from '@/types/boe-entry'
-import type { Expense } from '@/types/expense'
-import type { Item } from '@/types/item'
-import type { Shipment as ShipmentTs } from '@/types/shipment'
-import type { Supplier } from '@/types/supplier'
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { KPICard } from '@/components/ui/kpi-card';
+import {
+  LayoutControls,
+  ResizableLayout,
+} from '@/components/ui/resizable-layout';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { formatDateForDisplay } from '@/lib/date-format';
+import { useResponsiveContext } from '@/providers/ResponsiveProvider';
+import type { SavedBoe } from '@/types/boe-entry';
+import type { Expense } from '@/types/expense';
+import type { Item } from '@/types/item';
+import type { Shipment as ShipmentTs } from '@/types/shipment';
+import type { Supplier } from '@/types/supplier';
 
 // --- Helper UI ---
 const LoadingSkeleton = () => (
@@ -52,100 +85,115 @@ const LoadingSkeleton = () => (
       ))}
     </div>
   </div>
-)
+);
 
 // --- Types ---
-type Timeframe = 'weekly' | 'monthly' | '3-month' | '6-month' | 'yearly'
-type ModuleFilter = 'all' | 'shipment-invoice' | 'items' | 'expenses'
+type Timeframe = 'weekly' | 'monthly' | '3-month' | '6-month' | 'yearly';
+type ModuleFilter = 'all' | 'shipment-invoice' | 'items' | 'expenses';
 
-type ChartData = { name: string; shipments: number; value: number; dutySavings: number }
+type ChartData = {
+  name: string;
+  shipments: number;
+  value: number;
+  dutySavings: number;
+};
 
 // --- Aggregation ---
-const aggregateData = (shipments: ShipmentTs[], boes: SavedBoe[], timeframe: Timeframe): ChartData[] => {
-  const now = new Date()
-  let startDate: Date
+const aggregateData = (
+  shipments: ShipmentTs[],
+  boes: SavedBoe[],
+  timeframe: Timeframe
+): ChartData[] => {
+  const now = new Date();
+  let startDate: Date;
   switch (timeframe) {
     case 'weekly':
-      startDate = startOfWeek(now)
-      break
+      startDate = startOfWeek(now);
+      break;
     case 'monthly':
-      startDate = startOfMonth(now)
-      break
+      startDate = startOfMonth(now);
+      break;
     case '3-month':
-      startDate = subDays(now, 90)
-      break
+      startDate = subDays(now, 90);
+      break;
     case '6-month':
-      startDate = subDays(now, 180)
-      break
+      startDate = subDays(now, 180);
+      break;
     case 'yearly':
-      startDate = subDays(now, 365)
-      break
+      startDate = subDays(now, 365);
+      break;
   }
 
-  const bucket: Record<string, ChartData> = {}
-  const fmt = (d: Date) => (timeframe === 'yearly' ? format(d, 'MMM yyyy') : format(d, 'MMM dd'))
+  const bucket: Record<string, ChartData> = {};
+  const fmt = (d: Date) =>
+    timeframe === 'yearly' ? format(d, 'MMM yyyy') : format(d, 'MMM dd');
 
-  shipments.forEach((s) => {
-    const date = new Date(s.invoiceDate)
-    if (isNaN(date.getTime()) || date < startDate) return
-    const key = fmt(date)
+  shipments.forEach(s => {
+    const date = new Date(s.invoiceDate);
+    if (isNaN(date.getTime()) || date < startDate) return;
+    const key = fmt(date);
 
     if (!bucket[key]) {
-      bucket[key] = { name: key, shipments: 0, value: 0, dutySavings: 0 }
+      bucket[key] = { name: key, shipments: 0, value: 0, dutySavings: 0 };
     }
 
-    bucket[key].shipments += 1
+    bucket[key].shipments += 1;
 
-    bucket[key].value += s.invoiceValue
-  })
+    bucket[key].value += s.invoiceValue;
+  });
 
   // Calculate real duty savings based on BOE data
-  Object.values(bucket).forEach((d) => {
+  Object.values(bucket).forEach(d => {
     // Get shipments for this time period
-    const periodShipments = shipments.filter((s) => {
-      const date = new Date(s.invoiceDate)
-      if (isNaN(date.getTime())) return false
-      const key = fmt(date)
-      return key === d.name
-    })
+    const periodShipments = shipments.filter(s => {
+      const date = new Date(s.invoiceDate);
+      if (isNaN(date.getTime())) return false;
+      const key = fmt(date);
+      return key === d.name;
+    });
 
     // Calculate total duty savings from BOE reconciliations
     const totalSavings = periodShipments.reduce((sum, shipment) => {
       // Find BOE data for this shipment
-      const boeData = boes.find((b) => b.shipmentId === shipment.id)
-      if (!boeData || boeData.status !== 'Reconciled') return sum
+      const boeData = boes.find(b => b.shipmentId === shipment.id);
+      if (!boeData || boeData.status !== 'Reconciled') return sum;
 
       // For now, use a simplified calculation based on BOE results
       // In a full implementation, we would compare with potential duty rates
-      const actualDuty = boeData.calculationResult.customsDutyTotal
-      const invoiceValue = shipment.invoiceValue
+      const actualDuty = boeData.calculationResult.customsDutyTotal;
+      const invoiceValue = shipment.invoiceValue;
 
       // Estimate potential duty as 20% of invoice value (typical duty rate)
-      const estimatedPotentialDuty = invoiceValue * 0.2
-      const savings = Math.max(estimatedPotentialDuty - actualDuty, 0)
+      const estimatedPotentialDuty = invoiceValue * 0.2;
+      const savings = Math.max(estimatedPotentialDuty - actualDuty, 0);
 
-      return sum + savings
-    }, 0)
+      return sum + savings;
+    }, 0);
 
-    d.dutySavings = Math.round(totalSavings)
-  })
+    d.dutySavings = Math.round(totalSavings);
+  });
 
-  return Object.values(bucket).sort((a, b) => new Date(a.name).getTime() - new Date(b.name).getTime())
-}
+  return Object.values(bucket).sort(
+    (a, b) => new Date(a.name).getTime() - new Date(b.name).getTime()
+  );
+};
 
 // --- Main Component ---
 const DashboardPage = () => {
-  const { getTextClass, getSpacingClass, getGridColumns } = useResponsiveContext()
-  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('all')
-  const [timeframe, setTimeframe] = useState<Timeframe>('monthly')
-  const [currency, setCurrency] = useState('INR')
-  const [loading, setLoading] = useState(true)
-  const [layoutDirection, setLayoutDirection] = useState<'horizontal' | 'vertical'>('horizontal')
+  const { getTextClass, getSpacingClass, getGridColumns } =
+    useResponsiveContext();
+  const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('all');
+  const [timeframe, setTimeframe] = useState<Timeframe>('monthly');
+  const [currency, setCurrency] = useState('INR');
+  const [loading, setLoading] = useState(true);
+  const [layoutDirection, setLayoutDirection] = useState<
+    'horizontal' | 'vertical'
+  >('horizontal');
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([])
-  const [items, setItems] = useState<Item[]>([])
-  const [shipments, setShipments] = useState<ShipmentTs[]>([])
-  const [boes, setBoes] = useState<SavedBoe[]>([])
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [items, setItems] = useState<Item[]>([]);
+  const [shipments, setShipments] = useState<ShipmentTs[]>([]);
+  const [boes, setBoes] = useState<SavedBoe[]>([]);
 
   // Derived
   const stats = useMemo(
@@ -153,118 +201,144 @@ const DashboardPage = () => {
       suppliers: suppliers.length,
       items: items.length,
       shipments: shipments.length,
-      reconciledBoes: boes.filter((b) => b.status === 'Reconciled').length,
+      reconciledBoes: boes.filter(b => b.status === 'Reconciled').length,
       totalValue: shipments.reduce((sum, s) => sum + s.invoiceValue, 0),
-      pendingShipments: shipments.filter((s) => s.status === 'docu-received').length,
-      deliveredShipments: shipments.filter((s) => s.status === 'delivered').length,
+      pendingShipments: shipments.filter(s => s.status === 'docu-received')
+        .length,
+      deliveredShipments: shipments.filter(s => s.status === 'delivered')
+        .length,
     }),
     [suppliers, items, shipments, boes]
-  )
+  );
 
   const recentItems = useMemo(() => {
-    return [...items].sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, 5)
-  }, [items])
+    return [...items].sort((a, b) => (a.id < b.id ? 1 : -1)).slice(0, 5);
+  }, [items]);
 
   const upcomingShipments = useMemo(() => {
-    const now = new Date()
+    const now = new Date();
 
     const parseDate = (value?: string) => {
-      if (!value) return null
+      if (!value) return null;
       // Try common formats we use across the app
       if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-        return parse(value, 'yyyy-MM-dd', new Date())
+        return parse(value, 'yyyy-MM-dd', new Date());
       }
       if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
-        return parse(value, 'dd-MM-yyyy', new Date())
+        return parse(value, 'dd-MM-yyyy', new Date());
       }
       if (/^\d{2}\/\d{2}\/\d{4}$/.test(value)) {
-        return parse(value, 'dd/MM/yyyy', new Date())
+        return parse(value, 'dd/MM/yyyy', new Date());
       }
-      const d = new Date(value)
-      return isNaN(d.getTime()) ? null : d
-    }
+      const d = new Date(value);
+      return isNaN(d.getTime()) ? null : d;
+    };
 
     return [...shipments]
-      .map((s) => ({ ...s, __etaDate: parseDate(s.eta) }))
-      .filter((s) => s.__etaDate && s.__etaDate > now)
-      .sort((a, b) => (a.__etaDate!.getTime() - b.__etaDate!.getTime()))
+      .map(s => ({ ...s, _etaDate: parseDate(s.eta) }))
+      .filter(s => s._etaDate && s._etaDate > now)
+      .sort((a, b) => a._etaDate!.getTime() - b._etaDate!.getTime())
       .slice(0, 5)
-      .map(({ __etaDate, ...rest }) => rest)
-  }, [shipments])
+      .map(s => {
+        // strip helper field without unused var binding
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { _etaDate: _ignore, ...rest } = s;
+        return rest;
+      });
+  }, [shipments]);
 
   const chartData = useMemo(() => {
-    const filtered = shipments.filter((s) => (s.invoiceCurrency || 'INR') === currency)
-    return aggregateData(filtered, boes, timeframe)
-  }, [shipments, boes, timeframe, currency])
+    const filtered = shipments.filter(
+      s => (s.invoiceCurrency || 'INR') === currency
+    );
+    return aggregateData(filtered, boes, timeframe);
+  }, [shipments, boes, timeframe, currency]);
 
   // Extra charts data
   const statusDistribution = useMemo(() => {
-    const map = new Map<string, number>()
-    shipments.forEach((s) => {
-      const status = s.status || 'Unknown'
-      map.set(status, (map.get(status) || 0) + 1)
-    })
-    return Array.from(map.entries()).map(([name, value]) => ({ name, value }))
-  }, [shipments])
+    const map = new Map<string, number>();
+    shipments.forEach(s => {
+      const status = s.status || 'Unknown';
+      map.set(status, (map.get(status) || 0) + 1);
+    });
+    return Array.from(map.entries()).map(([name, value]) => ({ name, value }));
+  }, [shipments]);
 
   const invoiceTrend = useMemo(() => {
     return [...shipments]
-      .sort((a, b) => new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime())
-      .map((s) => ({ date: s.invoiceDate, value: s.invoiceValue }))
-  }, [shipments])
+      .sort(
+        (a, b) =>
+          new Date(a.invoiceDate).getTime() - new Date(b.invoiceDate).getTime()
+      )
+      .map(s => ({ date: s.invoiceDate, value: s.invoiceValue }));
+  }, [shipments]);
 
   // Expenses overview (quick aggregation)
-  const [expenseSummary, setExpenseSummary] = useState<{ total: number; count: number } | null>(null)
+  const [expenseSummary, setExpenseSummary] = useState<{
+    total: number;
+    count: number;
+  } | null>(null);
 
   useEffect(() => {
     const fetchAll = async () => {
       try {
-        setLoading(true)
+        setLoading(true);
         const [sup, it, boe, shp] = await Promise.all([
           invoke<Supplier[]>('get_suppliers'),
           invoke<Item[]>('get_items'),
           invoke<SavedBoe[]>('get_boe_calculations'),
           invoke<ShipmentTs[]>('get_shipments'),
-        ])
-        setSuppliers(sup)
-        setItems(it)
-        setBoes(boe)
-        setShipments(shp)
+        ]);
+        setSuppliers(sup);
+        setItems(it);
+        setBoes(boe);
+        setShipments(shp);
 
         // Compute quick expense summary (sum totals for latest 10 shipments)
-        const latest = shp.slice(0, 10)
+        const latest = shp.slice(0, 10);
         const expArrays = await Promise.all(
-          latest.map((s) => invoke<Expense[]>('get_expenses_for_shipment', { shipmentId: s.id }))
-        )
-        const all = expArrays.flat()
+          latest.map(s =>
+            invoke<Expense[]>('get_expenses_for_shipment', { shipmentId: s.id })
+          )
+        );
+        const all = expArrays.flat();
         const total = all.reduce(
           (sum, e) =>
             sum +
             (Number(e.totalAmount) ||
-              Number(e.amount) + Number(e.cgstAmount || 0) + Number(e.sgstAmount || 0) + Number(e.igstAmount || 0)),
+              Number(e.amount) +
+                Number(e.cgstAmount || 0) +
+                Number(e.sgstAmount || 0) +
+                Number(e.igstAmount || 0)),
           0
-        )
-        setExpenseSummary({ total, count: all.length })
+        );
+        setExpenseSummary({ total, count: all.length });
       } catch (e) {
-        console.error('Failed to load dashboard data', e)
+        console.error('Failed to load dashboard data', e);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
-    }
-    fetchAll()
-  }, [])
+    };
+    fetchAll();
+  }, []);
 
   if (loading) {
-    return <LoadingSkeleton />
+    return <LoadingSkeleton />;
   }
 
   return (
     <div className={`container mx-auto space-y-6 p-6 ${getSpacingClass()}`}>
       {/* Header */}
-      <div className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${getSpacingClass()}`}>
+      <div
+        className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${getSpacingClass()}`}
+      >
         <div>
-          <h1 className={`${getTextClass('2xl')} font-bold tracking-tight`}>Dashboard</h1>
-          <p className={`${getTextClass()} text-muted-foreground`}>Operational overview across modules</p>
+          <h1 className={`${getTextClass('2xl')} font-bold tracking-tight`}>
+            Dashboard
+          </h1>
+          <p className={`${getTextClass()} text-muted-foreground`}>
+            Operational overview across modules
+          </p>
         </div>
         <div className={`flex items-center ${getSpacingClass()}`}>
           <Select
@@ -276,7 +350,9 @@ const DashboardPage = () => {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Include all modules</SelectItem>
-              <SelectItem value="shipment-invoice">Shipment & Invoice</SelectItem>
+              <SelectItem value="shipment-invoice">
+                Shipment & Invoice
+              </SelectItem>
               <SelectItem value="items">Items</SelectItem>
               <SelectItem value="expenses">Expenses</SelectItem>
             </SelectContent>
@@ -372,30 +448,34 @@ const DashboardPage = () => {
                 <LayoutControls
                   onReset={() => {}}
                   onToggleDirection={() =>
-                    setLayoutDirection((prev) => (prev === 'horizontal' ? 'vertical' : 'horizontal'))
+                    setLayoutDirection(prev =>
+                      prev === 'horizontal' ? 'vertical' : 'horizontal'
+                    )
                   }
                   direction={layoutDirection}
                 />
-                <Select
-                  value={currency}
-                  onValueChange={setCurrency}
-                >
+                <Select value={currency} onValueChange={setCurrency}>
                   <SelectTrigger className="w-[120px]">
                     <SelectValue placeholder="Currency" />
                   </SelectTrigger>
                   <SelectContent>
-                    {['INR', 'USD', 'EUR', 'GBP'].map((c) => (
-                      <SelectItem
-                        key={c}
-                        value={c}
-                      >
+                    {['INR', 'USD', 'EUR', 'GBP'].map(c => (
+                      <SelectItem key={c} value={c}>
                         {c}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
                 <div className="flex rounded-md border">
-                  {(['weekly', 'monthly', '3-month', '6-month', 'yearly'] as const).map((tf) => (
+                  {(
+                    [
+                      'weekly',
+                      'monthly',
+                      '3-month',
+                      '6-month',
+                      'yearly',
+                    ] as const
+                  ).map(tf => (
                     <Button
                       key={tf}
                       variant={timeframe === tf ? 'default' : 'ghost'}
@@ -417,10 +497,7 @@ const DashboardPage = () => {
             </div>
           </CardHeader>
           <CardContent className="h-[360px]">
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-            >
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={chartData}>
                 <XAxis
                   dataKey="name"
@@ -434,25 +511,17 @@ const DashboardPage = () => {
                   fontSize={12}
                   tickLine={false}
                   axisLine={false}
-                  tickFormatter={(v) => `${v >= 100000 ? '₹' : ''}${v}`}
+                  tickFormatter={v => `${v >= 100000 ? '₹' : ''}${v}`}
                 />
                 <Tooltip />
                 <Legend />
-                <Bar
-                  dataKey="shipments"
-                  fill="#8884d8"
-                  name="# Shipments"
-                />
+                <Bar dataKey="shipments" fill="#8884d8" name="# Shipments" />
                 <Bar
                   dataKey="value"
                   fill="#82ca9d"
                   name={`Total Value (${currency})`}
                 />
-                <Bar
-                  dataKey="dutySavings"
-                  fill="#ffc658"
-                  name="Duty Savings"
-                />
+                <Bar dataKey="dutySavings" fill="#ffc658" name="Duty Savings" />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -465,10 +534,7 @@ const DashboardPage = () => {
               <CardTitle>Shipment Status</CardTitle>
             </CardHeader>
             <CardContent className="h-[160px]">
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-              >
+              <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={statusDistribution}
@@ -479,7 +545,15 @@ const DashboardPage = () => {
                     {statusDistribution.map((_, idx) => (
                       <Cell
                         key={idx}
-                        fill={['#8884d8', '#82ca9d', '#ffc658', '#FF8042', '#00C49F'][idx % 5]}
+                        fill={
+                          [
+                            '#8884d8',
+                            '#82ca9d',
+                            '#ffc658',
+                            '#FF8042',
+                            '#00C49F',
+                          ][idx % 5]
+                        }
                       />
                     ))}
                   </Pie>
@@ -494,15 +568,9 @@ const DashboardPage = () => {
               <CardTitle>Invoice Trend</CardTitle>
             </CardHeader>
             <CardContent className="h-[160px]">
-              <ResponsiveContainer
-                width="100%"
-                height="100%"
-              >
+              <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={invoiceTrend}>
-                  <XAxis
-                    dataKey="date"
-                    hide
-                  />
+                  <XAxis dataKey="date" hide />
                   <YAxis />
                   <Tooltip />
                   <Line
@@ -537,12 +605,22 @@ const DashboardPage = () => {
                 </TableHeader>
                 <TableBody>
                   {upcomingShipments.length > 0 ? (
-                    upcomingShipments.map((s) => (
+                    upcomingShipments.map(s => (
                       <TableRow key={s.id}>
-                        <TableCell className="font-medium">{s.invoiceNumber}</TableCell>
-                        <TableCell>{s.eta ? formatDateForDisplay(s.eta) : 'N/A'}</TableCell>
+                        <TableCell className="font-medium">
+                          {s.invoiceNumber}
+                        </TableCell>
                         <TableCell>
-                          <Badge variant={s.status === 'delivered' ? 'default' : 'secondary'}>{s.status}</Badge>
+                          {s.eta ? formatDateForDisplay(s.eta) : 'N/A'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant={
+                              s.status === 'delivered' ? 'default' : 'secondary'
+                            }
+                          >
+                            {s.status}
+                          </Badge>
                         </TableCell>
                       </TableRow>
                     ))
@@ -577,10 +655,14 @@ const DashboardPage = () => {
                 </TableHeader>
                 <TableBody>
                   {recentItems.length > 0 ? (
-                    recentItems.map((item) => (
+                    recentItems.map(item => (
                       <TableRow key={item.id}>
-                        <TableCell className="font-medium">{item.partNumber}</TableCell>
-                        <TableCell className="max-w-[200px] truncate">{item.itemDescription}</TableCell>
+                        <TableCell className="font-medium">
+                          {item.partNumber}
+                        </TableCell>
+                        <TableCell className="max-w-[200px] truncate">
+                          {item.itemDescription}
+                        </TableCell>
                       </TableRow>
                     ))
                   ) : (
@@ -609,9 +691,15 @@ const DashboardPage = () => {
           <CardContent>
             {expenseSummary ? (
               <div className="flex items-center gap-6">
-                <div className="text-2xl font-semibold">Total: ₹{expenseSummary.total.toLocaleString()}</div>
-                <Badge variant="secondary">Entries: {expenseSummary.count}</Badge>
-                <div className="text-muted-foreground text-sm">(Aggregated from latest shipments)</div>
+                <div className="text-2xl font-semibold">
+                  Total: ₹{expenseSummary.total.toLocaleString()}
+                </div>
+                <Badge variant="secondary">
+                  Entries: {expenseSummary.count}
+                </Badge>
+                <div className="text-muted-foreground text-sm">
+                  (Aggregated from latest shipments)
+                </div>
               </div>
             ) : (
               <div className="text-muted-foreground">No expenses found.</div>
@@ -620,7 +708,7 @@ const DashboardPage = () => {
         </Card>
       )}
     </div>
-  )
-}
+  );
+};
 
-export default DashboardPage
+export default DashboardPage;

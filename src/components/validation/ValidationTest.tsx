@@ -1,17 +1,31 @@
-import { Bug, CheckCircle, Database, FileText, Shield, XCircle, Zap } from 'lucide-react'
-import { toast } from 'sonner'
+import {
+  Bug,
+  CheckCircle,
+  Database,
+  FileText,
+  Shield,
+  XCircle,
+  Zap,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-import React, { useState } from 'react'
+import React, { useState } from 'react';
 
-import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Separator } from '@/components/ui/separator'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Separator } from '@/components/ui/separator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Textarea } from '@/components/ui/textarea';
 import {
   itemSchema,
   shipmentSchema,
@@ -20,7 +34,7 @@ import {
   useFileValidation,
   useValidation,
   validateUserInput,
-} from '@/lib/validation'
+} from '@/lib/validation';
 
 // Test data for CSV validation
 const sampleCsvData = [
@@ -48,105 +62,113 @@ const sampleCsvData = [
     unitPrice: -50, // Invalid: negative price
     hsnCode: '123', // Invalid: too short
   },
-]
+];
 
 export const ValidationTest = () => {
-  const [activeTab, setActiveTab] = useState('basic')
+  const [activeTab, setActiveTab] = useState('basic');
   const [testResults, setTestResults] = useState<{
-    [key: string]: { success: boolean; message: string; details?: unknown }
-  }>({})
+    [key: string]: { success: boolean; message: string; details?: unknown };
+  }>({});
 
   // ============================================================================
   // BASIC VALIDATION TESTS
   // ============================================================================
 
   const BasicValidationTests = () => {
-    const [testInput, setTestInput] = useState('')
+    const [testInput, setTestInput] = useState('');
     const [validationResult, setValidationResult] = useState<{
-      success: boolean
-      error?: string
-    } | null>(null)
+      success: boolean;
+      error?: string;
+    } | null>(null);
 
     const runBasicTests = () => {
-      const results: { [key: string]: { success: boolean; message: string; details?: unknown } } = {}
+      const results: {
+        [key: string]: { success: boolean; message: string; details?: unknown };
+      } = {};
 
       // Test 1: Valid email
       const emailResult = validateUserInput('test@example.com', {
         maxLength: 100,
         checkSqlInjection: true,
         checkXss: true,
-      })
+      });
       results.email = {
         success: emailResult.success,
         message: emailResult.success ? 'Valid email' : emailResult.error,
         details: emailResult,
-      }
+      };
 
       // Test 2: Invalid email
       const invalidEmailResult = validateUserInput('invalid-email', {
         maxLength: 100,
         checkSqlInjection: true,
         checkXss: true,
-      })
+      });
       results.invalidEmail = {
         success: invalidEmailResult.success,
-        message: invalidEmailResult.success ? 'Valid email' : invalidEmailResult.error,
+        message: invalidEmailResult.success
+          ? 'Valid email'
+          : invalidEmailResult.error,
         details: invalidEmailResult,
-      }
+      };
 
       // Test 3: SQL injection attempt
       const sqlInjectionResult = validateUserInput("'; DROP TABLE users; --", {
         maxLength: 100,
         checkSqlInjection: true,
         checkXss: true,
-      })
+      });
       results.sqlInjection = {
         success: sqlInjectionResult.success,
-        message: sqlInjectionResult.success ? 'Valid input' : sqlInjectionResult.error,
+        message: sqlInjectionResult.success
+          ? 'Valid input'
+          : sqlInjectionResult.error,
         details: sqlInjectionResult,
-      }
+      };
 
       // Test 4: XSS attempt
       const xssResult = validateUserInput('<script>alert("XSS")</script>', {
         maxLength: 100,
         checkSqlInjection: true,
         checkXss: true,
-      })
+      });
       results.xss = {
         success: xssResult.success,
         message: xssResult.success ? 'Valid input' : xssResult.error,
         details: xssResult,
-      }
+      };
 
       // Test 5: Long input
       const longInputResult = validateUserInput('a'.repeat(2000), {
         maxLength: 100,
         checkSqlInjection: true,
         checkXss: true,
-      })
+      });
       results.longInput = {
         success: longInputResult.success,
-        message: longInputResult.success ? 'Valid input' : longInputResult.error,
+        message: longInputResult.success
+          ? 'Valid input'
+          : longInputResult.error,
         details: longInputResult,
-      }
+      };
 
-      setTestResults(results)
-    }
+      setTestResults(results);
+    };
 
     const testCustomInput = () => {
       const result = validateUserInput(testInput, {
         maxLength: 100,
         checkSqlInjection: true,
         checkXss: true,
-      })
-      setValidationResult(result)
+      });
+      setValidationResult(result);
 
       if (result.success) {
-        toast.success('Input is valid!')
+        toast.success('Input is valid!');
       } else {
-        toast.error(result.error)
+        toast.error(result.error);
       }
-    }
+    };
 
     return (
       <div className="space-y-6">
@@ -157,13 +179,12 @@ export const ValidationTest = () => {
                 <Shield className="h-5 w-5" />
                 Basic Validation Tests
               </CardTitle>
-              <CardDescription>Test various validation scenarios</CardDescription>
+              <CardDescription>
+                Test various validation scenarios
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button
-                onClick={runBasicTests}
-                className="w-full"
-              >
+              <Button onClick={runBasicTests} className="w-full">
                 <Zap className="mr-2 h-4 w-4" />
                 Run Basic Tests
               </Button>
@@ -172,22 +193,22 @@ export const ValidationTest = () => {
                 <Label>Test Custom Input</Label>
                 <Input
                   value={testInput}
-                  onChange={(e) => setTestInput(e.target.value)}
+                  onChange={e => setTestInput(e.target.value)}
                   placeholder="Enter text to test validation..."
                 />
-                <Button
-                  onClick={testCustomInput}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={testCustomInput} variant="outline" size="sm">
                   Test Input
                 </Button>
               </div>
 
               {validationResult && (
-                <Alert variant={validationResult.success ? 'default' : 'destructive'}>
+                <Alert
+                  variant={validationResult.success ? 'default' : 'destructive'}
+                >
                   <AlertDescription>
-                    {validationResult.success ? 'Input is valid!' : validationResult.error}
+                    {validationResult.success
+                      ? 'Input is valid!'
+                      : validationResult.error}
                   </AlertDescription>
                 </Alert>
               )}
@@ -201,17 +222,16 @@ export const ValidationTest = () => {
             <CardContent>
               <div className="space-y-2">
                 {Object.entries(testResults).map(([test, result]) => (
-                  <div
-                    key={test}
-                    className="flex items-center gap-2"
-                  >
+                  <div key={test} className="flex items-center gap-2">
                     {result.success ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
+                      <CheckCircle className="text-success h-4 w-4" />
                     ) : (
-                      <XCircle className="h-4 w-4 text-red-500" />
+                      <XCircle className="text-destructive h-4 w-4" />
                     )}
                     <span className="text-sm font-medium">{test}:</span>
-                    <span className="text-muted-foreground text-sm">{result.message}</span>
+                    <span className="text-muted-foreground text-sm">
+                      {result.message}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -219,8 +239,8 @@ export const ValidationTest = () => {
           </Card>
         </div>
       </div>
-    )
-  }
+    );
+  };
 
   // ============================================================================
   // FORM VALIDATION TESTS
@@ -231,73 +251,69 @@ export const ValidationTest = () => {
       schema: supplierSchema,
       validateOnBlur: true,
       showToast: false,
-    })
+    });
 
     const shipmentValidation = useValidation({
       schema: shipmentSchema,
       validateOnBlur: true,
       showToast: false,
-    })
+    });
 
     const itemValidation = useValidation({
       schema: itemSchema,
       validateOnBlur: true,
       showToast: false,
-    })
+    });
 
     const handleSupplierSubmit = async () => {
-      const success = await supplierValidation.submit(async (data: Record<string, string>) => {
-        console.log('Supplier data:', data)
-        toast.success('Supplier validation successful!')
-      })
+      const success = await supplierValidation.submit(async data => {
+        console.log('Supplier data:', data);
+        toast.success('Supplier validation successful!');
+      });
 
       if (!success) {
-        toast.error('Supplier validation failed. Check the form for errors.')
+        toast.error('Supplier validation failed. Check the form for errors.');
       }
-    }
+    };
 
     const handleShipmentSubmit = async () => {
-      const success = await shipmentValidation.submit(async (data: Record<string, string>) => {
-        console.log('Shipment data:', data)
-        toast.success('Shipment validation successful!')
-      })
+      const success = await shipmentValidation.submit(async data => {
+        console.log('Shipment data:', data);
+        toast.success('Shipment validation successful!');
+      });
 
       if (!success) {
-        toast.error('Shipment validation failed. Check the form for errors.')
+        toast.error('Shipment validation failed. Check the form for errors.');
       }
-    }
+    };
 
     const handleItemSubmit = async () => {
-      const success = await itemValidation.submit(async (data: Record<string, string>) => {
-        console.log('Item data:', data)
-        toast.success('Item validation successful!')
-      })
+      const success = await itemValidation.submit(async data => {
+        console.log('Item data:', data);
+        toast.success('Item validation successful!');
+      });
 
       if (!success) {
-        toast.error('Item validation failed. Check the form for errors.')
+        toast.error('Item validation failed. Check the form for errors.');
       }
-    }
+    };
 
     return (
       <div className="space-y-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-        >
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="supplier">Supplier</TabsTrigger>
             <TabsTrigger value="shipment">Shipment</TabsTrigger>
             <TabsTrigger value="item">Item</TabsTrigger>
           </TabsList>
 
-          <TabsContent
-            value="supplier"
-            className="space-y-4"
-          >
+          <TabsContent value="supplier" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Supplier Validation Test</CardTitle>
-                <CardDescription>Test supplier form validation with real-time feedback</CardDescription>
+                <CardDescription>
+                  Test supplier form validation with real-time feedback
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -306,12 +322,25 @@ export const ValidationTest = () => {
                     <Input
                       id="supplierName"
                       value={supplierValidation.data.supplierName || ''}
-                      onChange={(e) => supplierValidation.setField('supplierName', e.target.value)}
-                      onBlur={() => supplierValidation.setTouched('supplierName', true)}
-                      className={supplierValidation.hasFieldError('supplierName') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        supplierValidation.setField(
+                          'supplierName',
+                          e.target.value
+                        )
+                      }
+                      onBlur={() =>
+                        supplierValidation.setTouched('supplierName', true)
+                      }
+                      className={
+                        supplierValidation.hasFieldError('supplierName')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {supplierValidation.hasFieldError('supplierName') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('supplierName')}</p>
+                      <p className="text-destructive text-sm">
+                        {supplierValidation.getFieldError('supplierName')}
+                      </p>
                     )}
                   </div>
 
@@ -320,13 +349,23 @@ export const ValidationTest = () => {
                     <Input
                       id="country"
                       value={supplierValidation.data.country || ''}
-                      onChange={(e) => supplierValidation.setField('country', e.target.value)}
-                      onBlur={() => supplierValidation.setTouched('country', true)}
+                      onChange={e =>
+                        supplierValidation.setField('country', e.target.value)
+                      }
+                      onBlur={() =>
+                        supplierValidation.setTouched('country', true)
+                      }
                       placeholder="e.g., US, IN, DE"
-                      className={supplierValidation.hasFieldError('country') ? 'border-red-500' : ''}
+                      className={
+                        supplierValidation.hasFieldError('country')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {supplierValidation.hasFieldError('country') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('country')}</p>
+                      <p className="text-destructive text-sm">
+                        {supplierValidation.getFieldError('country')}
+                      </p>
                     )}
                   </div>
 
@@ -336,12 +375,22 @@ export const ValidationTest = () => {
                       id="email"
                       type="email"
                       value={supplierValidation.data.email || ''}
-                      onChange={(e) => supplierValidation.setField('email', e.target.value)}
-                      onBlur={() => supplierValidation.setTouched('email', true)}
-                      className={supplierValidation.hasFieldError('email') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        supplierValidation.setField('email', e.target.value)
+                      }
+                      onBlur={() =>
+                        supplierValidation.setTouched('email', true)
+                      }
+                      className={
+                        supplierValidation.hasFieldError('email')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {supplierValidation.hasFieldError('email') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('email')}</p>
+                      <p className="text-destructive text-sm">
+                        {supplierValidation.getFieldError('email')}
+                      </p>
                     )}
                   </div>
 
@@ -350,13 +399,23 @@ export const ValidationTest = () => {
                     <Input
                       id="phone"
                       value={supplierValidation.data.phone || ''}
-                      onChange={(e) => supplierValidation.setField('phone', e.target.value)}
-                      onBlur={() => supplierValidation.setTouched('phone', true)}
+                      onChange={e =>
+                        supplierValidation.setField('phone', e.target.value)
+                      }
+                      onBlur={() =>
+                        supplierValidation.setTouched('phone', true)
+                      }
                       placeholder="+1234567890"
-                      className={supplierValidation.hasFieldError('phone') ? 'border-red-500' : ''}
+                      className={
+                        supplierValidation.hasFieldError('phone')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {supplierValidation.hasFieldError('phone') && (
-                      <p className="text-sm text-red-500">{supplierValidation.getFieldError('phone')}</p>
+                      <p className="text-destructive text-sm">
+                        {supplierValidation.getFieldError('phone')}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -366,11 +425,17 @@ export const ValidationTest = () => {
                   disabled={supplierValidation.isSubmitting}
                   className="w-full"
                 >
-                  {supplierValidation.isSubmitting ? 'Validating...' : 'Validate Supplier'}
+                  {supplierValidation.isSubmitting
+                    ? 'Validating...'
+                    : 'Validate Supplier'}
                 </Button>
 
                 <div className="flex items-center gap-2">
-                  <Badge variant={supplierValidation.isValid ? 'default' : 'secondary'}>
+                  <Badge
+                    variant={
+                      supplierValidation.isValid ? 'default' : 'secondary'
+                    }
+                  >
                     {supplierValidation.isValid ? 'Valid' : 'Invalid'}
                   </Badge>
                   <span className="text-muted-foreground text-sm">
@@ -381,10 +446,7 @@ export const ValidationTest = () => {
             </Card>
           </TabsContent>
 
-          <TabsContent
-            value="shipment"
-            className="space-y-4"
-          >
+          <TabsContent value="shipment" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Shipment Validation Test</CardTitle>
@@ -397,12 +459,25 @@ export const ValidationTest = () => {
                     <Input
                       id="invoiceNumber"
                       value={shipmentValidation.data.invoiceNumber || ''}
-                      onChange={(e) => shipmentValidation.setField('invoiceNumber', e.target.value)}
-                      onBlur={() => shipmentValidation.setTouched('invoiceNumber', true)}
-                      className={shipmentValidation.hasFieldError('invoiceNumber') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        shipmentValidation.setField(
+                          'invoiceNumber',
+                          e.target.value
+                        )
+                      }
+                      onBlur={() =>
+                        shipmentValidation.setTouched('invoiceNumber', true)
+                      }
+                      className={
+                        shipmentValidation.hasFieldError('invoiceNumber')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {shipmentValidation.hasFieldError('invoiceNumber') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceNumber')}</p>
+                      <p className="text-destructive text-sm">
+                        {shipmentValidation.getFieldError('invoiceNumber')}
+                      </p>
                     )}
                   </div>
 
@@ -412,12 +487,25 @@ export const ValidationTest = () => {
                       id="invoiceDate"
                       type="date"
                       value={shipmentValidation.data.invoiceDate || ''}
-                      onChange={(e) => shipmentValidation.setField('invoiceDate', e.target.value)}
-                      onBlur={() => shipmentValidation.setTouched('invoiceDate', true)}
-                      className={shipmentValidation.hasFieldError('invoiceDate') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        shipmentValidation.setField(
+                          'invoiceDate',
+                          e.target.value
+                        )
+                      }
+                      onBlur={() =>
+                        shipmentValidation.setTouched('invoiceDate', true)
+                      }
+                      className={
+                        shipmentValidation.hasFieldError('invoiceDate')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {shipmentValidation.hasFieldError('invoiceDate') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceDate')}</p>
+                      <p className="text-destructive text-sm">
+                        {shipmentValidation.getFieldError('invoiceDate')}
+                      </p>
                     )}
                   </div>
 
@@ -427,12 +515,25 @@ export const ValidationTest = () => {
                       id="invoiceValue"
                       type="number"
                       value={shipmentValidation.data.invoiceValue || ''}
-                      onChange={(e) => shipmentValidation.setField('invoiceValue', parseFloat(e.target.value) || 0)}
-                      onBlur={() => shipmentValidation.setTouched('invoiceValue', true)}
-                      className={shipmentValidation.hasFieldError('invoiceValue') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        shipmentValidation.setField(
+                          'invoiceValue',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      onBlur={() =>
+                        shipmentValidation.setTouched('invoiceValue', true)
+                      }
+                      className={
+                        shipmentValidation.hasFieldError('invoiceValue')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {shipmentValidation.hasFieldError('invoiceValue') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceValue')}</p>
+                      <p className="text-destructive text-sm">
+                        {shipmentValidation.getFieldError('invoiceValue')}
+                      </p>
                     )}
                   </div>
 
@@ -441,13 +542,26 @@ export const ValidationTest = () => {
                     <Input
                       id="invoiceCurrency"
                       value={shipmentValidation.data.invoiceCurrency || ''}
-                      onChange={(e) => shipmentValidation.setField('invoiceCurrency', e.target.value)}
-                      onBlur={() => shipmentValidation.setTouched('invoiceCurrency', true)}
+                      onChange={e =>
+                        shipmentValidation.setField(
+                          'invoiceCurrency',
+                          e.target.value
+                        )
+                      }
+                      onBlur={() =>
+                        shipmentValidation.setTouched('invoiceCurrency', true)
+                      }
                       placeholder="USD, EUR, INR"
-                      className={shipmentValidation.hasFieldError('invoiceCurrency') ? 'border-red-500' : ''}
+                      className={
+                        shipmentValidation.hasFieldError('invoiceCurrency')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {shipmentValidation.hasFieldError('invoiceCurrency') && (
-                      <p className="text-sm text-red-500">{shipmentValidation.getFieldError('invoiceCurrency')}</p>
+                      <p className="text-destructive text-sm">
+                        {shipmentValidation.getFieldError('invoiceCurrency')}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -457,16 +571,15 @@ export const ValidationTest = () => {
                   disabled={shipmentValidation.isSubmitting}
                   className="w-full"
                 >
-                  {shipmentValidation.isSubmitting ? 'Validating...' : 'Validate Shipment'}
+                  {shipmentValidation.isSubmitting
+                    ? 'Validating...'
+                    : 'Validate Shipment'}
                 </Button>
               </CardContent>
             </Card>
           </TabsContent>
 
-          <TabsContent
-            value="item"
-            className="space-y-4"
-          >
+          <TabsContent value="item" className="space-y-4">
             <Card>
               <CardHeader>
                 <CardTitle>Item Validation Test</CardTitle>
@@ -479,12 +592,22 @@ export const ValidationTest = () => {
                     <Input
                       id="partNumber"
                       value={itemValidation.data.partNumber || ''}
-                      onChange={(e) => itemValidation.setField('partNumber', e.target.value)}
-                      onBlur={() => itemValidation.setTouched('partNumber', true)}
-                      className={itemValidation.hasFieldError('partNumber') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        itemValidation.setField('partNumber', e.target.value)
+                      }
+                      onBlur={() =>
+                        itemValidation.setTouched('partNumber', true)
+                      }
+                      className={
+                        itemValidation.hasFieldError('partNumber')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {itemValidation.hasFieldError('partNumber') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('partNumber')}</p>
+                      <p className="text-destructive text-sm">
+                        {itemValidation.getFieldError('partNumber')}
+                      </p>
                     )}
                   </div>
 
@@ -493,13 +616,21 @@ export const ValidationTest = () => {
                     <Input
                       id="hsnCode"
                       value={itemValidation.data.hsnCode || ''}
-                      onChange={(e) => itemValidation.setField('hsnCode', e.target.value)}
+                      onChange={e =>
+                        itemValidation.setField('hsnCode', e.target.value)
+                      }
                       onBlur={() => itemValidation.setTouched('hsnCode', true)}
                       placeholder="12345678"
-                      className={itemValidation.hasFieldError('hsnCode') ? 'border-red-500' : ''}
+                      className={
+                        itemValidation.hasFieldError('hsnCode')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {itemValidation.hasFieldError('hsnCode') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('hsnCode')}</p>
+                      <p className="text-destructive text-sm">
+                        {itemValidation.getFieldError('hsnCode')}
+                      </p>
                     )}
                   </div>
 
@@ -508,12 +639,25 @@ export const ValidationTest = () => {
                     <Textarea
                       id="itemDescription"
                       value={itemValidation.data.itemDescription || ''}
-                      onChange={(e) => itemValidation.setField('itemDescription', e.target.value)}
-                      onBlur={() => itemValidation.setTouched('itemDescription', true)}
-                      className={itemValidation.hasFieldError('itemDescription') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        itemValidation.setField(
+                          'itemDescription',
+                          e.target.value
+                        )
+                      }
+                      onBlur={() =>
+                        itemValidation.setTouched('itemDescription', true)
+                      }
+                      className={
+                        itemValidation.hasFieldError('itemDescription')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {itemValidation.hasFieldError('itemDescription') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('itemDescription')}</p>
+                      <p className="text-destructive text-sm">
+                        {itemValidation.getFieldError('itemDescription')}
+                      </p>
                     )}
                   </div>
 
@@ -523,12 +667,25 @@ export const ValidationTest = () => {
                       id="unitPrice"
                       type="number"
                       value={itemValidation.data.unitPrice || ''}
-                      onChange={(e) => itemValidation.setField('unitPrice', parseFloat(e.target.value) || 0)}
-                      onBlur={() => itemValidation.setTouched('unitPrice', true)}
-                      className={itemValidation.hasFieldError('unitPrice') ? 'border-red-500' : ''}
+                      onChange={e =>
+                        itemValidation.setField(
+                          'unitPrice',
+                          parseFloat(e.target.value) || 0
+                        )
+                      }
+                      onBlur={() =>
+                        itemValidation.setTouched('unitPrice', true)
+                      }
+                      className={
+                        itemValidation.hasFieldError('unitPrice')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {itemValidation.hasFieldError('unitPrice') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('unitPrice')}</p>
+                      <p className="text-destructive text-sm">
+                        {itemValidation.getFieldError('unitPrice')}
+                      </p>
                     )}
                   </div>
 
@@ -537,13 +694,21 @@ export const ValidationTest = () => {
                     <Input
                       id="currency"
                       value={itemValidation.data.currency || ''}
-                      onChange={(e) => itemValidation.setField('currency', e.target.value)}
+                      onChange={e =>
+                        itemValidation.setField('currency', e.target.value)
+                      }
                       onBlur={() => itemValidation.setTouched('currency', true)}
                       placeholder="USD, EUR, INR"
-                      className={itemValidation.hasFieldError('currency') ? 'border-red-500' : ''}
+                      className={
+                        itemValidation.hasFieldError('currency')
+                          ? 'border-red-500'
+                          : ''
+                      }
                     />
                     {itemValidation.hasFieldError('currency') && (
-                      <p className="text-sm text-red-500">{itemValidation.getFieldError('currency')}</p>
+                      <p className="text-destructive text-sm">
+                        {itemValidation.getFieldError('currency')}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -553,15 +718,17 @@ export const ValidationTest = () => {
                   disabled={itemValidation.isSubmitting}
                   className="w-full"
                 >
-                  {itemValidation.isSubmitting ? 'Validating...' : 'Validate Item'}
+                  {itemValidation.isSubmitting
+                    ? 'Validating...'
+                    : 'Validate Item'}
                 </Button>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
       </div>
-    )
-  }
+    );
+  };
 
   // ============================================================================
   // FILE VALIDATION TESTS
@@ -573,28 +740,30 @@ export const ValidationTest = () => {
       allowedTypes: ['text/csv', 'application/vnd.ms-excel'],
       allowedExtensions: ['csv', 'xlsx'],
       showToast: true,
-    })
+    });
 
     const [fileValidationResult, setFileValidationResult] = useState<{
-      success: boolean
-      file?: File
-      error?: string
-    } | null>(null)
+      success: boolean;
+      file?: File;
+      error?: string;
+    } | null>(null);
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-      const file = event.target.files?.[0]
+      const file = event.target.files?.[0];
       if (file) {
-        const result = validateFile(file)
-        setFileValidationResult(result)
+        const result = validateFile(file);
+        setFileValidationResult(result);
       }
-    }
+    };
 
     const testFileValidation = () => {
       // Create a mock file for testing
-      const mockFile = new File(['test content'], 'test.csv', { type: 'text/csv' })
-      const result = validateFile(mockFile)
-      setFileValidationResult(result)
-    }
+      const mockFile = new File(['test content'], 'test.csv', {
+        type: 'text/csv',
+      });
+      const result = validateFile(mockFile);
+      setFileValidationResult(result);
+    };
 
     return (
       <div className="space-y-6">
@@ -604,11 +773,15 @@ export const ValidationTest = () => {
               <FileText className="h-5 w-5" />
               File Validation Tests
             </CardTitle>
-            <CardDescription>Test file upload validation and sanitization</CardDescription>
+            <CardDescription>
+              Test file upload validation and sanitization
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="file-upload">Upload File (CSV, XLSX, max 5MB)</Label>
+              <Label htmlFor="file-upload">
+                Upload File (CSV, XLSX, max 5MB)
+              </Label>
               <Input
                 id="file-upload"
                 type="file"
@@ -617,18 +790,19 @@ export const ValidationTest = () => {
               />
             </div>
 
-            <Button
-              onClick={testFileValidation}
-              variant="outline"
-            >
+            <Button onClick={testFileValidation} variant="outline">
               Test File Validation
             </Button>
 
             {fileValidationResult && (
-              <Alert variant={fileValidationResult.success ? 'default' : 'destructive'}>
+              <Alert
+                variant={
+                  fileValidationResult.success ? 'default' : 'destructive'
+                }
+              >
                 <AlertDescription>
                   {fileValidationResult.success
-                    ? `File "${fileValidationResult.file.name}" is valid!`
+                    ? `File "${fileValidationResult.file?.name ?? ''}" is valid!`
                     : fileValidationResult.error}
                 </AlertDescription>
               </Alert>
@@ -646,32 +820,37 @@ export const ValidationTest = () => {
           </CardContent>
         </Card>
       </div>
-    )
-  }
+    );
+  };
 
   // ============================================================================
   // CSV VALIDATION TESTS
   // ============================================================================
 
   const CsvValidationTests = () => {
-    const { validateCsv } = useCsvValidation(supplierSchema)
+    const { validateCsv } = useCsvValidation(supplierSchema);
     const [csvValidationResult, setCsvValidationResult] = useState<{
-      valid: Record<string, string>[]
-      invalid: { index: number; errors: string[] }[]
-    } | null>(null)
+      valid: Record<string, string>[];
+      invalid: { index: number; errors: string[] }[];
+    } | null>(null);
 
     const testCsvValidation = () => {
-      const result = validateCsv(sampleCsvData)
-      setCsvValidationResult(result)
+      const result = validateCsv(sampleCsvData);
+      setCsvValidationResult(
+        result as unknown as {
+          valid: Record<string, string>[];
+          invalid: { index: number; errors: string[] }[];
+        }
+      );
 
       if (result.valid.length > 0) {
-        toast.success(`${result.valid.length} valid records found`)
+        toast.success(`${result.valid.length} valid records found`);
       }
 
       if (result.invalid.length > 0) {
-        toast.error(`${result.invalid.length} invalid records found`)
+        toast.error(`${result.invalid.length} invalid records found`);
       }
-    }
+    };
 
     return (
       <div className="space-y-6">
@@ -681,13 +860,12 @@ export const ValidationTest = () => {
               <Database className="h-5 w-5" />
               CSV Validation Tests
             </CardTitle>
-            <CardDescription>Test CSV data validation with sample data</CardDescription>
+            <CardDescription>
+              Test CSV data validation with sample data
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button
-              onClick={testCsvValidation}
-              className="w-full"
-            >
+            <Button onClick={testCsvValidation} className="w-full">
               Test CSV Validation
             </Button>
 
@@ -696,43 +874,45 @@ export const ValidationTest = () => {
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-green-600">
+                      <CardTitle className="text-success">
                         Valid Records ({csvValidationResult.valid.length})
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
-                        {csvValidationResult.valid.map((record: Record<string, string>, index: number) => (
-                          <div
-                            key={index}
-                            className="text-sm"
-                          >
-                            <strong>{record.partNumber}</strong> - {record.itemDescription}
-                          </div>
-                        ))}
+                        {csvValidationResult.valid.map(
+                          (record: Record<string, string>, index: number) => (
+                            <div key={index} className="text-sm">
+                              <strong>{record.partNumber}</strong> -{' '}
+                              {record.itemDescription}
+                            </div>
+                          )
+                        )}
                       </div>
                     </CardContent>
                   </Card>
 
                   <Card>
                     <CardHeader>
-                      <CardTitle className="text-red-600">
+                      <CardTitle className="text-destructive">
                         Invalid Records ({csvValidationResult.invalid.length})
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-2">
                         {csvValidationResult.invalid.map(
-                          (record: { index: number; errors: string[] }, index: number) => (
-                            <div
-                              key={index}
-                              className="text-sm"
-                            >
+                          (
+                            record: { index: number; errors: string[] },
+                            index: number
+                          ) => (
+                            <div key={index} className="text-sm">
                               <strong>Row {record.index + 1}:</strong>
-                              <ul className="ml-4 text-red-500">
-                                {record.errors.map((error: string, errorIndex: number) => (
-                                  <li key={errorIndex}>{error}</li>
-                                ))}
+                              <ul className="text-destructive ml-4">
+                                {record.errors.map(
+                                  (error: string, errorIndex: number) => (
+                                    <li key={errorIndex}>{error}</li>
+                                  )
+                                )}
                               </ul>
                             </div>
                           )
@@ -746,13 +926,15 @@ export const ValidationTest = () => {
 
             <div className="space-y-2">
               <h4 className="font-semibold">Sample CSV Data:</h4>
-              <pre className="bg-muted overflow-auto rounded p-2 text-xs">{JSON.stringify(sampleCsvData, null, 2)}</pre>
+              <pre className="bg-muted overflow-auto rounded p-2 text-xs">
+                {JSON.stringify(sampleCsvData, null, 2)}
+              </pre>
             </div>
           </CardContent>
         </Card>
       </div>
-    )
-  }
+    );
+  };
 
   // ============================================================================
   // MAIN COMPONENT
@@ -761,16 +943,17 @@ export const ValidationTest = () => {
   return (
     <div className="container mx-auto space-y-8 py-8">
       <div className="text-center">
-        <h1 className="mb-2 text-3xl font-bold">Validation & Sanitization Test Suite</h1>
-        <p className="text-muted-foreground">Comprehensive testing of the data validation and sanitization system</p>
+        <h1 className="mb-2 text-3xl font-bold">
+          Validation & Sanitization Test Suite
+        </h1>
+        <p className="text-muted-foreground">
+          Comprehensive testing of the data validation and sanitization system
+        </p>
       </div>
 
       <Separator />
 
-      <Tabs
-        defaultValue="basic"
-        className="space-y-6"
-      >
+      <Tabs defaultValue="basic" className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="basic">Basic Tests</TabsTrigger>
           <TabsTrigger value="forms">Form Validation</TabsTrigger>
@@ -846,7 +1029,7 @@ export const ValidationTest = () => {
         </CardContent>
       </Card>
     </div>
-  )
-}
+  );
+};
 
-export default ValidationTest
+export default ValidationTest;

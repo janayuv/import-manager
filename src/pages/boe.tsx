@@ -1,17 +1,17 @@
 // src/pages/boe/index.tsx (MODIFIED)
-import { invoke } from '@tauri-apps/api/core'
-import { open, save } from '@tauri-apps/plugin-dialog'
-import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs'
-import { Download, Loader2, Plus, Upload } from 'lucide-react'
-import Papa from 'papaparse'
-import { toast } from 'sonner'
+import { invoke } from '@tauri-apps/api/core';
+import { open, save } from '@tauri-apps/plugin-dialog';
+import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
+import { Download, Loader2, Plus, Upload } from 'lucide-react';
+import Papa from 'papaparse';
+import { toast } from 'sonner';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { getBoeColumns } from '@/components/boe/columns'
-import { DataTable } from '@/components/boe/data-table'
-import { BoeForm } from '@/components/boe/form'
-import { BoeViewDialog } from '@/components/boe/view'
+import { getBoeColumns } from '@/components/boe/columns';
+import { ResponsiveDataTable } from '@/components/ui/responsive-table';
+import { BoeForm } from '@/components/boe/form';
+import { BoeViewDialog } from '@/components/boe/view';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -21,201 +21,233 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from '@/components/ui/alert-dialog'
-import { Button } from '@/components/ui/button'
-import { useSettings } from '@/lib/use-settings'
-import type { BoeDetails } from '@/types/boe'
+} from '@/components/ui/alert-dialog';
+import { Button } from '@/components/ui/button';
+import { useSettings } from '@/lib/use-settings';
+import type { BoeDetails } from '@/types/boe';
 
 const BoePage = () => {
-  const { settings } = useSettings()
-  const [boes, setBoes] = React.useState<BoeDetails[]>([])
-  const [loading, setLoading] = React.useState(true)
-  const [isFormOpen, setFormOpen] = React.useState(false)
-  const [isViewOpen, setViewOpen] = React.useState(false)
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false)
-  const [boeToEdit, setBoeToEdit] = React.useState<BoeDetails | null>(null)
-  const [boeToView, setBoeToView] = React.useState<BoeDetails | null>(null)
-  const [boeToDelete, setBoeToDelete] = React.useState<{ id: string; number: string } | null>(null)
-  const [globalFilter, setGlobalFilter] = React.useState('')
+  const { settings } = useSettings();
+  const [boes, setBoes] = React.useState<BoeDetails[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [isFormOpen, setFormOpen] = React.useState(false);
+  const [isViewOpen, setViewOpen] = React.useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
+  const [boeToEdit, setBoeToEdit] = React.useState<BoeDetails | null>(null);
+  const [boeToView, setBoeToView] = React.useState<BoeDetails | null>(null);
+  const [boeToDelete, setBoeToDelete] = React.useState<{
+    id: string;
+    number: string;
+  } | null>(null);
 
   const fetchData = async () => {
-    setLoading(true)
+    setLoading(true);
     try {
-      const fetchedBoes = await invoke<BoeDetails[]>('get_boes')
-      setBoes(fetchedBoes)
+      const fetchedBoes = await invoke<BoeDetails[]>('get_boes');
+      setBoes(fetchedBoes);
     } catch (error) {
-      console.error('Failed to fetch BOE data:', error)
-      toast.error('Failed to load BOE data.')
+      console.error('Failed to fetch BOE data:', error);
+      toast.error('Failed to load BOE data.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   React.useEffect(() => {
-    fetchData()
-  }, [])
+    fetchData();
+  }, []);
 
   const handleOpenFormForAdd = () => {
-    setBoeToEdit(null)
-    setFormOpen(true)
-  }
+    setBoeToEdit(null);
+    setFormOpen(true);
+  };
 
   const handleOpenFormForEdit = React.useCallback((boe: BoeDetails) => {
-    setBoeToEdit(boe)
-    setFormOpen(true)
-  }, [])
+    setBoeToEdit(boe);
+    setFormOpen(true);
+  }, []);
 
   const handleView = React.useCallback((boe: BoeDetails) => {
-    setBoeToView(boe)
-    setViewOpen(true)
-  }, [])
+    setBoeToView(boe);
+    setViewOpen(true);
+  }, []);
 
   const handleDeleteRequest = React.useCallback((boe: BoeDetails) => {
-    setBoeToDelete({ id: boe.id, number: boe.beNumber })
-    setIsDeleteDialogOpen(true)
-  }, [])
+    setBoeToDelete({ id: boe.id, number: boe.beNumber });
+    setIsDeleteDialogOpen(true);
+  }, []);
 
   const handleDeleteConfirm = async () => {
     if (boeToDelete) {
       try {
-        await invoke('delete_boe', { id: boeToDelete.id })
-        toast.success(`BOE ${boeToDelete.number} deleted successfully.`)
-        fetchData()
+        await invoke('delete_boe', { id: boeToDelete.id });
+        toast.success(`BOE ${boeToDelete.number} deleted successfully.`);
+        fetchData();
       } catch (error) {
-        console.error('Failed to delete BOE:', error)
-        toast.error('Failed to delete BOE.')
+        console.error('Failed to delete BOE:', error);
+        toast.error('Failed to delete BOE.');
       }
     }
-    setIsDeleteDialogOpen(false)
-    setBoeToDelete(null)
-  }
+    setIsDeleteDialogOpen(false);
+    setBoeToDelete(null);
+  };
 
   const handleSubmit = async (data: Omit<BoeDetails, 'id'>, id?: string) => {
     try {
       if (id) {
-        await invoke('update_boe', { boe: { id, ...data } })
-        toast.success(`BOE ${data.beNumber} has been updated.`)
+        await invoke('update_boe', { boe: { id, ...data } });
+        toast.success(`BOE ${data.beNumber} has been updated.`);
       } else {
         // The backend command now expects the payload directly
-        await invoke('add_boe', { payload: data })
-        toast.success(`BOE ${data.beNumber} has been created.`)
+        await invoke('add_boe', { payload: data });
+        toast.success(`BOE ${data.beNumber} has been created.`);
       }
-      setFormOpen(false)
-      fetchData()
+      fetchData();
+      setFormOpen(false);
     } catch (error) {
-      console.error('Failed to save BOE:', error)
-      toast.error(`Failed to save BOE: ${error}`)
+      console.error('Failed to save BOE:', error);
+      toast.error('Failed to save BOE.');
     }
-  }
+  };
+
+  type BoeCsvRow = { [key: string]: string };
+
+  const handleImport = async () => {
+    try {
+      const selected = await open({
+        multiple: false,
+        filters: [
+          {
+            name: 'CSV Files',
+            extensions: ['csv'],
+          },
+        ],
+      });
+
+      if (selected) {
+        const csvText = await readTextFile(selected as string);
+
+        // Use PapaParse with proper error handling
+        let csvRows: BoeCsvRow[] = [];
+        let hasErrors = false;
+
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: results => {
+            if (results.errors.length > 0) {
+              hasErrors = true;
+              console.error('CSV parsing errors:', results.errors);
+            } else {
+              csvRows = results.data as BoeCsvRow[];
+            }
+          },
+          error: (err: Error) => {
+            hasErrors = true;
+            console.error('CSV parsing error:', err);
+          },
+        });
+
+        if (hasErrors) {
+          toast.error('CSV parsing errors occurred.');
+          return;
+        }
+        let successCount = 0;
+        let errorCount = 0;
+
+        for (const row of csvRows) {
+          try {
+            const boeData = {
+              beNumber: row.beNumber || '',
+              beDate: row.beDate || '',
+              location: row.location || '',
+              totalAssessmentValue: parseFloat(row.totalAssessmentValue || '0'),
+              dutyAmount: parseFloat(row.dutyAmount || '0'),
+              paymentDate: row.paymentDate || '',
+              dutyPaid: parseFloat(row.dutyPaid || '0'),
+            };
+
+            await invoke('add_boe', { payload: boeData });
+            successCount++;
+          } catch (error) {
+            console.error('Failed to import BOE row:', row, error);
+            errorCount++;
+          }
+        }
+
+        if (successCount > 0) {
+          toast.success(`${successCount} BOEs imported successfully.`);
+          if (errorCount > 0) {
+            toast.error(`${errorCount} BOEs failed to import.`);
+          }
+          fetchData();
+        } else {
+          toast.error('No BOEs were imported.');
+        }
+      }
+    } catch (error) {
+      console.error('Failed to import BOEs:', error);
+      toast.error('Failed to import BOEs.');
+    }
+  };
 
   const handleExport = async () => {
-    if (boes.length === 0) {
-      toast.warning('No data to export.')
-      return
-    }
-    const csv = Papa.unparse(boes)
     try {
+      const csv = Papa.unparse(
+        boes.map(boe => ({
+          beNumber: boe.beNumber,
+          beDate: boe.beDate,
+          location: boe.location,
+          totalAssessmentValue: boe.totalAssessmentValue,
+          dutyAmount: boe.dutyAmount,
+          paymentDate: boe.paymentDate,
+          dutyPaid: boe.dutyPaid,
+        }))
+      );
+
       const filePath = await save({
-        defaultPath: 'boe_details.csv',
-        filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
+        filters: [
+          {
+            name: 'CSV Files',
+            extensions: ['csv'],
+          },
+        ],
+      });
+
       if (filePath) {
-        await writeTextFile(filePath, csv)
-        toast.success('BOE data exported successfully!')
+        await writeTextFile(filePath, csv);
+        toast.success('BOEs exported successfully!');
       }
     } catch (error) {
-      console.error('Failed to export BOEs:', error)
-      toast.error('Failed to export BOEs.')
+      console.error('Failed to export BOEs:', error);
+      toast.error('Failed to export BOEs.');
     }
-  }
+  };
 
   const handleDownloadTemplate = async () => {
     const templateData = [
       {
-        beNumber: '1234567',
-        beDate: '2024-12-31',
-        location: 'INMAA1',
-        totalAssessmentValue: '10000.50',
-        dutyAmount: '2500.75',
-        paymentDate: '2025-01-15',
-        dutyPaid: '2500.75',
-        challanNumber: 'CH123',
-        refId: 'REF456',
-        transactionId: 'TRN789',
+        beNumber: 'BE123456789',
+        beDate: '01-01-2024',
+        location: 'Mumbai',
+        totalAssessmentValue: '100000',
+        dutyAmount: '15000',
+        paymentDate: '02-01-2024',
+        dutyPaid: '15000',
       },
-    ]
-    const csv = Papa.unparse(templateData)
-    try {
-      const filePath = await save({
-        defaultPath: 'boe_template.csv',
-        filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
-      if (filePath) {
-        await writeTextFile(filePath, csv)
-        toast.success('Template downloaded successfully!')
-      }
-    } catch (error) {
-      console.error('Failed to download template:', error)
-      toast.error('Failed to download template.')
-    }
-  }
+    ];
 
-  type BoeCsvRow = { [key: string]: string }
-
-  const handleImport = async () => {
-    try {
-      const selectedPath = await open({
-        multiple: false,
-        filters: [{ name: 'CSV', extensions: ['csv'] }],
-      })
-      if (typeof selectedPath === 'string') {
-        const content = await readTextFile(selectedPath)
-        Papa.parse<BoeCsvRow>(content, {
-          header: true,
-          skipEmptyLines: true,
-          complete: async (results) => {
-            let addedCount = 0
-            let skippedCount = 0
-            for (const row of results.data) {
-              const isDuplicate = boes.some((boe) => boe.beNumber === row.beNumber && boe.beDate === row.beDate)
-              if (isDuplicate) {
-                skippedCount++
-                continue
-              }
-              const newBoe: Omit<BoeDetails, 'id'> = {
-                beNumber: row.beNumber || '',
-                beDate: row.beDate || '',
-                location: row.location || '',
-                totalAssessmentValue: parseFloat(row.totalAssessmentValue) || 0,
-                dutyAmount: parseFloat(row.dutyAmount) || 0,
-                paymentDate: row.paymentDate || undefined,
-                dutyPaid: parseFloat(row.dutyPaid) || undefined,
-                challanNumber: row.challanNumber || undefined,
-                refId: row.refId || undefined,
-                transactionId: row.transactionId || undefined,
-              }
-              try {
-                await invoke('add_boe', { payload: newBoe })
-                addedCount++
-              } catch (e) {
-                console.error('Failed to import row:', row, e)
-                skippedCount++
-              }
-            }
-            toast.success(`${addedCount} new BOEs imported. ${skippedCount} duplicates skipped.`)
-            fetchData()
-          },
-          error: (err: Error) => {
-            toast.error('Failed to parse CSV file.')
-            console.error('CSV parsing error:', err)
-          },
-        })
-      }
-    } catch (error) {
-      console.error('Failed to import BOEs:', error)
-      toast.error('Failed to import BOEs.')
-    }
-  }
+    const csv = Papa.unparse(templateData);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'boe-import-template.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   const columns = React.useMemo(
     () =>
@@ -226,14 +258,14 @@ const BoePage = () => {
         settings,
       }),
     [handleView, handleOpenFormForEdit, handleDeleteRequest, settings]
-  )
+  );
 
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
       </div>
-    )
+    );
   }
 
   return (
@@ -241,41 +273,41 @@ const BoePage = () => {
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-3xl font-bold">Bill of Entry Details</h1>
         <div className="flex items-center gap-2">
-          <Button
-            onClick={handleDownloadTemplate}
-            variant="outline"
-            style={{ backgroundColor: '#a855f7', color: 'white' }}
-          >
+          <Button onClick={handleDownloadTemplate} variant="secondary">
             <Download className="mr-2 h-4 w-4" /> Template
           </Button>
-          <Button
-            onClick={handleImport}
-            variant="outline"
-            style={{ backgroundColor: '#22c55e', color: 'white' }}
-          >
+          <Button onClick={handleImport} variant="success">
             <Upload className="mr-2 h-4 w-4" /> Import
           </Button>
-          <Button
-            onClick={handleExport}
-            variant="outline"
-            style={{ backgroundColor: '#3b82f6', color: 'white' }}
-          >
+          <Button onClick={handleExport} variant="info">
             <Download className="mr-2 h-4 w-4" /> Export
           </Button>
-          <Button
-            onClick={handleOpenFormForAdd}
-            style={{ backgroundColor: '#e7739e', color: 'white' }}
-          >
+          <Button onClick={handleOpenFormForAdd} variant="default">
             <Plus className="mr-2 h-4 w-4" /> Add New BOE
           </Button>
         </div>
       </div>
-      <DataTable
+
+      <ResponsiveDataTable
         columns={columns}
         data={boes}
-        globalFilter={globalFilter}
-        setGlobalFilter={setGlobalFilter}
-        storageKey="boe-table-page-size"
+        searchPlaceholder="Search all BOEs..."
+        showSearch={true}
+        showPagination={true}
+        pageSize={settings.modules?.boe?.itemsPerPage || 10}
+        className=""
+        hideColumnsOnSmall={['paymentDate', 'dutyPaid']}
+        columnWidths={{
+          beNumber: { minWidth: '120px', maxWidth: '150px' },
+          beDate: { minWidth: '100px', maxWidth: '120px' },
+          location: { minWidth: '120px', maxWidth: '180px' },
+          totalAssessmentValue: { minWidth: '140px', maxWidth: '160px' },
+          dutyAmount: { minWidth: '120px', maxWidth: '140px' },
+          paymentDate: { minWidth: '100px', maxWidth: '120px' },
+          dutyPaid: { minWidth: '100px', maxWidth: '120px' },
+          actions: { minWidth: '120px', maxWidth: '150px' },
+        }}
+        moduleName="boe"
       />
 
       <BoeForm
@@ -298,7 +330,8 @@ const BoePage = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
             <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete BOE <strong>{boeToDelete?.number}</strong>.
+              This action cannot be undone. This will permanently delete BOE{' '}
+              <strong>{boeToDelete?.number}</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -318,7 +351,7 @@ const BoePage = () => {
         </AlertDialogContent>
       </AlertDialog>
     </div>
-  )
-}
+  );
+};
 
-export default BoePage
+export default BoePage;

@@ -1,65 +1,82 @@
-import { AlertTriangle, ArrowLeft, Bug, Copy, RefreshCw, X } from 'lucide-react'
-import { toast } from 'sonner'
+import {
+  AlertTriangle,
+  ArrowLeft,
+  Bug,
+  Copy,
+  RefreshCw,
+  X,
+} from 'lucide-react';
+import { toast } from 'sonner';
 
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, type ErrorInfo, type ReactNode } from 'react';
 
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import { Separator } from '@/components/ui/separator';
 
 interface Props {
-  children: ReactNode
-  moduleName: string
-  fallback?: ReactNode
-  onError?: (error: Error, errorInfo: ErrorInfo) => void
-  resetKey?: string | number
-  showDetails?: boolean
-  allowRetry?: boolean
-  allowNavigation?: boolean
+  children: ReactNode;
+  moduleName: string;
+  fallback?: ReactNode;
+  onError?: (error: Error, errorInfo: ErrorInfo) => void;
+  resetKey?: string | number;
+  showDetails?: boolean;
+  allowRetry?: boolean;
+  allowNavigation?: boolean;
 }
 
 interface State {
-  hasError: boolean
-  error: Error | null
-  errorInfo: ErrorInfo | null
-  showDetails: boolean
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: ErrorInfo | null;
+  showDetails: boolean;
 }
 
 export class ModuleErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
-    super(props)
+    super(props);
     this.state = {
       hasError: false,
       error: null,
       errorInfo: null,
       showDetails: false,
-    }
+    };
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> {
     return {
       hasError: true,
       error,
-    }
+    };
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(`ModuleErrorBoundary caught an error in ${this.props.moduleName}:`, error, errorInfo)
+    console.error(
+      `ModuleErrorBoundary caught an error in ${this.props.moduleName}:`,
+      error,
+      errorInfo
+    );
 
     this.setState({
       error,
       errorInfo,
-    })
+    });
 
     // Call custom error handler if provided
     if (this.props.onError) {
-      this.props.onError(error, errorInfo)
+      this.props.onError(error, errorInfo);
     }
 
     // Log error for debugging
-    this.logError(error, errorInfo)
+    this.logError(error, errorInfo);
   }
 
   private logError = (error: Error, errorInfo: ErrorInfo) => {
@@ -71,10 +88,10 @@ export class ModuleErrorBoundary extends Component<Props, State> {
       timestamp: new Date().toISOString(),
       url: window.location.href,
       userAgent: navigator.userAgent,
-    }
+    };
 
-    console.error('Module Error Details:', errorData)
-  }
+    console.error('Module Error Details:', errorData);
+  };
 
   private handleReset = () => {
     this.setState({
@@ -82,41 +99,41 @@ export class ModuleErrorBoundary extends Component<Props, State> {
       error: null,
       errorInfo: null,
       showDetails: false,
-    })
+    });
 
-    toast.success(`${this.props.moduleName} module reset successfully`)
-  }
+    toast.success(`${this.props.moduleName} module reset successfully`);
+  };
 
   private handleReload = () => {
-    window.location.reload()
-  }
+    window.location.reload();
+  };
 
   private handleGoBack = () => {
-    window.history.back()
-  }
+    window.history.back();
+  };
 
   private handleCopyError = () => {
-    const errorText = `${this.props.moduleName} Module Error: ${this.state.error?.message}\n\nStack Trace:\n${this.state.error?.stack}\n\nComponent Stack:\n${this.state.errorInfo?.componentStack}`
+    const errorText = `${this.props.moduleName} Module Error: ${this.state.error?.message}\n\nStack Trace:\n${this.state.error?.stack}\n\nComponent Stack:\n${this.state.errorInfo?.componentStack}`;
 
     navigator.clipboard
       .writeText(errorText)
       .then(() => {
-        toast.success('Error details copied to clipboard')
+        toast.success('Error details copied to clipboard');
       })
       .catch(() => {
-        toast.error('Failed to copy error details')
-      })
-  }
+        toast.error('Failed to copy error details');
+      });
+  };
 
   private toggleDetails = () => {
-    this.setState((prev) => ({ showDetails: !prev.showDetails }))
-  }
+    this.setState(prev => ({ showDetails: !prev.showDetails }));
+  };
 
   render() {
     if (this.state.hasError) {
       // Use custom fallback if provided
       if (this.props.fallback) {
-        return this.props.fallback
+        return this.props.fallback;
       }
 
       return (
@@ -128,8 +145,13 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                   <AlertTriangle className="text-destructive h-5 w-5" />
                 </div>
                 <div>
-                  <CardTitle className="text-destructive">{this.props.moduleName} Module Error</CardTitle>
-                  <CardDescription>An error occurred while loading the {this.props.moduleName} module</CardDescription>
+                  <CardTitle className="text-destructive">
+                    {this.props.moduleName} Module Error
+                  </CardTitle>
+                  <CardDescription>
+                    An error occurred while loading the {this.props.moduleName}{' '}
+                    module
+                  </CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -138,7 +160,9 @@ export class ModuleErrorBoundary extends Component<Props, State> {
               <Alert>
                 <AlertTriangle className="h-4 w-4" />
                 <AlertTitle>Error Details</AlertTitle>
-                <AlertDescription>{this.state.error?.message || 'Unknown error occurred'}</AlertDescription>
+                <AlertDescription>
+                  {this.state.error?.message || 'Unknown error occurred'}
+                </AlertDescription>
               </Alert>
 
               <div className="flex flex-wrap gap-2">
@@ -152,11 +176,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                     Retry Module
                   </Button>
                 )}
-                <Button
-                  onClick={this.handleReload}
-                  variant="outline"
-                  size="sm"
-                >
+                <Button onClick={this.handleReload} variant="outline" size="sm">
                   <RefreshCw className="mr-2 h-4 w-4" />
                   Reload Page
                 </Button>
@@ -190,42 +210,40 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                   >
                     <span className="flex items-center gap-2">
                       <Bug className="h-4 w-4" />
-                      {this.state.showDetails ? 'Hide' : 'Show'} Technical Details
+                      {this.state.showDetails ? 'Hide' : 'Show'} Technical
+                      Details
                     </span>
-                    <X className={`h-4 w-4 transition-transform ${this.state.showDetails ? 'rotate-45' : ''}`} />
+                    <X
+                      className={`h-4 w-4 transition-transform ${this.state.showDetails ? 'rotate-45' : ''}`}
+                    />
                   </Button>
 
                   {this.state.showDetails && (
                     <div className="bg-muted/50 space-y-3 rounded-md border p-3">
                       <div>
-                        <Badge
-                          variant="secondary"
-                          className="mb-2"
-                        >
+                        <Badge variant="secondary" className="mb-2">
                           Module
                         </Badge>
-                        <pre className="text-muted-foreground text-sm">{this.props.moduleName}</pre>
+                        <pre className="text-muted-foreground text-sm">
+                          {this.props.moduleName}
+                        </pre>
                       </div>
 
                       <Separator />
 
                       <div>
-                        <Badge
-                          variant="secondary"
-                          className="mb-2"
-                        >
+                        <Badge variant="secondary" className="mb-2">
                           Error Message
                         </Badge>
-                        <pre className="text-muted-foreground text-sm">{this.state.error?.message}</pre>
+                        <pre className="text-muted-foreground text-sm">
+                          {this.state.error?.message}
+                        </pre>
                       </div>
 
                       <Separator />
 
                       <div>
-                        <Badge
-                          variant="secondary"
-                          className="mb-2"
-                        >
+                        <Badge variant="secondary" className="mb-2">
                           Stack Trace
                         </Badge>
                         <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">
@@ -236,10 +254,7 @@ export class ModuleErrorBoundary extends Component<Props, State> {
                       <Separator />
 
                       <div>
-                        <Badge
-                          variant="secondary"
-                          className="mb-2"
-                        >
+                        <Badge variant="secondary" className="mb-2">
                           Component Stack
                         </Badge>
                         <pre className="text-muted-foreground max-h-32 overflow-auto text-xs">
@@ -253,9 +268,9 @@ export class ModuleErrorBoundary extends Component<Props, State> {
             </CardContent>
           </Card>
         </div>
-      )
+      );
     }
 
-    return this.props.children
+    return this.props.children;
   }
 }

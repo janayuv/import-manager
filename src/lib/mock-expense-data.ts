@@ -1,4 +1,4 @@
-import type { ExpenseType, ServiceProvider } from '@/types/expense'
+import type { ExpenseType, ServiceProvider } from '@/types/expense';
 
 // Mock Expense Types
 export const mockExpenseTypes: ExpenseType[] = [
@@ -66,7 +66,7 @@ export const mockExpenseTypes: ExpenseType[] = [
     defaultIgstRate: 18,
     isActive: true,
   },
-]
+];
 
 // Mock Service Providers
 export const mockServiceProviders: ServiceProvider[] = [
@@ -142,7 +142,7 @@ export const mockServiceProviders: ServiceProvider[] = [
     contactEmail: 'jennifer@portterminal.com',
     contactPhone: '+91-9876543217',
   },
-]
+];
 
 // Mock Shipments for testing
 export const mockShipments = [
@@ -207,19 +207,19 @@ export const mockShipments = [
     status: 'In Transit',
     isFrozen: false,
   },
-]
+];
 
 // Function to get expense types
 export const getExpenseTypes = (): Promise<ExpenseType[]> => {
-  return Promise.resolve(mockExpenseTypes)
-}
+  return Promise.resolve(mockExpenseTypes);
+};
 
 // Function to get service providers
 export const getServiceProviders = (): Promise<ServiceProvider[]> => {
-  return Promise.resolve(mockServiceProviders)
-}
+  return Promise.resolve(mockServiceProviders);
+};
 
 // Function to get shipments
 export const getShipments = () => {
-  return Promise.resolve(mockShipments)
-}
+  return Promise.resolve(mockShipments);
+};

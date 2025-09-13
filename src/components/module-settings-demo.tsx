@@ -1,12 +1,18 @@
-'use client'
+'use client';
 
-import * as React from 'react'
+import * as React from 'react';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { type AppSettings, getFieldConfig, getModuleSettings, getVisibleFields } from '@/lib/settings'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  type AppSettings,
+  getFieldConfig,
+  getModuleSettings,
+  getVisibleFields,
+} from '@/lib/settings';
 
 export function ModuleSettingsDemo() {
-  const [selectedModule, setSelectedModule] = React.useState<keyof AppSettings['modules']>('boeSummary')
+  const [selectedModule, setSelectedModule] =
+    React.useState<keyof AppSettings['modules']>('boeSummary');
 
   const modules: Array<{ key: keyof AppSettings['modules']; title: string }> = [
     { key: 'shipment', title: 'Shipment' },
@@ -16,23 +22,23 @@ export function ModuleSettingsDemo() {
     { key: 'supplier', title: 'Supplier' },
     { key: 'itemMaster', title: 'Item Master' },
     { key: 'expenses', title: 'Expenses' },
-  ]
+  ];
 
   // Safety check - try to get settings, but handle errors gracefully
-  let visibleFields: string[] = []
+  let visibleFields: string[] = [];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let moduleSettings: any = {
     fields: {},
     itemsPerPage: 10,
     showTotals: false,
     showActions: true,
-  }
+  };
 
   try {
-    visibleFields = getVisibleFields(selectedModule)
-    moduleSettings = getModuleSettings(selectedModule)
+    visibleFields = getVisibleFields(selectedModule);
+    moduleSettings = getModuleSettings(selectedModule);
   } catch (error) {
-    console.warn('ModuleSettingsDemo: Error loading settings:', error)
+    console.warn('ModuleSettingsDemo: Error loading settings:', error);
     // Use default values if settings are not available
   }
 
@@ -44,12 +50,14 @@ export function ModuleSettingsDemo() {
         </CardHeader>
         <CardContent>
           <div className="mb-6 grid grid-cols-2 gap-4 md:grid-cols-4">
-            {modules.map((module) => (
+            {modules.map(module => (
               <button
                 key={module.key}
                 onClick={() => setSelectedModule(module.key)}
                 className={`rounded-lg border p-4 text-left transition-colors ${
-                  selectedModule === module.key ? 'bg-primary text-primary-foreground' : 'bg-background hover:bg-muted'
+                  selectedModule === module.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-background hover:bg-muted'
                 }`}
               >
                 <div className="font-medium">{module.title}</div>
@@ -66,18 +74,21 @@ export function ModuleSettingsDemo() {
               <CardContent>
                 <div className="space-y-2">
                   {visibleFields.map((fieldName, index) => {
-                    const config = getFieldConfig(selectedModule, fieldName)
+                    const config = getFieldConfig(selectedModule, fieldName);
                     return (
                       <div
                         key={fieldName}
                         className="flex items-center justify-between rounded border p-2"
                       >
                         <span className="font-medium">
-                          {index + 1}. {fieldName.replace(/([A-Z])/g, ' $1').trim()}
+                          {index + 1}.{' '}
+                          {fieldName.replace(/([A-Z])/g, ' $1').trim()}
                         </span>
-                        <span className="text-muted-foreground text-sm">{config?.width || 'auto'}</span>
+                        <span className="text-muted-foreground text-sm">
+                          {config?.width || 'auto'}
+                        </span>
                       </div>
-                    )
+                    );
                   })}
                 </div>
               </CardContent>
@@ -91,19 +102,27 @@ export function ModuleSettingsDemo() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Items per Page:</span>
-                    <span className="font-medium">{moduleSettings.itemsPerPage}</span>
+                    <span className="font-medium">
+                      {moduleSettings.itemsPerPage}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Show Totals:</span>
-                    <span className="font-medium">{moduleSettings.showTotals ? 'Yes' : 'No'}</span>
+                    <span className="font-medium">
+                      {moduleSettings.showTotals ? 'Yes' : 'No'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Show Actions:</span>
-                    <span className="font-medium">{moduleSettings.showActions ? 'Yes' : 'No'}</span>
+                    <span className="font-medium">
+                      {moduleSettings.showActions ? 'Yes' : 'No'}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total Fields:</span>
-                    <span className="font-medium">{Object.keys(moduleSettings.fields).length}</span>
+                    <span className="font-medium">
+                      {Object.keys(moduleSettings.fields).length}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -133,5 +152,5 @@ const moduleSettings = getModuleSettings('boeSummary')
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

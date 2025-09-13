@@ -1,14 +1,14 @@
 // src/components/item/columns.tsx (MODIFIED - Added module-specific settings)
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef } from '@tanstack/react-table';
 
-import { Badge } from '@/components/ui/badge'
-import { Checkbox } from '@/components/ui/checkbox'
-import { formatNumber, formatText, getFieldConfig } from '@/lib/settings'
-import type { AppSettings } from '@/lib/settings'
-import type { Item } from '@/types/item'
-import type { Option } from '@/types/options'
+import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
+import { formatNumber, formatText, getFieldConfig } from '@/lib/settings';
+import type { AppSettings } from '@/lib/settings';
+import type { Item } from '@/types/item';
+import type { Option } from '@/types/options';
 
-import { ItemActions } from './actions'
+import { ItemActions } from './actions';
 
 export const getItemColumns = (
   suppliers: Option[],
@@ -23,8 +23,11 @@ export const getItemColumns = (
       header: ({ table }) => (
         <Checkbox
           className="accent-primary"
-          checked={table.getIsAllPageRowsSelected() || (table.getIsSomePageRowsSelected() && 'indeterminate')}
-          onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+          checked={
+            table.getIsAllPageRowsSelected() ||
+            (table.getIsSomePageRowsSelected() && 'indeterminate')
+          }
+          onCheckedChange={value => table.toggleAllPageRowsSelected(!!value)}
           aria-label="Select all"
         />
       ),
@@ -32,7 +35,7 @@ export const getItemColumns = (
         <Checkbox
           className="accent-primary"
           checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
+          onCheckedChange={value => row.toggleSelected(!!value)}
           aria-label="Select row"
         />
       ),
@@ -41,57 +44,69 @@ export const getItemColumns = (
     {
       accessorKey: 'partNumber',
       header: 'Part Number',
+      size: 180,
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'partNumber')
-        if (fieldConfig?.case === 'none') {
-          return row.getValue('partNumber')
-        }
-        return formatText(row.getValue('partNumber'), {
-          case: fieldConfig?.case || 'sentencecase',
-          trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        const fieldConfig = getFieldConfig('itemMaster', 'partNumber');
+        const value =
+          fieldConfig?.case === 'none'
+            ? (row.getValue('partNumber') as string)
+            : formatText(row.getValue('partNumber') as string, {
+                case: fieldConfig?.case || 'sentencecase',
+                trimWhitespace: fieldConfig?.trimWhitespace || false,
+              });
+        return (
+          <span className="block max-w-[20ch] truncate" title={value}>
+            {value}
+          </span>
+        );
       },
     },
     {
       accessorKey: 'itemDescription',
       header: 'Description',
+      size: 300,
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'itemDescription')
-        if (fieldConfig?.case === 'none') {
-          return row.getValue('itemDescription')
-        }
-        return formatText(row.getValue('itemDescription'), {
-          case: fieldConfig?.case || 'sentencecase',
-          trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        const fieldConfig = getFieldConfig('itemMaster', 'itemDescription');
+        const value =
+          fieldConfig?.case === 'none'
+            ? (row.getValue('itemDescription') as string)
+            : formatText(row.getValue('itemDescription') as string, {
+                case: fieldConfig?.case || 'sentencecase',
+                trimWhitespace: fieldConfig?.trimWhitespace || false,
+              });
+        return (
+          <span className="block max-w-[35ch] truncate" title={value}>
+            {value}
+          </span>
+        );
       },
     },
     {
       accessorKey: 'unit',
       header: 'Unit',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'unit')
+        const fieldConfig = getFieldConfig('itemMaster', 'unit');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('unit')
+          return row.getValue('unit');
         }
         return formatText(row.getValue('unit'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'currency',
       header: 'Currency',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'currency')
+        const fieldConfig = getFieldConfig('itemMaster', 'currency');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('currency')
+          return row.getValue('currency');
         }
         return formatText(row.getValue('currency'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
@@ -108,104 +123,110 @@ export const getItemColumns = (
       accessorKey: 'hsnCode',
       header: 'HSN Code',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'hsnCode')
+        const fieldConfig = getFieldConfig('itemMaster', 'hsnCode');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('hsnCode')
+          return row.getValue('hsnCode');
         }
         return formatText(row.getValue('hsnCode'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'supplierId',
       header: 'Supplier',
+      size: 200,
       cell: ({ row }) => {
-        const supplierId = row.getValue('supplierId') as string
-        const supplier = suppliers.find((s) => s.value === supplierId)
-        return supplier ? supplier.label : 'N/A'
+        const supplierId = row.getValue('supplierId') as string;
+        const supplier = suppliers.find(s => s.value === supplierId);
+        const value = supplier ? supplier.label : 'N/A';
+        return (
+          <span className="block max-w-[25ch] truncate" title={value}>
+            {value}
+          </span>
+        );
       },
     },
     {
       accessorKey: 'isActive',
       header: 'Status',
       cell: ({ row }) => {
-        const isActive = row.getValue('isActive')
+        const isActive = row.getValue('isActive');
         return (
-          <Badge className={isActive ? 'bg-green-600 text-white' : 'bg-red-600 text-white'}>
+          <Badge variant={isActive ? 'success' : 'destructive'}>
             {isActive ? 'Active' : 'Inactive'}
           </Badge>
-        )
+        );
       },
     },
     {
       accessorKey: 'countryOfOrigin',
       header: 'Country of Origin',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'countryOfOrigin')
+        const fieldConfig = getFieldConfig('itemMaster', 'countryOfOrigin');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('countryOfOrigin')
+          return row.getValue('countryOfOrigin');
         }
         return formatText(row.getValue('countryOfOrigin'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'bcd',
       header: 'BCD',
       cell: ({ row }) => {
-        const value = row.getValue('bcd')
-        if (value === null || value === undefined) return '-'
-        return `${value}%`
+        const value = row.getValue('bcd');
+        if (value === null || value === undefined) return '-';
+        return `${value}%`;
       },
     },
     {
       accessorKey: 'sws',
       header: 'SWS',
       cell: ({ row }) => {
-        const value = row.getValue('sws')
-        if (value === null || value === undefined) return '-'
-        return `${value}%`
+        const value = row.getValue('sws');
+        if (value === null || value === undefined) return '-';
+        return `${value}%`;
       },
     },
     {
       accessorKey: 'igst',
       header: 'IGST',
       cell: ({ row }) => {
-        const value = row.getValue('igst')
-        if (value === null || value === undefined) return '-'
-        return `${value}%`
+        const value = row.getValue('igst');
+        if (value === null || value === undefined) return '-';
+        return `${value}%`;
       },
     },
     {
       accessorKey: 'category',
       header: 'Category',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'category')
+        const fieldConfig = getFieldConfig('itemMaster', 'category');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('category')
+          return row.getValue('category');
         }
         return formatText(row.getValue('category'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'endUse',
       header: 'End Use',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'endUse')
+        const fieldConfig = getFieldConfig('itemMaster', 'endUse');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('endUse')
+          return row.getValue('endUse');
         }
         return formatText(row.getValue('endUse'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
@@ -222,25 +243,29 @@ export const getItemColumns = (
       accessorKey: 'purchaseUom',
       header: 'Purchase UOM',
       cell: ({ row }) => {
-        const fieldConfig = getFieldConfig('itemMaster', 'purchaseUom')
+        const fieldConfig = getFieldConfig('itemMaster', 'purchaseUom');
         if (fieldConfig?.case === 'none') {
-          return row.getValue('purchaseUom')
+          return row.getValue('purchaseUom');
         }
         return formatText(row.getValue('purchaseUom'), {
           case: fieldConfig?.case || 'sentencecase',
           trimWhitespace: fieldConfig?.trimWhitespace || false,
-        })
+        });
       },
     },
     {
       accessorKey: 'grossWeightPerUomKg',
       header: 'Gross Weight/UOM (Kg)',
       cell: ({ row }) =>
-        formatNumber(row.getValue('grossWeightPerUomKg'), settings?.numberFormat, {
-          numberFormat: 'decimal',
-          precision: 2,
-          showSign: false,
-        }),
+        formatNumber(
+          row.getValue('grossWeightPerUomKg'),
+          settings?.numberFormat,
+          {
+            numberFormat: 'decimal',
+            precision: 2,
+            showSign: false,
+          }
+        ),
     },
     {
       id: 'actions',
@@ -252,48 +277,52 @@ export const getItemColumns = (
         />
       ),
     },
-  ]
+  ];
 
   // Filter columns based on visibility settings and sort by order
-  const itemMasterFields = settings?.modules?.itemMaster?.fields || {}
-  const visibleColumns = allColumns.filter((column) => {
+  const itemMasterFields = settings?.modules?.itemMaster?.fields || {};
+  const visibleColumns = allColumns.filter(column => {
     // Always show select and actions columns
     if (column.id === 'select' || column.id === 'actions') {
-      return true
+      return true;
     }
 
     // Check if the column has an accessorKey and if it's visible in settings
-    if ('accessorKey' in column && column.accessorKey && typeof column.accessorKey === 'string') {
-      const fieldSettings = itemMasterFields[column.accessorKey]
-      return fieldSettings?.visible !== false
+    if (
+      'accessorKey' in column &&
+      column.accessorKey &&
+      typeof column.accessorKey === 'string'
+    ) {
+      const fieldSettings = itemMasterFields[column.accessorKey];
+      return fieldSettings?.visible !== false;
     }
 
     // If no accessorKey, show the column (fallback)
-    return true
-  })
+    return true;
+  });
 
   // Sort columns by their order property
   const sortedColumns = visibleColumns.sort((a, b) => {
     // Select column should always be first
-    if (a.id === 'select') return -1
-    if (b.id === 'select') return 1
+    if (a.id === 'select') return -1;
+    if (b.id === 'select') return 1;
 
     // Actions column should always be last
-    if (a.id === 'actions') return 1
-    if (b.id === 'actions') return -1
+    if (a.id === 'actions') return 1;
+    if (b.id === 'actions') return -1;
 
     // Get order values from settings
     const aOrder =
       'accessorKey' in a && a.accessorKey && typeof a.accessorKey === 'string'
         ? itemMasterFields[a.accessorKey]?.order || 999
-        : 999
+        : 999;
     const bOrder =
       'accessorKey' in b && b.accessorKey && typeof b.accessorKey === 'string'
         ? itemMasterFields[b.accessorKey]?.order || 999
-        : 999
+        : 999;
 
-    return aOrder - bOrder
-  })
+    return aOrder - bOrder;
+  });
 
-  return sortedColumns
-}
+  return sortedColumns;
+};

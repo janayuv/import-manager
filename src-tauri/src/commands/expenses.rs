@@ -1,3 +1,4 @@
+#![allow(clippy::uninlined_format_args)]
 use crate::commands::utils::generate_id;
 use crate::db::{
     DbState, Expense, ExpenseAttachment, ExpenseInvoice, ExpenseType, ExpenseWithInvoice,
@@ -335,7 +336,7 @@ pub fn cleanup_orphaned_expenses(state: State<DbState>) -> Result<String, String
         .query_row("SELECT COUNT(*) FROM expenses", [], |row| row.get(0))
         .unwrap_or(0);
 
-    result.push_str(&format!("Before cleanup:\n"));
+    result.push_str("Before cleanup:\n");
     result.push_str(&format!("  Expense invoices: {}\n", before_invoice_count));
     result.push_str(&format!("  Expenses: {}\n", before_expense_count));
 
@@ -431,7 +432,7 @@ pub fn cleanup_orphaned_expenses(state: State<DbState>) -> Result<String, String
         .query_row("SELECT COUNT(*) FROM expenses", [], |row| row.get(0))
         .unwrap_or(0);
 
-    result.push_str(&format!("\nCleanup completed:\n"));
+    result.push_str("\nCleanup completed:\n");
     result.push_str(&format!(
         "  Deleted {} orphaned expenses\n",
         deleted_orphaned
@@ -448,7 +449,7 @@ pub fn cleanup_orphaned_expenses(state: State<DbState>) -> Result<String, String
         "  Found {} orphaned invoices\n",
         orphaned_invoices.len()
     ));
-    result.push_str(&format!("\nAfter cleanup:\n"));
+    result.push_str("\nAfter cleanup:\n");
     result.push_str(&format!("  Expense invoices: {}\n", after_invoice_count));
     result.push_str(&format!("  Expenses: {}\n", after_expense_count));
 
@@ -1428,10 +1429,7 @@ pub fn add_expenses_bulk(
 
     for expense in &payload.expenses {
         let key = format!("{}|{}", expense.service_provider_id, expense.invoice_no);
-        invoice_groups
-            .entry(key)
-            .or_insert_with(Vec::new)
-            .push(expense);
+        invoice_groups.entry(key).or_default().push(expense);
     }
 
     let mut created_invoice_ids = Vec::new();

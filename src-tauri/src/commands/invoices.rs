@@ -93,8 +93,9 @@ fn execute_add_invoice(
     }
 
     // Automatically update shipment status to "In Transit" when invoice is added
+    // Only update if current status is not "delivered"
     tx.execute(
-        "UPDATE shipments SET status = 'in-transit' WHERE id = ?1",
+        "UPDATE shipments SET status = 'in-transit' WHERE id = ?1 AND status != 'delivered'",
         params![&payload.shipment_id],
     )?;
 
