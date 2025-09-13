@@ -455,7 +455,7 @@ const mapColumns = (
         !currencies.includes(col) &&
         !incoterms.includes(col) &&
         !types.includes(col) &&
-        !statusCandidates.includes(col as any) &&
+        !statusCandidates.some(status => status === col) &&
         !numbers.includes(col) &&
         !codes.includes(col) &&
         !col.includes('FT') &&
