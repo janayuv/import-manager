@@ -37,7 +37,7 @@ fn main() {
 
     for dll in &required_dlls {
         let mut copied = false;
-        
+
         // Try vcpkg paths first
         for vcpkg_dir in &possible_vcpkg_dirs {
             let source_path = Path::new(vcpkg_dir).join(dll);
