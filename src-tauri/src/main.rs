@@ -64,12 +64,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                             log::error!("Failed to create backup: {}", e);
                             return Err(Box::new(e));
                         }
-                        
+
                         if let Err(e) = std::fs::remove_file(&db_path) {
                             log::error!("Failed to remove encrypted database: {}", e);
                             return Err(Box::new(e));
                         }
-                        
+
                         log::info!("Encrypted database backed up as import-manager.db.sqlcipher-backup");
                     }
                 }
