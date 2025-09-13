@@ -43,9 +43,48 @@ impl DatabaseMigrations {
             }
             Err(e) => {
                 log::error!("Migration failed: {}", e);
-                Err(rusqlite::Error::InvalidPath(e.to_string().into()))
+                
+                // Check if this is a migration mismatch error
+                if e.to_string().contains("different than filesystem") {
+                    log::warn!("Migration mismatch detected. Attempting to resolve...");
+                    
+                    // Try to reset the migration state by dropping and recreating the migration table
+                    match Self::reset_migration_state(conn) {
+                        Ok(_) => {
+                            log::info!("Migration state reset successfully. Retrying migrations...");
+                            // Retry migrations after reset
+                            match migrations::runner().run(conn) {
+                                Ok(applied_migrations) => {
+                                    log::info!("Migrations applied successfully after reset");
+                                    Ok(())
+                                }
+                                Err(retry_e) => {
+                                    log::error!("Migration retry failed: {}", retry_e);
+                                    Err(rusqlite::Error::InvalidPath(retry_e.to_string().into()))
+                                }
+                            }
+                        }
+                        Err(reset_e) => {
+                            log::error!("Failed to reset migration state: {}", reset_e);
+                            Err(rusqlite::Error::InvalidPath(e.to_string().into()))
+                        }
+                    }
+                } else {
+                    Err(rusqlite::Error::InvalidPath(e.to_string().into()))
+                }
             }
         }
+    }
+
+    /// Reset migration state by dropping and recreating the migration table
+    fn reset_migration_state(conn: &Connection) -> Result<()> {
+        log::info!("Resetting migration state...");
+        
+        // Drop the migration table if it exists
+        conn.execute("DROP TABLE IF EXISTS refinery_schema_history", [])?;
+        
+        log::info!("Migration table dropped successfully");
+        Ok(())
     }
 
     /// Check if migrations are needed

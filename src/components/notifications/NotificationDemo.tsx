@@ -22,46 +22,35 @@ export function NotificationDemo() {
   } = useNotificationHelpers();
 
   const handleShipmentDemo = async () => {
-    await notifyShipmentEvent({
-      type: 'shipment_created',
-      shipmentId: 'SHIP-001',
-      shipmentNumber: 'SHIP-001',
-    });
+    await notifyShipmentEvent(
+      'Shipment Created',
+      'New shipment SHIP-001 has been created successfully'
+    );
   };
 
   const handleInvoiceDemo = async () => {
-    await notifyInvoiceEvent({
-      type: 'invoice_paid',
-      invoiceId: 'INV-001',
-      invoiceNumber: 'INV-001',
-      amount: 1500.0,
-      currency: 'USD',
-    });
+    await notifyInvoiceEvent(
+      'Invoice Paid',
+      'Invoice INV-001 has been marked as paid'
+    );
   };
 
   const handleBOEDemo = async () => {
-    await notifyBOEEvent({
-      type: 'boe_approved',
-      boeId: 'BOE-001',
-      boeNumber: 'BOE-001',
-    });
+    await notifyBOEEvent('BOE Approved', 'BOE BOE-001 has been approved');
   };
 
   const handleExpenseDemo = async () => {
-    await notifyExpenseEvent({
-      type: 'expense_rejected',
-      expenseId: 'EXP-001',
-      amount: 250.0,
-      currency: 'USD',
-      category: 'Travel',
-    });
+    await notifyExpenseEvent(
+      'Expense Rejected',
+      'Expense EXP-001 has been rejected'
+    );
   };
 
   const handleSystemDemo = async () => {
-    await notifySystemEvent({
-      type: 'backup_completed',
-      details: 'Daily backup completed successfully at 2:00 AM',
-    });
+    await notifySystemEvent(
+      'Backup Completed',
+      'Daily backup completed successfully at 2:00 AM'
+    );
   };
 
   const handleQuickNotifications = async () => {

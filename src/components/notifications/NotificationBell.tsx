@@ -103,7 +103,7 @@ export function NotificationBell({ onViewAll }: NotificationBellProps) {
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-80 p-0" sideOffset={5}>
         <NotificationDropdown
-          onViewAll={onViewAll}
+          isOpen={isOpen}
           onClose={() => setIsOpen(false)}
         />
       </DropdownMenuContent>

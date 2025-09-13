@@ -3,12 +3,20 @@ use std::path::Path;
 
 /// Simplified encryption module for bundled SQLite
 /// This module handles database operations without encryption for CI builds
+#[allow(dead_code)]
 pub struct DatabaseEncryption;
 
+#[allow(dead_code)]
 impl DatabaseEncryption {
     /// Create a new database encryption instance (no-op for bundled SQLite)
     pub fn new() -> Self {
         Self
+    }
+
+    /// Generate a key for encryption (returns a dummy key for bundled SQLite)
+    pub fn generate_key() -> Vec<u8> {
+        // Return a dummy 32-byte key for bundled SQLite
+        vec![0u8; 32]
     }
 
     /// Check if a database file is encrypted (always false for bundled SQLite)

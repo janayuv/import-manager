@@ -67,7 +67,7 @@ export default function NotificationsPage() {
 
   // Filtered notifications
   const filteredNotifications = useMemo(() => {
-    return notifications.filter(notification => {
+    return notifications.filter((notification: Notification) => {
       // Search filter
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
@@ -93,10 +93,10 @@ export default function NotificationsPage() {
       }
 
       // Read status filter
-      if (readFilter === 'unread' && notification.isRead) {
+      if (readFilter === 'unread' && notification.read) {
         return false;
       }
-      if (readFilter === 'read' && !notification.isRead) {
+      if (readFilter === 'read' && !notification.read) {
         return false;
       }
 
@@ -105,7 +105,7 @@ export default function NotificationsPage() {
   }, [notifications, searchQuery, categoryFilter, typeFilter, readFilter]);
 
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.isRead) {
+    if (!notification.read) {
       await markAsRead(notification.id);
     }
   };
@@ -182,7 +182,7 @@ export default function NotificationsPage() {
             <CardTitle className="text-sm font-medium">Total</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-2xl font-bold">{stats?.total || 0}</div>
           </CardContent>
         </Card>
 
@@ -192,7 +192,7 @@ export default function NotificationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {stats.unread}
+              {stats?.unread || 0}
             </div>
           </CardContent>
         </Card>
@@ -203,7 +203,7 @@ export default function NotificationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              {stats.byType.error}
+              {stats?.byType?.error || 0}
             </div>
           </CardContent>
         </Card>
@@ -214,7 +214,7 @@ export default function NotificationsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-yellow-600">
-              {stats.byType.warning}
+              {stats?.byType?.warning || 0}
             </div>
           </CardContent>
         </Card>
@@ -256,7 +256,7 @@ export default function NotificationsPage() {
                 {Object.entries(NOTIFICATION_CATEGORY_LABELS).map(
                   ([key, label]) => (
                     <SelectItem key={key} value={key}>
-                      {label}
+                      {String(label)}
                     </SelectItem>
                   )
                 )}
@@ -278,7 +278,7 @@ export default function NotificationsPage() {
                 {Object.entries(NOTIFICATION_TYPE_LABELS).map(
                   ([key, label]) => (
                     <SelectItem key={key} value={key}>
-                      {label}
+                      {String(label)}
                     </SelectItem>
                   )
                 )}
@@ -360,110 +360,114 @@ export default function NotificationsPage() {
           ) : (
             <div className="divide-y">
               <AnimatePresence>
-                {filteredNotifications.map((notification, index) => {
-                  const TypeIcon = getNotificationTypeIcon(notification.type);
-                  const CategoryIcon = getNotificationCategoryIcon(
-                    notification.category
-                  );
-                  const colors = getNotificationColors(notification.type);
+                {filteredNotifications.map(
+                  (notification: Notification, index: number) => {
+                    const TypeIcon = getNotificationTypeIcon(notification.type);
+                    const CategoryIcon = getNotificationCategoryIcon(
+                      notification.category
+                    );
+                    const colors = getNotificationColors(notification.type);
 
-                  return (
-                    <motion.div
-                      key={notification.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.02 }}
-                      className={`group hover:bg-muted/50 cursor-pointer p-4 ${!notification.isRead ? 'bg-muted/30' : ''} `}
-                      onClick={() => handleNotificationClick(notification)}
-                    >
-                      <div className="flex items-start gap-4">
-                        {/* Timeline Indicator */}
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={`rounded-full p-2 ${colors.bg} border-background border-2`}
-                          >
-                            <CategoryIcon
-                              className={`h-4 w-4 ${colors.icon}`}
-                            />
-                          </div>
-                          {index < filteredNotifications.length - 1 && (
-                            <div className="bg-border mt-2 h-8 w-px" />
-                          )}
-                        </div>
-
-                        {/* Content */}
-                        <div className="min-w-0 flex-1">
-                          <div className="mb-2 flex items-center gap-2">
-                            <TypeIcon className={`h-4 w-4 ${colors.icon}`} />
-                            <h3 className="text-sm font-semibold">
-                              {notification.title}
-                            </h3>
-                            {!notification.isRead && (
-                              <div className="h-2 w-2 rounded-full bg-blue-500" />
+                    return (
+                      <motion.div
+                        key={notification.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -20 }}
+                        transition={{ delay: index * 0.02 }}
+                        className={`group hover:bg-muted/50 cursor-pointer p-4 ${!notification.read ? 'bg-muted/30' : ''} `}
+                        onClick={() => handleNotificationClick(notification)}
+                      >
+                        <div className="flex items-start gap-4">
+                          {/* Timeline Indicator */}
+                          <div className="flex flex-col items-center">
+                            <div
+                              className={`rounded-full p-2 ${colors.bg} border-background border-2`}
+                            >
+                              <span className={`h-4 w-4 ${colors.icon}`}>
+                                {CategoryIcon}
+                              </span>
+                            </div>
+                            {index < filteredNotifications.length - 1 && (
+                              <div className="bg-border mt-2 h-8 w-px" />
                             )}
-                            <Badge variant="outline" className="text-xs">
-                              {
-                                NOTIFICATION_CATEGORY_LABELS[
-                                  notification.category
-                                ]
-                              }
-                            </Badge>
                           </div>
 
-                          <p className="text-muted-foreground mb-2 text-sm">
-                            {notification.message}
-                          </p>
+                          {/* Content */}
+                          <div className="min-w-0 flex-1">
+                            <div className="mb-2 flex items-center gap-2">
+                              <span className={`h-4 w-4 ${colors.icon}`}>
+                                {TypeIcon}
+                              </span>
+                              <h3 className="text-sm font-semibold">
+                                {notification.title}
+                              </h3>
+                              {!notification.read && (
+                                <div className="h-2 w-2 rounded-full bg-blue-500" />
+                              )}
+                              <Badge variant="outline" className="text-xs">
+                                {
+                                  NOTIFICATION_CATEGORY_LABELS[
+                                    notification.category || 'unknown'
+                                  ]
+                                }
+                              </Badge>
+                            </div>
 
-                          <div className="flex items-center justify-between">
-                            <span className="text-muted-foreground text-xs">
-                              {formatNotificationTime(notification.timestamp)}
-                            </span>
+                            <p className="text-muted-foreground mb-2 text-sm">
+                              {notification.message}
+                            </p>
+
+                            <div className="flex items-center justify-between">
+                              <span className="text-muted-foreground text-xs">
+                                {formatNotificationTime(notification.timestamp)}
+                              </span>
+                            </div>
                           </div>
-                        </div>
 
-                        {/* Actions */}
-                        <div className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={e => e.stopPropagation()}
-                              >
-                                <MoreVertical className="h-4 w-4" />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              {!notification.isRead && (
+                          {/* Actions */}
+                          <div className="flex-shrink-0 opacity-0 transition-opacity group-hover:opacity-100">
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8"
+                                  onClick={e => e.stopPropagation()}
+                                >
+                                  <MoreVertical className="h-4 w-4" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                {!notification.read && (
+                                  <DropdownMenuItem
+                                    onClick={e => {
+                                      e.stopPropagation();
+                                      markAsRead(notification.id);
+                                    }}
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Mark as read
+                                  </DropdownMenuItem>
+                                )}
                                 <DropdownMenuItem
                                   onClick={e => {
                                     e.stopPropagation();
-                                    markAsRead(notification.id);
+                                    deleteNotification?.(notification.id);
                                   }}
+                                  className="text-destructive focus:text-destructive"
                                 >
-                                  <Eye className="mr-2 h-4 w-4" />
-                                  Mark as read
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
                                 </DropdownMenuItem>
-                              )}
-                              <DropdownMenuItem
-                                onClick={e => {
-                                  e.stopPropagation();
-                                  deleteNotification(notification.id);
-                                }}
-                                className="text-destructive focus:text-destructive"
-                              >
-                                <Trash2 className="mr-2 h-4 w-4" />
-                                Delete
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
                         </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                      </motion.div>
+                    );
+                  }
+                )}
               </AnimatePresence>
             </div>
           )}

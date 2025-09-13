@@ -365,8 +365,21 @@ const mapColumns = (
       result.shipmentType = findBestMatch(types[0], options.types);
 
     // Find status (look for status patterns)
-    const statusCandidates = trimmed.filter(
-      col =>
+    const statusCandidates: (
+      | 'docs-rcvd'
+      | 'pending'
+      | 'completed'
+      | 'shipped'
+      | 'delivered'
+    )[] = trimmed.filter(
+      (
+        col
+      ): col is
+        | 'docs-rcvd'
+        | 'pending'
+        | 'completed'
+        | 'shipped'
+        | 'delivered' =>
         col === 'docs-rcvd' ||
         col === 'pending' ||
         col === 'completed' ||
@@ -442,7 +455,7 @@ const mapColumns = (
         !currencies.includes(col) &&
         !incoterms.includes(col) &&
         !types.includes(col) &&
-        !statusCandidates.includes(col as string) &&
+        !statusCandidates.includes(col as any) &&
         !numbers.includes(col) &&
         !codes.includes(col) &&
         !col.includes('FT') &&

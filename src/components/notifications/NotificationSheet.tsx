@@ -39,7 +39,7 @@ export function NotificationSheet({
   const recentNotifications = notifications.slice(0, 10);
 
   const handleNotificationClick = async (notification: Notification) => {
-    if (!notification.isRead) {
+    if (!notification.read) {
       await markAsRead(notification.id);
     }
 
@@ -92,68 +92,74 @@ export function NotificationSheet({
             </div>
           ) : (
             <div className="divide-y">
-              {recentNotifications.map((notification, index) => {
-                const TypeIcon = getNotificationTypeIcon(notification.type);
-                const CategoryIcon = getNotificationCategoryIcon(
-                  notification.category
-                );
-                const colors = getNotificationColors(notification.type);
+              {recentNotifications.map(
+                (notification: Notification, index: number) => {
+                  const TypeIcon = getNotificationTypeIcon(notification.type);
+                  const CategoryIcon = getNotificationCategoryIcon(
+                    notification.category
+                  );
+                  const colors = getNotificationColors(notification.type);
 
-                return (
-                  <motion.div
-                    key={notification.id}
-                    initial={{ opacity: 0, x: 20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className={`hover:bg-muted/50 cursor-pointer p-4 ${!notification.isRead ? 'bg-muted/30' : ''} `}
-                    onClick={() => handleNotificationClick(notification)}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Category Icon */}
-                      <div className="mt-0.5 flex-shrink-0">
-                        <div className={`rounded-full p-2 ${colors.bg}`}>
-                          <CategoryIcon className={`h-4 w-4 ${colors.icon}`} />
+                  return (
+                    <motion.div
+                      key={notification.id}
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className={`hover:bg-muted/50 cursor-pointer p-4 ${!notification.read ? 'bg-muted/30' : ''} `}
+                      onClick={() => handleNotificationClick(notification)}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Category Icon */}
+                        <div className="mt-0.5 flex-shrink-0">
+                          <div className={`rounded-full p-2 ${colors.bg}`}>
+                            <span className={`h-4 w-4 ${colors.icon}`}>
+                              {CategoryIcon}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="min-w-0 flex-1">
+                          <div className="mb-1 flex items-center gap-2">
+                            <span className={`h-4 w-4 ${colors.icon}`}>
+                              {TypeIcon}
+                            </span>
+                            <h4 className="truncate text-sm font-medium">
+                              {notification.title}
+                            </h4>
+                            {!notification.read && (
+                              <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
+                            )}
+                          </div>
+
+                          <p className="text-muted-foreground mb-2 line-clamp-2 text-xs">
+                            {notification.message}
+                          </p>
+
+                          <div className="flex items-center justify-between">
+                            <span className="text-muted-foreground text-xs">
+                              {formatNotificationTime(notification.timestamp)}
+                            </span>
+
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={e => {
+                                e.stopPropagation();
+                                deleteNotification?.(notification.id);
+                              }}
+                              className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
                       </div>
-
-                      {/* Content */}
-                      <div className="min-w-0 flex-1">
-                        <div className="mb-1 flex items-center gap-2">
-                          <TypeIcon className={`h-4 w-4 ${colors.icon}`} />
-                          <h4 className="truncate text-sm font-medium">
-                            {notification.title}
-                          </h4>
-                          {!notification.isRead && (
-                            <div className="h-2 w-2 flex-shrink-0 rounded-full bg-blue-500" />
-                          )}
-                        </div>
-
-                        <p className="text-muted-foreground mb-2 line-clamp-2 text-xs">
-                          {notification.message}
-                        </p>
-
-                        <div className="flex items-center justify-between">
-                          <span className="text-muted-foreground text-xs">
-                            {formatNotificationTime(notification.timestamp)}
-                          </span>
-
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={e => {
-                              e.stopPropagation();
-                              deleteNotification(notification.id);
-                            }}
-                            className="h-6 w-6 p-0 opacity-50 hover:opacity-100"
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                  </motion.div>
-                );
-              })}
+                    </motion.div>
+                  );
+                }
+              )}
             </div>
           )}
         </ScrollArea>

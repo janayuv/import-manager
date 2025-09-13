@@ -64,6 +64,7 @@ import type { Shipment } from '@/types/shipment';
 import type { Supplier } from '@/types/supplier';
 
 type OptionType =
+  | 'supplier'
   | 'category'
   | 'incoterm'
   | 'mode'
@@ -555,6 +556,7 @@ const ShipmentPage = () => {
       label: newOption.label,
     };
     const stateUpdater = {
+      supplier: setSuppliers,
       category: setCategories,
       incoterm: setIncoterms,
       mode: setModes,
