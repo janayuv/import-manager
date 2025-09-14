@@ -4,7 +4,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { Download, Loader2, Plus, Upload } from 'lucide-react';
 import Papa from 'papaparse';
-import { toast } from 'sonner';
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 
@@ -28,6 +28,7 @@ import type { BoeDetails } from '@/types/boe';
 
 const BoePage = () => {
   const { settings } = useSettings();
+  const notifications = useUnifiedNotifications();
   const [boes, setBoes] = React.useState<BoeDetails[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setFormOpen] = React.useState(false);
@@ -47,7 +48,7 @@ const BoePage = () => {
       setBoes(fetchedBoes);
     } catch (error) {
       console.error('Failed to fetch BOE data:', error);
-      toast.error('Failed to load BOE data.');
+      notifications.boe.error('load data', String(error));
     } finally {
       setLoading(false);
     }
@@ -81,11 +82,11 @@ const BoePage = () => {
     if (boeToDelete) {
       try {
         await invoke('delete_boe', { id: boeToDelete.id });
-        toast.success(`BOE ${boeToDelete.number} deleted successfully.`);
+        notifications.boe.deleted(boeToDelete.number);
         fetchData();
       } catch (error) {
         console.error('Failed to delete BOE:', error);
-        toast.error('Failed to delete BOE.');
+        notifications.boe.error('delete', String(error));
       }
     }
     setIsDeleteDialogOpen(false);
@@ -96,17 +97,17 @@ const BoePage = () => {
     try {
       if (id) {
         await invoke('update_boe', { boe: { id, ...data } });
-        toast.success(`BOE ${data.beNumber} has been updated.`);
+        notifications.boe.updated(data.beNumber);
       } else {
         // The backend command now expects the payload directly
         await invoke('add_boe', { payload: data });
-        toast.success(`BOE ${data.beNumber} has been created.`);
+        notifications.boe.created(data.beNumber);
       }
       fetchData();
       setFormOpen(false);
     } catch (error) {
       console.error('Failed to save BOE:', error);
-      toast.error('Failed to save BOE.');
+      notifications.boe.error('save', String(error));
     }
   };
 
@@ -149,7 +150,10 @@ const BoePage = () => {
         });
 
         if (hasErrors) {
-          toast.error('CSV parsing errors occurred.');
+          notifications.error(
+            'CSV Parsing Error',
+            'CSV parsing errors occurred.'
+          );
           return;
         }
         let successCount = 0;
@@ -176,18 +180,21 @@ const BoePage = () => {
         }
 
         if (successCount > 0) {
-          toast.success(`${successCount} BOEs imported successfully.`);
+          notifications.boe.imported(successCount);
           if (errorCount > 0) {
-            toast.error(`${errorCount} BOEs failed to import.`);
+            notifications.error(
+              'Partial Import',
+              `${errorCount} BOEs failed to import.`
+            );
           }
           fetchData();
         } else {
-          toast.error('No BOEs were imported.');
+          notifications.error('Import Failed', 'No BOEs were imported.');
         }
       }
     } catch (error) {
       console.error('Failed to import BOEs:', error);
-      toast.error('Failed to import BOEs.');
+      notifications.boe.error('import', String(error));
     }
   };
 
@@ -216,11 +223,11 @@ const BoePage = () => {
 
       if (filePath) {
         await writeTextFile(filePath, csv);
-        toast.success('BOEs exported successfully!');
+        notifications.success('Export Complete', 'BOEs exported successfully!');
       }
     } catch (error) {
       console.error('Failed to export BOEs:', error);
-      toast.error('Failed to export BOEs.');
+      notifications.boe.error('export', String(error));
     }
   };
 
@@ -247,6 +254,10 @@ const BoePage = () => {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    notifications.success(
+      'Template Downloaded',
+      'BOE import template downloaded successfully!'
+    );
   };
 
   const columns = React.useMemo(

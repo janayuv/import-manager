@@ -1,5 +1,4 @@
 import { invoke } from '@tauri-apps/api/core';
-import { toast } from 'sonner';
 
 import React, { useEffect, useState } from 'react';
 
@@ -96,7 +95,6 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
       );
     } catch (error) {
       console.error('Failed to fetch shipments:', error);
-      toast.error('Failed to load shipments');
     } finally {
       setLoading(false);
     }
@@ -109,16 +107,7 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
   const handleSelectionChange = (value: string) => {
     const shipment = shipments.find(s => s.id === value) || null;
     setSelectedShipment(shipment);
-    if (shipment) {
-      if (shipment.isComplete)
-        toast.success(
-          `Selected completed shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} (${shipment.expenseCount} expenses)`
-        );
-      else
-        toast.info(
-          `Selected shipment: ${formatText(shipment.invoiceNumber, settings.textFormat)} - ready for expenses`
-        );
-    }
+    // Shipment selected - no notification needed
   };
 
   // Helper function to get shipment with expense data
@@ -133,12 +122,10 @@ const ShipmentSelector: React.FC<ShipmentSelectorProps> = ({
   const freezeShipment = async (shipmentId: string) => {
     try {
       await invoke('freeze_shipment', { shipmentId, frozen: true });
-      toast.success('Shipment frozen. It will be hidden from selection.');
       await refresh();
       if (selectedShipment?.id === shipmentId) setSelectedShipment(null);
     } catch (error) {
       console.error('Failed to freeze shipment:', error);
-      toast.error('Failed to freeze shipment');
     }
   };
 

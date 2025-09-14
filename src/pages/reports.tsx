@@ -3,6 +3,8 @@ import { format } from 'date-fns';
 
 import { useState } from 'react';
 
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
+
 import { DataTable } from '@/components/shared/data-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,6 +14,7 @@ import { useReport } from '@/hooks/useReport';
 
 export default function ReportsPage() {
   const { data, totals, loading, error, updateFilters } = useReport();
+  const notifications = useUnifiedNotifications();
 
   console.log('=== ReportsPage: Component rendered ===');
   console.log('Data:', data);
@@ -111,6 +114,10 @@ export default function ReportsPage() {
     a.download = `report_${Date.now()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
+    notifications.success(
+      'Report Downloaded',
+      'Consolidated report downloaded successfully!'
+    );
   };
 
   const exportPdf = () => {

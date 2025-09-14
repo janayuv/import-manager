@@ -5,7 +5,7 @@ import { open, save } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
 import { Download, FileOutput, Loader2, Plus, Upload } from 'lucide-react';
 import Papa from 'papaparse';
-import { toast } from 'sonner';
+import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 
@@ -68,6 +68,7 @@ const optionConfigs = {
 
 export function ItemMasterPage() {
   const { settings } = useSettings();
+  const notifications = useUnifiedNotifications();
   const [items, setItems] = React.useState<Item[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isFormOpen, setFormOpen] = React.useState(false);
@@ -108,7 +109,7 @@ export function ItemMasterPage() {
       setItems(fetchedItems);
     } catch (error) {
       console.error('Failed to fetch items:', error);
-      toast.error('Failed to load items.');
+      notifications.item.error('fetch', String(error));
     }
   }, []);
 
@@ -156,7 +157,7 @@ export function ItemMasterPage() {
       setPurchaseUoms(purchaseUomsData);
     } catch (error) {
       console.error('Failed to fetch options:', error);
-      toast.error('Failed to load options.');
+      notifications.item.error('load options', String(error));
     }
   }, [settings.textFormat]);
 
@@ -188,16 +189,16 @@ export function ItemMasterPage() {
     try {
       if (id) {
         await invoke('update_item', { item: { id, ...data } });
-        toast.success(`Item ${data.partNumber} has been updated.`);
+        notifications.item.updated(data.partNumber);
       } else {
         await invoke('add_item', { item: data });
-        toast.success(`Item ${data.partNumber} has been created.`);
+        notifications.item.created(data.partNumber);
       }
       fetchItems();
       setFormOpen(false);
     } catch (error) {
       console.error('Failed to save item:', error);
-      toast.error('Failed to save item.');
+      notifications.item.error('save', String(error));
     }
   };
 
@@ -205,7 +206,7 @@ export function ItemMasterPage() {
     try {
       const itemsToExport = items;
       if (itemsToExport.length === 0) {
-        toast.warning('No items to export.');
+        notifications.warning('No Items to Export', 'No items to export.');
         return;
       }
 
@@ -221,11 +222,11 @@ export function ItemMasterPage() {
 
       if (filePath) {
         await writeTextFile(filePath, csv);
-        toast.success(`${itemsToExport.length} items exported successfully!`);
+        notifications.item.exported(itemsToExport.length);
       }
     } catch (error) {
       console.error('Failed to export items:', error);
-      toast.error('Failed to export items.');
+      notifications.item.error('export', String(error));
     }
   };
 
@@ -262,6 +263,10 @@ export function ItemMasterPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    notifications.success(
+      'Template Downloaded',
+      'Item Master import template downloaded successfully!'
+    );
   };
 
   const handleImport = async () => {
@@ -285,7 +290,10 @@ export function ItemMasterPage() {
         );
 
         if (skippedCount > 0) {
-          toast.warning(`${skippedCount} duplicate items were skipped.`);
+          notifications.warning(
+            'Import Warning',
+            `${skippedCount} duplicate items were skipped.`
+          );
         }
 
         if (newItems.length > 0) {
@@ -306,16 +314,16 @@ export function ItemMasterPage() {
           }));
 
           await invoke('add_items_bulk', { items: itemsForBackend });
-          toast.success(`${newItems.length} new items imported successfully!`);
+          notifications.item.imported(newItems.length);
           fetchItems();
         } else {
-          toast.info('No new items to import.');
+          notifications.info('No New Data', 'No new items to import.');
         }
       }
     } catch (err) {
       const error = err as Error;
       console.error('Failed to import items:', error);
-      toast.error(`Failed to import items: ${error.message}`);
+      notifications.item.error('import', error.message);
     }
   };
 
@@ -325,7 +333,10 @@ export function ItemMasterPage() {
 
     try {
       await invoke(config.adder, { option: newOption });
-      toast.success(`New ${type} "${newOption.label}" has been saved.`);
+      notifications.success(
+        'Option Added',
+        `New ${type} "${newOption.label}" has been saved.`
+      );
 
       const updatedOptions: Option[] = await invoke(config.fetcher);
       const setter = stateSetters[config.setter];
@@ -334,7 +345,7 @@ export function ItemMasterPage() {
       }
     } catch (error) {
       console.error(`Failed to save new ${type}:`, error);
-      toast.error(`Failed to save new ${type}.`);
+      notifications.error('Save Failed', `Failed to save new ${type}.`);
     }
   };
 
