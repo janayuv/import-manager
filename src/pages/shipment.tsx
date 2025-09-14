@@ -385,7 +385,7 @@ const ShipmentPage = () => {
         filters: [{ name: 'CSV', extensions: ['csv'] }],
       });
       if (!selectedPath) {
-        toast.info('Import cancelled.');
+        notifications.info('Import Cancelled', 'Import cancelled.');
         return;
       }
 
@@ -482,7 +482,10 @@ const ShipmentPage = () => {
     _dataToExport: Shipment[]
   ): Promise<void> => {
     if (_dataToExport.length === 0) {
-      toast.warning('No data available to export.');
+      notifications.warning(
+        'No Data to Export',
+        'No data available to export.'
+      );
       return;
     }
 
@@ -965,7 +968,8 @@ const ShipmentPage = () => {
                     ];
                     console.log('All shipments:', shipments);
                     console.log('Unique statuses:', uniqueStatuses);
-                    toast.info(
+                    notifications.info(
+                      'Debug Statuses',
                       `Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`
                     );
                   }}

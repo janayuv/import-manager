@@ -206,7 +206,7 @@ export function ItemMasterPage() {
     try {
       const itemsToExport = items;
       if (itemsToExport.length === 0) {
-        toast.warning('No items to export.');
+        notifications.warning('No Items to Export', 'No items to export.');
         return;
       }
 
@@ -290,7 +290,10 @@ export function ItemMasterPage() {
         );
 
         if (skippedCount > 0) {
-          toast.warning(`${skippedCount} duplicate items were skipped.`);
+          notifications.warning(
+            'Import Warning',
+            `${skippedCount} duplicate items were skipped.`
+          );
         }
 
         if (newItems.length > 0) {

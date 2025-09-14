@@ -72,7 +72,7 @@ const SupplierPage = () => {
 
     try {
       await invoke('add_supplier', { supplier: newSupplier });
-      notifications.supplier.created(newSupplier.name);
+      notifications.supplier.created(newSupplier.supplierName);
       fetchSuppliers();
     } catch (error) {
       console.error('Failed to add supplier:', error);
@@ -83,7 +83,7 @@ const SupplierPage = () => {
   const handleSave = async (updatedSupplier: Supplier) => {
     try {
       await invoke('update_supplier', { supplier: updatedSupplier });
-      notifications.supplier.updated(updatedSupplier.name);
+      notifications.supplier.updated(updatedSupplier.supplierName);
       fetchSuppliers();
     } catch (error) {
       console.error('Failed to update supplier:', error);
@@ -115,7 +115,7 @@ const SupplierPage = () => {
       });
 
       if (!selectedPath) {
-        toast.info('Import cancelled.');
+        notifications.info('Import Cancelled', 'Import cancelled.');
         return;
       }
 

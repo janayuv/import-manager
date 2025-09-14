@@ -314,7 +314,10 @@ const InvoicePage = () => {
       });
 
       if (autoFinalizableInvoices.length === 0) {
-        toast.info('No invoices found that can be auto-finalized.');
+        notifications.info(
+          'No Auto-Finalizable Invoices',
+          'No invoices found that can be auto-finalized.'
+        );
         return;
       }
 
@@ -478,13 +481,15 @@ const InvoicePage = () => {
         const itemId = itemMap.get(row.itemPartNumber);
 
         if (!shipmentId) {
-          toast.warning(
+          notifications.warning(
+            'Import Warning',
             `Skipping row: Shipment with invoice number "${row.shipmentInvoiceNumber}" not found.`
           );
           continue;
         }
         if (!itemId) {
-          toast.warning(
+          notifications.warning(
+            'Import Warning',
             `Skipping row: Item with part number "${row.itemPartNumber}" not found.`
           );
           continue;
@@ -500,7 +505,10 @@ const InvoicePage = () => {
       }
 
       if (invoicesToCreate.size === 0) {
-        toast.info('No new valid invoices found to import.');
+        notifications.info(
+          'No Valid Invoices',
+          'No new valid invoices found to import.'
+        );
         return;
       }
 
