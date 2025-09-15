@@ -1025,6 +1025,24 @@ export function loadSettings(): AppSettings {
         return defaultSettings;
       }
 
+      // Check if supplier module is missing new fields (including actions)
+      const supplierFields = parsed.modules?.supplier?.fields;
+      const hasOldSupplierStructure =
+        supplierFields &&
+        (!supplierFields.actions ||
+          !supplierFields.id ||
+          !supplierFields.supplierName ||
+          !supplierFields.shortName ||
+          !supplierFields.country);
+
+      if (hasOldSupplierStructure) {
+        console.log(
+          '🔧 loadSettings - Detected old supplier fields structure, clearing settings...'
+        );
+        localStorage.removeItem(SETTINGS_STORAGE_KEY);
+        return defaultSettings;
+      }
+
       // Check if shipment module is missing new fields
       const shipmentFields = parsed.modules?.shipment?.fields;
       const hasOldShipmentFields =
@@ -1531,6 +1549,24 @@ export function getFieldConfig(
   const moduleSettings = getModuleSettings(moduleName);
 
   return moduleSettings.fields[fieldName];
+}
+
+export function resetModuleToDefaults(
+  moduleName: keyof AppSettings['modules']
+): AppSettings {
+  const current = loadSettings();
+  const defaultModuleSettings = defaultSettings.modules[moduleName];
+
+  const updated = {
+    ...current,
+    modules: {
+      ...current.modules,
+      [moduleName]: defaultModuleSettings,
+    },
+  };
+
+  saveSettings(updated);
+  return updated;
 }
 
 // Make it available globally for console access

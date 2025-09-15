@@ -10,6 +10,7 @@ import {
   saveSettings,
   updateModuleField,
   updateModuleSettings,
+  resetModuleToDefaults,
 } from './settings';
 import { SettingsContext } from './settings-context-definition';
 
@@ -95,6 +96,13 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     setSettings(updatedSettings);
   };
 
+  const resetModuleToDefaultsWrapper = (
+    moduleName: keyof AppSettings['modules']
+  ) => {
+    const updatedSettings = resetModuleToDefaults(moduleName);
+    setSettings(updatedSettings);
+  };
+
   return (
     <SettingsContext.Provider
       value={{
@@ -105,6 +113,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         updateTextSettings,
         updateModuleSettings: updateModuleSettingsWrapper,
         updateModuleField: updateModuleFieldWrapper,
+        resetModuleToDefaults: resetModuleToDefaultsWrapper,
       }}
     >
       {children}

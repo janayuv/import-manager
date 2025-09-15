@@ -117,6 +117,7 @@ export function ModuleSettings({
     settings: globalSettings,
     updateModuleSettings: updateGlobalModuleSettings,
     updateModuleField: updateGlobalModuleField,
+    resetModuleToDefaults,
   } = useSettings();
 
   const [settings, setSettings] = React.useState<ModuleSettings | null>(null);
@@ -133,6 +134,32 @@ export function ModuleSettings({
       setSettings(globalSettings.modules[moduleName]);
     }
   }, [globalSettings, moduleName]);
+
+  // Keyboard shortcuts
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      // Ctrl/Cmd + S to save settings
+      if ((event.ctrlKey || event.metaKey) && event.key === 's') {
+        event.preventDefault();
+        toast.success('Settings saved automatically');
+      }
+
+      // Escape to close settings
+      if (event.key === 'Escape') {
+        onClose?.();
+      }
+
+      // Ctrl/Cmd + R to reset to defaults
+      if ((event.ctrlKey || event.metaKey) && event.key === 'r') {
+        event.preventDefault();
+        resetModuleToDefaults(moduleName);
+        toast.success('Module settings reset to defaults');
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose, moduleName, resetModuleToDefaults]);
 
   // Check if settings are loaded
   if (
@@ -153,29 +180,12 @@ export function ModuleSettings({
     );
   }
 
-  console.log('🔧 ModuleSettings - Module name:', moduleName);
-  console.log('🔧 ModuleSettings - Global settings:', globalSettings);
-  console.log('🔧 ModuleSettings - Module settings:', settings);
-  console.log('🔧 ModuleSettings - Module fields:', settings?.fields);
-
   const handleFieldToggle = (fieldName: string, visible: boolean) => {
-    console.log(
-      '🔧 ModuleSettings - Toggling field:',
-      fieldName,
-      'to:',
-      visible
-    );
     updateGlobalModuleField(moduleName, fieldName, { visible });
     toast.success(`${fieldName} ${visible ? 'shown' : 'hidden'}`);
   };
 
   const handleFieldWidthChange = (fieldName: string, width: string) => {
-    console.log(
-      '🔧 ModuleSettings - Changing field width:',
-      fieldName,
-      'to:',
-      width
-    );
     updateGlobalModuleField(moduleName, fieldName, { width });
   };
 
@@ -183,12 +193,6 @@ export function ModuleSettings({
     key: keyof ModuleSettings,
     value: unknown
   ) => {
-    console.log(
-      '🔧 ModuleSettings - Changing module setting:',
-      key,
-      'to:',
-      value
-    );
     updateGlobalModuleSettings(moduleName, { [key]: value });
   };
 
@@ -214,7 +218,6 @@ export function ModuleSettings({
         ])
       );
 
-      console.log('🔧 ModuleSettings - Reordering fields:', updatedFields);
       updateGlobalModuleSettings(moduleName, { fields: updatedFields });
       toast.success('Field order updated');
     }
@@ -226,7 +229,7 @@ export function ModuleSettings({
   const fieldIds = sortedFields.map(([fieldName]) => fieldName);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4 p-1">
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold text-blue-600">
           {moduleTitle} Settings
@@ -240,10 +243,10 @@ export function ModuleSettings({
 
       {/* Module General Settings */}
       <Card>
-        <CardHeader>
-          <CardTitle>General Settings</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">General Settings</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-3 pt-0">
           <div className="grid grid-cols-2 gap-4">
             <div>
               <Label>Items per Page</Label>
@@ -288,13 +291,13 @@ export function ModuleSettings({
 
       {/* Field Configuration */}
       <Card>
-        <CardHeader>
-          <CardTitle>Field Configuration</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Field Configuration</CardTitle>
           <p className="text-muted-foreground text-sm">
             Drag and drop to reorder fields, or toggle visibility
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <DndContext
             sensors={sensors}
             collisionDetection={closestCenter}
@@ -320,12 +323,41 @@ export function ModuleSettings({
         </CardContent>
       </Card>
 
+      {/* Keyboard Shortcuts */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Keyboard Shortcuts</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="grid grid-cols-1 gap-2 text-sm">
+            <div className="flex items-center justify-between">
+              <span>Save settings</span>
+              <kbd className="bg-muted text-muted-foreground pointer-events-none inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 select-none">
+                <span className="text-xs">Ctrl</span>+S
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Close settings</span>
+              <kbd className="bg-muted text-muted-foreground pointer-events-none inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 select-none">
+                Esc
+              </kbd>
+            </div>
+            <div className="flex items-center justify-between">
+              <span>Reset to defaults</span>
+              <kbd className="bg-muted text-muted-foreground pointer-events-none inline-flex h-5 items-center gap-1 rounded border px-1.5 font-mono text-[10px] font-medium opacity-100 select-none">
+                <span className="text-xs">Ctrl</span>+R
+              </kbd>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Preview */}
       <Card>
-        <CardHeader>
-          <CardTitle>Preview</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg">Preview</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-0">
           <div className="overflow-x-auto">
             <table className="w-full border-collapse border">
               <thead>

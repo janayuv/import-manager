@@ -2,7 +2,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { open, save, confirm } from '@tauri-apps/plugin-dialog';
 import { readTextFile, writeTextFile } from '@tauri-apps/plugin-fs';
-import { Download, Loader2, Plus, Upload, Zap } from 'lucide-react';
+import { Download, Loader2, Plus, Settings, Upload, Zap } from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
@@ -11,6 +11,7 @@ import * as React from 'react';
 import { getInvoiceColumns } from '@/components/invoice/columns';
 import { InvoiceForm } from '@/components/invoice/form';
 import { InvoiceViewDialog } from '@/components/invoice/view';
+import { ModuleSettings } from '@/components/module-settings';
 import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import {
   AlertDialog,
@@ -23,6 +24,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   Select,
   SelectContent,
@@ -59,6 +72,7 @@ const InvoicePage = () => {
 
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [isViewOpen, setViewOpen] = React.useState(false);
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   const [invoiceToEdit, setInvoiceToEdit] = React.useState<Invoice | null>(
@@ -595,6 +609,23 @@ const InvoicePage = () => {
           </p>
         </div>
         <div className={`flex items-center ${getSpacingClass()}`}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setSettingsOpen(true)}
+                  className={getButtonClass()}
+                >
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Module Settings</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
           <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
             <Plus className="mr-2 h-4 w-4" /> Add New Invoice
           </Button>
@@ -747,6 +778,22 @@ const InvoicePage = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Settings Dialog */}
+      <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Invoice Module Settings</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto pr-2">
+            <ModuleSettings
+              moduleName="invoice"
+              moduleTitle="Invoice"
+              onClose={() => setSettingsOpen(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

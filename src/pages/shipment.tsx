@@ -32,6 +32,7 @@ import { getShipmentColumns } from '@/components/shipment/columns';
 import { ProfessionalShipmentForm } from '@/components/shipment/form-professional';
 import { ProfessionalShipmentViewDialog } from '@/components/shipment/view-professional';
 import { ShipmentMultilineForm } from '@/components/shipment/shipment-multiline-form';
+import { ModuleSettings } from '@/components/module-settings';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -49,6 +50,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -81,6 +94,7 @@ const ShipmentPage = () => {
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [isMultilineFormOpen, setMultilineFormOpen] = React.useState(false);
   const [isViewOpen, setViewOpen] = React.useState(false);
+  const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [selectedShipment, setSelectedShipment] =
     React.useState<Shipment | null>(null);
   const [shipmentToEdit, setShipmentToEdit] = React.useState<Shipment | null>(
@@ -822,6 +836,23 @@ const ShipmentPage = () => {
               <Plus className="mr-2 h-4 w-4" />
               Add New
             </Button>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => setSettingsOpen(true)}
+                    className={getButtonClass()}
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Module Settings</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
           </div>
         </div>
 
@@ -1062,6 +1093,22 @@ const ShipmentPage = () => {
         shipment={selectedShipment}
         suppliers={suppliers}
       />
+
+      {/* Settings Dialog */}
+      <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
+        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
+          <DialogHeader className="flex-shrink-0">
+            <DialogTitle>Shipment Module Settings</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto pr-2">
+            <ModuleSettings
+              moduleName="shipment"
+              moduleTitle="Shipment"
+              onClose={() => setSettingsOpen(false)}
+            />
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

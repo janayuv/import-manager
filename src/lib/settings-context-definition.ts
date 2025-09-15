@@ -21,6 +21,7 @@ export type SettingsContextType = {
     fieldName: string,
     updates: Partial<ModuleFieldSettings>
   ) => void;
+  resetModuleToDefaults: (moduleName: keyof AppSettings['modules']) => void;
 };
 
 export const SettingsContext = React.createContext<

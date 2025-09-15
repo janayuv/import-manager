@@ -57,18 +57,19 @@ export function ResponsiveDataTable<TData, TValue>({
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState('');
-  const [rowSelection, setRowSelection] = React.useState({});
 
-  // Filter columns based on screen size only (module settings are already applied in column definitions)
+  // Filter columns based on module settings and screen size
   const visibleColumns = columns.filter(column => {
-    if (column.id === 'select') return true; // Always show select column
+    // Check module settings visibility first
+    if ((column.meta as { visible?: boolean })?.visible === false) {
+      return false;
+    }
 
     // Hide specified columns on small screens
     if (isSmallScreen && hideColumnsOnSmall.includes(column.id as string)) {
       return false;
     }
 
-    // Don't override module settings - columns are already filtered by their definitions
     return true;
   });
 
@@ -81,7 +82,6 @@ export function ResponsiveDataTable<TData, TValue>({
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    onRowSelectionChange: setRowSelection,
     initialState: {
       pagination: {
         pageSize: pageSize || settings.modules?.supplier?.itemsPerPage || 10,
@@ -90,7 +90,6 @@ export function ResponsiveDataTable<TData, TValue>({
     state: {
       sorting,
       globalFilter,
-      rowSelection,
     },
   });
 
@@ -155,40 +154,59 @@ export function ResponsiveDataTable<TData, TValue>({
   };
 
   return (
-    <div className={`w-full space-y-4 ${className}`}>
-      {/* Search Input and Status Controls */}
+    <div className={`w-full space-y-6 ${className}`}>
+      {/* Enhanced Search and Controls Section */}
       {(showSearch || statusFilter || statusActions) && (
-        <div className="flex items-center justify-between py-2">
-          <div className="flex items-center gap-4">
-            {showSearch && (
-              <Input
-                placeholder={searchPlaceholder}
-                value={globalFilter ?? ''}
-                onChange={event => setGlobalFilter(event.target.value)}
-                className={`max-w-sm ${getInputClass()}`}
-              />
+        <div className="bg-muted/50 rounded-lg border p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+              {showSearch && (
+                <div className="relative">
+                  <Input
+                    placeholder={searchPlaceholder}
+                    value={globalFilter ?? ''}
+                    onChange={event => setGlobalFilter(event.target.value)}
+                    className={`h-10 w-full pl-10 sm:w-80 ${getInputClass()}`}
+                  />
+                  <div className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 transform">
+                    <svg
+                      className="h-4 w-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                </div>
+              )}
+              {statusFilter}
+            </div>
+            {statusActions && (
+              <div className="flex items-center gap-2">{statusActions}</div>
             )}
-            {statusFilter}
           </div>
-          {statusActions && (
-            <div className="flex items-center gap-2">{statusActions}</div>
-          )}
         </div>
       )}
 
-      {/* Table Container */}
-      <div className="w-full overflow-hidden rounded-md border">
+      {/* Professional Table Container */}
+      <div className="bg-card w-full overflow-hidden rounded-lg border shadow-sm">
         <div className="w-full overflow-x-auto">
           <Table className={getTableClass()}>
-            <TableHeader className="bg-primary text-primary-foreground">
+            <TableHeader className="bg-muted/50 border-b">
               {table.getHeaderGroups().map(headerGroup => (
-                <TableRow key={headerGroup.id}>
+                <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map(header => {
                     const columnStyle = getColumnStyle(header.id);
                     return (
                       <TableHead
                         key={header.id}
-                        className={`${getTextClass('sm')} text-primary-foreground overflow-hidden font-semibold whitespace-nowrap`}
+                        className={`${getTextClass('sm')} text-foreground overflow-hidden px-4 py-4 font-semibold whitespace-nowrap`}
                         style={columnStyle}
                       >
                         {header.isPlaceholder
@@ -205,17 +223,19 @@ export function ResponsiveDataTable<TData, TValue>({
             </TableHeader>
             <TableBody>
               {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map(row => (
+                table.getRowModel().rows.map((row, index) => (
                   <TableRow
                     key={row.id}
-                    data-state={row.getIsSelected() && 'selected'}
+                    className={`hover:bg-muted/50 transition-colors ${
+                      index % 2 === 0 ? 'bg-card' : 'bg-muted/20'
+                    }`}
                   >
                     {row.getVisibleCells().map(cell => {
                       const columnStyle = getColumnStyle(cell.column.id);
                       return (
                         <TableCell
                           key={cell.id}
-                          className={getTextClass('sm')}
+                          className={`${getTextClass('sm')} border-b px-4 py-4`}
                           style={columnStyle}
                         >
                           {flexRender(
@@ -231,9 +251,29 @@ export function ResponsiveDataTable<TData, TValue>({
                 <TableRow>
                   <TableCell
                     colSpan={visibleColumns.length}
-                    className={`h-24 text-center ${getTextClass()}`}
+                    className={`h-32 text-center ${getTextClass()} text-muted-foreground`}
                   >
-                    No results.
+                    <div className="flex flex-col items-center gap-2">
+                      <div className="bg-muted flex h-12 w-12 items-center justify-center rounded-full">
+                        <svg
+                          className="text-muted-foreground h-6 w-6"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+                          />
+                        </svg>
+                      </div>
+                      <p className="font-medium">No suppliers found</p>
+                      <p className="text-sm">
+                        Try adjusting your search criteria
+                      </p>
+                    </div>
                   </TableCell>
                 </TableRow>
               )}
@@ -242,54 +282,62 @@ export function ResponsiveDataTable<TData, TValue>({
         </div>
       </div>
 
-      {/* Pagination */}
+      {/* Enhanced Pagination */}
       {showPagination && (
-        <div className="flex items-center justify-between space-x-2 py-4">
-          <div className="text-muted-foreground flex-1 text-sm">
-            {table.getFilteredSelectedRowModel().rows.length} of{' '}
-            {table.getFilteredRowModel().rows.length} row(s) selected.
-          </div>
-          <div className="space-x-2">
-            <button
-              className="h-8 w-8 p-0 lg:h-9 lg:w-9"
-              onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
-            >
-              <span className="sr-only">Go to previous page</span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
+        <div className="bg-muted/50 rounded-lg border p-4">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="text-muted-foreground text-sm">
+              <span className="font-medium">
+                {table.getFilteredRowModel().rows.length}
+              </span>{' '}
+              suppliers total
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground mr-2 text-sm">
+                Page {table.getState().pagination.pageIndex + 1} of{' '}
+                {table.getPageCount()}
+              </span>
+              <button
+                className="bg-background hover:bg-muted h-9 w-9 rounded-md border p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => table.previousPage()}
+                disabled={!table.getCanPreviousPage()}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15 19l-7-7 7-7"
-                />
-              </svg>
-            </button>
-            <button
-              className="h-8 w-8 p-0 lg:h-9 lg:w-9"
-              onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
-            >
-              <span className="sr-only">Go to next page</span>
-              <svg
-                className="h-4 w-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                viewBox="0 0 24 24"
+                <span className="sr-only">Go to previous page</span>
+                <svg
+                  className="text-foreground h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15 19l-7-7 7-7"
+                  />
+                </svg>
+              </button>
+              <button
+                className="bg-background hover:bg-muted h-9 w-9 rounded-md border p-0 transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+                onClick={() => table.nextPage()}
+                disabled={!table.getCanNextPage()}
               >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M9 5l7 7-7 7"
-                />
-              </svg>
-            </button>
+                <span className="sr-only">Go to next page</span>
+                <svg
+                  className="text-foreground h-4 w-4"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 5l7 7-7 7"
+                  />
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       )}
