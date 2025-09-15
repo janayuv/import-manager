@@ -2,7 +2,7 @@
 unmaintained = "none"
 yanked = "deny"
 ignore = [
-  { id = "RUSTSEC-2024-0429", reason = "Transitive dependency issue in glib, will be resolved in future updates" }
+  { id = "RUSTSEC-2024-0429", reason = "Transitive dependency issue in glib through Tauri. Fixed version requires system libraries not available on Windows. Will be resolved when Tauri updates to glib 0.20.0+" }
 ]
 
 [licenses]
