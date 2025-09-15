@@ -143,7 +143,9 @@ const ExpensesPage = () => {
       <div className="container mx-auto py-10">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold">Manage Expenses</h1>
+            <h1 className="text-xl font-semibold text-blue-600">
+              Manage Expenses
+            </h1>
             <p className="text-muted-foreground mt-1">
               Track and manage expenses for your shipments
             </p>

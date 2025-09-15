@@ -6,13 +6,7 @@ import React, { useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 const ExpenseDataManager: React.FC = () => {
   const [isClearing, setIsClearing] = useState(false);
@@ -85,11 +79,8 @@ const ExpenseDataManager: React.FC = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Trash2 className="h-5 w-5" />
-            Expense Data Manager
+            Data Management Tools
           </CardTitle>
-          <CardDescription>
-            Manage expense types and service providers data
-          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <Alert>

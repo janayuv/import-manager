@@ -4,7 +4,13 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Table,
   TableBody,
@@ -51,7 +57,12 @@ const FrozenShipmentsPage = () => {
     <div className="container mx-auto p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Frozen Shipments</CardTitle>
+          <CardTitle className="text-xl font-semibold text-blue-600">
+            Frozen Shipments
+          </CardTitle>
+          <CardDescription>
+            Manage locked shipments and resolve processing issues
+          </CardDescription>
         </CardHeader>
         <CardContent>
           {loading ? (

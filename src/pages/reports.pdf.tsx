@@ -29,7 +29,12 @@ export function ReportPdfView({ rows, totals }: PdfProps) {
         <Button onClick={handlePrint}>Print / Save PDF</Button>
       </div>
       <div ref={ref} className="bg-white p-4">
-        <h1 className="mb-2 text-xl font-bold">Consolidated Import Report</h1>
+        <h1 className="mb-2 text-xl font-semibold text-blue-600">
+          Consolidated Import Report
+        </h1>
+        <p className="text-muted-foreground mb-4">
+          Comprehensive PDF export of all import data and analytics
+        </p>
         <div className="mb-4 text-sm">
           Generated: {new Date().toLocaleString()}
         </div>

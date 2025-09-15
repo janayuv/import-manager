@@ -600,14 +600,8 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold tracking-tight">Expense Reports</h2>
-          <p className="text-muted-foreground">
-            Generate detailed expense reports and summaries
-          </p>
-        </div>
+      {/* Action Buttons */}
+      <div className="flex items-center justify-end">
         <div className="flex items-center space-x-2">
           <Button
             variant="outline"

@@ -37,6 +37,8 @@ export default tseslint.config([
       'prettier/prettier': 'error',
       // React refresh rule - disabled to allow context files and utility exports
       'react-refresh/only-export-components': 'off',
+      // React hooks exhaustive deps - set to warning instead of error for production
+      'react-hooks/exhaustive-deps': 'warn',
       // Security rules (disabled for legitimate use cases)
       'security/detect-object-injection': 'off', // Too many false positives with TypeScript
       'security/detect-non-literal-regexp': 'error',

@@ -214,7 +214,14 @@ export default function ReportsPage() {
   return (
     <div className="container mx-auto space-y-6 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Consolidated Report</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-blue-600">
+            Consolidated Report
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Comprehensive analytics and reporting across all modules
+          </p>
+        </div>
         <div className="space-x-2">
           <Button onClick={exportCsv} variant="outline">
             Export CSV

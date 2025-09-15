@@ -4,14 +4,12 @@ import { Loader2 } from 'lucide-react';
 import * as React from 'react';
 
 import { InvoiceWizard } from '@/components/invoice/wizard/InvoiceWizard';
-import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type { Invoice } from '@/types/invoice';
 import type { Item } from '@/types/item';
 import type { Shipment } from '@/types/shipment';
 import type { Supplier } from '@/types/supplier';
 
 export default function InvoiceWizardPage() {
-  const { getTextClass } = useResponsiveContext();
   const [loading, setLoading] = React.useState(true);
   const [items, setItems] = React.useState<Item[]>([]);
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
@@ -68,9 +66,14 @@ export default function InvoiceWizardPage() {
 
   return (
     <div className="container mx-auto py-10">
-      <h1 className={`${getTextClass('2xl')} mb-6 font-bold`}>
-        Invoice Entry Wizard
-      </h1>
+      <div className="mb-6">
+        <h1 className="text-xl font-semibold text-blue-600">
+          Invoice Entry Wizard
+        </h1>
+        <p className="text-muted-foreground mt-1">
+          Step-by-step invoice creation and processing workflow
+        </p>
+      </div>
       <InvoiceWizard
         shipments={shipments}
         items={items}

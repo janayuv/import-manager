@@ -29,8 +29,7 @@ import type { Supplier } from '@/types/supplier';
 
 const SupplierPage = () => {
   const { settings } = useSettings();
-  const { getTextClass, getButtonClass, getSpacingClass } =
-    useResponsiveContext();
+  const { getButtonClass, getSpacingClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [isViewOpen, setViewOpen] = React.useState(false);
@@ -380,7 +379,12 @@ const SupplierPage = () => {
       <div
         className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
       >
-        <h1 className={`${getTextClass('2xl')} font-bold`}>Suppliers</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-blue-600">Suppliers</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage supplier information and business relationships
+          </p>
+        </div>
         <div className={`flex items-center ${getSpacingClass()}`}>
           <Button
             variant="outline"

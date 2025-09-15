@@ -74,7 +74,7 @@ type OptionType =
 
 const ShipmentPage = () => {
   const { settings } = useSettings();
-  const { getTextClass, getButtonClass } = useResponsiveContext();
+  const { getButtonClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
@@ -790,12 +790,10 @@ const ShipmentPage = () => {
       <div className="mb-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1
-              className={`${getTextClass('3xl')} mb-2 font-bold text-gray-900`}
-            >
+            <h1 className="mb-2 text-xl font-semibold text-blue-600">
               Shipment Management
             </h1>
-            <p className="text-gray-600">
+            <p className="text-muted-foreground">
               Track and manage your international shipments and logistics
             </p>
           </div>

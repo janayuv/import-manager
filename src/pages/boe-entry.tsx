@@ -171,7 +171,7 @@ export default function BoeEntryPage() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>
+            <CardTitle className="text-xl font-semibold text-blue-600">
               {editingBoe
                 ? `Editing BOE - ${editingBoe.invoiceNumber}`
                 : 'BOE Entry & Calculation'}

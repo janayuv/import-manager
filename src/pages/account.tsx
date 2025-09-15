@@ -3,7 +3,13 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 
 type User = { name: string; email: string };
@@ -20,7 +26,12 @@ export const AccountDetailsPage = () => {
     <div className="container mx-auto p-6">
       <Card>
         <CardHeader>
-          <CardTitle>Account Details</CardTitle>
+          <CardTitle className="text-xl font-semibold text-blue-600">
+            Account Details
+          </CardTitle>
+          <CardDescription>
+            Manage your user account information and preferences
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2">

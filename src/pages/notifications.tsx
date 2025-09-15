@@ -138,11 +138,9 @@ export default function NotificationsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Notifications</h1>
+          <h1 className="text-xl font-semibold text-blue-600">Notifications</h1>
           <p className="text-muted-foreground">
-            {unreadCount > 0
-              ? `${unreadCount} unread notification${unreadCount === 1 ? '' : 's'}`
-              : 'All caught up!'}
+            System notifications and alerts
           </p>
         </div>
 

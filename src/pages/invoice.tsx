@@ -46,8 +46,7 @@ type BulkImportRow = {
 
 const InvoicePage = () => {
   const { settings } = useSettings();
-  const { getTextClass, getButtonClass, getSpacingClass } =
-    useResponsiveContext();
+  const { getButtonClass, getSpacingClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
@@ -587,7 +586,14 @@ const InvoicePage = () => {
       <div
         className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
       >
-        <h1 className={`${getTextClass('2xl')} font-bold`}>Invoice Details</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-blue-600">
+            Invoice Details
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Process and manage commercial invoices and billing
+          </p>
+        </div>
         <div className={`flex items-center ${getSpacingClass()}`}>
           <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
             <Plus className="mr-2 h-4 w-4" /> Add New Invoice

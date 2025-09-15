@@ -79,7 +79,12 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto space-y-6 py-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Settings</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-blue-600">Settings</h1>
+          <p className="text-muted-foreground mt-1">
+            Configure application preferences and module settings
+          </p>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleReset}>
             Reset

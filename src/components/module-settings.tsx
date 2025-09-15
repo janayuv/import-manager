@@ -228,7 +228,9 @@ export function ModuleSettings({
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">{moduleTitle} Settings</h2>
+        <h2 className="text-xl font-semibold text-blue-600">
+          {moduleTitle} Settings
+        </h2>
         {onClose && (
           <Button variant="outline" onClick={onClose}>
             Close

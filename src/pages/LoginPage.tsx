@@ -58,9 +58,11 @@ export function LoginPage() {
     <div className="bg-background flex min-h-screen items-center justify-center">
       <Card className="mx-auto max-w-sm">
         <CardHeader>
-          <CardTitle className="text-2xl">Login</CardTitle>
+          <CardTitle className="text-xl font-semibold text-blue-600">
+            Login
+          </CardTitle>
           <CardDescription>
-            Enter your username and password to access the Import Manager
+            Sign in to access your Import Manager account
           </CardDescription>
         </CardHeader>
         <CardContent>

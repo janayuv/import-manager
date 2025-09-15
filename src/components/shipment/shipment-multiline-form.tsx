@@ -257,7 +257,7 @@ export function ShipmentMultilineForm({
                 <Ship className="text-primary h-6 w-6" />
               </div>
               <div>
-                <CardTitle className="text-xl font-semibold">
+                <CardTitle className="text-lg font-semibold text-blue-600">
                   Bulk Shipment Import
                 </CardTitle>
                 <CardDescription>

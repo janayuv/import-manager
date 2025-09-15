@@ -571,14 +571,12 @@ export function InvoiceWizard({
       setLoadedFromDraft(true);
       toast.message('Loaded saved draft for this shipment');
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [header.shipmentId]);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">
       <div className="space-y-2">
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold">Invoice Entry Wizard</h2>
           <div className="flex gap-2">
             <Button variant="outline" onClick={saveDraft} disabled={saving}>
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save

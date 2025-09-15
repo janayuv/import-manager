@@ -383,9 +383,7 @@ const DashboardPage = () => {
         className={`flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between ${getSpacingClass()}`}
       >
         <div>
-          <h1 className={`${getTextClass('2xl')} font-bold tracking-tight`}>
-            Dashboard
-          </h1>
+          <h1 className="text-xl font-semibold text-blue-600">Dashboard</h1>
           <p className={`${getTextClass()} text-muted-foreground`}>
             Operational overview across modules
           </p>

@@ -77,7 +77,9 @@ export default function BoeSummaryPage() {
       <Card>
         <CardHeader>
           <div>
-            <CardTitle>BOE Reconciliation Report</CardTitle>
+            <CardTitle className="text-xl font-semibold text-blue-600">
+              BOE Reconciliation Report
+            </CardTitle>
             <CardDescription>
               Select a supplier and invoice to view a detailed breakdown of
               duties and variance.

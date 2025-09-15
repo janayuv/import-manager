@@ -282,7 +282,14 @@ const BoePage = () => {
   return (
     <div className="container mx-auto py-10">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Bill of Entry Details</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-blue-600">
+            Bill of Entry Details
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            Manage customs declarations and duty calculations
+          </p>
+        </div>
         <div className="flex items-center gap-2">
           <Button onClick={handleDownloadTemplate} variant="secondary">
             <Download className="mr-2 h-4 w-4" /> Template
