@@ -668,10 +668,10 @@ const ShipmentPage = () => {
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex-1">
-              <CardTitle className="mb-1 text-lg font-semibold text-gray-900">
+              <CardTitle className="mb-1 text-lg font-semibold text-purple-700">
                 {shipment.invoiceNumber}
               </CardTitle>
-              <CardDescription className="mb-2 text-sm text-gray-600">
+              <CardDescription className="mb-2 text-sm text-indigo-600">
                 {supplier?.label || 'Unknown Supplier'}
               </CardDescription>
               <div className="flex items-center gap-2">
@@ -682,7 +682,9 @@ const ShipmentPage = () => {
                   {getStatusDisplayName(shipment.status || '')}
                 </Badge>
                 <div className="flex items-center gap-1">
-                  <span className="text-xs text-gray-500">#{shipment.id}</span>
+                  <span className="text-xs text-purple-500">
+                    #{shipment.id}
+                  </span>
                   <Button
                     variant="ghost"
                     size="sm"
@@ -690,10 +692,10 @@ const ShipmentPage = () => {
                       e.stopPropagation();
                       handleCopyShipmentId(shipment.id);
                     }}
-                    className="h-6 w-6 p-0 hover:bg-gray-100"
+                    className="h-6 w-6 p-0 hover:bg-purple-100"
                     title="Copy Shipment ID"
                   >
-                    <Copy className="h-3 w-3 text-gray-400 hover:text-gray-600" />
+                    <Copy className="h-3 w-3 text-purple-400 hover:text-purple-600" />
                   </Button>
                 </div>
               </div>
@@ -723,8 +725,8 @@ const ShipmentPage = () => {
             {/* Key Information */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <DollarSign className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-700">
+                <DollarSign className="h-4 w-4 text-emerald-500" />
+                <span className="font-medium text-emerald-700">
                   {formatCurrency(
                     shipment.invoiceValue || 0,
                     shipment.invoiceCurrency || 'USD'
@@ -732,13 +734,15 @@ const ShipmentPage = () => {
                 </span>
               </div>
               <div className="flex items-center gap-2 text-sm">
-                <Package className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-700">{shipment.goodsCategory}</span>
+                <Package className="h-4 w-4 text-blue-500" />
+                <span className="font-medium text-blue-700">
+                  {shipment.goodsCategory}
+                </span>
               </div>
               {shipment.grossWeightKg && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Ship className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-700">
+                  <Ship className="h-4 w-4 text-cyan-500" />
+                  <span className="font-medium text-cyan-700">
                     {shipment.grossWeightKg} kg
                   </span>
                 </div>
@@ -748,15 +752,17 @@ const ShipmentPage = () => {
             {/* Dates */}
             <div className="space-y-2">
               <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-gray-400" />
-                <span className="text-gray-700">
+                <Calendar className="h-4 w-4 text-orange-500" />
+                <span className="font-medium text-orange-700">
                   Invoice: {shipment.invoiceDate}
                 </span>
               </div>
               {shipment.eta && (
                 <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-gray-400" />
-                  <span className="text-gray-700">ETA: {shipment.eta}</span>
+                  <Clock className="h-4 w-4 text-rose-500" />
+                  <span className="font-medium text-rose-700">
+                    ETA: {shipment.eta}
+                  </span>
                 </div>
               )}
             </div>
@@ -765,27 +771,27 @@ const ShipmentPage = () => {
             {(shipment.blAwbNumber ||
               shipment.vesselName ||
               shipment.containerNumber) && (
-              <div className="border-t border-gray-100 pt-2">
+              <div className="border-t border-purple-200 pt-2">
                 <div className="mb-2 flex items-center gap-2 text-sm">
-                  <Ship className="h-4 w-4 text-gray-400" />
-                  <span className="font-medium text-gray-700">
+                  <Ship className="h-4 w-4 text-purple-500" />
+                  <span className="font-medium text-purple-700">
                     Shipping Details
                   </span>
                 </div>
                 {shipment.blAwbNumber && (
-                  <div className="mb-1 text-xs text-gray-600">
+                  <div className="mb-1 text-xs text-purple-600">
                     <span className="font-medium">B/L:</span>{' '}
                     {shipment.blAwbNumber}
                   </div>
                 )}
                 {shipment.vesselName && (
-                  <div className="mb-1 text-xs text-gray-600">
+                  <div className="mb-1 text-xs text-purple-600">
                     <span className="font-medium">Vessel:</span>{' '}
                     {shipment.vesselName}
                   </div>
                 )}
                 {shipment.containerNumber && (
-                  <div className="text-xs text-gray-600">
+                  <div className="text-xs text-purple-600">
                     <span className="font-medium">Container:</span>{' '}
                     {shipment.containerNumber}
                   </div>
