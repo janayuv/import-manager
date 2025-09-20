@@ -324,7 +324,7 @@ const DashboardPage = () => {
       }
     };
     fetchAll();
-  }, []);
+  }, [notifications.system]);
 
   const handleRefresh = async () => {
     notifications.loading('Refreshing dashboard data...');

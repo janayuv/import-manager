@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import { useNotifications } from '@/contexts/NotificationContext';
 import type { Notification } from '@/types/notification';
@@ -115,53 +115,56 @@ export interface UnifiedNotificationHelpers {
 export function useUnifiedNotifications(): UnifiedNotificationHelpers {
   const { addNotification } = useNotifications();
 
-  const showNotification = (
-    type: Notification['type'],
-    title: string,
-    message?: string,
-    options: NotificationOptions = {}
-  ) => {
-    const {
-      persistent = false,
-      category,
-      duration = 4000,
-      actionUrl,
-      data,
-    } = options;
-
-    if (persistent) {
-      // Add to persistent notification system
-      addNotification({
-        title,
-        message: message || '',
-        type,
+  const showNotification = useCallback(
+    (
+      type: Notification['type'],
+      title: string,
+      message?: string,
+      options: NotificationOptions = {}
+    ) => {
+      const {
+        persistent = false,
         category,
+        duration = 4000,
         actionUrl,
-      });
-    } else {
-      // Show as toast
-      const toastOptions: Record<string, unknown> = { duration };
-      if (data) {
-        toastOptions.data = data;
-      }
+        data,
+      } = options;
 
-      switch (type) {
-        case 'success':
-          toast.success(title, { description: message, ...toastOptions });
-          break;
-        case 'error':
-          toast.error(title, { description: message, ...toastOptions });
-          break;
-        case 'warning':
-          toast.warning(title, { description: message, ...toastOptions });
-          break;
-        case 'info':
-        default:
-          toast.info(title, { description: message, ...toastOptions });
-          break;
+      if (persistent) {
+        // Add to persistent notification system
+        addNotification({
+          title,
+          message: message || '',
+          type,
+          category,
+          actionUrl,
+        });
+      } else {
+        // Show as toast
+        const toastOptions: Record<string, unknown> = { duration };
+        if (data) {
+          toastOptions.data = data;
+        }
+
+        switch (type) {
+          case 'success':
+            toast.success(title, { description: message, ...toastOptions });
+            break;
+          case 'error':
+            toast.error(title, { description: message, ...toastOptions });
+            break;
+          case 'warning':
+            toast.warning(title, { description: message, ...toastOptions });
+            break;
+          case 'info':
+          default:
+            toast.info(title, { description: message, ...toastOptions });
+            break;
+        }
       }
-    }
-  };
+    },
+    [addNotification]
+  );
 
   const loading = (message: string): string => {
     return String(toast.loading(message));
@@ -479,6 +482,6 @@ export function useUnifiedNotifications(): UnifiedNotificationHelpers {
           ),
       },
     }),
-    [addNotification]
+    [showNotification]
   );
 }

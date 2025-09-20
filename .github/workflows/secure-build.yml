@@ -61,64 +61,173 @@ jobs:
       - name: Run type checking
         run: npx tsc --noEmit
 
-  build:
-    name: Build Tauri App
+  build-unsigned:
+    name: Build Tauri App (Unsigned)
     runs-on: windows-latest
     needs: [security-scan, test]
     if: github.ref == 'refs/heads/main'
 
     steps:
+      - name: Check if signing keys are available
+        id: check-signing
+        run: |
+          if [ -n "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip unsigned build
+        if: steps.check-signing.outputs.skip == 'true'
+        run: |
+          echo "Skipping unsigned build - signing keys are available"
+          exit 1
+
       - name: Checkout code
+        if: steps.check-signing.outputs.skip == 'false'
         uses: actions/checkout@v4
 
       - name: Setup Node.js
+        if: steps.check-signing.outputs.skip == 'false'
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'npm'
 
       - name: Setup Rust
+        if: steps.check-signing.outputs.skip == 'false'
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           override: true
 
       - name: Install dependencies
+        if: steps.check-signing.outputs.skip == 'false'
         run: npm ci
 
       - name: Build frontend
+        if: steps.check-signing.outputs.skip == 'false'
         run: npm run build
 
-      - name: Build Tauri app
+      - name: Build Tauri app (unsigned)
+        if: steps.check-signing.outputs.skip == 'false'
+        run: npm run tauri build
+
+      - name: Upload release artifacts
+        if: steps.check-signing.outputs.skip == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: tauri-app-unsigned
+          path: src-tauri/target/release/
+          retention-days: 30
+
+  build-signed:
+    name: Build Tauri App (Signed)
+    runs-on: windows-latest
+    needs: [security-scan, test]
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Check if signing keys are available
+        id: check-signing-signed
+        run: |
+          if [ -n "${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" ]; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip signed build
+        if: steps.check-signing-signed.outputs.skip == 'true'
+        run: |
+          echo "Skipping signed build - no signing keys available"
+          exit 1
+
+      - name: Checkout code
+        if: steps.check-signing-signed.outputs.skip == 'false'
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        if: steps.check-signing-signed.outputs.skip == 'false'
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Setup Rust
+        if: steps.check-signing-signed.outputs.skip == 'false'
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+
+      - name: Install dependencies
+        if: steps.check-signing-signed.outputs.skip == 'false'
+        run: npm ci
+
+      - name: Build frontend
+        if: steps.check-signing-signed.outputs.skip == 'false'
+        run: npm run build
+
+      - name: Build Tauri app (signed)
+        if: steps.check-signing-signed.outputs.skip == 'false'
         run: npm run tauri build
         env:
-          # Use GitHub Secrets instead of hardcoded values
+          # Use GitHub Secrets for code signing
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
 
       - name: Upload release artifacts
+        if: steps.check-signing-signed.outputs.skip == 'false'
         uses: actions/upload-artifact@v4
         with:
-          name: tauri-app
+          name: tauri-app-signed
           path: src-tauri/target/release/
           retention-days: 30
 
   deploy:
     name: Deploy
     runs-on: windows-latest
-    needs: build
+    needs: [build-unsigned, build-signed]
     if: github.ref == 'refs/heads/main'
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Download artifacts
+      - name: Check deployment secrets
+        id: check-deploy
+        run: |
+          if [ -n "${{ secrets.DEPLOY_KEY }}" ]; then
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "Deployment secrets are available."
+          else
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "No deployment secrets found - skipping deployment."
+          fi
+
+      - name: Skip deployment
+        if: steps.check-deploy.outputs.skip == 'true'
+        run: |
+          echo "Skipping deployment - no secrets available"
+          exit 1
+
+      - name: Download signed artifacts
+        if: steps.check-deploy.outputs.skip == 'false'
         uses: actions/download-artifact@v4
         with:
-          name: tauri-app
+          name: tauri-app-signed
+        continue-on-error: true
+
+      - name: Download unsigned artifacts
+        if: steps.check-deploy.outputs.skip == 'false'
+        uses: actions/download-artifact@v4
+        with:
+          name: tauri-app-unsigned
+        continue-on-error: true
 
       - name: Deploy to staging
+        if: steps.check-deploy.outputs.skip == 'false'
         run: |
           echo "Deploying to staging environment..."
           # Add your deployment logic here
@@ -129,6 +238,7 @@ jobs:
           DEPLOY_URL: ${{ secrets.DEPLOY_URL }}
 
       - name: Notify deployment
+        if: steps.check-deploy.outputs.skip == 'false'
         run: |
           echo "Deployment completed successfully!"
           # Add notification logic here (Slack, email, etc.)

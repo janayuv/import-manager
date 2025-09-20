@@ -111,7 +111,7 @@ export function ItemMasterPage() {
       console.error('Failed to fetch items:', error);
       notifications.item.error('fetch', String(error));
     }
-  }, []);
+  }, [notifications.item]);
 
   const fetchOptions = React.useCallback(async () => {
     try {
@@ -159,7 +159,7 @@ export function ItemMasterPage() {
       console.error('Failed to fetch options:', error);
       notifications.item.error('load options', String(error));
     }
-  }, [settings.textFormat]);
+  }, [settings.textFormat, notifications.item]);
 
   React.useEffect(() => {
     const loadData = async () => {

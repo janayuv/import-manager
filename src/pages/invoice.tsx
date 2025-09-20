@@ -109,7 +109,7 @@ const InvoicePage = () => {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [notifications.invoice]);
 
   React.useEffect(() => {
     fetchData();
@@ -310,7 +310,7 @@ const InvoicePage = () => {
         notifications.invoice.error('finalize', String(error));
       }
     },
-    [invoices, fetchData]
+    [invoices, fetchData, notifications]
   );
 
   const handleBulkAutoFinalize = React.useCallback(async () => {
@@ -386,7 +386,7 @@ const InvoicePage = () => {
       console.error('Failed to bulk auto-finalize invoices:', error);
       notifications.invoice.error('bulk finalize', String(error));
     }
-  }, [invoices, fetchData]);
+  }, [invoices, fetchData, notifications]);
 
   const handleDeleteConfirm = async () => {
     if (invoiceToDelete) {

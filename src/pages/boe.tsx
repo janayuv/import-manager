@@ -41,7 +41,7 @@ const BoePage = () => {
     number: string;
   } | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
       const fetchedBoes = await invoke<BoeDetails[]>('get_boes');
@@ -52,11 +52,11 @@ const BoePage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [notifications.boe]);
 
   React.useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
   const handleOpenFormForAdd = () => {
     setBoeToEdit(null);

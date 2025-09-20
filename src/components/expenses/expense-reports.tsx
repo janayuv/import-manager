@@ -140,7 +140,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       }
     };
     loadOptions();
-  }, []);
+  }, [notifications]);
 
   // Generate report based on type
   const generateReport = useCallback(
@@ -281,7 +281,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         setLoading(false);
       }
     },
-    [filters, reportType]
+    [filters, reportType, notifications]
   );
 
   // Auto-generate report when filters change (silent)

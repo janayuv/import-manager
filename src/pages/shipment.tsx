@@ -119,7 +119,7 @@ const ShipmentPage = () => {
       console.error('Failed to fetch shipments:', error);
       notifications.shipment.error('load', String(error));
     }
-  }, []);
+  }, [notifications.shipment]);
 
   const handleOpenFormForEdit = React.useCallback((shipment: Shipment) => {
     setShipmentToEdit(shipment);
@@ -152,7 +152,7 @@ const ShipmentPage = () => {
         notifications.shipment.error('mark as delivered', String(error));
       }
     },
-    [fetchShipments]
+    [fetchShipments, notifications.shipment]
   );
 
   const handleCheckStatusUpdates = React.useCallback(async () => {
@@ -167,7 +167,7 @@ const ShipmentPage = () => {
       console.error('Failed to check shipment status updates:', error);
       notifications.shipment.error('check status updates', String(error));
     }
-  }, [fetchShipments]);
+  }, [fetchShipments, notifications]);
 
   const handleMigrateStatuses = React.useCallback(async () => {
     try {
@@ -181,7 +181,7 @@ const ShipmentPage = () => {
       console.error('Failed to migrate shipment statuses:', error);
       notifications.shipment.error('migrate statuses', String(error));
     }
-  }, [fetchShipments]);
+  }, [fetchShipments, notifications]);
 
   const handleCopyShipmentId = async (shipmentId: string) => {
     try {
@@ -270,7 +270,7 @@ const ShipmentPage = () => {
     ]
   );
 
-  const fetchOptions = async () => {
+  const fetchOptions = React.useCallback(async () => {
     try {
       const [
         fetchedCategories,
@@ -297,7 +297,7 @@ const ShipmentPage = () => {
       console.error('Failed to fetch options:', error);
       notifications.shipment.error('load dropdown options', String(error));
     }
-  };
+  }, [notifications.shipment]);
 
   React.useEffect(() => {
     const fetchInitialData = async () => {
@@ -316,7 +316,12 @@ const ShipmentPage = () => {
       }
     };
     fetchInitialData();
-  }, [settings.textFormat, fetchShipments]);
+  }, [
+    settings.textFormat,
+    fetchShipments,
+    fetchOptions,
+    notifications.shipment,
+  ]);
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
     const isDuplicate = shipments.some(

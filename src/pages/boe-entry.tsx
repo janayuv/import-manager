@@ -45,7 +45,7 @@ export default function BoeEntryPage() {
   const [editingBoe, setEditingBoe] = React.useState<SavedBoe | null>(null);
   const [deletingBoe, setDeletingBoe] = React.useState<SavedBoe | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     try {
       const [shipmentsData, savedBoesData, allBoesData] = await Promise.all([
         invoke<Shipment[]>('get_shipments_for_boe_entry'),
@@ -58,7 +58,7 @@ export default function BoeEntryPage() {
     } catch (error) {
       notifications.boe.error('load data', String(error));
     }
-  };
+  }, [notifications.boe]);
 
   React.useEffect(() => {
     const loadInitialData = async () => {
@@ -67,7 +67,7 @@ export default function BoeEntryPage() {
       setIsLoading(false);
     };
     loadInitialData();
-  }, []);
+  }, [fetchData]);
 
   const handleSaveOrUpdateBoe = async (boeData: SavedBoe) => {
     const isEditing = savedBoes.some(b => b.id === boeData.id);

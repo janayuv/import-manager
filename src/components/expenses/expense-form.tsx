@@ -153,7 +153,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
       }
     };
     fetchData();
-  }, []);
+  }, [notifications]);
 
   // ✅ Create expense type
   const handleCreateExpenseType = async (name: string) => {

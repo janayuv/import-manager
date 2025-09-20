@@ -571,7 +571,7 @@ export function InvoiceWizard({
       setLoadedFromDraft(true);
       toast.message('Loaded saved draft for this shipment');
     }
-  }, [header.shipmentId]);
+  }, [header.shipmentId, loadedFromDraft]);
 
   return (
     <div className="mx-auto w-full max-w-7xl space-y-6">
