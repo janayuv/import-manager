@@ -1,0 +1,13 @@
+---
+sourceLocationPrefix: D:\Import-Manager
+baselineLinesOfCode: 47513
+unicodeNewlines: true
+columnKind: utf16
+primaryLanguage: javascript
+creationMetadata:
+  sha: 8a15629c07b2b40755c14505bcc66a4769cd3b81
+  cliVersion: 2.23.0
+  creationTime: 2025-09-20T05:43:01.527184600Z
+overlayDatabase: false
+overlayBaseDatabase: false
+finalised: true

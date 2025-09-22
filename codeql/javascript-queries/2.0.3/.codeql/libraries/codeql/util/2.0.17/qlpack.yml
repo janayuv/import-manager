@@ -1,0 +1,13 @@
+---
+library: true
+warnOnImplicitThis: true
+name: codeql/util
+version: 2.0.17
+buildMetadata:
+  sha: 28f02c07d7d744d761520fbfb354f96827a11f6c
+  cliVersion: 2.23.0
+dependencies: {}
+groups:
+  - shared
+dataExtensions:
+  - ext/*.yml

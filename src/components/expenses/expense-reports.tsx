@@ -28,6 +28,7 @@ import * as ExcelJS from 'exceljs';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
+import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -86,6 +87,8 @@ const COLORS = [
 
 const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   const notifications = useUnifiedNotifications();
+  const { isSmallScreen, getTableClass, getSpacingClass } =
+    useResponsiveContext();
   const [loading, setLoading] = useState(false);
   const [reportType, setReportType] = useState<ExpenseReportType>('detailed');
   const [filters, setFilters] = useState<ExpenseReportFilters>(() => {
@@ -599,10 +602,10 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   };
 
   return (
-    <div className="space-y-6">
+    <div className={getSpacingClass('lg')}>
       {/* Action Buttons */}
-      <div className="flex items-center justify-end">
-        <div className="flex items-center space-x-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
+        <div className="flex flex-wrap items-center gap-2">
           <Button
             variant="default"
             size="sm"
@@ -786,7 +789,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {/* Date Range */}
             <div className="space-y-2">
               <Label htmlFor="dateFrom">Date From</Label>
@@ -974,7 +977,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             value={reportType}
             onValueChange={value => setReportType(value as ExpenseReportType)}
           >
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger value="detailed" className="flex items-center gap-2">
                 <FileText className="h-4 w-4" />
                 Detailed
@@ -1014,7 +1017,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               {detailedReport && detailedReport.rows.length > 0 ? (
                 <>
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
                     <Card>
                       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">
@@ -1104,21 +1107,33 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="rounded-md border">
-                        <Table>
+                      <div className="overflow-x-auto rounded-md border">
+                        <Table className={getTableClass('auto')}>
                           <TableHeader>
                             <TableRow>
                               <TableHead>Invoice</TableHead>
                               <TableHead>Date</TableHead>
-                              <TableHead>Shipment</TableHead>
+                              {!isSmallScreen && (
+                                <TableHead>Shipment</TableHead>
+                              )}
                               <TableHead>Provider</TableHead>
                               <TableHead>Type</TableHead>
                               <TableHead className="text-right">
                                 Amount
                               </TableHead>
-                              <TableHead className="text-right">CGST</TableHead>
-                              <TableHead className="text-right">SGST</TableHead>
-                              <TableHead className="text-right">IGST</TableHead>
+                              {!isSmallScreen && (
+                                <>
+                                  <TableHead className="text-right">
+                                    CGST
+                                  </TableHead>
+                                  <TableHead className="text-right">
+                                    SGST
+                                  </TableHead>
+                                  <TableHead className="text-right">
+                                    IGST
+                                  </TableHead>
+                                </>
+                              )}
                               <TableHead className="text-right">
                                 Total
                               </TableHead>
@@ -1135,11 +1150,13 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                                 <TableCell>
                                   {formatDate(row.invoice_date)}
                                 </TableCell>
-                                <TableCell>
-                                  {row.shipment_number ||
-                                    row.shipment_id ||
-                                    'N/A'}
-                                </TableCell>
+                                {!isSmallScreen && (
+                                  <TableCell>
+                                    {row.shipment_number ||
+                                      row.shipment_id ||
+                                      'N/A'}
+                                  </TableCell>
+                                )}
                                 <TableCell>
                                   {row.service_provider_name || 'N/A'}
                                 </TableCell>
@@ -1151,21 +1168,25 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                                     (row.amount_paise || 0) / 100
                                   )}
                                 </TableCell>
-                                <TableCell className="text-right">
-                                  {formatCurrency(
-                                    (row.cgst_amount_paise || 0) / 100
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatCurrency(
-                                    (row.sgst_amount_paise || 0) / 100
-                                  )}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                  {formatCurrency(
-                                    (row.igst_amount_paise || 0) / 100
-                                  )}
-                                </TableCell>
+                                {!isSmallScreen && (
+                                  <>
+                                    <TableCell className="text-right">
+                                      {formatCurrency(
+                                        (row.cgst_amount_paise || 0) / 100
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {formatCurrency(
+                                        (row.sgst_amount_paise || 0) / 100
+                                      )}
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                      {formatCurrency(
+                                        (row.igst_amount_paise || 0) / 100
+                                      )}
+                                    </TableCell>
+                                  </>
+                                )}
                                 <TableCell className="text-right font-medium">
                                   {formatCurrency(
                                     (row.total_amount_paise || 0) / 100
@@ -1202,7 +1223,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             ].map(type => (
               <TabsContent key={type} value={type} className="space-y-4">
                 {/* Charts */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
                   <Card>
                     <CardHeader>
                       <CardTitle>Bar Chart</CardTitle>
@@ -1278,17 +1299,27 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="rounded-md border">
-                      <Table>
+                    <div className="overflow-x-auto rounded-md border">
+                      <Table className={getTableClass('auto')}>
                         <TableHeader>
                           <TableRow>
                             <TableHead>Name</TableHead>
                             <TableHead className="text-right">Amount</TableHead>
-                            <TableHead className="text-right">CGST</TableHead>
-                            <TableHead className="text-right">SGST</TableHead>
-                            <TableHead className="text-right">IGST</TableHead>
+                            {!isSmallScreen && (
+                              <>
+                                <TableHead className="text-right">
+                                  CGST
+                                </TableHead>
+                                <TableHead className="text-right">
+                                  SGST
+                                </TableHead>
+                                <TableHead className="text-right">
+                                  IGST
+                                </TableHead>
+                              </>
+                            )}
                             <TableHead className="text-right">Total</TableHead>
-                            {type !== 'summary-by-type' && (
+                            {type !== 'summary-by-type' && !isSmallScreen && (
                               <TableHead className="text-right">
                                 Invoices
                               </TableHead>
@@ -1309,21 +1340,25 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                                       item.total_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_cgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_sgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_igst_amount_paise / 100
-                                    )}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_cgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_sgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_igst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                    </>
+                                  )}
                                   <TableCell className="text-right font-medium">
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
@@ -1345,29 +1380,35 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                                       item.total_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_cgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_sgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_igst_amount_paise / 100
-                                    )}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_cgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_sgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_igst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                    </>
+                                  )}
                                   <TableCell className="text-right font-medium">
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {item.invoice_count}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <TableCell className="text-right">
+                                      {item.invoice_count}
+                                    </TableCell>
+                                  )}
                                   <TableCell className="text-right">
                                     {item.line_count}
                                   </TableCell>
@@ -1384,29 +1425,35 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                                       item.total_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_cgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_sgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_igst_amount_paise / 100
-                                    )}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_cgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_sgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_igst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                    </>
+                                  )}
                                   <TableCell className="text-right font-medium">
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {item.invoice_count}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <TableCell className="text-right">
+                                      {item.invoice_count}
+                                    </TableCell>
+                                  )}
                                   <TableCell className="text-right">
                                     {item.line_count}
                                   </TableCell>
@@ -1423,29 +1470,35 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                                       item.total_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_cgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_sgst_amount_paise / 100
-                                    )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
-                                    {formatCurrency(
-                                      item.total_igst_amount_paise / 100
-                                    )}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_cgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_sgst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-right">
+                                        {formatCurrency(
+                                          item.total_igst_amount_paise / 100
+                                        )}
+                                      </TableCell>
+                                    </>
+                                  )}
                                   <TableCell className="text-right font-medium">
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
                                   </TableCell>
-                                  <TableCell className="text-right">
-                                    {item.invoice_count}
-                                  </TableCell>
+                                  {!isSmallScreen && (
+                                    <TableCell className="text-right">
+                                      {item.invoice_count}
+                                    </TableCell>
+                                  )}
                                   <TableCell className="text-right">
                                     {item.line_count}
                                   </TableCell>

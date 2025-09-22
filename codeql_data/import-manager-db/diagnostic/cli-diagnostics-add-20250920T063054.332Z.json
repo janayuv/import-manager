@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-09-20T12:00:54.3291081+05:30",
+  "source": {
+    "id": "cli/database/analyze",
+    "name": "CodeQL CLI: database analyze"
+  },
+  "plaintextMessage": "A fatal error occurred: Could not process query metadata for D:\\Import-Manager\\codeql_data\\import-manager-db\\results\\codeql\\javascript-queries\\meta\\Consistency.bqrs.\r\nError was: Unknown kind \"Table\". [UNSUPPORTED_KIND]",
+  "severity": "error",
+  "visibility": { "telemetry": false },
+  "attributes": { "exitCode": 2 }
+}

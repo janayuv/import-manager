@@ -1,0 +1,11 @@
+{
+  "timestamp": "2025-09-20T11:43:54.8228396+05:30",
+  "source": {
+    "id": "cli/database/analyze",
+    "name": "CodeQL CLI: database analyze"
+  },
+  "plaintextMessage": "A fatal error occurred: Missing required parameter: <scope/name[@version]|suite.qls>",
+  "severity": "error",
+  "visibility": { "telemetry": false },
+  "attributes": { "exitCode": 2 }
+}
