@@ -248,24 +248,27 @@ export function BoeEntryForm({
     [form, shipments, settings.textFormat]
   );
 
-  const handleInvoiceChange = (shipmentId: string) => {
-    form.setValue('shipmentId', shipmentId, { shouldValidate: true });
-    const shipment = shipments.find(s => s.id === shipmentId) || null;
-    setSelectedShipment(shipment);
-    setCalculationResult(null);
+  const handleInvoiceChange = React.useCallback(
+    (shipmentId: string) => {
+      form.setValue('shipmentId', shipmentId, { shouldValidate: true });
+      const shipment = shipments.find(s => s.id === shipmentId) || null;
+      setSelectedShipment(shipment);
+      setCalculationResult(null);
 
-    if (shipment) {
-      setItemInputs(
-        shipment.items.map(item => ({
-          partNo: item.partNo,
-          calculationMethod: 'Standard',
-          boeBcdRate: item.actualBcdRate,
-          boeSwsRate: item.actualSwsRate,
-          boeIgstRate: item.actualIgstRate,
-        }))
-      );
-    }
-  };
+      if (shipment) {
+        setItemInputs(
+          shipment.items.map(item => ({
+            partNo: item.partNo,
+            calculationMethod: 'Standard',
+            boeBcdRate: item.actualBcdRate,
+            boeSwsRate: item.actualSwsRate,
+            boeIgstRate: item.actualIgstRate,
+          }))
+        );
+      }
+    },
+    [form, shipments]
+  );
 
   const handleBoeSelect = (boeId: string) => {
     setSelectedBoeId(boeId);
