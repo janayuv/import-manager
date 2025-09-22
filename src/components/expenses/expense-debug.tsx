@@ -181,13 +181,19 @@ export function ExpenseDebug() {
           {/* Debug Section */}
           <div className="space-y-4">
             <div className="flex gap-4">
-              <Button onClick={debugExpenseTypes} disabled={loading}>
+              <Button
+                onClick={debugExpenseTypes}
+                disabled={loading}
+                variant="default"
+                useAccentColor
+              >
                 {loading ? 'Loading...' : 'Debug Expense Types'}
               </Button>
               <Button
                 onClick={addSampleExpenseTypes}
                 disabled={loading}
-                variant="outline"
+                variant="default"
+                useAccentColor
               >
                 Add Sample Expense Types
               </Button>
@@ -298,6 +304,8 @@ export function ExpenseDebug() {
             <Button
               onClick={addExpenseType}
               disabled={loading || !newExpenseType.name.trim()}
+              variant="default"
+              useAccentColor
             >
               Add Expense Type
             </Button>

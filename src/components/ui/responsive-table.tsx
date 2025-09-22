@@ -198,7 +198,7 @@ export function ResponsiveDataTable<TData, TValue>({
       <div className="bg-card w-full overflow-hidden rounded-lg border shadow-sm">
         <div className="w-full overflow-x-auto">
           <Table className={getTableClass()}>
-            <TableHeader className="bg-muted/50 border-b">
+            <TableHeader className="bg-accent border-b">
               {table.getHeaderGroups().map(headerGroup => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
                   {headerGroup.headers.map(header => {
@@ -206,7 +206,7 @@ export function ResponsiveDataTable<TData, TValue>({
                     return (
                       <TableHead
                         key={header.id}
-                        className={`${getTextClass('sm')} text-foreground overflow-hidden px-4 py-4 font-semibold whitespace-nowrap`}
+                        className={`${getTextClass('sm')} text-accent-foreground overflow-hidden px-4 py-4 font-semibold whitespace-nowrap`}
                         style={columnStyle}
                       >
                         {header.isPlaceholder

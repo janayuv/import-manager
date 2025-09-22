@@ -199,7 +199,7 @@ export function EditSupplierDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button onClick={handleSubmit} variant="default">
+          <Button onClick={handleSubmit} variant="default" useAccentColor>
             Save Supplier
           </Button>
         </DialogFooter>

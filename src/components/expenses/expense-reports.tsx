@@ -604,8 +604,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
       <div className="flex items-center justify-end">
         <div className="flex items-center space-x-2">
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
+            useAccentColor
             onClick={() => generateReport(true)}
             disabled={loading}
           >
@@ -743,8 +744,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           </Button>
           <div className="flex items-center space-x-2">
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
+              useAccentColor
               onClick={() => exportReport('csv')}
               disabled={loading}
             >
@@ -752,8 +754,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               CSV
             </Button>
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
+              useAccentColor
               onClick={() => exportReport('excel')}
               disabled={loading}
             >
@@ -761,8 +764,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               Excel
             </Button>
             <Button
-              variant="outline"
+              variant="default"
               size="sm"
+              useAccentColor
               onClick={() => exportReport('pdf')}
               disabled={loading}
             >

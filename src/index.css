@@ -808,6 +808,8 @@
 .dark.theme-green {
   --primary: oklch(0.78 0.1 150);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 150);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-orange {
@@ -819,6 +821,8 @@
 .dark.theme-orange {
   --primary: oklch(0.79 0.12 63);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 63);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-red {
@@ -830,6 +834,8 @@
 .dark.theme-red {
   --primary: oklch(0.74 0.18 27);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 27);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-purple {
@@ -841,6 +847,8 @@
 .dark.theme-purple {
   --primary: oklch(0.78 0.17 300);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 300);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-teal {
@@ -852,6 +860,8 @@
 .dark.theme-teal {
   --primary: oklch(0.78 0.1 180);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 180);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-cyan {
@@ -863,6 +873,8 @@
 .dark.theme-cyan {
   --primary: oklch(0.79 0.11 200);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 200);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-sky {
@@ -874,6 +886,8 @@
 .dark.theme-sky {
   --primary: oklch(0.79 0.12 220);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 220);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-indigo {
@@ -885,6 +899,8 @@
 .dark.theme-indigo {
   --primary: oklch(0.76 0.13 260);
   --primary-foreground: oklch(0.985 0 0);
+  --accent: oklch(0.3 0.05 260);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-violet {
@@ -896,6 +912,8 @@
 .dark.theme-violet {
   --primary: oklch(0.77 0.15 280);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 280);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-fuchsia {
@@ -907,6 +925,8 @@
 .dark.theme-fuchsia {
   --primary: oklch(0.79 0.18 320);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 320);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-pink {
@@ -918,6 +938,8 @@
 .dark.theme-pink {
   --primary: oklch(0.79 0.16 340);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 340);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 :root.theme-rose {
@@ -929,6 +951,8 @@
 .dark.theme-rose {
   --primary: oklch(0.78 0.17 360);
   --primary-foreground: oklch(0.145 0 0);
+  --accent: oklch(0.3 0.05 360);
+  --accent-foreground: oklch(0.985 0 0);
 }
 
 /* Design tokens: baseline scales (fluid by default) */

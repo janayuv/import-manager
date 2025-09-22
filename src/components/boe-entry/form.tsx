@@ -223,8 +223,13 @@ export function BoeEntryForm({
         handleInvoiceChange(presetShipmentId);
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [presetSupplierName, presetShipmentId]);
+  }, [
+    presetSupplierName,
+    presetShipmentId,
+    handleInvoiceChange,
+    handleSupplierChange,
+    initialData,
+  ]);
 
   const handleSupplierChange = React.useCallback(
     (supplierName: string) => {
@@ -729,29 +734,37 @@ export function BoeEntryForm({
         <div className="flex justify-end space-x-4">
           <Button
             type="button"
-            variant="secondary"
+            variant="default"
+            useAccentColor
             onClick={handleDownloadOverrideTemplate}
           >
             Download Item Template
           </Button>
           <Button
             type="submit"
+            variant="default"
+            useAccentColor
             disabled={!form.formState.isValid}
-            className="custom-alert-action-orange"
           >
             {overrideFile ? 'Import & Calculate' : 'Calculate Duties'}
           </Button>
           {calculationResult && (
             <Button
               type="button"
+              variant="default"
+              useAccentColor
               onClick={handleSaveOrUpdate}
-              className="custom-alert-action-ok"
             >
               {isEditing ? 'Update BOE' : 'Save BOE'}
             </Button>
           )}
           {isEditing && (
-            <Button type="button" variant="ghost" onClick={onCancelEdit}>
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={onCancelEdit}
+            >
               Cancel Edit
             </Button>
           )}

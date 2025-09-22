@@ -340,7 +340,7 @@ export function ExpenseMultilineForm({
       <CardHeader className="bg-card/50 border-b">
         <CardTitle className="flex items-center justify-between text-xl">
           <span>Add Multiple Expenses</span>
-          <Button variant="ghost" size="sm" onClick={onCancel}>
+          <Button variant="outline" size="sm" useAccentColor onClick={onCancel}>
             <X className="h-4 w-4" />
           </Button>
         </CardTitle>
@@ -360,8 +360,9 @@ export function ExpenseMultilineForm({
                   <span>{duplicateWarning}</span>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="default"
                     size="sm"
+                    useAccentColor
                     onClick={combineDuplicateExpenseTypes}
                     className="text-warning hover:bg-warning/20 ml-4"
                   >
@@ -484,8 +485,9 @@ export function ExpenseMultilineForm({
               <div className="flex gap-3">
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   size="sm"
+                  useAccentColor
                   onClick={handlePreview}
                   disabled={previewLoading}
                   className="h-9"
@@ -495,8 +497,9 @@ export function ExpenseMultilineForm({
                 </Button>
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   size="sm"
+                  useAccentColor
                   onClick={addExpenseLine}
                   className="h-9"
                 >
@@ -523,7 +526,7 @@ export function ExpenseMultilineForm({
                   {expenseLines.length > 1 && (
                     <Button
                       type="button"
-                      variant="ghost"
+                      variant="destructive"
                       size="sm"
                       onClick={() => removeExpenseLine(index)}
                       className="text-destructive hover:bg-destructive/10 hover:text-destructive"
@@ -761,10 +764,20 @@ export function ExpenseMultilineForm({
 
           {/* Action Buttons */}
           <div className="flex justify-end gap-4 border-t pt-6">
-            <Button type="button" variant="outline" onClick={onCancel}>
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={onCancel}
+            >
               Cancel
             </Button>
-            <Button type="submit" disabled={loading}>
+            <Button
+              type="submit"
+              variant="default"
+              useAccentColor
+              disabled={loading}
+            >
               {loading ? 'Creating...' : 'Create Invoice'}
             </Button>
           </div>

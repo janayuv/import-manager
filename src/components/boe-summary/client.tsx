@@ -701,13 +701,28 @@ function ItemDetailsTable({
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>Item Details</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport}>
+          <Button
+            size="sm"
+            variant="default"
+            useAccentColor
+            onClick={handleExport}
+          >
             CSV
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExportXlsx}>
+          <Button
+            size="sm"
+            variant="default"
+            useAccentColor
+            onClick={handleExportXlsx}
+          >
             Excel
           </Button>
-          <Button size="sm" variant="outline" onClick={handlePrint}>
+          <Button
+            size="sm"
+            variant="default"
+            useAccentColor
+            onClick={handlePrint}
+          >
             Print
           </Button>
         </div>
@@ -834,13 +849,28 @@ function BoeSummaryTable({
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
         <CardTitle>BOE Summary & Variance</CardTitle>
         <div className="flex gap-2">
-          <Button size="sm" variant="outline" onClick={handleExport}>
+          <Button
+            size="sm"
+            variant="default"
+            useAccentColor
+            onClick={handleExport}
+          >
             CSV
           </Button>
-          <Button size="sm" variant="outline" onClick={handleExportXlsx}>
+          <Button
+            size="sm"
+            variant="default"
+            useAccentColor
+            onClick={handleExportXlsx}
+          >
             Excel
           </Button>
-          <Button size="sm" variant="outline" onClick={handlePrint}>
+          <Button
+            size="sm"
+            variant="default"
+            useAccentColor
+            onClick={handlePrint}
+          >
             Print
           </Button>
         </div>
@@ -1095,6 +1125,8 @@ export function BoeSummaryClient({
                     </Select>
                   </div>
                   <Button
+                    variant="default"
+                    useAccentColor
                     disabled={
                       isUpdatingStatus ||
                       !pendingStatus ||
@@ -1162,7 +1194,12 @@ export function BoeSummaryClient({
                               {new Date(att.uploadedAt).toLocaleString()}
                             </div>
                           </div>
-                          <Button size="sm" variant="outline" asChild>
+                          <Button
+                            size="sm"
+                            variant="default"
+                            useAccentColor
+                            asChild
+                          >
                             <a
                               href={convertFileSrc(att.url)}
                               download={att.fileName}
@@ -1179,6 +1216,8 @@ export function BoeSummaryClient({
                     </div>
                   )}
                   <Button
+                    variant="default"
+                    useAccentColor
                     onClick={async () => {
                       console.log('📄 Starting BOE document upload process...');
                       console.log(

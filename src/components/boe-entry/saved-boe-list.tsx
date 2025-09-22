@@ -150,17 +150,17 @@ export function SavedBoeList({
                   </TableCell>
                   <TableCell className="space-x-2 text-right">
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className="custom-alert-action-ok"
+                      useAccentColor
                       onClick={() => onView(boe.id)}
                     >
                       View
                     </Button>
                     <Button
-                      variant="outline"
+                      variant="default"
                       size="sm"
-                      className="custom-alert-action-orange"
+                      useAccentColor
                       onClick={() => onEdit(boe.id)}
                     >
                       Edit
@@ -168,7 +168,6 @@ export function SavedBoeList({
                     <Button
                       variant="destructive"
                       size="sm"
-                      className="custom-alert-action-cancel"
                       onClick={() => onDelete(boe.id)}
                     >
                       Delete

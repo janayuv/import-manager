@@ -223,10 +223,10 @@ export default function ReportsPage() {
           </p>
         </div>
         <div className="space-x-2">
-          <Button onClick={exportCsv} variant="outline">
+          <Button onClick={exportCsv} variant="default" useAccentColor>
             Export CSV
           </Button>
-          <Button onClick={exportPdf} variant="outline">
+          <Button onClick={exportPdf} variant="default" useAccentColor>
             Export PDF
           </Button>
         </div>
@@ -286,8 +286,10 @@ export default function ReportsPage() {
             </div>
           </div>
           <div className="mt-4 flex space-x-2">
-            <Button onClick={handleSearch}>Search</Button>
-            <Button onClick={handleClear} variant="outline">
+            <Button onClick={handleSearch} variant="default" useAccentColor>
+              Search
+            </Button>
+            <Button onClick={handleClear} variant="outline" useAccentColor>
               Clear
             </Button>
           </div>

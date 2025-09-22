@@ -86,13 +86,15 @@ export default function SettingsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handleReset}>
+          <Button variant="outline" useAccentColor onClick={handleReset}>
             Reset
           </Button>
           <Button variant="destructive" onClick={handleClearSettings}>
             Clear All Settings
           </Button>
-          <Button onClick={handleSave}>Save Settings</Button>
+          <Button onClick={handleSave} variant="default" useAccentColor>
+            Save Settings
+          </Button>
         </div>
       </div>
 
@@ -110,6 +112,7 @@ export default function SettingsPage() {
               <Button
                 key={module.key}
                 variant={selectedModule === module.key ? 'default' : 'outline'}
+                useAccentColor
                 onClick={() => setSelectedModule(module.key)}
                 className="flex h-20 flex-col items-center justify-center"
               >

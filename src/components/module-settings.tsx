@@ -235,7 +235,7 @@ export function ModuleSettings({
           {moduleTitle} Settings
         </h2>
         {onClose && (
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" useAccentColor onClick={onClose}>
             Close
           </Button>
         )}

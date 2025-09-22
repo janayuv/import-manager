@@ -64,7 +64,9 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="default">Add New Supplier</Button>
+        <Button variant="default" useAccentColor>
+          Add New Supplier
+        </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[800px]">
         <DialogHeader>

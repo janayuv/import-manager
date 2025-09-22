@@ -578,13 +578,19 @@ export function InvoiceWizard({
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex gap-2">
-            <Button variant="outline" onClick={saveDraft} disabled={saving}>
+            <Button
+              variant="default"
+              useAccentColor
+              onClick={saveDraft}
+              disabled={saving}
+            >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save
               Draft
             </Button>
             {header.shipmentId && (
               <Button
-                variant="secondary"
+                variant="default"
+                useAccentColor
                 onClick={() => {
                   const d = getLatestDraftForShipment(header.shipmentId);
                   if (!d) {
@@ -601,7 +607,11 @@ export function InvoiceWizard({
                 View Saved Draft
               </Button>
             )}
-            <Button variant="ghost" onClick={deleteCurrentDraft}>
+            <Button
+              variant="default"
+              useAccentColor
+              onClick={deleteCurrentDraft}
+            >
               Delete Draft
             </Button>
           </div>
@@ -783,7 +793,8 @@ export function InvoiceWizard({
                 <div className="mt-2 flex gap-2">
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="default"
+                    useAccentColor
                     onClick={handlePasteParse}
                     disabled={itemsLoading}
                   >
@@ -791,6 +802,8 @@ export function InvoiceWizard({
                   </Button>
                   <Button
                     type="button"
+                    variant="default"
+                    useAccentColor
                     onClick={acceptParsedPreview}
                     disabled={!parsedPreview.length || itemsLoading}
                   >
@@ -1010,7 +1023,8 @@ export function InvoiceWizard({
                         </TableCell>
                         <TableCell>
                           <Button
-                            variant="ghost"
+                            variant="default"
+                            useAccentColor
                             onClick={() => removeLine(line.id)}
                           >
                             Remove
@@ -1046,7 +1060,8 @@ export function InvoiceWizard({
               </div>
               <div className="flex gap-2">
                 <Button
-                  variant="outline"
+                  variant="default"
+                  useAccentColor
                   disabled={
                     finalizing ||
                     invoiceFinalized ||
@@ -1102,7 +1117,8 @@ export function InvoiceWizard({
                   Finalize Invoice
                 </Button>
                 <Button
-                  variant="secondary"
+                  variant="default"
+                  useAccentColor
                   disabled={finalizing || shipmentFrozen || !header.shipmentId}
                   onClick={async () => {
                     const sh = header.shipmentId
@@ -1208,10 +1224,19 @@ export function InvoiceWizard({
               </div>
             </div>
             <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setStep(2)}>
+              <Button
+                variant="default"
+                useAccentColor
+                onClick={() => setStep(2)}
+              >
                 Back
               </Button>
-              <Button onClick={handleSubmit} disabled={submitting}>
+              <Button
+                variant="default"
+                useAccentColor
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
                 {submitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}{' '}
@@ -1239,13 +1264,16 @@ export function InvoiceWizard({
         </div>
         <div className="flex gap-2">
           <Button
-            variant="outline"
+            variant="default"
+            useAccentColor
             onClick={() => setStep(s => (s > 1 ? ((s - 1) as WizardStep) : s))}
             disabled={step === 1}
           >
             Previous
           </Button>
           <Button
+            variant="default"
+            useAccentColor
             onClick={() => {
               if (step === 1 && !validateHeader()) {
                 toast.error('Please complete header fields');

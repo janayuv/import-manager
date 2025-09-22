@@ -251,17 +251,11 @@ export const BoeForm: React.FC<BoeFormProps> = ({
           </div>
           <DialogFooter>
             <DialogClose asChild>
-              <Button
-                type="button"
-                className="bg-destructive text-destructive-foreground"
-              >
+              <Button type="button" variant="outline" useAccentColor>
                 Cancel
               </Button>
             </DialogClose>
-            <Button
-              type="submit"
-              className="bg-success text-success-foreground"
-            >
+            <Button type="submit" variant="default" useAccentColor>
               {boeToEdit ? 'Update' : 'Save'}
             </Button>
           </DialogFooter>

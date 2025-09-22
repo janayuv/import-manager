@@ -206,8 +206,10 @@ const SupplierPage = () => {
         accessorKey: 'id',
         header: ({ column }) => (
           <Button
-            variant="ghost"
+            variant="default"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            useAccentColor
+            className="text-accent-foreground hover:text-accent-foreground h-auto bg-transparent p-0 !text-sm !font-semibold hover:bg-transparent"
           >
             Supplier ID
             <SortIndicator column={column} />
@@ -219,8 +221,10 @@ const SupplierPage = () => {
         accessorKey: 'supplierName',
         header: ({ column }) => (
           <Button
-            variant="ghost"
+            variant="default"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            useAccentColor
+            className="text-accent-foreground hover:text-accent-foreground h-auto bg-transparent p-0 !text-sm !font-semibold hover:bg-transparent"
           >
             Supplier Name
             <SortIndicator column={column} />
@@ -246,8 +250,10 @@ const SupplierPage = () => {
         accessorKey: 'country',
         header: ({ column }) => (
           <Button
-            variant="ghost"
+            variant="default"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
+            useAccentColor
+            className="text-accent-foreground hover:text-accent-foreground h-auto bg-transparent p-0 !text-sm !font-semibold hover:bg-transparent"
           >
             Country
             <SortIndicator column={column} />
@@ -426,10 +432,11 @@ const SupplierPage = () => {
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
-                        variant="outline"
+                        variant="default"
                         size="icon"
                         onClick={() => setSettingsOpen(true)}
                         className="h-10 w-10"
+                        useAccentColor
                       >
                         <Settings className="h-4 w-4" />
                       </Button>
@@ -441,18 +448,20 @@ const SupplierPage = () => {
                 </TooltipProvider>
 
                 <Button
-                  variant="outline"
+                  variant="default"
                   onClick={handleDownloadTemplate}
                   className="h-10 px-4"
+                  useAccentColor
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Template
                 </Button>
 
                 <Button
-                  variant="outline"
+                  variant="default"
                   onClick={handleImport}
                   className="h-10 px-4"
+                  useAccentColor
                 >
                   <Upload className="mr-2 h-4 w-4" />
                   Import

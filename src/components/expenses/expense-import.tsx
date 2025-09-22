@@ -465,10 +465,20 @@ export default function ExpenseImport({
           <CardTitle className="flex items-center justify-between">
             <span>Import Expenses</span>
             <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={downloadTemplate}>
+              <Button
+                variant="default"
+                size="sm"
+                useAccentColor
+                onClick={downloadTemplate}
+              >
                 📥 Download Template
               </Button>
-              <Button variant="outline" size="sm" onClick={handleReset}>
+              <Button
+                variant="default"
+                size="sm"
+                useAccentColor
+                onClick={handleReset}
+              >
                 🔄 Reset
               </Button>
             </div>
@@ -558,6 +568,8 @@ export default function ExpenseImport({
           {importData.length > 0 && validationErrors.length === 0 && (
             <div className="flex items-center gap-4">
               <Button
+                variant="default"
+                useAccentColor
                 onClick={handleImport}
                 disabled={isProcessing || !selectedShipment}
                 className="flex-1"
@@ -568,6 +580,7 @@ export default function ExpenseImport({
               </Button>
               <Button
                 variant="outline"
+                useAccentColor
                 onClick={() => setPreviewMode(!previewMode)}
               >
                 {previewMode ? 'Hide Preview' : 'Show Preview'}

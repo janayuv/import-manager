@@ -109,14 +109,10 @@ export function ViewBoeDialog({ boe, onClose }: ViewBoeDialogProps) {
           <CalculationResults results={boe.calculationResult} />
         </div>
         <DialogFooter className="sm:justify-between">
-          <Button
-            variant="secondary"
-            onClick={handleExport}
-            className="custom-alert-action-ok"
-          >
+          <Button variant="default" useAccentColor onClick={handleExport}>
             Export to CSV
           </Button>
-          <Button onClick={onClose} className="custom-alert-action-cancel">
+          <Button variant="outline" useAccentColor onClick={onClose}>
             Close
           </Button>
         </DialogFooter>

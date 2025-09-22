@@ -367,13 +367,14 @@ export function ItemMasterPage() {
     <div className="flex items-center gap-2">
       <Button
         onClick={() => handleExport()}
-        variant="secondary"
+        variant="default"
+        useAccentColor
         disabled={true}
       >
         <FileOutput className="mr-2 h-4 w-4" />
         Export Selected
       </Button>
-      <Button onClick={() => handleExport()} variant="info">
+      <Button onClick={() => handleExport()} variant="default" useAccentColor>
         <Download className="mr-2 h-4 w-4" />
         Export All
       </Button>
@@ -390,15 +391,23 @@ export function ItemMasterPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button onClick={handleOpenFormForAdd} variant="default">
+          <Button
+            onClick={handleOpenFormForAdd}
+            variant="default"
+            useAccentColor
+          >
             <Plus className="mr-2 h-4 w-4" />
             Add New
           </Button>
-          <Button onClick={handleDownloadTemplate} variant="secondary">
+          <Button
+            onClick={handleDownloadTemplate}
+            variant="default"
+            useAccentColor
+          >
             <Download className="mr-2 h-4 w-4" />
             Template
           </Button>
-          <Button onClick={handleImport} variant="success">
+          <Button onClick={handleImport} variant="default" useAccentColor>
             <Upload className="mr-2 h-4 w-4" />
             Import
           </Button>

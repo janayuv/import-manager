@@ -151,7 +151,12 @@ const ExpensesPage = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleRefresh}>
+            <Button
+              variant="default"
+              size="sm"
+              useAccentColor
+              onClick={handleRefresh}
+            >
               Refresh Data
             </Button>
             {selectedShipment && (
@@ -230,8 +235,9 @@ const ExpensesPage = () => {
                               <Badge variant="secondary">Editing Expense</Badge>
                             )}
                             <Button
-                              variant="outline"
+                              variant="default"
                               size="sm"
+                              useAccentColor
                               onClick={() => setShowMultilineForm(true)}
                             >
                               Add Multiple Expenses

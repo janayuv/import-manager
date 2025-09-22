@@ -613,10 +613,11 @@ const InvoicePage = () => {
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
-                  variant="outline"
+                  variant="default"
                   size="icon"
                   onClick={() => setSettingsOpen(true)}
                   className={getButtonClass()}
+                  useAccentColor
                 >
                   <Settings className="h-4 w-4" />
                 </Button>
@@ -626,20 +627,27 @@ const InvoicePage = () => {
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          <Button onClick={handleOpenFormForAdd} className={getButtonClass()}>
+          <Button
+            variant="default"
+            onClick={handleOpenFormForAdd}
+            className={getButtonClass()}
+            useAccentColor
+          >
             <Plus className="mr-2 h-4 w-4" /> Add New Invoice
           </Button>
           <Button
             onClick={handleDownloadTemplate}
-            variant="outline"
+            variant="default"
             className={getButtonClass()}
+            useAccentColor
           >
             <Download className="mr-2 h-4 w-4" /> Template
           </Button>
           <Button
             onClick={handleBulkImport}
-            variant="outline"
+            variant="default"
             className={getButtonClass()}
+            useAccentColor
           >
             <Upload className="mr-2 h-4 w-4" /> Import Bulk
           </Button>

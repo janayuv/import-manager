@@ -22,8 +22,9 @@ export function DataTableRowActions() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button
-          variant="ghost"
+          variant="default"
           className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
+          useAccentColor
         >
           <MoreHorizontal className="h-4 w-4" />
           <span className="sr-only">Open menu</span>

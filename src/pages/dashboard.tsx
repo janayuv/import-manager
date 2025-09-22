@@ -390,10 +390,11 @@ const DashboardPage = () => {
         </div>
         <div className={`flex items-center ${getSpacingClass()}`}>
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={handleRefresh}
             className="mr-2"
+            useAccentColor
           >
             <TrendingUp className="mr-2 h-4 w-4" />
             Refresh

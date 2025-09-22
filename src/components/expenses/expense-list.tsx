@@ -203,8 +203,9 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
               <TableCell>
                 <div className="flex space-x-2">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
+                    useAccentColor
                     onClick={() => handleEdit(expense)}
                     className="h-8 px-2"
                   >

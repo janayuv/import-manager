@@ -476,13 +476,18 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
         {/* Action Buttons */}
         <div className="flex space-x-2">
-          <Button type="submit" disabled={isSubmitting}>
+          <Button type="submit" disabled={isSubmitting} useAccentColor>
             {isSubmitting
               ? 'Saving...'
               : (expenseToEdit ? 'Update' : 'Add') + ' Expense'}
           </Button>
           {expenseToEdit && (
-            <Button type="button" variant="outline" onClick={handleCancelEdit}>
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={handleCancelEdit}
+            >
               Cancel Edit
             </Button>
           )}
