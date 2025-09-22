@@ -213,24 +213,6 @@ export function BoeEntryForm({
     }
   }, [initialData, shipments, allBoes, form, settings.textFormat]);
 
-  // Apply presets when not editing and form is blank
-  React.useEffect(() => {
-    if (!initialData) {
-      if (presetSupplierName) {
-        handleSupplierChange(presetSupplierName);
-      }
-      if (presetShipmentId) {
-        handleInvoiceChange(presetShipmentId);
-      }
-    }
-  }, [
-    presetSupplierName,
-    presetShipmentId,
-    handleInvoiceChange,
-    handleSupplierChange,
-    initialData,
-  ]);
-
   const handleSupplierChange = React.useCallback(
     (supplierName: string) => {
       // Normalize to current text format to ensure matching
@@ -269,6 +251,24 @@ export function BoeEntryForm({
     },
     [form, shipments]
   );
+
+  // Apply presets when not editing and form is blank
+  React.useEffect(() => {
+    if (!initialData) {
+      if (presetSupplierName) {
+        handleSupplierChange(presetSupplierName);
+      }
+      if (presetShipmentId) {
+        handleInvoiceChange(presetShipmentId);
+      }
+    }
+  }, [
+    presetSupplierName,
+    presetShipmentId,
+    handleInvoiceChange,
+    handleSupplierChange,
+    initialData,
+  ]);
 
   const handleBoeSelect = (boeId: string) => {
     setSelectedBoeId(boeId);
