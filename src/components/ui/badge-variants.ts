@@ -20,6 +20,8 @@ export const badgeVariants = cva(
           'border-transparent bg-neutral text-neutral-foreground [a&]:hover:bg-neutral/90',
         outline:
           'text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground',
+        accent:
+          'border-transparent bg-accent text-accent-foreground [a&]:hover:bg-accent/90',
       },
     },
     defaultVariants: {

@@ -317,6 +317,7 @@ export function ExpenseDebug() {
               Environment Status
               <Badge
                 variant={config.enableDebugPanel ? 'default' : 'secondary'}
+                useAccentColor={config.enableDebugPanel}
               >
                 {config.enableDebugPanel ? 'Debug Mode' : 'Production Mode'}
               </Badge>
@@ -329,11 +330,13 @@ export function ExpenseDebug() {
                 <div className="flex gap-2">
                   <Badge
                     variant={envConfig.isDevelopment ? 'default' : 'outline'}
+                    useAccentColor={envConfig.isDevelopment}
                   >
                     Development: {envConfig.isDevelopment ? 'Yes' : 'No'}
                   </Badge>
                   <Badge
                     variant={envConfig.isProduction ? 'default' : 'outline'}
+                    useAccentColor={envConfig.isProduction}
                   >
                     Production: {envConfig.isProduction ? 'Yes' : 'No'}
                   </Badge>
@@ -346,6 +349,7 @@ export function ExpenseDebug() {
                     variant={
                       config.enableVerboseLogging ? 'default' : 'outline'
                     }
+                    useAccentColor={config.enableVerboseLogging}
                   >
                     Verbose: {config.enableVerboseLogging ? 'On' : 'Off'}
                   </Badge>
@@ -359,12 +363,14 @@ export function ExpenseDebug() {
                     variant={
                       config.enablePerformanceMonitoring ? 'default' : 'outline'
                     }
+                    useAccentColor={config.enablePerformanceMonitoring}
                   >
                     Performance:{' '}
                     {config.enablePerformanceMonitoring ? 'On' : 'Off'}
                   </Badge>
                   <Badge
                     variant={config.enableErrorTracking ? 'default' : 'outline'}
+                    useAccentColor={config.enableErrorTracking}
                   >
                     Error Tracking: {config.enableErrorTracking ? 'On' : 'Off'}
                   </Badge>
