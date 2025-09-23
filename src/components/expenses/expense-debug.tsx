@@ -394,9 +394,9 @@ export function ExpenseDebug() {
                   key={action.id}
                   onClick={() => runDebugAction(action.id)}
                   disabled={loading}
-                  variant={action.variant || 'default'}
+                  variant={action.variant === 'destructive' ? 'destructive' : 'default'}
                   className="text-sm"
-                  useAccentColor
+                  useAccentColor={action.variant !== 'destructive'}
                 >
                   {loading ? 'Loading...' : action.label}
                 </Button>
