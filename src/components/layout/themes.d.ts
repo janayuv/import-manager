@@ -1,6 +1,7 @@
 export type Theme = {
   mode: 'light' | 'dark' | 'system';
   color: ThemeColor;
+  customAccentColor?: string; // Custom accent color in hex format
 };
 
 export type ThemeColor =

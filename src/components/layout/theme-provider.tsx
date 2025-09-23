@@ -7,6 +7,7 @@ import {
   ThemeProviderContext,
   type ThemeProviderState,
 } from './theme-context';
+import { isValidHexColor, normalizeHexColor } from '@/lib/color-utils';
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -77,6 +78,17 @@ export function ThemeProvider({
     setTheme({ ...theme, color });
   };
 
+  const setCustomAccentColor = (color: string | null) => {
+    if (color && isValidHexColor(color)) {
+      const normalizedColor = normalizeHexColor(color);
+      setTheme({ ...theme, customAccentColor: normalizedColor });
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { customAccentColor: _, ...themeWithoutCustom } = theme;
+      setTheme(themeWithoutCustom);
+    }
+  };
+
   useEffect(() => {
     const root = window.document.documentElement;
 
@@ -96,6 +108,19 @@ export function ThemeProvider({
     root.style.setProperty('--transition-duration', '0.3s');
     root.classList.add(effectiveMode);
     root.classList.add(`theme-${theme.color}`);
+
+    // Set custom accent color if provided
+    if (theme.customAccentColor) {
+      root.style.setProperty('--accent', theme.customAccentColor);
+      // Generate appropriate foreground color based on custom accent
+      const isDarkMode = effectiveMode === 'dark';
+      const foregroundColor = isDarkMode ? '#ffffff' : '#000000';
+      root.style.setProperty('--accent-foreground', foregroundColor);
+    } else {
+      // Reset to default accent colors
+      root.style.removeProperty('--accent');
+      root.style.removeProperty('--accent-foreground');
+    }
 
     // Sync with Tauri window theme if available
     if (window.__TAURI__) {
@@ -132,6 +157,7 @@ export function ThemeProvider({
     setTheme,
     toggleMode,
     setColor,
+    setCustomAccentColor,
     isDark: theme.mode === 'dark',
     isLight: theme.mode === 'light',
     isSystem: theme.mode === 'system',

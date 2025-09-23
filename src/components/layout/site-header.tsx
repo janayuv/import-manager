@@ -1,4 +1,4 @@
-import { Monitor, Moon, Palette, SidebarIcon, Sun } from 'lucide-react';
+import { Monitor, Moon, Palette, SidebarIcon, Sun, Plus } from 'lucide-react';
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useSidebar } from '@/components/ui/use-sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { CustomColorPicker } from '@/components/ui/custom-color-picker';
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar();
@@ -24,6 +25,7 @@ export function SiteHeader() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
+  const [customColorPickerOpen, setCustomColorPickerOpen] = useState(false);
 
   const handleViewAllNotifications = () => {
     if (isMobile) {
@@ -166,6 +168,15 @@ export function SiteHeader() {
                     ) : null}
                   </button>
                 ))}
+                {/* Custom Color Option */}
+                <button
+                  type="button"
+                  onClick={() => setCustomColorPickerOpen(true)}
+                  className="border-foreground/20 hover:border-foreground/60 ring-ring/50 focus-visible:ring-ring/50 relative flex h-7 w-7 items-center justify-center rounded-full border bg-gradient-to-br from-purple-500 to-pink-500 transition focus-visible:ring-2 focus-visible:outline-none"
+                  title="Custom Color"
+                >
+                  <Plus className="h-3 w-3 text-white" />
+                </button>
               </div>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -188,6 +199,13 @@ export function SiteHeader() {
       <NotificationSheet
         open={notificationSheetOpen}
         onOpenChange={setNotificationSheetOpen}
+      />
+
+      {/* Custom Color Picker Modal */}
+      <CustomColorPicker
+        open={customColorPickerOpen}
+        onOpenChange={setCustomColorPickerOpen}
+        initialColor={theme.customAccentColor}
       />
     </header>
   );

@@ -689,13 +689,13 @@ const ShipmentPage = () => {
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-white/70">#{shipment.id}</span>
                   <Button
-                    variant="ghost"
+                    variant="default"
                     size="sm"
                     onClick={e => {
                       e.stopPropagation();
                       handleCopyShipmentId(shipment.id);
                     }}
-                    className="h-6 w-6 p-0 hover:bg-white/10"
+                    className="h-6 w-6 p-0"
                     title="Copy Shipment ID"
                     useAccentColor
                   >
@@ -706,7 +706,7 @@ const ShipmentPage = () => {
             </div>
             <div className="flex gap-1">
               <Button
-                variant="ghost"
+                variant="default"
                 size="sm"
                 onClick={() => handleView(shipment)}
                 className="h-8 w-8 p-0"
@@ -715,7 +715,7 @@ const ShipmentPage = () => {
                 <Search className="h-4 w-4" />
               </Button>
               <Button
-                variant="ghost"
+                variant="default"
                 size="sm"
                 onClick={() => handleOpenFormForEdit(shipment)}
                 className="h-8 w-8 p-0"

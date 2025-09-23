@@ -27,6 +27,7 @@ export type ThemeColor =
 export type Theme = {
   mode: 'light' | 'dark' | 'system';
   color: ThemeColor;
+  customAccentColor?: string; // Custom accent color in hex format
 };
 
 interface ThemeProviderState {
@@ -34,6 +35,7 @@ interface ThemeProviderState {
   setTheme: (theme: Theme) => void;
   toggleMode: () => void;
   setColor: (color: ThemeColor) => void;
+  setCustomAccentColor: (color: string | null) => void;
   isDark: boolean;
   isLight: boolean;
   isSystem: boolean;
