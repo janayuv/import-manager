@@ -637,6 +637,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
+            useAccentColor
           >
             Create Test Data
           </Button>
@@ -654,6 +655,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
+            useAccentColor
           >
             Debug Data
           </Button>
@@ -669,6 +671,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
+            useAccentColor
           >
             Debug Dates
           </Button>
@@ -711,6 +714,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
+            useAccentColor
           >
             Test Filters
           </Button>
@@ -742,6 +746,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
+            useAccentColor
           >
             Test Exact Date
           </Button>
@@ -963,6 +968,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                   dateTo: today.toISOString().split('T')[0],
                 });
               }}
+              useAccentColor
             >
               Clear Filters
             </Button>

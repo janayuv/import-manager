@@ -396,6 +396,7 @@ export function ExpenseDebug() {
                   disabled={loading}
                   variant={action.variant || 'default'}
                   className="text-sm"
+                  useAccentColor
                 >
                   {loading ? 'Loading...' : action.label}
                 </Button>
