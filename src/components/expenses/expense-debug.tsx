@@ -154,7 +154,7 @@ export function ExpenseDebug() {
   );
 
   // Auto-adjust behavior: Load environment info on component mount
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const loadEnvironmentInfo = async () => {
       try {
@@ -400,7 +400,9 @@ export function ExpenseDebug() {
                   key={action.id}
                   onClick={() => runDebugAction(action.id)}
                   disabled={loading}
-                  variant={action.variant === 'destructive' ? 'destructive' : 'default'}
+                  variant={
+                    action.variant === 'destructive' ? 'destructive' : 'default'
+                  }
                   className="text-sm"
                   useAccentColor={action.variant !== 'destructive'}
                 >

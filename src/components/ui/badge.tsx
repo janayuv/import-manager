@@ -15,14 +15,16 @@ function Badge({
   useAccentColor = false,
   ...props
 }: React.ComponentProps<'span'> &
-  VariantProps<typeof badgeVariants> & { 
+  VariantProps<typeof badgeVariants> & {
     asChild?: boolean;
     useAccentColor?: boolean;
   }) {
   const { theme } = useTheme();
   const Comp = asChild ? Slot : 'span';
 
-  const getAccentVariant = (currentVariant: VariantProps<typeof badgeVariants>['variant']): VariantProps<typeof badgeVariants>['variant'] => {
+  const getAccentVariant = (
+    currentVariant: VariantProps<typeof badgeVariants>['variant']
+  ): VariantProps<typeof badgeVariants>['variant'] => {
     if (!useAccentColor) return currentVariant;
 
     switch (currentVariant) {
