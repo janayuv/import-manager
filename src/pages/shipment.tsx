@@ -697,6 +697,7 @@ const ShipmentPage = () => {
                     }}
                     className="h-6 w-6 p-0 hover:bg-white/10"
                     title="Copy Shipment ID"
+                    useAccentColor
                   >
                     <Copy className="h-3 w-3 text-white/60 hover:text-white" />
                   </Button>
@@ -709,6 +710,7 @@ const ShipmentPage = () => {
                 size="sm"
                 onClick={() => handleView(shipment)}
                 className="h-8 w-8 p-0"
+                useAccentColor
               >
                 <Search className="h-4 w-4" />
               </Button>
@@ -717,6 +719,7 @@ const ShipmentPage = () => {
                 size="sm"
                 onClick={() => handleOpenFormForEdit(shipment)}
                 className="h-8 w-8 p-0"
+                useAccentColor
               >
                 <Activity className="h-4 w-4" />
               </Button>
@@ -981,6 +984,7 @@ const ShipmentPage = () => {
               variant={viewMode === 'cards' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('cards')}
+              useAccentColor
             >
               Cards
             </Button>
@@ -988,6 +992,7 @@ const ShipmentPage = () => {
               variant={viewMode === 'table' ? 'default' : 'outline'}
               size="sm"
               onClick={() => setViewMode('table')}
+              useAccentColor
             >
               Table
             </Button>

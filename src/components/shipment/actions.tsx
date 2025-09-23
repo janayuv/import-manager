@@ -31,6 +31,7 @@ export const ShipmentActions = ({
         <Button
           variant="ghost"
           className="text-warning hover:bg-warning/10 h-8 w-8 p-0"
+          useAccentColor
         >
           <span className="sr-only">Open menu</span>
           <MoreHorizontal className="h-4 w-4" />
