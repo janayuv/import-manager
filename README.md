@@ -227,6 +227,8 @@ See **[docs/GIT_HISTORY_REMEDIATION.md](docs/GIT_HISTORY_REMEDIATION.md)** for f
 - **Vulnerability Scanning**: GitHub security scanning
 - **Code Quality**: Comprehensive linting and type checking
 
+**Long-term governance** (secret handling, branch protection, reviews, incidents, key rotation, and GitHub settings recommendations): **[docs/SECURITY_GOVERNANCE.md](docs/SECURITY_GOVERNANCE.md)**
+
 ## 📝 Contributing
 
 1. Fork the repository
