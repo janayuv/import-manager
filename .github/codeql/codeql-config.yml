@@ -1,0 +1,14 @@
+name: "Import Manager CodeQL"
+paths-ignore:
+  - codeql/**
+  - codeql_data/**
+  - CICD/**
+  - dist/**
+  - src-tauri/target/**
+  - playwright-report/**
+  - test-results/**
+  - node_modules/**
+queries:
+  - uses: security-and-quality
+
+

@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+# CI workflow for Import Manager - Windows only
+
+jobs:
+  frontend-lint:
+    name: Frontend Lint & Type Check
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf $RUNNER_TOOL_CACHE || true
+          df -h
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Run ESLint
+        run: npm run lint
+      - name: Run TypeScript type check
+        run: npm run type-check
+      - name: Run Prettier check
+        run: npm run format:check
+      - name: Validate Windows-only Runner
+        run: |
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
+
+  backend-check:
+    name: Backend Check & Format
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf $RUNNER_TOOL_CACHE || true
+          df -h
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Cache Rust dependencies
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~\.cargo\registry
+            ~\.cargo\git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+      - name: Install cargo-deny
+        run: cargo install cargo-deny
+      - name: Check Rust code
+        run: |
+          cd src-tauri
+          cargo check
+      - name: Run Clippy
+        run: |
+          cd src-tauri
+          cargo clippy -- -D warnings
+      - name: Check Rust formatting
+        run: |
+          cd src-tauri
+          cargo fmt -- --check
+      - name: Check for security vulnerabilities
+        run: |
+          cd src-tauri
+          cargo deny check --config deny.toml
+      - name: Validate Windows-only Runner
+        run: |
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
+
+  test:
+    name: Run Tests
+    runs-on: windows-latest
+    needs: [frontend-lint, backend-check]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf $RUNNER_TOOL_CACHE || true
+          df -h
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Install dependencies
+        run: npm ci
+      - name: Run frontend tests
+        run: npm test -- --coverage
+      - name: Run backend tests
+        run: |
+          cd src-tauri
+          cargo test
+      - name: Upload coverage reports
+        uses: codecov/codecov-action@v3
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+      - name: Validate Windows-only Runner
+        run: |
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
+
+  build:
+    name: Build Application
+    runs-on: windows-latest
+    needs: [frontend-lint, backend-check]
+    env:
+      # SQLCipher for Windows
+      SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
+      SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
+      LIBSQLITE3_SYS_BUNDLED: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+      - name: Free disk space
+        shell: bash
+        run: |
+          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
+          sudo rm -rf /usr/local/lib/android || true
+          sudo rm -rf $RUNNER_TOOL_CACHE || true
+          df -h
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - name: Set CI Environment
+        run: |
+          echo "CI=true" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "LIBSQLITE3_SYS_BUNDLED=1" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Install dependencies
+        run: npm ci
+      - name: Build application
+        run: npm run tauri build
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: import-manager-build
+          path: src-tauri/target/release/
+      - name: Validate Windows-only Runner
+        run: |
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"

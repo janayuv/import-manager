@@ -1,0 +1,49 @@
+echo "🔒 Running pre-commit checks..."
+
+# Dropped from index if present: ignored dirs cannot be re-added by lint-staged/git.
+git rm -r --cached playwright-report 2>/dev/null || true
+git rm -r --cached test-results 2>/dev/null || true
+# Re-stage the lone tracked file under test-results/ (see .gitignore negation).
+git add -f test-results/performance-baselines.json 2>/dev/null || true
+
+# Run lint-staged for formatting and linting
+echo "Running lint-staged..."
+npx lint-staged
+
+# Run secrets scanning early (blocks commit on findings; Node runner: reliable PATH on Windows vs Git sh)
+echo "Running secrets scanning..."
+node scripts/gitleaks-scan.mjs
+
+# Run ESLint with security rules
+echo "Running ESLint security checks..."
+npx eslint . --ext .ts,.tsx,.js,.jsx,.yml,.yaml --max-warnings 0
+
+# Run TypeScript type checking (incremental mode for speed)
+echo "Running TypeScript type check..."
+npx tsc --noEmit --incremental
+
+# Run dependency license check (production deps only; dev tools use broader SPDX strings)
+echo "Running dependency license check..."
+npx license-checker --production --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;CC0-1.0;Unlicense;MPL-2.0;CC-BY-4.0;BlueOak-1.0.0;0BSD" --excludePackages "buffers@0.1.1"
+
+# Run test coverage check (quick mode)
+echo "Running test coverage check..."
+npx vitest run --coverage --reporter=verbose --run
+
+# Run accessibility tests
+echo "Running accessibility tests..."
+npx playwright test tests/accessibility.spec.ts --reporter=list
+
+# Run custom security checks
+echo "Running custom security checks..."
+node scripts/security-check.js
+
+# Run security audit
+echo "Running security audit..."
+npm audit --audit-level=moderate
+
+# Run MCP quality server checks
+echo "Running MCP quality server checks..."
+node scripts/quality-server.js --pre-commit
+
+echo "✅ Pre-commit checks passed!"

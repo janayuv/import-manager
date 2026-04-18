@@ -1,0 +1,17 @@
+# Gitleaks configuration — extends default rules with path allowlists for
+# generated artifacts and dependencies (not application source secrets).
+# See: https://github.com/gitleaks/gitleaks
+
+title = "Import Manager"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Dependencies, coverage, test output, and CodeQL DB dumps"
+paths = [
+  '''(?i)(^|/)node_modules/''',
+  '''(?i)(^|/)coverage/''',
+  '''(?i)(^|/)test-results/''',
+  '''(?i)(^|/)codeql_data/''',
+]

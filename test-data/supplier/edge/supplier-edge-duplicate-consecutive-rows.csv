@@ -1,0 +1,3 @@
+supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive
+Duplicate Name Test,DUP-1,India,dup.row1@example.com,+91-91000-00001,Ben Dup,Test Bank,Br1,Addr1,100100100,IBANDUP0001,DUPDUP01,true
+Duplicate Name Test,DUP-2,India,dup.row2@example.com,+91-91000-00002,Ben Dup,Test Bank,Br2,Addr2,200200200,IBANDUP0002,DUPDUP02,true

@@ -1,0 +1,3 @@
+partNumber,itemDescription,unit,currency,unitPrice,hsnCode,supplierId,supplierName,isActive,countryOfOrigin,bcd,sws,igst,technicalWriteUp,category,endUse,netWeightKg,purchaseUom,grossWeightPerUomKg,photoPath
+IMP-VAL-001,Import test widget type A,PCS,INR,250.75,85423100,Sup-001,TestData Supplier Valid One,true,India,7.5,5.0,18.0,Spec line for QA,Electronics,Industrial,0.4,PCS,0.45,
+IMP-VAL-002,Second valid line item,KG,USD,42.10,39269099,,,true,Vietnam,,,18.0,,General,Commercial,1.0,KG,1.0,

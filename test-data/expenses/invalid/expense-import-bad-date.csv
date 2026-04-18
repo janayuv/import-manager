@@ -1,0 +1,2 @@
+Expense Type,Service Provider,Invoice No,Invoice Date,Amount,CGST Amount,SGST Amount,IGST Amount,TDS Amount,Total Amount,Remarks
+Customs Clearance,ABC Logistics Ltd,EXP-BAD-DATE-001,not-a-real-date,1000.00,90.00,90.00,0.00,50.00,1230.00,Invalid ISO date string

@@ -1,0 +1,2 @@
+﻿supplierId,invoiceNumber,invoiceDate,goodsCategory,invoiceValue,invoiceCurrency,incoterm,shipmentMode,shipmentType,blAwbNumber,blAwbDate,vesselName,containerNumber,grossWeightKg,etd,eta,status,dateOfDelivery
+Sup-001,TEST-SHIP-UTF8BOM-001,2024-09-01,電子部品,2500000,JPY,FOB,Sea,FCL,BL-JP-UTF8-01,2024-09-02,船名テスト,JPCONTUTF801,5400,2024-09-04,2024-09-25,in-transit,

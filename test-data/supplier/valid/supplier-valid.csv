@@ -1,0 +1,3 @@
+supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive
+TestData Supplier Valid One,TDV1,India,testdata.valid1@example.com,+91-90001-00001,Beneficiary One,Import Test Bank,Mumbai Main Branch,77 MG Road Mumbai 400001,111222333001,IN000000000000000001,TESTIN001,true
+TestData Supplier Valid Two,TDV2,Singapore,testdata.valid2@example.com,+65-6000-0002,Beneficiary Two,Overseas Bank Pte Ltd,Orchard Branch,10 Orchard Road Singapore 238841,222333444002,SG000000000000000002,TESTSG002,true

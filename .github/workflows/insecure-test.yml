@@ -1,0 +1,31 @@
+# Previously contained intentional insecure literals for scanner demos; those
+# triggered secret scanners and real pre-commit failures. Signing and uploads
+# must use GitHub Actions secrets only — never paste PEMs or tokens here.
+name: Tauri Windows build (signing from secrets only)
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Build Tauri App
+        run: |
+          npm ci
+          npm run tauri build
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+
+      - name: Release upload
+        run: echo "Use GitHub Encrypted secrets for upload tokens; do not add curl Bearer literals in workflow YAML."

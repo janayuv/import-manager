@@ -1,0 +1,91 @@
+# Appears in the Actions sidebar after this file exists on the repo default branch
+# (e.g. main), or after a run has been triggered for it.
+name: Test suite (Vitest + Playwright)
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test-stability:
+    name: Multi-run stability (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CI: true
+      HUSKY: '0'
+      # Run JavaScript-based Actions on Node 24 (GitHub-hosted runners).
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+      CODEQL_RAM: '4096'
+      TMP: 'C:\temp'
+      TEMP: 'C:\temp'
+      # Stable path for caching Chromium (default is under LocalAppData).
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+
+      - name: Create temp directory
+        run: New-Item -ItemType Directory -Path C:\temp -Force | Out-Null
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json', 'package.json') }}
+
+      - name: Cache Playwright browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: .playwright-browsers
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies (npm ci)
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Install Playwright browsers
+        run: npx playwright install chromium
+
+      - name: Multi-run stability (3 consecutive runs)
+        shell: pwsh
+        run: |
+          for ($i = 1; $i -le 3; $i++) {
+            Write-Host "=== CI Test Run $i/3 ===" -ForegroundColor Cyan
+            npm run test
+            if ($LASTEXITCODE -ne 0) {
+              Write-Host "❌ Test run $i failed with exit code $LASTEXITCODE" -ForegroundColor Red
+              exit 1
+            }
+            Write-Host "✅ Test run $i passed" -ForegroundColor Green
+          }
+          Write-Host "🎉 All 3 CI runs passed successfully" -ForegroundColor Green
+
+      - name: Upload test debug artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-debug-artifacts
+          if-no-files-found: ignore
+          retention-days: 7
+          path: |
+            test-results/
+            playwright-report/
+            **/screenshots/
+            **/traces/

@@ -1,0 +1,2 @@
+supplierId;invoiceNumber;invoiceDate;goodsCategory;invoiceValue;invoiceCurrency;incoterm;shipmentMode;shipmentType;blAwbNumber;blAwbDate;vesselName;containerNumber;grossWeightKg;etd;eta;status;dateOfDelivery
+Sup-001;TEST-SHIP-SEMI-001;2024-10-01;Machinery;34000;USD;DDP;Air;LSE;AWB-SEMI-01;2024-10-02;Semicolon Vessel;SEMCONT01;800;2024-10-03;2024-10-12,delivered,

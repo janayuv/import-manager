@@ -1,0 +1,2 @@
+partNumber,itemDescription,unit,currency,hsnCode
+IMP-BAD-001,Missing unitPrice column,PCS,INR,11111111

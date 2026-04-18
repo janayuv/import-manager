@@ -1,0 +1,3 @@
+supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive
+北京測試供應商 UTF-8,BJ-UTF8,中国,beijing.utf8@example.com,+86-10-0000-0000,收款人甲,中国银行,北京分行,北京市朝阳区1号,999888777666,CN000000000000000001,BKCHCNBJ,true
+München Test Händler GmbH,MUC-DE,Germany,muenchen.test@example.de,+49-89-0000-0000,Max Mustermann,Deutsche Bank,München Filiale,Marienplatz 1 München,DE4455667788,DE000000000000000001,DEUTDEFF,true

@@ -1,0 +1,3 @@
+shipmentInvoiceNumber,itemPartNumber,quantity,unitPrice
+TEST-INV-SHP-001,TEST-PART-INV-001,12,125.50
+TEST-INV-SHP-001,TEST-PART-INV-002,4,88.00

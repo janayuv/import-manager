@@ -1,0 +1,26 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Default permissions for the application.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "dialog:allow-confirm",
+    "fs:read-all",
+    "fs:write-all",
+    "fs:allow-exists",
+
+    "fs:allow-copy-file",
+
+    {
+      "identifier": "fs:allow-write-text-file",
+      "allow": [{ "path": "$DOWNLOAD/*" }]
+    },
+    {
+      "identifier": "fs:allow-read-text-file",
+      "allow": [{ "path": "$DOWNLOAD/*" }]
+    }
+  ]
+}

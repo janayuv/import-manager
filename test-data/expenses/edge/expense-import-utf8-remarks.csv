@@ -1,0 +1,2 @@
+Expense Type,Service Provider,Invoice No,Invoice Date,Amount,CGST Amount,SGST Amount,IGST Amount,TDS Amount,Total Amount,Remarks
+Port Handling,Global Freight Solutions,EXP-UTF8-001,2024-06-22,7500.00,675.00,675.00,0.00,375.00,9225.00,備考・Port notes UTF-8 without commas in remarks

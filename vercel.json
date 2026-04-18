@@ -1,0 +1,6 @@
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "ignoreCommand": "echo \"Using Vercel preview for web-only build\""
+}

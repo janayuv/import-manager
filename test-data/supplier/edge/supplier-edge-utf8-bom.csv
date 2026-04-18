@@ -1,0 +1,2 @@
+﻿supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive
+BOM Supplier Test,BOM-1,India,bom.supplier@example.com,+91-90002-00002,BOM Beneficiary,BOM Bank,BOM Branch,BOM Address Line No Commas Here,333444555,BOMIBAN0001,BOMBOM01,true

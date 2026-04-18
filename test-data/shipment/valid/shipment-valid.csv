@@ -1,0 +1,2 @@
+supplierId,invoiceNumber,invoiceDate,goodsCategory,invoiceValue,invoiceCurrency,incoterm,shipmentMode,shipmentType,blAwbNumber,blAwbDate,vesselName,containerNumber,grossWeightKg,etd,eta,status,dateOfDelivery
+Sup-001,TEST-SHIP-CSV-001,2024-06-01,Electronics,120000,INR,FOB,FCL,40FT,BL-TEST-CSV-001,2024-06-02,Vessel Alpha,CONTTESTCSV01,2200,2024-06-03,2024-06-20,in-transit,

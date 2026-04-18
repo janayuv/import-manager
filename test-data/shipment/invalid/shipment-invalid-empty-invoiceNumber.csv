@@ -1,0 +1,2 @@
+supplierId,invoiceNumber,invoiceDate,goodsCategory,invoiceValue,invoiceCurrency,incoterm,shipmentMode,shipmentType,blAwbNumber,blAwbDate,vesselName,containerNumber,grossWeightKg,etd,eta,status,dateOfDelivery
+Sup-001,,2024-07-01,Textiles,5000,USD,EXW,LCL,LCL,BL-EMPTY-INV,2024-07-02,No Invoice Ship,CONTEMPTY01,100,2024-07-03,2024-07-10,draft,

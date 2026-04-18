@@ -1,0 +1,2 @@
+partNumber,itemDescription,unit,currency,unitPrice,hsnCode,supplierId,supplierName,isActive,countryOfOrigin,bcd,sws,igst,technicalWriteUp,category,endUse,netWeightKg,purchaseUom,grossWeightPerUomKg,photoPath
+IMP-UTF8-001,説明・測試・München,PCS,INR,99.00,44444444,,,true,Japan,5,5,12,,,,0,PCS,0,,

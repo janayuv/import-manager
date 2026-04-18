@@ -1,0 +1,2 @@
+Expense Type,Service Provider,Invoice No,Invoice Date,Amount,CGST Amount,SGST Amount,IGST Amount,TDS Amount,Total Amount,Remarks
+Customs Clearance,ABC Logistics Ltd,EXP-NEG-AMT-001,2024-06-20,-500.00,0.00,0.00,0.00,0.00,-500.00,Amount must be positive per validation

@@ -1,0 +1,3 @@
+supplierId,invoiceNumber,invoiceDate,goodsCategory,invoiceValue,invoiceCurrency,incoterm,shipmentMode,shipmentType,blAwbNumber,blAwbDate,vesselName,containerNumber,grossWeightKg,etd,eta,status,dateOfDelivery
+Sup-001,TEST-DUP-INV-001,2024-08-01,Chemicals,90000,EUR,CIF,Sea,FCL,BL-DUP-A,2024-08-02,Vessel Dup,DUPDUP01,3100,2024-08-03,2024-08-18,in-transit,
+Sup-001,TEST-DUP-INV-001,2024-08-05,Chemicals,91000,EUR,CIF,Sea,FCL,BL-DUP-B,2024-08-06,Vessel Dup Two,DUPDUP02,3200,2024-08-07,2024-08-19,in-transit,

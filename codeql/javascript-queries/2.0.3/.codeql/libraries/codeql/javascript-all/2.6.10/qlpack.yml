@@ -1,0 +1,30 @@
+---
+library: true
+warnOnImplicitThis: true
+name: codeql/javascript-all
+version: 2.6.10
+buildMetadata:
+  sha: 28f02c07d7d744d761520fbfb354f96827a11f6c
+  cliVersion: 2.23.0
+dependencies:
+  codeql/concepts: 0.0.4
+  codeql/dataflow: 2.0.14
+  codeql/mad: 1.0.30
+  codeql/regex: 1.0.30
+  codeql/ssa: 2.0.6
+  codeql/threat-models: 1.0.30
+  codeql/tutorial: 1.0.30
+  codeql/typetracking: 2.0.14
+  codeql/util: 2.0.17
+  codeql/xml: 1.0.30
+  codeql/yaml: 1.0.30
+dbscheme: semmlecode.javascript.dbscheme
+extractor: javascript
+upgrades: upgrades
+groups:
+  - javascript
+dataExtensions:
+  - semmle/javascript/frameworks/**/model.yml
+  - semmle/javascript/frameworks/**/*.model.yml
+  - semmle/javascript/security/domains/**/*.model.yml
+  - ext/*.model.yml

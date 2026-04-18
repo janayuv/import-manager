@@ -1,0 +1,12 @@
+---
+library: true
+warnOnImplicitThis: true
+name: codeql/xml
+version: 1.0.30
+buildMetadata:
+  sha: 28f02c07d7d744d761520fbfb354f96827a11f6c
+  cliVersion: 2.23.0
+dependencies:
+  codeql/util: 2.0.17
+groups:
+  - shared

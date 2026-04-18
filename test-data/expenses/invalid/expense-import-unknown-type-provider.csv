@@ -1,0 +1,2 @@
+Expense Type,Service Provider,Invoice No,Invoice Date,Amount,CGST Amount,SGST Amount,IGST Amount,TDS Amount,Total Amount,Remarks
+Nonexistent Type XYZ,No Such Provider Ltd,EXP-UNK-001,2024-06-21,100.00,0.00,0.00,0.00,0.00,100.00,Should fail cross-reference validation

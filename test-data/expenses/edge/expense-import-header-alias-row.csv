@@ -1,0 +1,2 @@
+expenseTypeName,serviceProviderName,invoiceNo,invoiceDate,amount,cgstAmount,sgstAmount,igstAmount,tdsAmount,totalAmount,remarks
+Documentation,Express Cargo Services,EXP-ALIAS-001,2024-06-23,2000.00,180.00,180.00,0.00,100.00,2460.00,Alternate camelCase header aliases supported by parser

@@ -1,0 +1,3 @@
+This file is not valid CSV for supplier import.
+Use it to verify the app rejects non-CSV or corrupted uploads.
+Replace with real binary bytes in a manual test if needed.

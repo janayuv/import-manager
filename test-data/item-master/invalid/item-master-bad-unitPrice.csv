@@ -1,0 +1,2 @@
+partNumber,itemDescription,unit,currency,unitPrice,hsnCode,supplierId,supplierName,isActive,countryOfOrigin,bcd,sws,igst,technicalWriteUp,category,endUse,netWeightKg,purchaseUom,grossWeightPerUomKg,photoPath
+IMP-BAD-NUM-001,Bad numeric unit price,PCS,INR,not-a-number,22222222,,,true,India,1,1,18,,,,0,PCS,0,,

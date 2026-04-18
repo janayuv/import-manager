@@ -1,0 +1,3 @@
+partNumber,itemDescription,unit,currency,unitPrice,hsnCode,supplierId,supplierName,isActive,countryOfOrigin,bcd,sws,igst,technicalWriteUp,category,endUse,netWeightKg,purchaseUom,grossWeightPerUomKg,photoPath
+IMP-DUP-001,First row for duplicate PN test,PCS,EUR,10,33333333,,,true,Germany,,,19,,,,0,PCS,0,
+IMP-DUP-001,Second row same part number should skip on second import,PCS,EUR,20,33333333,,,true,Germany,,,19,,,,0,PCS,0,

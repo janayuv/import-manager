@@ -1,0 +1,3 @@
+beNumber,beDate,location,totalAssessmentValue,dutyAmount,paymentDate,dutyPaid
+BE-TEST-VALID-0001,15-06-2024,Mumbai,500000,75000,20-06-2024,75000
+BE-TEST-VALID-0002,16-06-2024,Chennai,1250000,180000,22-06-2024,180000
