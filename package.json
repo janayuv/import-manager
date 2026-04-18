@@ -18,6 +18,7 @@
     "format:rust": "cd src-tauri && cargo fmt",
     "type-check": "tsc --noEmit",
     "security:gitleaks": "node scripts/gitleaks-scan.mjs",
+    "security:full": "gitleaks detect --source . --no-banner --log-opts=--all",
     "prepare": "husky",
     "preview": "vite preview",
     "test:pw-install": "playwright install chromium",

@@ -89,9 +89,9 @@ The security implementation successfully identified and flagged the following se
    - Private keys in various locations
    - Bearer tokens and API keys
 
-4. **Insecure GitHub Actions** in `.github/workflows/insecure-test.yml`
-   - Hardcoded private keys in YAML
-   - **Risk**: High - Secrets exposed in CI/CD
+4. **GitHub Actions secret scanning** via `.github/workflows/gitleaks.yml`
+   - Catches committed secrets using gitleaks on every push and pull request
+   - **Risk mitigated**: Insecure literals must not exist in workflow YAML
 
 ---
 
@@ -132,7 +132,7 @@ The security implementation successfully identified and flagged the following se
 
 5. Testing Security Test Files...
 ✅ Test file exists: src/db/test.ts
-✅ Test file exists: .github/workflows/insecure-test.yml
+✅ Test file exists: .github/workflows/gitleaks.yml
 ✅ Test file exists: src-tauri/tauri-insecure.conf.json
 
 ==================================================

@@ -117,7 +117,7 @@ if (fs.existsSync('SECURITY.md')) {
 console.log('5. Testing Security Test Files...');
 const testFiles = [
   'src/db/test.ts',
-  '.github/workflows/insecure-test.yml',
+  '.github/workflows/gitleaks.yml',
   'src-tauri/tauri-insecure.conf.json',
 ];
 

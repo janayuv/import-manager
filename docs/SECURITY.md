@@ -106,7 +106,7 @@ db.run("PRAGMA key = 'your-encryption-key'")
 **Before (Insecure)**:
 
 ```typescript
-const apiKey = 'literal-vendor-api-key'
+const apiKey = 'sk-example-api-key'
 ```
 
 **After (Secure)**:

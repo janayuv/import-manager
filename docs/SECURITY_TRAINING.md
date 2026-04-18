@@ -14,8 +14,8 @@ This document provides comprehensive security training for all team members work
 
 ```typescript
 const password = 'literal-password'
-const apiKey = 'literal-vendor-api-key'
-const privateKey = 'literal-pem-or-key-material'
+const apiKey = 'sk-example-api-key'
+const privateKey = '-----BEGIN PRIVATE KEY (example)-----'
 ```
 
 ✅ **CORRECT:**

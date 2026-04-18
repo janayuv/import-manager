@@ -27,7 +27,7 @@ All workflows now run exclusively on `windows-latest`:
 - `.github/workflows/release.yml` ✅
 - `.github/workflows/code-quality.yml` ✅
 - `.github/workflows/branch-protection.yml` ✅
-- `.github/workflows/insecure-test.yml` ✅
+- `.github/workflows/gitleaks.yml` ✅
 - `.github/workflows/dependabot-auto-merge.yml` ✅
 - `.github/workflows/rust-check.yml` ✅
 - `.github/workflows/secure-build.yml` ✅

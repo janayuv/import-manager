@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-import { execSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
 console.log('🔒 Running custom security checks...');
 
-// PEM headers built without contiguous literals in this file (avoids gitleaks false positives).
-function pemHeaderPattern(label) {
-  return new RegExp(`-----BEGIN ${label} KEY-----`);
+// PEM header regexes built via concatenation so gitleaks does not see real header literals.
+function pemHeaderPattern(middleLabel) {
+  const head = '-----BEGIN' + ' ' + middleLabel + ' KEY-----';
+  return new RegExp(head.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
 }
 
 // Patterns to detect real secrets (more specific to avoid false positives)
