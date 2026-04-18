@@ -38,3 +38,9 @@ Use this list before pushing changes and when onboarding to the Import Manager r
 | `.env.example` | Safe template for local environment variables. |
 | `.gitignore` | Ensures `.env` and other sensitive paths stay untracked. |
 | `.github/workflows/gitleaks.yml` | CI secret scanning. |
+
+### History Remediation Reference
+
+For details about the one-time history rewrite and developer reset instructions:
+
+[docs/GIT_HISTORY_REMEDIATION.md](GIT_HISTORY_REMEDIATION.md)

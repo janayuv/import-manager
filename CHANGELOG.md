@@ -2,7 +2,8 @@
 
 ## v1.0.0-secure-baseline
 
-- Full repository history remediation completed
+- Repository history rewritten
 - Secrets removed
 - gitleaks integrated
-- CI security enforcement added
+- CI security scanning enabled
+- Documentation added
