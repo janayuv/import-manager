@@ -434,6 +434,39 @@ export async function invoke<T = unknown>(
     case 'update_invoice':
     case 'delete_invoice':
       return undefined as T;
+    case 'bulk_finalize_invoices': {
+      const ids =
+        (args?.input as { invoiceIds?: string[] } | undefined)?.invoiceIds ??
+        (args?.invoiceIds as string[] | undefined) ??
+        [];
+      let finalized = 0;
+      let failed = 0;
+      const errorMessages: string[] = [];
+      for (const id of ids) {
+        const idx = stubInvoices.findIndex(i => i.id === id);
+        if (idx < 0) {
+          failed += 1;
+          errorMessages.push(`Invoice not found: ${id}`);
+          continue;
+        }
+        const inv = stubInvoices[idx];
+        if (inv.status !== 'Draft') {
+          failed += 1;
+          errorMessages.push(`${inv.invoiceNumber}: not in Draft status`);
+          continue;
+        }
+        if (Math.abs(inv.shipmentTotal - inv.calculatedTotal) >= 0.01) {
+          failed += 1;
+          errorMessages.push(
+            `${inv.invoiceNumber}: shipment total does not match calculated total`
+          );
+          continue;
+        }
+        stubInvoices[idx] = { ...inv, status: 'Finalized' };
+        finalized += 1;
+      }
+      return { finalized, failed, errorMessages } as T;
+    }
     case 'get_items':
       return stubItems.map(i => ({ ...i })) as T;
     case 'add_items_bulk': {

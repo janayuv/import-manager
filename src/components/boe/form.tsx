@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 import type { BoeDetails } from '@/types/boe';
 
 interface BoeFormProps {
@@ -21,6 +22,8 @@ interface BoeFormProps {
   onSubmit: (data: Omit<BoeDetails, 'id'>, id?: string) => void;
   boeToEdit?: BoeDetails | null;
   existingBoes: BoeDetails[];
+  presentation?: 'dialog' | 'page';
+  className?: string;
 }
 
 const initialFormState = {
@@ -36,22 +39,146 @@ const initialFormState = {
   paymentDate: '',
 };
 
-// Helper function to format a date string to YYYY-MM-DD for the input
 const formatDateForInput = (dateString: string | null | undefined): string => {
   if (!dateString) return '';
   try {
     const date = new Date(dateString);
-    // Check if the date is valid to prevent errors with `toISOString`
     if (isNaN(date.getTime())) {
       return '';
     }
-    // Slit to remove the time part, returning only YYYY-MM-DD
     return date.toISOString().split('T')[0];
   } catch (error) {
     console.error('Failed to format date:', dateString, error);
-    return ''; // Return empty string if parsing fails
+    return '';
   }
 };
+
+type FormState = typeof initialFormState;
+
+function BoeFormFields({
+  formData,
+  errors,
+  handleChange,
+  handleNumberChange,
+  fieldId,
+}: {
+  formData: FormState;
+  errors: { [key: string]: string };
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleNumberChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  fieldId: (name: string) => string;
+}) {
+  return (
+    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div>
+        <Label htmlFor={fieldId('beNumber')}>BE Number</Label>
+        <Input
+          id={fieldId('beNumber')}
+          name="beNumber"
+          value={formData.beNumber}
+          onChange={handleChange}
+        />
+        {errors.beNumber && (
+          <p className="text-destructive mt-1 text-xs">{errors.beNumber}</p>
+        )}
+      </div>
+      <div>
+        <Label htmlFor={fieldId('beDate')}>BE Date</Label>
+        <Input
+          id={fieldId('beDate')}
+          name="beDate"
+          type="date"
+          value={formData.beDate}
+          onChange={handleChange}
+        />
+        {errors.beDate && (
+          <p className="text-destructive mt-1 text-xs">{errors.beDate}</p>
+        )}
+      </div>
+      <div>
+        <Label htmlFor={fieldId('location')}>Location</Label>
+        <Input
+          id={fieldId('location')}
+          name="location"
+          value={formData.location}
+          onChange={handleChange}
+        />
+        {errors.location && (
+          <p className="text-destructive mt-1 text-xs">{errors.location}</p>
+        )}
+      </div>
+      <div>
+        <Label htmlFor={fieldId('totalAssessmentValue')}>
+          Total Assessment Value
+        </Label>
+        <Input
+          id={fieldId('totalAssessmentValue')}
+          name="totalAssessmentValue"
+          type="number"
+          value={formData.totalAssessmentValue}
+          onChange={handleNumberChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={fieldId('dutyAmount')}>Duty Amount</Label>
+        <Input
+          id={fieldId('dutyAmount')}
+          name="dutyAmount"
+          type="number"
+          value={formData.dutyAmount}
+          onChange={handleNumberChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={fieldId('paymentDate')}>Payment Date</Label>
+        <Input
+          id={fieldId('paymentDate')}
+          name="paymentDate"
+          type="date"
+          value={formData.paymentDate}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={fieldId('dutyPaid')}>Duty Paid</Label>
+        <Input
+          id={fieldId('dutyPaid')}
+          name="dutyPaid"
+          type="number"
+          value={formData.dutyPaid}
+          onChange={handleNumberChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={fieldId('challanNumber')}>Challan No.</Label>
+        <Input
+          id={fieldId('challanNumber')}
+          name="challanNumber"
+          value={formData.challanNumber}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={fieldId('refId')}>Ref ID</Label>
+        <Input
+          id={fieldId('refId')}
+          name="refId"
+          value={formData.refId}
+          onChange={handleChange}
+        />
+      </div>
+      <div>
+        <Label htmlFor={fieldId('transactionId')}>Transaction ID</Label>
+        <Input
+          id={fieldId('transactionId')}
+          name="transactionId"
+          value={formData.transactionId}
+          onChange={handleChange}
+        />
+      </div>
+    </div>
+  );
+}
 
 export const BoeForm: React.FC<BoeFormProps> = ({
   isOpen,
@@ -59,12 +186,17 @@ export const BoeForm: React.FC<BoeFormProps> = ({
   onSubmit,
   boeToEdit,
   existingBoes,
+  presentation = 'dialog',
+  className,
 }) => {
+  const isPage = presentation === 'page';
+  const visible = isOpen || isPage;
+
   const [formData, setFormData] = React.useState(initialFormState);
   const [errors, setErrors] = React.useState<{ [key: string]: string }>({});
 
   React.useEffect(() => {
-    if (boeToEdit && isOpen) {
+    if (boeToEdit && visible) {
       setFormData({
         beNumber: boeToEdit.beNumber,
         location: boeToEdit.location,
@@ -74,15 +206,14 @@ export const BoeForm: React.FC<BoeFormProps> = ({
         challanNumber: boeToEdit.challanNumber || '',
         refId: boeToEdit.refId || '',
         transactionId: boeToEdit.transactionId || '',
-        // Use the helper function here to ensure correct format
         beDate: formatDateForInput(boeToEdit.beDate),
         paymentDate: formatDateForInput(boeToEdit.paymentDate),
       });
-    } else if (!boeToEdit && isOpen) {
+    } else if (!boeToEdit && visible) {
       setFormData(initialFormState);
       setErrors({});
     }
-  }, [boeToEdit, isOpen]);
+  }, [boeToEdit, visible]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -121,134 +252,90 @@ export const BoeForm: React.FC<BoeFormProps> = ({
     const dataToSubmit = {
       ...rest,
       beDate,
-      paymentDate: paymentDate || undefined, // Send undefined if empty
+      paymentDate: paymentDate || undefined,
     };
     onSubmit(dataToSubmit, boeToEdit?.id);
   };
 
+  const headerBlock = isPage ? (
+    <>
+      <h2
+        id="boe-form-title"
+        className="text-lg font-semibold tracking-tight sm:text-xl"
+      >
+        {boeToEdit ? `Edit BOE: ${boeToEdit.beNumber}` : 'Create new BOE'}
+      </h2>
+      <p className="text-muted-foreground text-sm">
+        Fill in the Bill of Entry details. Save when you are done.
+      </p>
+    </>
+  ) : (
+    <>
+      <DialogTitle>{boeToEdit ? 'Edit BOE' : 'Add New BOE'}</DialogTitle>
+      <DialogDescription>
+        Fill in the details for the Bill of Entry. Click save when you&apos;re
+        done.
+      </DialogDescription>
+    </>
+  );
+
+  if (isPage) {
+    return (
+      <section
+        className={cn(
+          'bg-card text-card-foreground flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border shadow-sm',
+          className
+        )}
+        aria-labelledby="boe-form-title"
+      >
+        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+          {headerBlock}
+        </header>
+        <form
+          onSubmit={handleFormSubmit}
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
+        >
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 [scrollbar-gutter:stable]">
+            <BoeFormFields
+              formData={formData}
+              errors={errors}
+              handleChange={handleChange}
+              handleNumberChange={handleNumberChange}
+              fieldId={name => `boe-page-${name}`}
+            />
+          </div>
+          <footer className="border-border shrink-0 border-t px-6 py-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                useAccentColor
+                onClick={() => onOpenChange(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" variant="default" useAccentColor>
+                {boeToEdit ? 'Update' : 'Save'}
+              </Button>
+            </div>
+          </footer>
+        </form>
+      </section>
+    );
+  }
+
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>{boeToEdit ? 'Edit BOE' : 'Add New BOE'}</DialogTitle>
-          <DialogDescription>
-            Fill in the details for the Bill of Entry. Click save when you're
-            done.
-          </DialogDescription>
-        </DialogHeader>
+        <DialogHeader>{headerBlock}</DialogHeader>
         <form onSubmit={handleFormSubmit} className="space-y-4 pt-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <Label htmlFor="beNumber">BE Number</Label>
-              <Input
-                id="beNumber"
-                name="beNumber"
-                value={formData.beNumber}
-                onChange={handleChange}
-              />
-              {errors.beNumber && (
-                <p className="text-destructive mt-1 text-xs">
-                  {errors.beNumber}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="beDate">BE Date</Label>
-              <Input
-                id="beDate"
-                name="beDate"
-                type="date"
-                value={formData.beDate}
-                onChange={handleChange}
-              />
-              {errors.beDate && (
-                <p className="text-destructive mt-1 text-xs">{errors.beDate}</p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="location">Location</Label>
-              <Input
-                id="location"
-                name="location"
-                value={formData.location}
-                onChange={handleChange}
-              />
-              {errors.location && (
-                <p className="text-destructive mt-1 text-xs">
-                  {errors.location}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="totalAssessmentValue">
-                Total Assessment Value
-              </Label>
-              <Input
-                id="totalAssessmentValue"
-                name="totalAssessmentValue"
-                type="number"
-                value={formData.totalAssessmentValue}
-                onChange={handleNumberChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="dutyAmount">Duty Amount</Label>
-              <Input
-                id="dutyAmount"
-                name="dutyAmount"
-                type="number"
-                value={formData.dutyAmount}
-                onChange={handleNumberChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="paymentDate">Payment Date</Label>
-              <Input
-                id="paymentDate"
-                name="paymentDate"
-                type="date"
-                value={formData.paymentDate}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="dutyPaid">Duty Paid</Label>
-              <Input
-                id="dutyPaid"
-                name="dutyPaid"
-                type="number"
-                value={formData.dutyPaid}
-                onChange={handleNumberChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="challanNumber">Challan No.</Label>
-              <Input
-                id="challanNumber"
-                name="challanNumber"
-                value={formData.challanNumber}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="refId">Ref ID</Label>
-              <Input
-                id="refId"
-                name="refId"
-                value={formData.refId}
-                onChange={handleChange}
-              />
-            </div>
-            <div>
-              <Label htmlFor="transactionId">Transaction ID</Label>
-              <Input
-                id="transactionId"
-                name="transactionId"
-                value={formData.transactionId}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
+          <BoeFormFields
+            formData={formData}
+            errors={errors}
+            handleChange={handleChange}
+            handleNumberChange={handleNumberChange}
+            fieldId={name => name}
+          />
           <DialogFooter>
             <DialogClose asChild>
               <Button type="button" variant="outline" useAccentColor>

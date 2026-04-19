@@ -3,6 +3,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import { openTextFile, save, writeTextFile } from '@/lib/tauri-bridge';
 import {
+  ArrowLeft,
   Download,
   FileOutput,
   Loader2,
@@ -14,6 +15,7 @@ import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { getItemColumns } from '@/components/item/columns';
 import { ItemForm } from '@/components/item/form';
@@ -79,16 +81,50 @@ const optionConfigs = {
   },
 };
 
+/** URL path for item view or edit (bookmarkable, browser back/forward). */
+export function itemDetailPath(itemId: string, mode: 'view' | 'edit') {
+  return `/item-master/${encodeURIComponent(itemId)}/${mode}`;
+}
+
+/** URL path to create a new item (full page). */
+export const itemMasterNewPath = '/item-master/new';
+
 export function ItemMasterPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { itemId: itemIdParam } = useParams<{ itemId: string }>();
+
   const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [items, setItems] = React.useState<Item[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [isFormOpen, setFormOpen] = React.useState(false);
-  const [isViewOpen, setViewOpen] = React.useState(false);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
-  const [itemToEdit, setItemToEdit] = React.useState<Item | null>(null);
-  const [selectedItem, setSelectedItem] = React.useState<Item | null>(null);
+
+  const itemPanel = React.useMemo((): 'none' | 'view' | 'edit' | 'add' => {
+    if (location.pathname === itemMasterNewPath) return 'add';
+    if (!itemIdParam) return 'none';
+    if (location.pathname.endsWith('/edit')) return 'edit';
+    if (location.pathname.endsWith('/view')) return 'view';
+    return 'none';
+  }, [itemIdParam, location.pathname]);
+
+  const decodedItemId = React.useMemo(() => {
+    if (!itemIdParam) return null;
+    try {
+      return decodeURIComponent(itemIdParam);
+    } catch {
+      return itemIdParam;
+    }
+  }, [itemIdParam]);
+
+  const selectedItemFromUrl = React.useMemo(() => {
+    if (!decodedItemId) return null;
+    return items.find(i => i.id === decodedItemId) ?? null;
+  }, [items, decodedItemId]);
+
+  const closeItemPanel = React.useCallback(() => {
+    navigate('/item-master');
+  }, [navigate]);
 
   // Options state
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
@@ -185,31 +221,40 @@ export function ItemMasterPage() {
   }, [fetchItems, fetchOptions]);
 
   const handleOpenFormForAdd = () => {
-    setItemToEdit(null);
-    setFormOpen(true);
+    navigate(itemMasterNewPath);
   };
 
-  const handleOpenFormForEdit = React.useCallback((item: Item) => {
-    setItemToEdit(item);
-    setFormOpen(true);
-  }, []);
+  const handleOpenFormForEdit = React.useCallback(
+    (item: Item) => {
+      navigate(itemDetailPath(item.id, 'edit'));
+    },
+    [navigate]
+  );
 
-  const handleView = React.useCallback((item: Item) => {
-    setSelectedItem(item);
-    setViewOpen(true);
-  }, []);
+  const handleView = React.useCallback(
+    (item: Item) => {
+      navigate(itemDetailPath(item.id, 'view'));
+    },
+    [navigate]
+  );
 
-  const handleSubmit = async (data: Omit<Item, 'id'>, id?: string) => {
+  const handleSubmit = async (data: Omit<Item, 'id'>) => {
     try {
-      if (id) {
-        await invoke('update_item', { item: { id, ...data } });
+      const existingId = (data as Partial<Item>).id;
+      if (existingId) {
+        await invoke('update_item', {
+          item: { ...(data as Item), id: existingId },
+        });
         notifications.item.updated(data.partNumber);
       } else {
-        await invoke('add_item', { item: data });
+        const { id: _omitId, ...createPayload } = data as Partial<Item>;
+        await invoke('add_item', { item: createPayload });
         notifications.item.created(data.partNumber);
       }
       fetchItems();
-      setFormOpen(false);
+      if (itemPanel === 'edit' || itemPanel === 'add') {
+        navigate('/item-master');
+      }
     } catch (error) {
       console.error('Failed to save item:', error);
       notifications.item.error('save', String(error));
@@ -398,7 +443,149 @@ export function ItemMasterPage() {
     [suppliers, handleView, handleOpenFormForEdit, settings]
   );
 
-  if (loading) {
+  const settingsDialog = (
+    <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
+      <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
+          <DialogTitle>Item Master Module Settings</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto pr-2">
+          <ModuleSettings
+            moduleName="itemMaster"
+            moduleTitle="Item Master"
+            onClose={() => setSettingsOpen(false)}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (itemPanel !== 'none') {
+    return (
+      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={closeItemPanel}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Back to items
+            </Button>
+            <span className="text-muted-foreground text-sm">
+              {itemPanel === 'view'
+                ? 'Viewing item record'
+                : itemPanel === 'edit'
+                  ? 'Editing item record'
+                  : 'Adding new item'}
+            </span>
+          </div>
+
+          {loading ? (
+            <div
+              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              role="status"
+              aria-live="polite"
+            >
+              Loading…
+            </div>
+          ) : itemPanel === 'add' ? (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <ItemForm
+                isOpen={true}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onOpenChange={open => {
+                  if (!open) closeItemPanel();
+                }}
+                onSubmit={handleSubmit}
+                itemToEdit={null}
+                suppliers={suppliers}
+                units={units}
+                currencies={currencies}
+                countries={countries}
+                bcdRates={bcdRates}
+                swsRates={swsRates}
+                igstRates={igstRates}
+                categories={categories}
+                endUses={endUses}
+                purchaseUoms={purchaseUoms}
+                onOptionCreate={handleOptionCreate}
+              />
+            </div>
+          ) : !selectedItemFromUrl ? (
+            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
+              <h2 className="text-card-foreground text-lg font-semibold">
+                Item not found
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                No item with ID{' '}
+                <span className="text-foreground font-mono">
+                  {decodedItemId ?? itemIdParam}
+                </span>
+                .
+              </p>
+              <Button
+                type="button"
+                variant="default"
+                useAccentColor
+                onClick={closeItemPanel}
+                className="w-fit"
+              >
+                Back to items
+              </Button>
+            </div>
+          ) : itemPanel === 'view' ? (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <ItemViewDialog
+                isOpen={true}
+                onOpenChange={open => {
+                  if (!open) closeItemPanel();
+                }}
+                item={selectedItemFromUrl}
+                suppliers={suppliers}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onEdit={() =>
+                  navigate(itemDetailPath(selectedItemFromUrl.id, 'edit'))
+                }
+              />
+            </div>
+          ) : (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <ItemForm
+                isOpen={true}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onOpenChange={open => {
+                  if (!open) closeItemPanel();
+                }}
+                onSubmit={handleSubmit}
+                itemToEdit={selectedItemFromUrl}
+                suppliers={suppliers}
+                units={units}
+                currencies={currencies}
+                countries={countries}
+                bcdRates={bcdRates}
+                swsRates={swsRates}
+                igstRates={igstRates}
+                categories={categories}
+                endUses={endUses}
+                purchaseUoms={purchaseUoms}
+                onOptionCreate={handleOptionCreate}
+              />
+            </div>
+          )}
+        </div>
+        {settingsDialog}
+      </div>
+    );
+  }
+
+  if (loading && itemPanel === 'none') {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
@@ -500,45 +687,7 @@ export function ItemMasterPage() {
         statusActions={statusActions}
       />
 
-      <ItemForm
-        isOpen={isFormOpen}
-        onOpenChange={setFormOpen}
-        onSubmit={handleSubmit}
-        itemToEdit={itemToEdit}
-        suppliers={suppliers}
-        units={units}
-        currencies={currencies}
-        countries={countries}
-        bcdRates={bcdRates}
-        swsRates={swsRates}
-        igstRates={igstRates}
-        categories={categories}
-        endUses={endUses}
-        purchaseUoms={purchaseUoms}
-        onOptionCreate={handleOptionCreate}
-      />
-      <ItemViewDialog
-        isOpen={isViewOpen}
-        onOpenChange={setViewOpen}
-        item={selectedItem}
-        suppliers={suppliers}
-      />
-
-      {/* Settings Dialog */}
-      <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>Item Master Module Settings</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto pr-2">
-            <ModuleSettings
-              moduleName="itemMaster"
-              moduleTitle="Item Master"
-              onClose={() => setSettingsOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {settingsDialog}
     </div>
   );
 }

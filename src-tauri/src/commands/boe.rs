@@ -232,15 +232,16 @@ pub fn get_shipments_for_boe_entry(state: State<DbState>) -> Result<Vec<BoeShipm
             ili.quantity, ili.unit_price,
             i.hsn_code,
             (ili.quantity * ili.unit_price) as line_total,
-            CAST(REPLACE(i.bcd, '%', '') AS REAL) as actual_bcd_rate,
-            CAST(REPLACE(i.sws, '%', '') AS REAL) as actual_sws_rate,
-            CAST(REPLACE(i.igst, '%', '') AS REAL) as actual_igst_rate
+            COALESCE(ili.duty_percent, CAST(REPLACE(COALESCE(i.bcd, '0'), '%', '') AS REAL)) as actual_bcd_rate,
+            COALESCE(ili.sws_percent, CAST(REPLACE(COALESCE(i.sws, '0'), '%', '') AS REAL)) as actual_sws_rate,
+            COALESCE(ili.igst_percent, CAST(REPLACE(COALESCE(i.igst, '0'), '%', '') AS REAL)) as actual_igst_rate
         FROM shipments s
         JOIN suppliers sup ON s.supplier_id = sup.id
         JOIN invoices inv ON inv.shipment_id = s.id
         JOIN invoice_line_items ili ON ili.invoice_id = inv.id
         JOIN items i ON ili.item_id = i.id
         WHERE s.id NOT IN (SELECT shipment_id FROM boe_calculations)
+          AND inv.status = 'Finalized'
         ORDER BY s.invoice_date DESC, s.id, i.part_number;
     ";
 
@@ -335,9 +336,9 @@ pub fn get_shipments_for_boe_summary(state: State<DbState>) -> Result<Vec<BoeShi
             ili.quantity, ili.unit_price,
             i.hsn_code,
             (ili.quantity * ili.unit_price) as line_total,
-            CAST(REPLACE(i.bcd, '%', '') AS REAL) as actual_bcd_rate,
-            CAST(REPLACE(i.sws, '%', '') AS REAL) as actual_sws_rate,
-            CAST(REPLACE(i.igst, '%', '') AS REAL) as actual_igst_rate
+            COALESCE(ili.duty_percent, CAST(REPLACE(COALESCE(i.bcd, '0'), '%', '') AS REAL)) as actual_bcd_rate,
+            COALESCE(ili.sws_percent, CAST(REPLACE(COALESCE(i.sws, '0'), '%', '') AS REAL)) as actual_sws_rate,
+            COALESCE(ili.igst_percent, CAST(REPLACE(COALESCE(i.igst, '0'), '%', '') AS REAL)) as actual_igst_rate
         FROM shipments s
         JOIN suppliers sup ON s.supplier_id = sup.id
         JOIN invoices inv ON inv.shipment_id = s.id
@@ -493,9 +494,9 @@ pub fn get_boe_reconciliation(
                 ili.quantity, ili.unit_price,
                 i.hsn_code,
                 (ili.quantity * ili.unit_price) as line_total,
-                CAST(REPLACE(i.bcd, '%', '') AS REAL) as actual_bcd_rate,
-                CAST(REPLACE(i.sws, '%', '') AS REAL) as actual_sws_rate,
-                CAST(REPLACE(i.igst, '%', '') AS REAL) as actual_igst_rate
+                COALESCE(ili.duty_percent, CAST(REPLACE(COALESCE(i.bcd, '0'), '%', '') AS REAL)) as actual_bcd_rate,
+                COALESCE(ili.sws_percent, CAST(REPLACE(COALESCE(i.sws, '0'), '%', '') AS REAL)) as actual_sws_rate,
+                COALESCE(ili.igst_percent, CAST(REPLACE(COALESCE(i.igst, '0'), '%', '') AS REAL)) as actual_igst_rate
             FROM invoices inv
             JOIN invoice_line_items ili ON ili.invoice_id = inv.id
             JOIN items i ON ili.item_id = i.id

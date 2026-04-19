@@ -313,6 +313,13 @@ test.describe('UI data integrity (import vs export)', () => {
         2
       );
       expect((ex.location ?? '').trim()).toBe((imp.location ?? '').trim());
+      expect((ex.challanNumber ?? '').trim()).toBe(
+        (imp.challanNumber ?? '').trim()
+      );
+      expect((ex.refId ?? '').trim()).toBe((imp.refId ?? '').trim());
+      expect((ex.transactionId ?? '').trim()).toBe(
+        (imp.transactionId ?? '').trim()
+      );
     }
   });
 

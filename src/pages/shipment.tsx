@@ -8,6 +8,7 @@ import {
   writeTextFile,
 } from '@/lib/tauri-bridge';
 import {
+  ArrowLeft,
   Download,
   Plus,
   Upload,
@@ -34,6 +35,7 @@ import {
 } from '@/lib/shipment-import';
 
 import * as React from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import { getShipmentColumns } from '@/components/shipment/columns';
@@ -84,6 +86,11 @@ import type { Option } from '@/types/options';
 import type { Shipment } from '@/types/shipment';
 import type { Supplier } from '@/types/supplier';
 
+/** URL path for shipment view or edit (bookmarkable). */
+export function shipmentDetailPath(shipmentId: string, mode: 'view' | 'edit') {
+  return `/shipment/${encodeURIComponent(shipmentId)}/${mode}`;
+}
+
 type OptionType =
   | 'supplier'
   | 'category'
@@ -94,6 +101,10 @@ type OptionType =
   | 'currency';
 
 const ShipmentPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { shipmentId: shipmentIdParam } = useParams<{ shipmentId: string }>();
+
   const { settings } = useSettings();
   const { getButtonClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
@@ -101,13 +112,36 @@ const ShipmentPage = () => {
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
   const [isFormOpen, setFormOpen] = React.useState(false);
   const [isMultilineFormOpen, setMultilineFormOpen] = React.useState(false);
-  const [isViewOpen, setViewOpen] = React.useState(false);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
-  const [selectedShipment, setSelectedShipment] =
-    React.useState<Shipment | null>(null);
+  const [isInitialLoad, setIsInitialLoad] = React.useState(true);
   const [shipmentToEdit, setShipmentToEdit] = React.useState<Shipment | null>(
     null
   );
+
+  const shipmentPanel = React.useMemo((): 'none' | 'view' | 'edit' => {
+    if (!shipmentIdParam) return 'none';
+    if (location.pathname.endsWith('/edit')) return 'edit';
+    if (location.pathname.endsWith('/view')) return 'view';
+    return 'none';
+  }, [shipmentIdParam, location.pathname]);
+
+  const decodedShipmentId = React.useMemo(() => {
+    if (!shipmentIdParam) return null;
+    try {
+      return decodeURIComponent(shipmentIdParam);
+    } catch {
+      return shipmentIdParam;
+    }
+  }, [shipmentIdParam]);
+
+  const selectedShipmentFromUrl = React.useMemo(() => {
+    if (!decodedShipmentId) return null;
+    return shipments.find(s => s.id === decodedShipmentId) ?? null;
+  }, [shipments, decodedShipmentId]);
+
+  const closeShipmentPanel = React.useCallback(() => {
+    navigate('/shipment');
+  }, [navigate]);
 
   const [categories, setCategories] = React.useState<Option[]>([]);
   const [incoterms, setIncoterms] = React.useState<Option[]>([]);
@@ -129,20 +163,32 @@ const ShipmentPage = () => {
     }
   }, [notifications.shipment]);
 
-  const handleOpenFormForEdit = React.useCallback((shipment: Shipment) => {
-    setShipmentToEdit(shipment);
-    setFormOpen(true);
-  }, []);
+  const handleOpenFormForEdit = React.useCallback(
+    (shipment: Shipment) => {
+      navigate(shipmentDetailPath(shipment.id, 'edit'));
+    },
+    [navigate]
+  );
 
   const handleOpenFormForAdd = React.useCallback(() => {
     setShipmentToEdit(null);
     setFormOpen(true);
   }, []);
 
-  const handleView = React.useCallback((shipment: Shipment) => {
-    setSelectedShipment(shipment);
-    setViewOpen(true);
-  }, []);
+  const handleView = React.useCallback(
+    (shipment: Shipment) => {
+      navigate(shipmentDetailPath(shipment.id, 'view'));
+    },
+    [navigate]
+  );
+
+  React.useEffect(() => {
+    if (shipmentPanel === 'edit' && selectedShipmentFromUrl) {
+      setShipmentToEdit(selectedShipmentFromUrl);
+    } else if (shipmentPanel === 'none') {
+      setShipmentToEdit(null);
+    }
+  }, [shipmentPanel, selectedShipmentFromUrl]);
 
   const handleMarkAsDelivered = React.useCallback(
     async (shipment: Shipment) => {
@@ -309,6 +355,7 @@ const ShipmentPage = () => {
 
   React.useEffect(() => {
     const fetchInitialData = async () => {
+      setIsInitialLoad(true);
       try {
         const fetchedSuppliers: Supplier[] = await invoke('get_suppliers');
         const supplierOptions = fetchedSuppliers.map(s => ({
@@ -321,6 +368,8 @@ const ShipmentPage = () => {
       } catch (error) {
         console.error('Failed to load initial data:', error);
         notifications.shipment.error('load initial data', String(error));
+      } finally {
+        setIsInitialLoad(false);
       }
     };
     fetchInitialData();
@@ -363,7 +412,11 @@ const ShipmentPage = () => {
         notifications.shipment.created(newShipment.invoiceNumber);
       }
       fetchShipments();
-      setFormOpen(false);
+      if (shipmentPanel === 'edit') {
+        navigate('/shipment');
+      } else {
+        setFormOpen(false);
+      }
     } catch (error) {
       console.error('Failed to save shipment:', error);
       notifications.shipment.error('save', String(error));
@@ -826,6 +879,121 @@ const ShipmentPage = () => {
     );
   };
 
+  const settingsDialog = (
+    <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
+      <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
+          <DialogTitle>Shipment Module Settings</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto pr-2">
+          <ModuleSettings
+            moduleName="shipment"
+            moduleTitle="Shipment"
+            onClose={() => setSettingsOpen(false)}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (shipmentPanel !== 'none') {
+    return (
+      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={closeShipmentPanel}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Back to shipments
+            </Button>
+            <span className="text-muted-foreground text-sm">
+              {shipmentPanel === 'view'
+                ? 'Viewing shipment record'
+                : 'Editing shipment record'}
+            </span>
+          </div>
+
+          {isInitialLoad ? (
+            <div
+              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-6xl flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              role="status"
+              aria-live="polite"
+            >
+              Loading shipment…
+            </div>
+          ) : !selectedShipmentFromUrl ? (
+            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
+              <h2 className="text-card-foreground text-lg font-semibold">
+                Shipment not found
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                No shipment with ID{' '}
+                <span className="text-foreground font-mono">
+                  {decodedShipmentId ?? shipmentIdParam}
+                </span>
+                .
+              </p>
+              <Button
+                type="button"
+                variant="default"
+                useAccentColor
+                onClick={closeShipmentPanel}
+                className="w-fit"
+              >
+                Back to shipments
+              </Button>
+            </div>
+          ) : shipmentPanel === 'view' ? (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-6xl flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <ProfessionalShipmentViewDialog
+                isOpen={true}
+                onOpenChange={open => {
+                  if (!open) closeShipmentPanel();
+                }}
+                shipment={selectedShipmentFromUrl}
+                suppliers={suppliers}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onEdit={() =>
+                  navigate(
+                    shipmentDetailPath(selectedShipmentFromUrl.id, 'edit')
+                  )
+                }
+              />
+            </div>
+          ) : (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-6xl flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <ProfessionalShipmentForm
+                isOpen={true}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onOpenChange={open => {
+                  if (!open) closeShipmentPanel();
+                }}
+                onSubmit={handleSubmit}
+                shipmentToEdit={selectedShipmentFromUrl}
+                suppliers={suppliers}
+                categories={categories}
+                incoterms={incoterms}
+                modes={modes}
+                types={types}
+                statuses={statuses}
+                currencies={currencies}
+                onOptionCreate={handleOptionCreate}
+              />
+            </div>
+          )}
+        </div>
+        {settingsDialog}
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto px-4 py-6">
       {/* CRM Header */}
@@ -1135,28 +1303,7 @@ const ShipmentPage = () => {
         currencies={currencies}
         existingShipments={shipments}
       />
-      <ProfessionalShipmentViewDialog
-        isOpen={isViewOpen}
-        onOpenChange={setViewOpen}
-        shipment={selectedShipment}
-        suppliers={suppliers}
-      />
-
-      {/* Settings Dialog */}
-      <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
-          <DialogHeader className="shrink-0">
-            <DialogTitle>Shipment Module Settings</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto pr-2">
-            <ModuleSettings
-              moduleName="shipment"
-              moduleTitle="Shipment"
-              onClose={() => setSettingsOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {settingsDialog}
     </div>
   );
 };

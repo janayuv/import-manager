@@ -29,6 +29,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { cn } from '@/lib/utils';
 import type { Option } from '@/types/options';
 import type { Shipment } from '@/types/shipment';
 
@@ -37,6 +38,10 @@ interface ProfessionalShipmentViewProps {
   onOpenChange: (isOpen: boolean) => void;
   shipment: Shipment | null;
   suppliers: Option[];
+  /** Full-page layout (no modal shell). */
+  presentation?: 'dialog' | 'page';
+  className?: string;
+  onEdit?: () => void;
 }
 
 const getSupplierName = (suppliers: Option[], supplierId?: string): string => {
@@ -84,14 +89,21 @@ export function ProfessionalShipmentViewDialog({
   onOpenChange,
   shipment,
   suppliers,
+  presentation = 'dialog',
+  className,
+  onEdit,
 }: ProfessionalShipmentViewProps) {
   const [activeTab, setActiveTab] = React.useState('overview');
+  const isPage = presentation === 'page';
+  const scrollAreaClass = isPage
+    ? 'min-h-0 flex-1 overflow-y-auto'
+    : 'max-h-[calc(95vh-200px)] overflow-y-auto';
 
   React.useEffect(() => {
-    if (isOpen) {
-      setActiveTab('overview'); // Reset to first tab when opening
+    if (isOpen || isPage) {
+      setActiveTab('overview');
     }
-  }, [isOpen]);
+  }, [isOpen, isPage, shipment?.id]);
 
   // Calculate transit days
   const transitDays = React.useMemo(() => {
@@ -109,417 +121,488 @@ export function ProfessionalShipmentViewDialog({
     return null;
   }
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[95vh] overflow-hidden sm:max-w-5xl">
-        <DialogHeader className="border-b pb-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="bg-primary/10 rounded-lg p-2">
-                <Ship className="text-primary h-6 w-6" />
-              </div>
-              <div>
-                <DialogTitle className="text-xl font-semibold">
-                  {shipment.invoiceNumber}
-                </DialogTitle>
-                <DialogDescription>
-                  Shipment from{' '}
-                  {getSupplierName(suppliers, shipment.supplierId)}
-                </DialogDescription>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={getStatusColor(shipment.status)}>
-                {shipment.status?.replace(/-/g, ' ').toUpperCase() || 'PENDING'}
-              </Badge>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => onOpenChange(false)}
+  const headerRow = (
+    <div className="flex items-center justify-between">
+      <div className="flex items-center gap-3">
+        <div className="bg-primary/10 rounded-lg p-2">
+          <Ship className="text-primary h-6 w-6" />
+        </div>
+        <div>
+          {isPage ? (
+            <>
+              <h2
+                id="shipment-view-title"
+                className="text-xl font-semibold tracking-tight"
               >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </DialogHeader>
+                {shipment.invoiceNumber}
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Shipment from {getSupplierName(suppliers, shipment.supplierId)}
+              </p>
+            </>
+          ) : (
+            <>
+              <DialogTitle className="text-xl font-semibold">
+                {shipment.invoiceNumber}
+              </DialogTitle>
+              <DialogDescription>
+                Shipment from {getSupplierName(suppliers, shipment.supplierId)}
+              </DialogDescription>
+            </>
+          )}
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <Badge variant={getStatusColor(shipment.status)}>
+          {shipment.status?.replace(/-/g, ' ').toUpperCase() || 'PENDING'}
+        </Badge>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => onOpenChange(false)}
+          aria-label="Close"
+        >
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+    </div>
+  );
 
-        <div className="flex-1 overflow-hidden">
-          <Tabs
-            value={activeTab}
-            onValueChange={setActiveTab}
-            className="h-full"
+  const tabsBlock = (
+    <div
+      className={
+        isPage
+          ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-6'
+          : 'flex-1 overflow-hidden'
+      }
+    >
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className={isPage ? 'flex h-full min-h-0 flex-col' : 'h-full'}
+      >
+        <TabsList className="mb-4 grid w-full grid-cols-3">
+          <TabsTrigger
+            value="overview"
+            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
           >
-            <TabsList className="mb-4 grid w-full grid-cols-3">
-              <TabsTrigger
-                value="overview"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
-              >
-                <Ship className="h-4 w-4" />
-                Overview
-              </TabsTrigger>
-              <TabsTrigger
-                value="commercial"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
-              >
-                <DollarSign className="h-4 w-4" />
-                Commercial
-              </TabsTrigger>
-              <TabsTrigger
-                value="logistics"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
-              >
-                <Truck className="h-4 w-4" />
-                Logistics
-              </TabsTrigger>
-            </TabsList>
+            <Ship className="h-4 w-4" />
+            Overview
+          </TabsTrigger>
+          <TabsTrigger
+            value="commercial"
+            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          >
+            <DollarSign className="h-4 w-4" />
+            Commercial
+          </TabsTrigger>
+          <TabsTrigger
+            value="logistics"
+            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          >
+            <Truck className="h-4 w-4" />
+            Logistics
+          </TabsTrigger>
+        </TabsList>
 
-            <div className="max-h-[calc(95vh-200px)] overflow-y-auto">
-              {/* Overview Tab */}
-              <TabsContent value="overview" className="mt-0 space-y-6">
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  {/* Basic Information */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <FileText className="h-4 w-4" />
-                        Basic Information
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <Building className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Supplier
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {getSupplierName(suppliers, shipment.supplierId)}
-                          </p>
-                        </div>
-                      </div>
+        <div className={scrollAreaClass}>
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-0 space-y-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Basic Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4" />
+                    Basic Information
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Building className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Supplier
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {getSupplierName(suppliers, shipment.supplierId)}
+                      </p>
+                    </div>
+                  </div>
 
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="flex items-start gap-3">
-                          <Hash className="text-muted-foreground mt-1 h-4 w-4" />
-                          <div className="flex-1">
-                            <Label className="text-muted-foreground text-sm font-medium">
-                              Invoice Number
-                            </Label>
-                            <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
-                              {shipment.invoiceNumber}
-                            </p>
-                          </div>
-                        </div>
-
-                        <div className="flex items-start gap-3">
-                          <Calendar className="text-muted-foreground mt-1 h-4 w-4" />
-                          <div className="flex-1">
-                            <Label className="text-muted-foreground text-sm font-medium">
-                              Invoice Date
-                            </Label>
-                            <p className="mt-1 text-sm">
-                              {formatDate(shipment.invoiceDate)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Tag className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Goods Category
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {shipment.goodsCategory || 'Not specified'}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Status & Classification */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Settings className="h-4 w-4" />
-                        Status & Classification
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <Settings className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Status
-                          </Label>
-                          <div className="mt-1">
-                            <Badge variant={getStatusColor(shipment.status)}>
-                              {shipment.status
-                                ?.replace(/-/g, ' ')
-                                .toUpperCase() || 'PENDING'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Package className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Shipment Type
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {shipment.shipmentType || 'Not specified'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Truck className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Mode of Transport
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {shipment.shipmentMode || 'Not specified'}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              {/* Commercial Tab */}
-              <TabsContent value="commercial" className="mt-0 space-y-6">
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-                  {/* Invoice Details */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <DollarSign className="h-4 w-4" />
-                        Invoice Details
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="flex items-start gap-3">
-                        <DollarSign className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Invoice Value
-                          </Label>
-                          <p className="mt-1 text-lg font-semibold">
-                            {formatCurrency(
-                              shipment.invoiceValue,
-                              shipment.invoiceCurrency
-                            )}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start gap-3">
-                        <Globe className="text-muted-foreground mt-1 h-4 w-4" />
-                        <div className="flex-1">
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Incoterm
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {shipment.incoterm || 'Not specified'}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
-
-              {/* Logistics Tab */}
-              <TabsContent value="logistics" className="mt-0 space-y-6">
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                  {/* Shipping Documents */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <FileText className="h-4 w-4" />
-                        Shipping Documents
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="space-y-3">
-                        <div>
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            BL/AWB Number
-                          </Label>
-                          <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
-                            {shipment.blAwbNumber || 'Not specified'}
-                          </p>
-                        </div>
-
-                        <div>
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            BL/AWB Date
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {formatDate(shipment.blAwbDate)}
-                          </p>
-                        </div>
-
-                        <div>
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Vessel Name
-                          </Label>
-                          <p className="mt-1 text-sm">
-                            {shipment.vesselName || 'Not specified'}
-                          </p>
-                        </div>
-
-                        <div>
-                          <Label className="text-muted-foreground text-sm font-medium">
-                            Container Number
-                          </Label>
-                          <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
-                            {shipment.containerNumber || 'Not specified'}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Shipping Schedule & Weight */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Calendar className="h-4 w-4" />
-                        Schedule & Weight
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-muted/50 rounded-lg p-3 text-center">
-                          <Label className="text-muted-foreground text-xs font-medium">
-                            ETD
-                          </Label>
-                          <p className="mt-1 text-sm font-semibold">
-                            {formatDate(shipment.etd)}
-                          </p>
-                        </div>
-
-                        <div className="bg-muted/50 rounded-lg p-3 text-center">
-                          <Label className="text-muted-foreground text-xs font-medium">
-                            ETA
-                          </Label>
-                          <p className="mt-1 text-sm font-semibold">
-                            {formatDate(shipment.eta)}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-muted/50 rounded-lg p-3 text-center">
-                          <Label className="text-muted-foreground text-xs font-medium">
-                            Gross Weight (KG)
-                          </Label>
-                          <p className="mt-1 text-sm font-semibold">
-                            {shipment.grossWeightKg
-                              ? `${shipment.grossWeightKg} kg`
-                              : 'Not specified'}
-                          </p>
-                        </div>
-
-                        <div className="bg-muted/50 rounded-lg p-3 text-center">
-                          <Label className="text-muted-foreground text-xs font-medium">
-                            Delivery Date
-                          </Label>
-                          <p className="mt-1 text-sm font-semibold">
-                            {formatDate(shipment.dateOfDelivery)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {transitDays && (
-                        <div className="bg-primary/10 rounded-lg p-3 text-center">
-                          <Label className="text-muted-foreground text-xs font-medium">
-                            Transit Time
-                          </Label>
-                          <p className="text-primary mt-1 text-lg font-bold">
-                            {transitDays} days
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-
-                {/* Shipment Status */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="flex items-center gap-2 text-base">
-                        <Settings className="h-4 w-4" />
-                        Shipment Status
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="bg-muted/50 flex items-center justify-between rounded-lg p-3">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="flex items-start gap-3">
+                      <Hash className="text-muted-foreground mt-1 h-4 w-4" />
+                      <div className="flex-1">
                         <Label className="text-muted-foreground text-sm font-medium">
-                          Frozen Status
+                          Invoice Number
                         </Label>
-                        <div className="flex items-center gap-2">
-                          {shipment.isFrozen ? (
-                            <>
-                              <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                              <span className="text-sm font-semibold text-yellow-700">
-                                Frozen
-                              </span>
-                            </>
-                          ) : (
-                            <>
-                              <div className="h-2 w-2 rounded-full bg-green-500" />
-                              <span className="text-sm font-semibold text-green-700">
-                                Active
-                              </span>
-                            </>
-                          )}
-                        </div>
+                        <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
+                          {shipment.invoiceNumber}
+                        </p>
                       </div>
+                    </div>
 
-                      {shipment.isFrozen && (
-                        <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-                          <div className="flex items-center gap-2 text-yellow-800">
-                            <Settings className="h-4 w-4" />
-                            <span className="text-sm font-medium">
-                              Shipment Frozen
-                            </span>
-                          </div>
-                          <p className="mt-1 text-xs text-yellow-700">
-                            This shipment is locked and cannot be modified
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                </div>
-              </TabsContent>
+                    <div className="flex items-start gap-3">
+                      <Calendar className="text-muted-foreground mt-1 h-4 w-4" />
+                      <div className="flex-1">
+                        <Label className="text-muted-foreground text-sm font-medium">
+                          Invoice Date
+                        </Label>
+                        <p className="mt-1 text-sm">
+                          {formatDate(shipment.invoiceDate)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Tag className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Goods Category
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {shipment.goodsCategory || 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Status & Classification */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Settings className="h-4 w-4" />
+                    Status & Classification
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Settings className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Status
+                      </Label>
+                      <div className="mt-1">
+                        <Badge variant={getStatusColor(shipment.status)}>
+                          {shipment.status?.replace(/-/g, ' ').toUpperCase() ||
+                            'PENDING'}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Package className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Shipment Type
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {shipment.shipmentType || 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Truck className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Mode of Transport
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {shipment.shipmentMode || 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
-          </Tabs>
+          </TabsContent>
+
+          {/* Commercial Tab */}
+          <TabsContent value="commercial" className="mt-0 space-y-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
+              {/* Invoice Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <DollarSign className="h-4 w-4" />
+                    Invoice Details
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <DollarSign className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Invoice Value
+                      </Label>
+                      <p className="mt-1 text-lg font-semibold">
+                        {formatCurrency(
+                          shipment.invoiceValue,
+                          shipment.invoiceCurrency
+                        )}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Globe className="text-muted-foreground mt-1 h-4 w-4" />
+                    <div className="flex-1">
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Incoterm
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {shipment.incoterm || 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+
+          {/* Logistics Tab */}
+          <TabsContent value="logistics" className="mt-0 space-y-6">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Shipping Documents */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <FileText className="h-4 w-4" />
+                    Shipping Documents
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        BL/AWB Number
+                      </Label>
+                      <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
+                        {shipment.blAwbNumber || 'Not specified'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        BL/AWB Date
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {formatDate(shipment.blAwbDate)}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Vessel Name
+                      </Label>
+                      <p className="mt-1 text-sm">
+                        {shipment.vesselName || 'Not specified'}
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label className="text-muted-foreground text-sm font-medium">
+                        Container Number
+                      </Label>
+                      <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
+                        {shipment.containerNumber || 'Not specified'}
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Shipping Schedule & Weight */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Calendar className="h-4 w-4" />
+                    Schedule & Weight
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <Label className="text-muted-foreground text-xs font-medium">
+                        ETD
+                      </Label>
+                      <p className="mt-1 text-sm font-semibold">
+                        {formatDate(shipment.etd)}
+                      </p>
+                    </div>
+
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <Label className="text-muted-foreground text-xs font-medium">
+                        ETA
+                      </Label>
+                      <p className="mt-1 text-sm font-semibold">
+                        {formatDate(shipment.eta)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <Label className="text-muted-foreground text-xs font-medium">
+                        Gross Weight (KG)
+                      </Label>
+                      <p className="mt-1 text-sm font-semibold">
+                        {shipment.grossWeightKg
+                          ? `${shipment.grossWeightKg} kg`
+                          : 'Not specified'}
+                      </p>
+                    </div>
+
+                    <div className="bg-muted/50 rounded-lg p-3 text-center">
+                      <Label className="text-muted-foreground text-xs font-medium">
+                        Delivery Date
+                      </Label>
+                      <p className="mt-1 text-sm font-semibold">
+                        {formatDate(shipment.dateOfDelivery)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {transitDays && (
+                    <div className="bg-primary/10 rounded-lg p-3 text-center">
+                      <Label className="text-muted-foreground text-xs font-medium">
+                        Transit Time
+                      </Label>
+                      <p className="text-primary mt-1 text-lg font-bold">
+                        {transitDays} days
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Shipment Status */}
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-base">
+                    <Settings className="h-4 w-4" />
+                    Shipment Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="bg-muted/50 flex items-center justify-between rounded-lg p-3">
+                    <Label className="text-muted-foreground text-sm font-medium">
+                      Frozen Status
+                    </Label>
+                    <div className="flex items-center gap-2">
+                      {shipment.isFrozen ? (
+                        <>
+                          <div className="h-2 w-2 rounded-full bg-yellow-500" />
+                          <span className="text-sm font-semibold text-yellow-700">
+                            Frozen
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <div className="h-2 w-2 rounded-full bg-green-500" />
+                          <span className="text-sm font-semibold text-green-700">
+                            Active
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+
+                  {shipment.isFrozen && (
+                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
+                      <div className="flex items-center gap-2 text-yellow-800">
+                        <Settings className="h-4 w-4" />
+                        <span className="text-sm font-medium">
+                          Shipment Frozen
+                        </span>
+                      </div>
+                      <p className="mt-1 text-xs text-yellow-700">
+                        This shipment is locked and cannot be modified
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+        </div>
+      </Tabs>
+    </div>
+  );
+
+  const footerBlock = (
+    <>
+      <Separator className={isPage ? 'shrink-0' : undefined} />
+
+      <div
+        className={
+          isPage
+            ? 'flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-6 py-4'
+            : 'flex items-center justify-between pt-4'
+        }
+      >
+        <div className="text-muted-foreground flex items-center gap-4 text-sm">
+          <div className="flex items-center gap-2">
+            <div className={`bg-primary h-2 w-2 rounded-full`} />
+            Shipment ID: {shipment.id}
+          </div>
         </div>
 
-        <Separator />
-
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-4">
-          <div className="text-muted-foreground flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <div className={`bg-primary h-2 w-2 rounded-full`} />
-              Shipment ID: {shipment.id}
-            </div>
-          </div>
-
-          <Button type="button" onClick={() => onOpenChange(false)}>
+        <div className="flex flex-wrap items-center gap-2">
+          {onEdit ? (
+            <Button
+              type="button"
+              variant="default"
+              useAccentColor
+              onClick={onEdit}
+            >
+              Edit shipment
+            </Button>
+          ) : null}
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            onClick={() => onOpenChange(false)}
+          >
             Close
           </Button>
         </div>
+      </div>
+    </>
+  );
+
+  if (isPage) {
+    return (
+      <section
+        className={cn(
+          'bg-card text-card-foreground flex h-full min-h-0 flex-col overflow-hidden',
+          className
+        )}
+        aria-labelledby="shipment-view-title"
+      >
+        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+          {headerRow}
+        </header>
+        {tabsBlock}
+        {footerBlock}
+      </section>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[95vh] overflow-hidden sm:max-w-5xl">
+        <DialogHeader className="border-b pb-4">{headerRow}</DialogHeader>
+        {tabsBlock}
+        {footerBlock}
       </DialogContent>
     </Dialog>
   );

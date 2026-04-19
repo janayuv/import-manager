@@ -119,6 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::add_invoice,
             commands::add_invoices_bulk,
             commands::update_invoice,
+            commands::bulk_finalize_invoices,
             commands::delete_invoice,
             commands::get_unfinalized_shipments,
 

@@ -28,6 +28,11 @@ export function NavMain({ items }: { items: NavItem[] }) {
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
+  /** Match exact path or nested routes (e.g. /supplier/Sup-001/view). */
+  const pathOrChildActive = (path: string) =>
+    path === '/'
+      ? location.pathname === '/'
+      : location.pathname === path || location.pathname.startsWith(`${path}/`);
   const isGroupActive = (
     path: string,
     subItems?: Omit<NavItem, 'icon' | 'items'>[]
@@ -76,7 +81,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
                     <SidebarMenuSubItem key={subItem.title}>
                       <SidebarMenuSubButton
                         asChild
-                        isActive={isActive(subItem.url)}
+                        isActive={pathOrChildActive(subItem.url)}
                       >
                         <NavLink to={subItem.url} className="overflow-hidden">
                           <span className="truncate" title={subItem.title}>
@@ -96,7 +101,7 @@ export function NavMain({ items }: { items: NavItem[] }) {
             <SidebarMenuButton
               asChild
               tooltip={item.title}
-              isActive={isActive(item.url)}
+              isActive={pathOrChildActive(item.url)}
             >
               <NavLink
                 to={item.url}

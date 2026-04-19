@@ -45,11 +45,11 @@ export interface UnifiedNotificationHelpers {
     options?: NotificationOptions
   ) => void;
 
-  // Loading notifications (toast only)
-  loading: (message: string) => string;
+  // Loading notifications (toast only); return value is Sonner’s toast id.
+  loading: (message: string) => string | number;
 
   // Dismiss loading notification
-  dismiss: (id: string) => void;
+  dismiss: (id: string | number) => void;
 
   // Module-specific helpers
   shipment: {
@@ -166,11 +166,11 @@ export function useUnifiedNotifications(): UnifiedNotificationHelpers {
     [addNotification]
   );
 
-  const loading = (message: string): string => {
-    return String(toast.loading(message));
+  const loading = (message: string): string | number => {
+    return toast.loading(message);
   };
 
-  const dismiss = (id: string) => {
+  const dismiss = (id: string | number) => {
     toast.dismiss(id);
   };
 

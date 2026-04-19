@@ -17,6 +17,7 @@
     "format:fix": "prettier --write .",
     "format:rust": "cd src-tauri && cargo fmt",
     "type-check": "tsc --noEmit",
+    "clean:tauri-cache": "powershell -NoProfile -Command \"Remove-Item -Recurse -Force 'src-tauri/target','node_modules/.vite','dist' -ErrorAction SilentlyContinue\"",
     "security:gitleaks": "node scripts/gitleaks-scan.mjs",
     "security:full": "gitleaks detect --source . --no-banner --log-opts=--all",
     "prepare": "husky",

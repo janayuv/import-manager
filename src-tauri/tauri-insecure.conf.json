@@ -12,6 +12,7 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "import-manager",
         "width": 1100,
         "height": 650,

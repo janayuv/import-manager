@@ -3,7 +3,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Papa, { type ParseResult } from 'papaparse';
-import { save, writeTextFile } from '@/lib/tauri-bridge';
+import { isTauriEnvironment, save, writeTextFile } from '@/lib/tauri-bridge';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
@@ -74,7 +74,8 @@ interface BoeEntryFormProps {
   onSaveOrUpdate: (boeData: SavedBoe) => void;
   initialData: SavedBoe | null;
   onCancelEdit: () => void;
-  setEditingBoe: (boe: SavedBoe | null) => void;
+  /** Optional; used on the list page when importing overrides into a draft edit state */
+  setEditingBoe?: (boe: SavedBoe | null) => void;
   // Optional presets for embedding in flows (e.g., Invoice Wizard)
   presetSupplierName?: string;
   presetShipmentId?: string;
@@ -95,7 +96,7 @@ export function BoeEntryForm({
   onSaveOrUpdate,
   initialData,
   onCancelEdit,
-  setEditingBoe,
+  setEditingBoe = () => {},
   presetSupplierName,
   presetShipmentId,
 }: BoeEntryFormProps) {
@@ -320,9 +321,30 @@ export function BoeEntryForm({
       },
     ];
     const csv = Papa.unparse(templateRows);
+    const fileName = 'boe_item_override_template.csv';
+
+    const downloadViaBrowser = () => {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.setAttribute('href', url);
+      link.setAttribute('download', fileName);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    };
+
     try {
+      if (!isTauriEnvironment) {
+        downloadViaBrowser();
+        toast.success('BOE item override template downloaded.');
+        return;
+      }
+
       const filePath = await save({
-        defaultPath: 'boe_item_override_template.csv',
+        defaultPath: fileName,
         filters: [{ name: 'CSV', extensions: ['csv'] }],
       });
       if (filePath) {

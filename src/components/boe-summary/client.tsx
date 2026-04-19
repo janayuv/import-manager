@@ -6,6 +6,7 @@ import * as ExcelJS from 'exceljs';
 import { toast } from 'sonner';
 
 import * as React from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -915,13 +916,17 @@ interface BoeSummaryClientProps {
   savedBoes: SavedBoe[];
   shipments: Shipment[];
   allBoes: BoeDetails[];
+  /** Deep link from `/boe-summary/:savedBoeId` */
+  initialSavedBoeId?: string | null;
 }
 
 export function BoeSummaryClient({
   savedBoes,
   shipments,
   allBoes,
+  initialSavedBoeId = null,
 }: BoeSummaryClientProps) {
+  const navigate = useNavigate();
   const [selectedSupplier, setSelectedSupplier] = React.useState<string>('');
   const [selectedInvoiceId, setSelectedInvoiceId] = React.useState<string>('');
   const [statusFilter, setStatusFilter] = React.useState<string>('All');
@@ -982,9 +987,33 @@ export function BoeSummaryClient({
     }
   }, [selectedData?.savedBoe?.id, selectedData?.savedBoe?.status]);
 
+  React.useEffect(() => {
+    if (!initialSavedBoeId || savedBoes.length === 0) return;
+    const b = savedBoes.find(x => x.id === initialSavedBoeId);
+    if (b) {
+      setSelectedSupplier(b.supplierName);
+      setSelectedInvoiceId(b.id);
+    }
+  }, [initialSavedBoeId, savedBoes]);
+
+  React.useEffect(() => {
+    if (initialSavedBoeId) return;
+    setSelectedInvoiceId('');
+  }, [initialSavedBoeId]);
+
   const handleSupplierChange = (supplier: string) => {
     setSelectedSupplier(supplier);
     setSelectedInvoiceId('');
+    navigate('/boe-summary');
+  };
+
+  const handleInvoiceChange = (id: string) => {
+    setSelectedInvoiceId(id);
+    if (id) {
+      navigate(`/boe-summary/${encodeURIComponent(id)}`);
+    } else {
+      navigate('/boe-summary');
+    }
   };
 
   return (
@@ -1012,7 +1041,7 @@ export function BoeSummaryClient({
           <div className="grid w-full max-w-sm items-center gap-1.5">
             <Label htmlFor="invoice-select">Invoice</Label>
             <Select
-              onValueChange={setSelectedInvoiceId}
+              onValueChange={handleInvoiceChange}
               value={selectedInvoiceId}
               disabled={!selectedSupplier}
             >

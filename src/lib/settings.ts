@@ -300,7 +300,7 @@ const defaultModuleFields: Record<
       precision: 2,
       showSign: false,
     },
-    igst: {
+    sws: {
       visible: true,
       order: 14,
       width: '100px',
@@ -308,15 +308,15 @@ const defaultModuleFields: Record<
       precision: 2,
       showSign: false,
     },
-    invoiceTotal: {
+    igst: {
       visible: true,
       order: 15,
-      width: '120px',
-      numberFormat: 'currency' as const,
+      width: '100px',
+      numberFormat: 'percentage' as const,
       precision: 2,
       showSign: false,
     },
-    shipmentTotal: {
+    invoiceTotal: {
       visible: true,
       order: 16,
       width: '120px',
@@ -324,16 +324,24 @@ const defaultModuleFields: Record<
       precision: 2,
       showSign: false,
     },
-    status: {
+    shipmentTotal: {
       visible: true,
       order: 17,
+      width: '120px',
+      numberFormat: 'currency' as const,
+      precision: 2,
+      showSign: false,
+    },
+    status: {
+      visible: true,
+      order: 18,
       width: '100px',
       case: 'titlecase' as const,
       trimWhitespace: true,
     },
     actions: {
       visible: true,
-      order: 18,
+      order: 19,
       width: '100px',
       case: 'none' as const,
       trimWhitespace: false,

@@ -59,7 +59,8 @@ pub struct Shipment {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
-    pub id: String,
+    /// Present when loaded from DB or when editing; omitted for new items (server assigns id).
+    pub id: Option<String>,
     pub part_number: String,
     pub item_description: String,
     pub unit: String,
@@ -87,6 +88,10 @@ pub struct InvoiceLineItem {
     pub item_id: String,
     pub quantity: f64,
     pub unit_price: f64,
+    /// Snapshot of Item Master BCD (duty) % at invoice time; editable per line.
+    pub duty_percent: f64,
+    pub sws_percent: f64,
+    pub igst_percent: f64,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -117,6 +122,12 @@ pub struct NewInvoiceLineItemPayload {
     pub item_id: String,
     pub quantity: f64,
     pub unit_price: f64,
+    #[serde(default)]
+    pub duty_percent: Option<f64>,
+    #[serde(default)]
+    pub sws_percent: Option<f64>,
+    #[serde(default)]
+    pub igst_percent: Option<f64>,
 }
 
 // --- BOE STRUCTS ---

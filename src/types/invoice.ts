@@ -5,6 +5,10 @@ export interface InvoiceLineItem {
   itemName?: string;
   quantity: number;
   unitPrice: number;
+  /** Snapshot of duty (BCD) % at line save time; editable, not from Item Master at display. */
+  dutyPercent?: number;
+  swsPercent?: number;
+  igstPercent?: number;
 }
 
 export interface Invoice {
@@ -33,6 +37,7 @@ export interface FlattenedInvoiceLine {
   unitPrice: number;
   lineTotal: number;
   bcd: number;
+  sws: number;
   igst: number;
   invoiceTotal: number;
   shipmentTotal: number;
