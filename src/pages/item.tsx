@@ -247,7 +247,8 @@ export function ItemMasterPage() {
         });
         notifications.item.updated(data.partNumber);
       } else {
-        const { id: _omitId, ...createPayload } = data as Partial<Item>;
+        const createPayload = { ...(data as Partial<Item>) };
+        delete createPayload.id;
         await invoke('add_item', { item: createPayload });
         notifications.item.created(data.partNumber);
       }

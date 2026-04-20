@@ -221,15 +221,9 @@ const InvoicePage = () => {
               quantity: lineItem.quantity,
               unitPrice: lineItem.unitPrice,
               lineTotal: lineItem.quantity * lineItem.unitPrice,
-              bcd:
-                lineItem.dutyPercent ??
-                parsePercentage(item.bcd),
-              sws:
-                lineItem.swsPercent ??
-                parsePercentage(item.sws),
-              igst:
-                lineItem.igstPercent ??
-                parsePercentage(item.igst),
+              bcd: lineItem.dutyPercent ?? parsePercentage(item.bcd),
+              sws: lineItem.swsPercent ?? parsePercentage(item.sws),
+              igst: lineItem.igstPercent ?? parsePercentage(item.igst),
               invoiceTotal: invoice.calculatedTotal,
               shipmentTotal: invoice.shipmentTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
@@ -418,7 +412,10 @@ const InvoicePage = () => {
         notifications.dismiss(loadingToastId);
 
         if (result.errorMessages.length > 0) {
-          console.warn('[invoice] bulk_finalize_invoices:', result.errorMessages);
+          console.warn(
+            '[invoice] bulk_finalize_invoices:',
+            result.errorMessages
+          );
         }
 
         notifications.success(
@@ -556,8 +553,14 @@ const InvoicePage = () => {
         return;
       }
 
-      const shipmentMap = new Map(shipments.map(s => [s.invoiceNumber, s.id]));
-      const itemMap = new Map(items.map(i => [i.partNumber, i.id]));
+      const [freshShipments, freshItems] = await Promise.all([
+        invoke<Shipment[]>('get_shipments'),
+        invoke<Item[]>('get_items'),
+      ]);
+      const shipmentMap = new Map(
+        freshShipments.map(s => [s.invoiceNumber, s.id])
+      );
+      const itemMap = new Map(freshItems.map(i => [i.partNumber, i.id]));
 
       const invoicesToCreate = new Map<
         string,
@@ -584,7 +587,7 @@ const InvoicePage = () => {
         }
 
         const lineItems = invoicesToCreate.get(shipmentId) || [];
-        const masterItem = items.find(i => i.id === itemId);
+        const masterItem = freshItems.find(i => i.id === itemId);
         lineItems.push({
           itemId,
           quantity: parseFloat(row.quantity) || 0,
@@ -738,9 +741,7 @@ const InvoicePage = () => {
                 presentation="page"
                 className="min-h-0 flex-1"
                 onEdit={() =>
-                  navigate(
-                    invoiceDetailPath(selectedInvoiceFromUrl.id, 'edit')
-                  )
+                  navigate(invoiceDetailPath(selectedInvoiceFromUrl.id, 'edit'))
                 }
               />
             </div>

@@ -30,7 +30,7 @@ Your Import Manager application now has **enterprise-grade security** with the f
 
 - ✅ **GitHub Actions workflows** with security checks
 - ✅ **Secrets validation** and file size checks
-- ✅ **Branch protection** workflow ready
+- ✅ **Branch protection** rules recommended in GitHub repository settings
 - ✅ **Secure signing** in CI/CD pipeline
 
 ## 📁 **Files Created/Modified**
@@ -50,7 +50,7 @@ Your Import Manager application now has **enterprise-grade security** with the f
 - `keys/tauri_public.pem` - Public signing key
 - `keys/tauri_private_base64.txt` - Base64 private key for GitHub Secrets
 - `.github/workflows/release.yml` - Enhanced release workflow with security checks
-- `.github/workflows/branch-protection.yml` - Branch protection workflow
+- **Branch protection** — Configure in GitHub: Settings → Branches → rules for `main` (require status checks such as CI)
 - `SECURITY.md` - Security guidelines and documentation
 
 ### Scripts and Tools

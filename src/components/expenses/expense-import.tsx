@@ -2,6 +2,7 @@
 
 import * as ExcelJS from 'exceljs';
 import { useCallback, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
@@ -439,8 +440,6 @@ export default function ExpenseImport({
 
       setProgress(50);
 
-      // Call the backend bulk import function
-      const { invoke } = await import('@tauri-apps/api/core');
       await invoke('add_expenses_bulk', {
         payload: bulkPayload,
       });

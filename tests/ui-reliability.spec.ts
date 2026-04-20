@@ -7,6 +7,11 @@ import Papa from 'papaparse';
 import { expect, test, type Page } from '@playwright/test';
 
 import { appendPerformanceMetric } from './performance-metrics';
+import {
+  reloadPlaywrightPageForStubHydrate,
+  resetPlaywrightDatabase,
+  waitForPlaywrightInvoke,
+} from './playwright-helpers';
 
 const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
 const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
@@ -24,22 +29,11 @@ function appContent(page: Page) {
   return page.locator('main.flex-1.overflow-y-auto');
 }
 
-async function waitForPlaywrightInvoke(page: Page) {
-  await page.waitForFunction(
-    () =>
-      typeof (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__?: (
-            cmd: string
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__ === 'function',
-    { timeout: 60_000 }
-  );
-}
-
 async function login(page: Page) {
   await page.goto('/login');
+  await waitForPlaywrightInvoke(page);
+  await resetPlaywrightDatabase(page);
+  await reloadPlaywrightPageForStubHydrate(page);
   await page.locator('#username').fill(defaultUser);
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
@@ -144,17 +138,6 @@ test.describe.configure({ mode: 'serial', timeout: 120_000 });
 test.describe('UI reliability and stress (repeated operations)', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await waitForPlaywrightInvoke(page);
-    await page.evaluate(async () => {
-      const inv = (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-            cmd: string
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-      await inv('reset_test_database');
-    });
   });
 
   test('repeat shipment import stability (5 sequential imports, shipment-valid schema)', async ({
@@ -435,42 +418,28 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       });
     }
 
-    const shipCount = await page.evaluate(async () => {
-      const inv = (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-            cmd: string
-          ) => Promise<unknown[]>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-      const rows = (await inv('get_shipments')) as unknown[];
-      return rows.length;
-    });
-    expect(shipCount).toBe(4);
+    await clickSidebarLink(page, 'Shipment');
+    await expectPageMarker(page, 'Shipment Management');
+    await expect(
+      appContent(page).getByText(/Showing 4 of 4 shipments/)
+    ).toBeVisible({ timeout: 25_000 });
 
-    const invCount = await page.evaluate(async () => {
-      const inv = (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-            cmd: string
-          ) => Promise<unknown[]>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-      return ((await inv('get_invoices')) as unknown[]).length;
+    await expandNavGroup(page, 'Invoice');
+    await clickSidebarLink(page, 'Invoices');
+    await expectPageMarker(page, 'Invoice Details');
+    await expect(appContent(page).getByText(/Showing 6 invoices/)).toBeVisible({
+      timeout: 25_000,
     });
-    expect(invCount).toBe(3);
 
-    const boeCount = await page.evaluate(async () => {
-      const inv = (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-            cmd: string
-          ) => Promise<unknown[]>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-      return ((await inv('get_boes')) as unknown[]).length;
+    await expandNavGroup(page, 'BOE');
+    await clickSidebarLink(page, 'View All BOE');
+    await expectPageMarker(page, 'Bill of Entry Details');
+    const boeMain = appContent(page);
+    await expect(boeMain.getByText('BE-WF-CYC1-001')).toBeVisible({
+      timeout: 20_000,
     });
-    expect(boeCount).toBe(3);
+    await expect(boeMain.getByText('BE-WF-CYC2-001')).toBeVisible();
+    await expect(boeMain.getByText('BE-WF-CYC3-001')).toBeVisible();
 
     await assertUniqueShipmentIds(page);
 

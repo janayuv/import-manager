@@ -1,0 +1,30 @@
+name: Workflow Lint
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  workflow-lint:
+    runs-on: windows-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install actionlint
+        shell: pwsh
+        run: |
+          Invoke-WebRequest `
+            -Uri "https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_windows_amd64.zip" `
+            -OutFile actionlint.zip
+          Expand-Archive actionlint.zip -DestinationPath actionlint -Force
+          "$((Get-Location).Path)\actionlint" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding ascii
+
+      - name: Run actionlint
+        shell: pwsh
+        run: actionlint -color .github/workflows/

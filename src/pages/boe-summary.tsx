@@ -110,7 +110,9 @@ export default function BoeSummaryPage() {
           </h2>
           <p className="text-muted-foreground text-sm">
             No saved BOE calculation with ID{' '}
-            <span className="text-foreground font-mono">{decodedSavedBoeId}</span>
+            <span className="text-foreground font-mono">
+              {decodedSavedBoeId}
+            </span>
             .
           </p>
           <Button

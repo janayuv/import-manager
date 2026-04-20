@@ -14,10 +14,14 @@ This guide will help you set up CI/CD for the Import Manager Tauri application u
 ```
 .github/
 ├── workflows/
-│   ├── ci.yml                      # Continuous Integration
+│   ├── ci.yml                      # Continuous Integration (Windows)
 │   ├── release.yml                 # Release builds
-│   ├── code-quality.yml           # Code quality checks
-│   └── dependabot-auto-merge.yml  # Auto-merge dependencies
+│   ├── codeql.yml                  # CodeQL security analysis
+│   ├── nightly.yml                 # Scheduled full test suite
+│   ├── format.yml                  # Optional Prettier auto-format (PR / manual)
+│   ├── gitleaks.yml                # Secret scanning
+│   ├── dependabot-auto-merge.yml   # Auto-merge dependencies
+│   └── workflow-lint.yml           # Validate workflow YAML (actionlint)
 ├── dependabot.yml                 # Dependency updates config
 └── README.md                      # Detailed CI/CD documentation
 ```
@@ -72,17 +76,32 @@ TAURI_KEY_PASSWORD     # Password for the key (if you set one)
 - Builds production binaries for Windows only
 - Creates GitHub releases with downloadable assets
 - Signs applications (if secrets are configured)
-- Supports universal macOS builds (Intel + Apple Silicon)
 
-### Code Quality Workflow (`code-quality.yml`)
+### CodeQL (`codeql.yml`)
 
-**Triggers:** Push to main/develop, Pull requests to main
-**What it does:**
+**Triggers:** Push and pull requests to `main` / `develop`, plus a weekly schedule  
+**What it does:** Runs GitHub CodeQL analysis for JavaScript/TypeScript.
 
-- Runs ESLint for JavaScript/TypeScript
-- Checks TypeScript compilation
-- Runs Prettier formatting checks
-- Runs Rust formatting (rustfmt) and linting (clippy)
+### Nightly (`nightly.yml`)
+
+**Triggers:** Daily schedule  
+**What it does:** Runs the full CI test script (`npm run test:ci`) on Windows.
+
+### Format (`format.yml`)
+
+**Triggers:** Pull request activity and manual `workflow_dispatch`  
+**What it does:** Checks Prettier formatting and can commit auto-format fixes on the PR branch.
+
+### Gitleaks (`gitleaks.yml`)
+
+**Triggers:** Push and pull requests to `main` / `develop`  
+**What it does:** Scans the repository for leaked secrets with gitleaks.
+
+### Workflow lint (`workflow-lint.yml`)
+
+**Triggers:** Push and pull requests  
+**Runner:** `windows-latest` (PowerShell install of pinned actionlint binary; no Docker)  
+**What it does:** Runs [actionlint](https://github.com/rhysd/actionlint) on `.github/workflows/` for valid GitHub Actions configuration.
 
 ### Dependabot Auto-merge (`dependabot-auto-merge.yml`)
 
@@ -166,7 +185,7 @@ matrix:
 - name: Setup Node.js
   uses: actions/setup-node@v4
   with:
-    node-version: '20' # Change from '18' to '20'
+    node-version: '22.x'
 ```
 
 ### Add Environment Variables

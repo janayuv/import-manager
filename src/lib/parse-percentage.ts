@@ -1,7 +1,9 @@
 import type { Item } from '@/types/item';
 
 /** Parse Item Master percentage fields ("10%", "7.5") or numeric values into a number. */
-export function parsePercentage(value: string | number | undefined | null): number {
+export function parsePercentage(
+  value: string | number | undefined | null
+): number {
   if (value === undefined || value === null) {
     return 0;
   }

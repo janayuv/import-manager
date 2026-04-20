@@ -1001,7 +1001,7 @@ export function InvoiceWizard({
                         >
                           {item?.itemDescription || '-'}
                         </TableCell>
-                        <TableCell className="px-2 align-top text-sm whitespace-nowrap">
+                        <TableCell className="whitespace-nowrap px-2 align-top text-sm">
                           {item?.unit || '-'}
                         </TableCell>
                         <TableCell className="px-2 align-top">

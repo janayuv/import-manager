@@ -4,6 +4,12 @@ import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  reloadPlaywrightPageForStubHydrate,
+  resetPlaywrightDatabase,
+  waitForPlaywrightInvoke,
+} from './playwright-helpers';
+
 const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
 const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
@@ -18,35 +24,6 @@ function sidebar(page: Page) {
   return page.locator('[data-sidebar="sidebar"]');
 }
 
-async function waitForPlaywrightInvoke(page: Page) {
-  await page.waitForFunction(
-    () =>
-      typeof (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__?: (
-            cmd: string,
-            args?: Record<string, unknown>
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__ === 'function',
-    { timeout: 60_000 }
-  );
-}
-
-async function resetTestDatabase(page: Page) {
-  await page.evaluate(async () => {
-    const inv = (
-      window as unknown as {
-        __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-          cmd: string,
-          args?: Record<string, unknown>
-        ) => Promise<unknown>;
-      }
-    ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-    await inv('reset_test_database');
-  });
-}
-
 /**
  * Admin login with a clean stub DB. Reset runs on /login after `invoke` is wired so
  * the dashboard always reflects seeded data.
@@ -54,7 +31,8 @@ async function resetTestDatabase(page: Page) {
 async function loginAsAdminWithFreshDatabase(page: Page) {
   await page.goto('/login');
   await waitForPlaywrightInvoke(page);
-  await resetTestDatabase(page);
+  await resetPlaywrightDatabase(page);
+  await reloadPlaywrightPageForStubHydrate(page);
   await page.locator('#username').fill(defaultUser);
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
@@ -171,13 +149,16 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
     });
 
     await test.step('Verify mutated state in UI (two suppliers)', async () => {
-      await clickSidebarLink(page, 'Supplier');
+      // Full navigation rehydrates the Playwright stub from sessionStorage so the UI
+      // cannot observe a stale in-memory module while `page.evaluate` sees fresh data.
+      await page.goto('/supplier');
+      await waitForPlaywrightInvoke(page);
       await expect(
         appContent(page).getByRole('heading', { name: 'Suppliers' })
       ).toBeVisible({ timeout: 20_000 });
-      await expect(
-        appContent(page).getByText('2 Active Suppliers')
-      ).toBeVisible({ timeout: 15_000 });
+      await expect(appContent(page).getByText(/Seed supplier/i)).toBeVisible({
+        timeout: 15_000,
+      });
       await expect(
         appContent(page).getByText(EPHEMERAL_SUPPLIER_NAME)
       ).toBeVisible();

@@ -350,6 +350,7 @@ export async function invoke<T = unknown>(
       for (const row of incoming) {
         stubShipments.push({ ...row });
       }
+      persistLiveDbToSession();
       return undefined as T;
     }
     case 'add_shipment': {
@@ -428,6 +429,7 @@ export async function invoke<T = unknown>(
           lineItems,
         });
       }
+      persistLiveDbToSession();
       return undefined as T;
     }
     case 'add_invoice':
@@ -483,6 +485,7 @@ export async function invoke<T = unknown>(
               : `ITM-${String(n).padStart(3, '0')}`,
         });
       }
+      persistLiveDbToSession();
       return undefined as T;
     }
     case 'add_item':
@@ -501,6 +504,7 @@ export async function invoke<T = unknown>(
         ...payload,
         id,
       });
+      persistLiveDbToSession();
       return undefined as T;
     }
     case 'update_boe':
@@ -589,6 +593,7 @@ export async function invoke<T = unknown>(
         });
       }
       stubExpensesByShipment.set(shipmentId, list);
+      persistLiveDbToSession();
       return undefined as T;
     }
     case 'add_expenses_bulk': {
@@ -624,6 +629,7 @@ export async function invoke<T = unknown>(
         });
       }
       stubExpensesByShipment.set(shipmentId, list);
+      persistLiveDbToSession();
       return undefined as T;
     }
     case 'generate_detailed_expense_report': {

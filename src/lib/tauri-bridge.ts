@@ -145,9 +145,7 @@ export async function confirm(
   options?: ConfirmDialogOptions
 ): Promise<boolean> {
   if (isTauri) {
-    const { confirm: tauriConfirm } = await import(
-      '@tauri-apps/plugin-dialog'
-    );
+    const { confirm: tauriConfirm } = await import('@tauri-apps/plugin-dialog');
     return tauriConfirm(message, options);
   }
   // Basic browser confirm

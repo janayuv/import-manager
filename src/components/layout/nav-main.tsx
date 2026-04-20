@@ -27,7 +27,6 @@ interface NavItem {
 export function NavMain({ items }: { items: NavItem[] }) {
   const location = useLocation();
 
-  const isActive = (path: string) => location.pathname === path;
   /** Match exact path or nested routes (e.g. /supplier/Sup-001/view). */
   const pathOrChildActive = (path: string) =>
     path === '/'

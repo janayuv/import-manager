@@ -358,10 +358,7 @@ const BoePage = () => {
   );
 
   const deleteDialog = (
-    <AlertDialog
-      open={isDeleteDialogOpen}
-      onOpenChange={setIsDeleteDialogOpen}
-    >
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>

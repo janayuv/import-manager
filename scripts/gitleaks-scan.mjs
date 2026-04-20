@@ -26,7 +26,9 @@ function currentBranchLogOpts() {
 function printNotFoundHelp() {
   console.warn('');
   console.warn('⚠️  gitleaks was not found in PATH for this hook environment.');
-  console.warn('    Pre-commit will continue, but secrets will not be scanned.');
+  console.warn(
+    '    Pre-commit will continue, but secrets will not be scanned.'
+  );
   console.warn('');
   console.warn('    Windows: install gitleaks, add it to PATH, then verify:');
   console.warn('      gitleaks version');
@@ -67,5 +69,7 @@ if (looksLikeCommandNotFound(probe) || probe.status === 127) {
   process.exit(0);
 }
 
-console.error(probe.stderr?.trim() || probe.stdout?.trim() || 'gitleaks version failed');
+console.error(
+  probe.stderr?.trim() || probe.stdout?.trim() || 'gitleaks version failed'
+);
 process.exit(probe.status ?? 1);

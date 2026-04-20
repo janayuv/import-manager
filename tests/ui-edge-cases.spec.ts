@@ -2,6 +2,12 @@ import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  reloadPlaywrightPageForStubHydrate,
+  resetPlaywrightDatabase,
+  waitForPlaywrightInvoke,
+} from './playwright-helpers';
+
 const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
 const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
@@ -30,22 +36,11 @@ function appContent(page: Page) {
   return page.locator('main.flex-1.overflow-y-auto');
 }
 
-async function waitForPlaywrightInvoke(page: Page) {
-  await page.waitForFunction(
-    () =>
-      typeof (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__?: (
-            cmd: string
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__ === 'function',
-    { timeout: 60_000 }
-  );
-}
-
 async function login(page: Page) {
   await page.goto('/login');
+  await waitForPlaywrightInvoke(page);
+  await resetPlaywrightDatabase(page);
+  await reloadPlaywrightPageForStubHydrate(page);
   await page.locator('#username').fill(defaultUser);
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
@@ -112,17 +107,6 @@ test.describe.configure({ mode: 'serial' });
 test.describe('UI edge cases and import failures', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await waitForPlaywrightInvoke(page);
-    await page.evaluate(async () => {
-      const inv = (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-            cmd: string
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-      await inv('reset_test_database');
-    });
   });
 
   test('shipment: invalid CSV headers show error toast and list unchanged', async ({

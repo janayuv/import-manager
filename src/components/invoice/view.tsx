@@ -109,10 +109,8 @@ export function InvoiceViewDialog({
     const exportData = invoice.lineItems.map(lineItem => {
       const item = items.find(i => i.id === lineItem.itemId);
       const duty =
-        lineItem.dutyPercent ??
-        (item ? parsePercentage(item.bcd) : 0);
-      const sws =
-        lineItem.swsPercent ?? (item ? parsePercentage(item.sws) : 0);
+        lineItem.dutyPercent ?? (item ? parsePercentage(item.bcd) : 0);
+      const sws = lineItem.swsPercent ?? (item ? parsePercentage(item.sws) : 0);
       const igst =
         lineItem.igstPercent ?? (item ? parsePercentage(item.igst) : 0);
       return {
@@ -184,83 +182,80 @@ export function InvoiceViewDialog({
 
   const detailsAndTable = (
     <>
-        {/* Header Details */}
-        <div className="grid grid-cols-2 gap-4 border-b py-4 md:grid-cols-4">
-          <DetailRow
-            label="Supplier Name"
-            value={supplier?.supplierName || '-'}
-          />
-          <DetailRow label="Invoice No" value={invoice.invoiceNumber} />
-          <DetailRow
-            label="Invoice Date"
-            value={new Date(invoice.invoiceDate).toLocaleDateString('en-GB')}
-          />
-          <DetailRow label="Status" value={invoice.status} />
-          <DetailRow
-            label="Invoice Total"
-            value={formatCurrency(invoice.calculatedTotal, currency)}
-          />
-          <DetailRow label="Currency" value={currency} />
-        </div>
+      {/* Header Details */}
+      <div className="grid grid-cols-2 gap-4 border-b py-4 md:grid-cols-4">
+        <DetailRow
+          label="Supplier Name"
+          value={supplier?.supplierName || '-'}
+        />
+        <DetailRow label="Invoice No" value={invoice.invoiceNumber} />
+        <DetailRow
+          label="Invoice Date"
+          value={new Date(invoice.invoiceDate).toLocaleDateString('en-GB')}
+        />
+        <DetailRow label="Status" value={invoice.status} />
+        <DetailRow
+          label="Invoice Total"
+          value={formatCurrency(invoice.calculatedTotal, currency)}
+        />
+        <DetailRow label="Currency" value={currency} />
+      </div>
 
-        {/* Line Items Table */}
-        <div className="py-4">
-          <h3 className="mb-2 text-lg font-semibold">Items</h3>
-          <div
-            className={cn(
-              'rounded-md border pr-2',
-              isPage ? 'overflow-visible' : 'max-h-64 overflow-y-auto'
-            )}
-          >
-            <Table>
-              <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10 rounded-b-md rounded-r-md">
-                <TableRow>
-                  <TableHead>Part No</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>HS.Code</TableHead>
-                  <TableHead>Unit</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Unit Price</TableHead>
-                  <TableHead>Line Total</TableHead>
-                  <TableHead>Duty %</TableHead>
-                  <TableHead>SWS %</TableHead>
-                  <TableHead>IGST %</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {invoice.lineItems?.map(lineItem => {
-                  const item = items.find(i => i.id === lineItem.itemId);
-                  if (!item) return null;
-                  const lineTotal = lineItem.quantity * lineItem.unitPrice;
-                  const dutyPct =
-                    lineItem.dutyPercent ?? parsePercentage(item.bcd);
-                  const swsPct =
-                    lineItem.swsPercent ?? parsePercentage(item.sws);
-                  const igstPct =
-                    lineItem.igstPercent ?? parsePercentage(item.igst);
-                  return (
-                    <TableRow key={lineItem.id}>
-                      <TableCell>{item.partNumber}</TableCell>
-                      <TableCell>{item.itemDescription}</TableCell>
-                      <TableCell>{item.hsnCode}</TableCell>
-                      <TableCell>{item.unit}</TableCell>
-                      <TableCell>{lineItem.quantity}</TableCell>
-                      <TableCell>
-                        {formatCurrency(lineItem.unitPrice, currency)}
-                      </TableCell>
-                      <TableCell>
-                        {formatCurrency(lineTotal, currency)}
-                      </TableCell>
-                      <TableCell>{dutyPct}%</TableCell>
-                      <TableCell>{swsPct}%</TableCell>
-                      <TableCell>{igstPct}%</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+      {/* Line Items Table */}
+      <div className="py-4">
+        <h3 className="mb-2 text-lg font-semibold">Items</h3>
+        <div
+          className={cn(
+            'rounded-md border pr-2',
+            isPage ? 'overflow-visible' : 'max-h-64 overflow-y-auto'
+          )}
+        >
+          <Table>
+            <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10 rounded-b-md rounded-r-md">
+              <TableRow>
+                <TableHead>Part No</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>HS.Code</TableHead>
+                <TableHead>Unit</TableHead>
+                <TableHead>Qty</TableHead>
+                <TableHead>Unit Price</TableHead>
+                <TableHead>Line Total</TableHead>
+                <TableHead>Duty %</TableHead>
+                <TableHead>SWS %</TableHead>
+                <TableHead>IGST %</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {invoice.lineItems?.map(lineItem => {
+                const item = items.find(i => i.id === lineItem.itemId);
+                if (!item) return null;
+                const lineTotal = lineItem.quantity * lineItem.unitPrice;
+                const dutyPct =
+                  lineItem.dutyPercent ?? parsePercentage(item.bcd);
+                const swsPct = lineItem.swsPercent ?? parsePercentage(item.sws);
+                const igstPct =
+                  lineItem.igstPercent ?? parsePercentage(item.igst);
+                return (
+                  <TableRow key={lineItem.id}>
+                    <TableCell>{item.partNumber}</TableCell>
+                    <TableCell>{item.itemDescription}</TableCell>
+                    <TableCell>{item.hsnCode}</TableCell>
+                    <TableCell>{item.unit}</TableCell>
+                    <TableCell>{lineItem.quantity}</TableCell>
+                    <TableCell>
+                      {formatCurrency(lineItem.unitPrice, currency)}
+                    </TableCell>
+                    <TableCell>{formatCurrency(lineTotal, currency)}</TableCell>
+                    <TableCell>{dutyPct}%</TableCell>
+                    <TableCell>{swsPct}%</TableCell>
+                    <TableCell>{igstPct}%</TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         </div>
+      </div>
     </>
   );
 
@@ -281,7 +276,12 @@ export function InvoiceViewDialog({
       </Button>
       <div className="flex flex-wrap items-center gap-2">
         {onEdit ? (
-          <Button type="button" variant="default" useAccentColor onClick={onEdit}>
+          <Button
+            type="button"
+            variant="default"
+            useAccentColor
+            onClick={onEdit}
+          >
             Edit invoice
           </Button>
         ) : null}
@@ -307,14 +307,16 @@ export function InvoiceViewDialog({
 
   if (isPage) {
     return (
-        <section
+      <section
         className={cn(
           'bg-card text-card-foreground flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border shadow-sm',
           className
         )}
         aria-labelledby="invoice-view-title"
       >
-        <header className="shrink-0 border-b px-6 pb-4 pt-6">{headerBlock}</header>
+        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+          {headerBlock}
+        </header>
         <div className="min-h-0 flex-1 overflow-y-auto px-6 [scrollbar-gutter:stable]">
           {detailsAndTable}
         </div>

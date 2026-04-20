@@ -6,36 +6,40 @@ on:
   pull_request:
     branches: [main, develop]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 # CI workflow for Import Manager - Windows only
 
 jobs:
   frontend-lint:
-    name: Frontend Lint & Type Check
+    name: Frontend Lint & Type Check (${{ matrix.node-version }})
     runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20.x, 22.x]
     steps:
       - uses: actions/checkout@v4
       - name: Enable long paths
         run: git config --system core.longpaths true
-      - name: Free disk space
-        shell: bash
-        run: |
-          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf $RUNNER_TOOL_CACHE || true
-          df -h
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ matrix.node-version }}
+          cache: npm
       - name: Install dependencies
         run: npm ci
       - name: Run ESLint
         run: npm run lint
+      - name: Check formatting
+        run: npm run format:check
       - name: Run TypeScript type check
         run: npm run type-check
-      - name: Run Prettier check
-        run: npm run format:check
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw
@@ -52,29 +56,18 @@ jobs:
       - uses: actions/checkout@v4
       - name: Enable long paths
         run: git config --system core.longpaths true
-      - name: Free disk space
-        shell: bash
-        run: |
-          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf $RUNNER_TOOL_CACHE || true
-          df -h
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
-      - name: Cache Rust dependencies
-        uses: actions/cache@v3
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
         with:
-          path: |
-            ~\.cargo\registry
-            ~\.cargo\git
-            target
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: |
-            ${{ runner.os }}-cargo-
+          workspaces: src-tauri
       - name: Install cargo-deny
-        run: cargo install cargo-deny
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-deny
       - name: Check Rust code
         run: |
           cd src-tauri
@@ -100,44 +93,46 @@ jobs:
           }
           Write-Output "✅ Windows-only runner validated"
 
-  test:
-    name: Run Tests
+  unit-tests:
+    name: Unit tests Vitest + Rust (${{ matrix.node-version }})
     runs-on: windows-latest
+    timeout-minutes: 15
     needs: [frontend-lint, backend-check]
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20.x, 22.x]
+    env:
+      HUSKY: '0'
     steps:
       - uses: actions/checkout@v4
       - name: Enable long paths
         run: git config --system core.longpaths true
-      - name: Free disk space
-        shell: bash
-        run: |
-          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf $RUNNER_TOOL_CACHE || true
-          df -h
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: ${{ matrix.node-version }}
+          cache: npm
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
       - name: Install dependencies
         run: npm ci
-      - name: Run frontend tests
-        run: npm test -- --coverage
+      - name: Run Vitest with coverage
+        run: npm run test:unit:coverage
       - name: Run backend tests
         run: |
           cd src-tauri
           cargo test
       - name: Upload coverage reports
-        uses: codecov/codecov-action@v3
+        if: hashFiles('coverage/lcov.info') != '' && matrix.node-version == '22.x'
+        uses: codecov/codecov-action@v4
         with:
-          file: ./coverage/lcov.info
+          files: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
+          fail_ci_if_error: false
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw
@@ -146,11 +141,91 @@ jobs:
             exit 1
           }
           Write-Output "✅ Windows-only runner validated"
+      - name: Add CI summary
+        if: success()
+        shell: bash
+        run: |
+          echo "## CI Job Completed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Job** | unit-tests |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Status** | Success |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Vitest coverage and Rust cargo test completed successfully." >> "$GITHUB_STEP_SUMMARY"
+
+  e2e-tests:
+    name: E2E tests (Playwright)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    needs: [unit-tests]
+    strategy:
+      fail-fast: false
+    env:
+      HUSKY: '0'
+      CI: true
+      PLAYWRIGHT_BROWSERS_PATH: ${{ github.workspace }}/.playwright-browsers
+    steps:
+      - uses: actions/checkout@v4
+      - name: Enable long paths
+        run: git config --system core.longpaths true
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: npm
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: .playwright-browsers
+          key: ${{ runner.os }}-playwright-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        run: npm ci
+      - name: Run Playwright suite
+        run: npm run test:e2e:ci
+      - name: Upload Playwright test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: |
+            playwright-report/
+            test-results/
+            test-results/**/*.png
+            test-results/**/*.webm
+            test-results/**/*.zip
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Validate Windows-only Runner
+        run: |
+          $content = Get-Content .github/workflows/ci.yml -Raw
+          if ($content -match "runs-on:\s*ubuntu-latest") {
+            Write-Output "Error: Non-Windows runner detected"
+            exit 1
+          }
+          Write-Output "✅ Windows-only runner validated"
+      - name: Add CI summary
+        if: success()
+        shell: bash
+        run: |
+          echo "## CI Job Completed" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Field | Value |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| --- | --- |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Job** | e2e-tests |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| **Status** | Success |" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "Playwright E2E suite completed successfully." >> "$GITHUB_STEP_SUMMARY"
 
   build:
     name: Build Application
     runs-on: windows-latest
-    needs: [frontend-lint, backend-check]
+    timeout-minutes: 20
+    needs:
+      - frontend-lint
+      - backend-check
+      - unit-tests
+      - e2e-tests
     env:
       # SQLCipher for Windows
       SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
@@ -160,18 +235,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: Enable long paths
         run: git config --system core.longpaths true
-      - name: Free disk space
-        shell: bash
-        run: |
-          sudo rm -rf /opt/hostedtoolcache/CodeQL || true
-          sudo rm -rf /usr/local/lib/android || true
-          sudo rm -rf $RUNNER_TOOL_CACHE || true
-          df -h
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: '22.x'
+          cache: npm
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -182,13 +250,52 @@ jobs:
           echo "LIBSQLITE3_SYS_BUNDLED=1" | Out-File -FilePath $env:GITHUB_ENV -Append
       - name: Install dependencies
         run: npm ci
+      - name: Record build start time
+        shell: bash
+        run: echo "BUILD_START=$(date +%s)" >> $GITHUB_ENV
       - name: Build application
+        id: build_app
         run: npm run tauri build
-      - name: Upload build artifacts
+      - name: Show build duration
+        if: always() && steps.build_app.outcome != 'skipped'
+        shell: bash
+        run: |
+          BUILD_END=$(date +%s)
+          DURATION=$((BUILD_END - BUILD_START))
+          echo "Build duration: ${DURATION}s"
+
+          echo "## Build Duration" >> "$GITHUB_STEP_SUMMARY"
+          echo "Build time: ${DURATION} seconds" >> "$GITHUB_STEP_SUMMARY"
+      - name: Show build directory size
+        if: failure()
+        shell: bash
+        run: |
+          echo "Debug build size:"
+          du -sh src-tauri/target/debug/build/ || true
+
+          echo "Release build size:"
+          du -sh src-tauri/target/release/build/ || true
+      - name: Upload build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-logs
+          path: |
+            src-tauri/target/debug/build/
+            src-tauri/target/release/build/
+            src-tauri/target/release/deps/*.rmeta
+            src-tauri/target/release/deps/*.d
+            src-tauri/target/release/*.log
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Upload installer artifacts
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: import-manager-build
-          path: src-tauri/target/release/
+          path: src-tauri/target/release/bundle/
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw

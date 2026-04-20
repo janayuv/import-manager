@@ -6,160 +6,153 @@ on:
       - 'v*'
   workflow_dispatch:
 
-# Global environment variables will be set per job
+permissions:
+  contents: write
 
 jobs:
-  security-checks:
+  release:
     runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      HUSKY: '0'
+      CI: true
+      # Match CI build job so Tauri + SQLCipher link on Windows runners
+      SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
+      SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
+      LIBSQLITE3_SYS_BUNDLED: '1'
+      SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for secrets in code
+      - name: Validate version tag
+        if: github.ref_type == 'tag'
+        shell: bash
         run: |
-          echo "🔍 Checking for potential secrets in code..."
-          if (Select-String -Path "src" -Pattern "password|secret|key|token|api_key" -Exclude "node_modules" | Where-Object { $_.Line -notmatch "//|#|/\*|TODO|FIXME" }); then
-            echo "⚠️  Potential secrets found in code. Please review."
+          echo "Validating tag format..."
+          if [[ "${GITHUB_REF_NAME}" != v* ]]; then
+            echo "Invalid tag format"
             exit 1
           fi
-          echo "✅ No obvious secrets found in code"
-
-      - name: Check file sizes
-        run: |
-          echo "📏 Checking for large files..."
-          Get-ChildItem -Recurse -File | Where-Object { $_.Length -gt 10MB } | Select-Object -First 10 | ForEach-Object { $_.FullName }
-          echo "✅ File size check completed"
-
-      - name: Validate tauri.conf.json
-        run: |
-          echo "🔧 Validating tauri configuration..."
-          if (Select-String -Path "src-tauri/tauri.conf.json" -Pattern "REPLACE_WITH_YOUR_GENERATED_PUBLIC_KEY_BASE64"); then
-            echo "❌ Public key not configured in tauri.conf.json"
-            exit 1
-          fi
-          echo "✅ tauri.conf.json properly configured"
-
-      - name: Check signing keys
-        run: |
-          echo "🔑 Checking signing keys..."
-          if (-not (Test-Path "keys/tauri_private.pem")) {
-            echo "❌ Private signing key not found"
-            exit 1
-          }
-          if (-not (Test-Path "keys/tauri_public.pem")) {
-            echo "❌ Public signing key not found"
-            exit 1
-          }
-          echo "✅ Signing keys found"
-
-  release:
-    needs: security-checks
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/tags/v*'
-    permissions:
-      contents: write
-    runs-on: windows-latest
-    env:
-      # SQLCipher environment variables for Windows
-      SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
-      SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
-      LIBSQLITE3_SYS_BUNDLED: '0'
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
-          cache: 'npm'
+          node-version: '22.x'
+          cache: npm
 
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          workspaces: './src-tauri -> target'
+          toolchain: stable
 
-      - name: Install SQLCipher (Windows)
-        run: |
-          echo "📦 Installing SQLCipher on Windows..."
-          # Install vcpkg and SQLCipher
-          git clone https://github.com/microsoft/vcpkg.git C:\vcpkg
-          C:\vcpkg\bootstrap-vcpkg.bat
-          C:\vcpkg\vcpkg.exe install sqlcipher
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
 
-          # Set environment variables
-          echo "SQLCIPHER_LIB_DIR=C:\vcpkg\installed\x64-windows\lib" >> $env:GITHUB_ENV
-          echo "SQLCIPHER_INCLUDE_DIR=C:\vcpkg\installed\x64-windows\include" >> $env:GITHUB_ENV
-          echo "LIBSQLITE3_SYS_BUNDLED=0" >> $env:GITHUB_ENV
-
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build frontend
-        run: npm run build
+      - name: Record release start time
+        id: record_release_start
+        shell: bash
+        run: echo "RELEASE_START=$(date +%s)" >> $GITHUB_ENV
 
-      - name: Check signing configuration
+      - name: Build Tauri application
+        run: npm run tauri build
+
+      - name: Upload release build logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build-logs
+          path: |
+            src-tauri/target/debug/build/
+            src-tauri/target/release/build/
+            src-tauri/target/release/*.log
+          retention-days: 7
+          if-no-files-found: ignore
+
+      - name: Sign binaries (optional)
+        if: env.SIGNING_CERTIFICATE != ''
         run: |
-          if ("${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}" -ne "") {
-            echo "🔐 Signing key available - will sign release"
-            echo "SIGNING_ENABLED=true" | Out-File -FilePath $env:GITHUB_ENV -Append
-          } else {
-            echo "⚠️ No signing key - will create unsigned release"
-            echo "SIGNING_ENABLED=false" | Out-File -FilePath $env:GITHUB_ENV -Append
+          echo "Signing binaries..."
+
+          # Placeholder for signing command
+
+      - name: Verify installer files exist
+        shell: bash
+        run: |
+          echo "Checking installer files..."
+
+          dump_bundle() {
+            echo "Bundle contents:"
+            ls -R src-tauri/target/release/bundle/ || true
           }
 
-      - name: Build and sign application
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'Import Manager v__VERSION__'
-          releaseBody: |
-            ## 🔐 Security Features
-            - Database encryption with SQLCipher
-            - Secure key management
-            - Signed application updates
+          shopt -s globstar
 
-            ## 📦 Installation
-            Download the appropriate installer for your platform.
+          # MSI installer (**/*.msi)
 
-            ## 🔄 Auto-updates
-            This version supports secure auto-updates.
-          releaseDraft: true
-          prerelease: false
-          args: ''
+          if ! compgen -G "src-tauri/target/release/bundle/**/*.msi" > /dev/null; then
+            dump_bundle
+            echo "MSI installer missing"
+            exit 1
+          fi
 
-      - name: Verify build artifacts
+          # NSIS installer (**/nsis/**/*.exe)
+
+          if ! compgen -G "src-tauri/target/release/bundle/**/nsis/**/*.exe" > /dev/null; then
+            dump_bundle
+            echo "NSIS installer missing"
+            exit 1
+          fi
+
+          # Optional standalone EXE (**/exe/**/*.exe) — only when an exe/ bundle dir exists
+
+          if find src-tauri/target/release/bundle -type d -name exe 2>/dev/null | head -n1 | grep -q .; then
+            if ! compgen -G "src-tauri/target/release/bundle/**/exe/**/*.exe" > /dev/null; then
+              dump_bundle
+              echo "Standalone EXE installer missing"
+              exit 1
+            fi
+          fi
+
+      - name: Generate build metadata
+        shell: bash
         run: |
-          echo "🔍 Verifying build artifacts..."
-          ls -la src-tauri/target/release/
-          echo "✅ Build artifacts verified"
+          META_DATE=$(date -u)
+          echo "Build metadata:"
+          echo "Tag: ${GITHUB_REF_NAME}"
+          echo "Commit: ${GITHUB_SHA}"
+          echo "Date: ${META_DATE}"
 
-      - name: Create release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+          echo "RELEASE_METADATA_DATE=${META_DATE}" >> "$GITHUB_ENV"
+
+          echo "## Build Metadata" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tag: ${GITHUB_REF_NAME}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Commit: ${GITHUB_SHA}" >> "$GITHUB_STEP_SUMMARY"
+          echo "Date: ${META_DATE}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          files: |
-            src-tauri/target/release/*.msi
-            src-tauri/target/release/*.exe
-          draft: false
-          prerelease: false
           generate_release_notes: true
           body: |
-            ## 🔐 Security Features
-            - Database encryption with SQLCipher
-            - Secure key management via OS keychain
-            - Signed application updates
+            ### Build Metadata
+            Tag: ${{ github.ref_name }}
+            Commit: ${{ github.sha }}
+            Date: ${{ env.RELEASE_METADATA_DATE }}
+          files: |
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/nsis/**/*.exe
+            src-tauri/target/release/bundle/**/exe/**/*.exe
 
-            ## 📦 Installation
-            Download the appropriate installer for your platform.
+      - name: Show release duration
+        if: always() && steps.record_release_start.outcome == 'success'
+        shell: bash
+        run: |
+          END=$(date +%s)
+          DURATION=$((END - RELEASE_START))
+          echo "Release duration: ${DURATION}s"
 
-            ## 🔄 Auto-updates
-            This version supports secure auto-updates.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          echo "## Release Duration" >> "$GITHUB_STEP_SUMMARY"
+          echo "Total release time: ${DURATION} seconds" >> "$GITHUB_STEP_SUMMARY"

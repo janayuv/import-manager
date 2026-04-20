@@ -2,6 +2,12 @@ import path from 'node:path';
 
 import { expect, test, type Page } from '@playwright/test';
 
+import {
+  reloadPlaywrightPageForStubHydrate,
+  resetPlaywrightDatabase,
+  waitForPlaywrightInvoke,
+} from './playwright-helpers';
+
 const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
 const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
@@ -129,27 +135,9 @@ test.describe('UI smoke', () => {
     const page = await context.newPage();
     try {
       await page.goto('/login');
-      await page.waitForFunction(
-        () =>
-          typeof (
-            window as unknown as {
-              __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__?: (
-                cmd: string
-              ) => Promise<unknown>;
-            }
-          ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__ === 'function',
-        { timeout: 60_000 }
-      );
-      await page.evaluate(async () => {
-        const inv = (
-          window as unknown as {
-            __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-              cmd: string
-            ) => Promise<unknown>;
-          }
-        ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-        await inv('reset_test_database');
-      });
+      await waitForPlaywrightInvoke(page);
+      await resetPlaywrightDatabase(page);
+      await reloadPlaywrightPageForStubHydrate(page);
       await resetSupplierPlaywrightStub(page);
     } finally {
       await page.close();

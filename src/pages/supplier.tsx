@@ -250,7 +250,28 @@ const SupplierPage = () => {
       }
 
       const content = selectedFile.contents;
-      const lines = content.split(/\r?\n/).slice(1); // Skip header
+      const expectedHeader =
+        'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive';
+      const rawLines = content.split(/\r?\n/);
+      const headerIdx = rawLines.findIndex(
+        l => l.replace(/^\uFEFF/, '').trim() !== ''
+      );
+      if (headerIdx < 0) {
+        notifications.warning(
+          'No New Data',
+          'No new suppliers found in the file.'
+        );
+        return;
+      }
+      const headerLine = rawLines[headerIdx].replace(/^\uFEFF/, '').trim();
+      if (headerLine !== expectedHeader) {
+        notifications.supplier.error(
+          'import',
+          'This file does not match the supplier import template (wrong column headers). Download the template and try again.'
+        );
+        return;
+      }
+      const lines = rawLines.slice(headerIdx + 1);
       const newSuppliers: Supplier[] = [];
       let maxId = suppliers.reduce(
         (max, s) => Math.max(max, parseInt(s.id.split('-')[1])),
@@ -259,6 +280,14 @@ const SupplierPage = () => {
 
       for (const line of lines) {
         if (line.trim() === '') continue;
+        const parts = line.split(',');
+        if (parts.length < 13) {
+          notifications.supplier.error(
+            'import',
+            'One or more data rows have too few columns. Download the supplier template and try again.'
+          );
+          return;
+        }
         const [
           supplierName,
           shortName,
@@ -273,7 +302,15 @@ const SupplierPage = () => {
           iban,
           swiftCode,
           isActiveStr,
-        ] = line.split(',');
+        ] = parts;
+
+        if (!String(supplierName ?? '').trim()) {
+          notifications.supplier.error(
+            'import',
+            'Each supplier row must include a supplier name.'
+          );
+          return;
+        }
 
         maxId++;
         const newId = `Sup-${maxId.toString().padStart(3, '0')}`;
@@ -292,7 +329,10 @@ const SupplierPage = () => {
           accountNo,
           iban,
           swiftCode,
-          isActive: isActiveStr.trim().toLowerCase() === 'true',
+          isActive:
+            String(isActiveStr ?? '')
+              .trim()
+              .toLowerCase() === 'true',
         });
       }
 

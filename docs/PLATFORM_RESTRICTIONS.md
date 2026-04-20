@@ -8,7 +8,7 @@ This project (import-manager) is designed exclusively for Windows and is not com
 
 1. **Tauri Build Target**: Must always be Windows (msi/exe) only
 2. **Cross-Platform Settings**: Ignore or block any cross-platform build settings in tauri.conf.json
-3. **CI/CD Workflows**: Restrict OS to `windows-latest` in all GitHub Actions workflows
+3. **CI/CD Workflows**: Use `windows-latest` for build, test, and release jobs; auxiliary workflows (for example CodeQL, gitleaks, format, workflow lint) may use `ubuntu-latest` when they do not ship Windows binaries
 4. **Documentation**: All documentation and comments must clarify "This project runs only on Windows"
 5. **PR/Issue Policy**: Reject or warn against PRs/issues suggesting Linux/macOS builds
 
@@ -21,17 +21,18 @@ This project (import-manager) is designed exclusively for Windows and is not com
 
 #### GitHub Actions Workflows
 
-All workflows now run exclusively on `windows-latest`:
+Application build, test, and release automation use `windows-latest` (see `ci.yml`, `release.yml`, `nightly.yml`, `dependabot-auto-merge.yml`, and `workflow-lint.yml`). Additional workflows use `ubuntu-latest` for tooling that does not produce Windows installers (for example `codeql.yml`, `format.yml`, and `gitleaks.yml`).
+
+Current workflow files:
 
 - `.github/workflows/ci.yml` ✅
 - `.github/workflows/release.yml` ✅
-- `.github/workflows/code-quality.yml` ✅
-- `.github/workflows/branch-protection.yml` ✅
+- `.github/workflows/codeql.yml` ✅
+- `.github/workflows/nightly.yml` ✅
+- `.github/workflows/format.yml` ✅
 - `.github/workflows/gitleaks.yml` ✅
 - `.github/workflows/dependabot-auto-merge.yml` ✅
-- `.github/workflows/rust-check.yml` ✅
-- `.github/workflows/secure-build.yml` ✅
-- `.github/workflows/main.yml` ✅
+- `.github/workflows/workflow-lint.yml` ✅
 
 ### Windows-Specific Dependencies
 
@@ -77,7 +78,7 @@ This design choice ensures:
 ### Compliance Checklist
 
 - [x] Tauri build targets restricted to Windows formats
-- [x] All CI/CD workflows use `windows-latest`
+- [x] Build and release CI jobs use `windows-latest`; tooling workflows may use `ubuntu-latest`
 - [x] Documentation clearly states Windows-only support
 - [x] PowerShell commands used in Windows workflows
 - [x] Windows-specific DLLs and dependencies included
@@ -90,6 +91,6 @@ This design choice ensures:
 Regular checks should be performed to ensure:
 
 1. No cross-platform configurations are accidentally added
-2. All new workflows use `windows-latest`
+2. New build and release workflows use `windows-latest`; tooling-only workflows may use `ubuntu-latest` when appropriate
 3. Documentation remains accurate about platform restrictions
 4. Build process continues to target Windows only

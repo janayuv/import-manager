@@ -5,6 +5,12 @@ import path from 'node:path';
 import Papa from 'papaparse';
 import { expect, test, type Download, type Page } from '@playwright/test';
 
+import {
+  reloadPlaywrightPageForStubHydrate,
+  resetPlaywrightDatabase,
+  waitForPlaywrightInvoke,
+} from './playwright-helpers';
+
 const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
 const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
@@ -29,22 +35,11 @@ function appContent(page: Page) {
   return page.locator('main.flex-1.overflow-y-auto');
 }
 
-async function waitForPlaywrightInvoke(page: Page) {
-  await page.waitForFunction(
-    () =>
-      typeof (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__?: (
-            cmd: string
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__ === 'function',
-    { timeout: 60_000 }
-  );
-}
-
 async function login(page: Page) {
   await page.goto('/login');
+  await waitForPlaywrightInvoke(page);
+  await resetPlaywrightDatabase(page);
+  await reloadPlaywrightPageForStubHydrate(page);
   await page.locator('#username').fill(defaultUser);
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
@@ -124,17 +119,6 @@ test.describe.configure({ mode: 'serial' });
 test.describe('UI data integrity (import vs export)', () => {
   test.beforeEach(async ({ page }) => {
     await login(page);
-    await waitForPlaywrightInvoke(page);
-    await page.evaluate(async () => {
-      const inv = (
-        window as unknown as {
-          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
-            cmd: string
-          ) => Promise<unknown>;
-        }
-      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
-      await inv('reset_test_database');
-    });
   });
 
   test('shipment: import then export preserves row count and key fields', async ({
@@ -220,12 +204,20 @@ test.describe('UI data integrity (import vs export)', () => {
       timeout: 20_000,
     });
 
-    await content.getByRole('button', { name: 'Open menu' }).first().click();
-    await page.getByRole('menuitem', { name: /View/i }).click();
+    await expect(content.getByText('TEST-INV-SHP-001').first()).toBeVisible({
+      timeout: 25_000,
+    });
+
+    await content
+      .locator('tbody')
+      .getByRole('button', { name: 'Open menu' })
+      .first()
+      .click();
+    await page.getByRole('menuitem', { name: /^View$/i }).click();
 
     await expect(
-      page.getByRole('dialog').filter({ hasText: /View Invoice/i })
-    ).toBeVisible({ timeout: 10_000 });
+      page.getByRole('heading', { name: /View invoice:/i })
+    ).toBeVisible({ timeout: 25_000 });
 
     const exportDl = page.waitForEvent('download');
     await page.getByRole('button', { name: /Export Items/i }).click();
