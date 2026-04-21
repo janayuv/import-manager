@@ -2,6 +2,8 @@
 
 A comprehensive desktop application for managing import/export operations, built with Tauri, React, and TypeScript.
 
+[![Gitleaks Scan](https://github.com/janayuv/import-manager/actions/workflows/gitleaks.yml/badge.svg)](https://github.com/janayuv/import-manager/actions/workflows/gitleaks.yml)
+
 > **⚠️ Platform Restriction: Windows Only**  
 > This application is designed exclusively for Windows and is not compatible with Linux or macOS. The app depends on Windows-specific integrations and is not intended for cross-platform use.
 
@@ -208,12 +210,24 @@ The repository includes comprehensive GitHub Actions workflows:
 - **Linting**: Clippy for Rust code quality
 - **Build Verification**: Cargo build and test
 
+## Security & History Remediation
+
+This repository previously underwent a **full history cleanup** to remove sensitive data (including leaked key material and secret-shaped content from older commits).
+
+See **[docs/GIT_HISTORY_REMEDIATION.md](docs/GIT_HISTORY_REMEDIATION.md)** for full details about:
+
+- why history was rewritten
+- developer recovery steps
+- future prevention controls
+
 ## 🔒 Security
 
 - **Dependabot**: Automated dependency updates
 - **Security Audits**: Regular npm audit checks
 - **Vulnerability Scanning**: GitHub security scanning
 - **Code Quality**: Comprehensive linting and type checking
+
+**Long-term governance** (secret handling, branch protection, reviews, incidents, key rotation, and GitHub settings recommendations): **[docs/SECURITY_GOVERNANCE.md](docs/SECURITY_GOVERNANCE.md)**
 
 ## 📝 Contributing
 

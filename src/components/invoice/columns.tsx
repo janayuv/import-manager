@@ -188,13 +188,17 @@ export const getInvoiceColumns = ({
     // FIX: Added a cell renderer to display the BCD number as a percentage
     {
       accessorKey: 'bcd',
-      header: 'BCD',
+      header: 'Duty %',
       cell: ({ row }) => `${row.original.bcd}%`,
     },
-    // FIX: Added a cell renderer to display the IGST number as a percentage
+    {
+      accessorKey: 'sws',
+      header: 'SWS %',
+      cell: ({ row }) => `${row.original.sws}%`,
+    },
     {
       accessorKey: 'igst',
-      header: 'IGST',
+      header: 'IGST %',
       cell: ({ row }) => `${row.original.igst}%`,
     },
     {

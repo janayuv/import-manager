@@ -7,11 +7,20 @@ import {
   save,
   writeTextFile,
 } from '@/lib/tauri-bridge';
-import { Download, Loader2, Plus, Settings, Upload, Zap } from 'lucide-react';
+import {
+  ArrowLeft,
+  Download,
+  Loader2,
+  Plus,
+  Settings,
+  Upload,
+  Zap,
+} from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { getInvoiceColumns } from '@/components/invoice/columns';
 import { InvoiceForm } from '@/components/invoice/form';
@@ -48,12 +57,21 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  invoiceTaxSnapshotFromItem,
+  parsePercentage,
+} from '@/lib/parse-percentage';
 import { useSettings } from '@/lib/use-settings';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice';
 import type { Item } from '@/types/item';
 import type { Shipment } from '@/types/shipment';
 import type { Supplier } from '@/types/supplier';
+
+/** URL path for invoice view or edit (bookmarkable). */
+export function invoiceDetailPath(invoiceId: string, mode: 'view' | 'edit') {
+  return `/invoice/${encodeURIComponent(invoiceId)}/${mode}`;
+}
 
 type BulkImportRow = {
   shipmentInvoiceNumber: string;
@@ -63,6 +81,10 @@ type BulkImportRow = {
 };
 
 const InvoicePage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { invoiceId: invoiceIdParam } = useParams<{ invoiceId: string }>();
+
   const { settings } = useSettings();
   const { getButtonClass, getSpacingClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
@@ -76,16 +98,37 @@ const InvoicePage = () => {
   const [loading, setLoading] = React.useState(true);
 
   const [isFormOpen, setFormOpen] = React.useState(false);
-  const [isViewOpen, setViewOpen] = React.useState(false);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
 
   const [invoiceToEdit, setInvoiceToEdit] = React.useState<Invoice | null>(
     null
   );
-  const [invoiceToView, setInvoiceToView] = React.useState<Invoice | null>(
-    null
-  );
+
+  const invoicePanel = React.useMemo((): 'none' | 'view' | 'edit' => {
+    if (!invoiceIdParam) return 'none';
+    if (location.pathname.endsWith('/edit')) return 'edit';
+    if (location.pathname.endsWith('/view')) return 'view';
+    return 'none';
+  }, [invoiceIdParam, location.pathname]);
+
+  const decodedInvoiceId = React.useMemo(() => {
+    if (!invoiceIdParam) return null;
+    try {
+      return decodeURIComponent(invoiceIdParam);
+    } catch {
+      return invoiceIdParam;
+    }
+  }, [invoiceIdParam]);
+
+  const selectedInvoiceFromUrl = React.useMemo(() => {
+    if (!decodedInvoiceId) return null;
+    return invoices.find(inv => inv.id === decodedInvoiceId) ?? null;
+  }, [invoices, decodedInvoiceId]);
+
+  const closeInvoicePanel = React.useCallback(() => {
+    navigate('/invoice');
+  }, [navigate]);
   const [invoiceToDelete, setInvoiceToDelete] = React.useState<{
     id: string;
     number: string;
@@ -120,10 +163,13 @@ const InvoicePage = () => {
     fetchData();
   }, [fetchData]);
 
+  const editingInvoiceForShipments =
+    invoiceToEdit ?? selectedInvoiceFromUrl ?? null;
+
   const availableShipmentsForForm = React.useMemo(() => {
-    if (invoiceToEdit) {
+    if (editingInvoiceForShipments) {
       const currentShipment = shipments.find(
-        s => s.id === invoiceToEdit.shipmentId
+        s => s.id === editingInvoiceForShipments.shipmentId
       );
       if (
         currentShipment &&
@@ -133,21 +179,7 @@ const InvoicePage = () => {
       }
     }
     return unfinalizedShipments;
-  }, [unfinalizedShipments, shipments, invoiceToEdit]);
-
-  // Helper function to parse percentage values from database
-  const parsePercentage = (value: string | number | undefined): number => {
-    if (typeof value === 'number') {
-      return value;
-    }
-    if (typeof value === 'string') {
-      // Remove '%' and convert to number
-      const cleanValue = value.replace('%', '').trim();
-      const parsed = parseFloat(cleanValue);
-      return isNaN(parsed) ? 0 : parsed;
-    }
-    return 0;
-  };
+  }, [unfinalizedShipments, shipments, editingInvoiceForShipments]);
 
   // Helper function to format currency
   const formatCurrency = (amount: number, currency: string) => {
@@ -189,8 +221,9 @@ const InvoicePage = () => {
               quantity: lineItem.quantity,
               unitPrice: lineItem.unitPrice,
               lineTotal: lineItem.quantity * lineItem.unitPrice,
-              bcd: parsePercentage(item.bcd),
-              igst: parsePercentage(item.igst),
+              bcd: lineItem.dutyPercent ?? parsePercentage(item.bcd),
+              sws: lineItem.swsPercent ?? parsePercentage(item.sws),
+              igst: lineItem.igstPercent ?? parsePercentage(item.igst),
               invoiceTotal: invoice.calculatedTotal,
               shipmentTotal: invoice.shipmentTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
@@ -213,6 +246,7 @@ const InvoicePage = () => {
             unitPrice: 0,
             lineTotal: 0,
             bcd: 0,
+            sws: 0,
             igst: 0,
             invoiceTotal: invoice.calculatedTotal,
             shipmentTotal: invoice.shipmentTotal,
@@ -231,25 +265,25 @@ const InvoicePage = () => {
 
   const handleOpenFormForEdit = React.useCallback(
     (invoiceId: string) => {
-      const fullInvoice = invoices.find(inv => inv.id === invoiceId);
-      if (fullInvoice) {
-        setInvoiceToEdit(fullInvoice);
-        setFormOpen(true);
-      }
+      navigate(invoiceDetailPath(invoiceId, 'edit'));
     },
-    [invoices]
+    [navigate]
   );
 
   const handleView = React.useCallback(
     (invoiceId: string) => {
-      const fullInvoice = invoices.find(inv => inv.id === invoiceId);
-      if (fullInvoice) {
-        setInvoiceToView(fullInvoice);
-        setViewOpen(true);
-      }
+      navigate(invoiceDetailPath(invoiceId, 'view'));
     },
-    [invoices]
+    [navigate]
   );
+
+  React.useEffect(() => {
+    if (invoicePanel === 'edit' && selectedInvoiceFromUrl) {
+      setInvoiceToEdit(selectedInvoiceFromUrl);
+    } else if (invoicePanel === 'none') {
+      setInvoiceToEdit(null);
+    }
+  }, [invoicePanel, selectedInvoiceFromUrl]);
 
   const handleDeleteRequest = React.useCallback(
     (invoiceId: string, invoiceNumber: string) => {
@@ -303,6 +337,9 @@ const InvoicePage = () => {
                 itemId: li.itemId,
                 quantity: li.quantity,
                 unitPrice: li.unitPrice,
+                dutyPercent: li.dutyPercent,
+                swsPercent: li.swsPercent,
+                igstPercent: li.igstPercent,
               })) || [],
           };
 
@@ -339,53 +376,58 @@ const InvoicePage = () => {
         return;
       }
 
-      // Show confirmation dialog
-      const confirmed = await confirm(
-        `Are you sure you want to auto-finalize ${autoFinalizableInvoices.length} invoice(s)?\n\nThis will finalize all draft invoices where the calculated total matches the shipment value.\n\nThis action cannot be undone.`,
-        {
-          title: 'Bulk Auto-Finalize',
-          kind: 'warning',
-        }
+      console.log('Tauri env ready');
+      console.log('Runtime URL:', window.location.href);
+      console.log('Confirm type:', typeof confirm);
+
+      const confirmed = await confirm('Finalize all matching invoices?', {
+        title: 'Confirm Bulk Finalization',
+        kind: 'warning',
+      });
+
+      if (!confirmed) {
+        return;
+      }
+
+      const loadingToastId = notifications.loading(
+        `Finalizing ${autoFinalizableInvoices.length} invoice(s)...`
       );
 
-      if (confirmed) {
-        notifications.loading(
-          `Finalizing ${autoFinalizableInvoices.length} invoice(s)...`
+      type BulkFinalizeResult = {
+        finalized: number;
+        failed: number;
+        errorMessages: string[];
+      };
+
+      try {
+        const result = await invoke<BulkFinalizeResult>(
+          'bulk_finalize_invoices',
+          {
+            input: {
+              invoiceIds: autoFinalizableInvoices.map(inv => inv.id),
+            },
+          }
         );
 
-        // Process each invoice
-        let successCount = 0;
-        let errorCount = 0;
+        notifications.dismiss(loadingToastId);
 
-        for (const invoice of autoFinalizableInvoices) {
-          try {
-            const payload = {
-              shipmentId: invoice.shipmentId,
-              status: 'Finalized',
-              lineItems:
-                invoice.lineItems?.map(li => ({
-                  itemId: li.itemId,
-                  quantity: li.quantity,
-                  unitPrice: li.unitPrice,
-                })) || [],
-            };
-
-            await invoke('update_invoice', { id: invoice.id, payload });
-            successCount++;
-          } catch (error) {
-            console.error(
-              `Failed to finalize invoice ${invoice.invoiceNumber}:`,
-              error
-            );
-            errorCount++;
-          }
+        if (result.errorMessages.length > 0) {
+          console.warn(
+            '[invoice] bulk_finalize_invoices:',
+            result.errorMessages
+          );
         }
 
         notifications.success(
           'Bulk Finalization Complete',
-          `${successCount} invoice(s) finalized successfully${errorCount > 0 ? `, ${errorCount} failed` : ''}.`
+          `${result.finalized} invoice(s) finalized successfully${
+            result.failed > 0 ? `, ${result.failed} could not be finalized` : ''
+          }.`
         );
         fetchData();
+      } catch (err) {
+        notifications.dismiss(loadingToastId);
+        throw err;
       }
     } catch (error) {
       console.error('Failed to bulk auto-finalize invoices:', error);
@@ -420,6 +462,9 @@ const InvoicePage = () => {
           itemId: li.itemId,
           quantity: li.quantity,
           unitPrice: li.unitPrice,
+          dutyPercent: li.dutyPercent,
+          swsPercent: li.swsPercent,
+          igstPercent: li.igstPercent,
         })) || [],
     };
 
@@ -434,7 +479,11 @@ const InvoicePage = () => {
           invoiceData.status
         );
       }
-      setFormOpen(false);
+      if (invoicePanel === 'edit') {
+        navigate('/invoice');
+      } else {
+        setFormOpen(false);
+      }
       fetchData();
     } catch (error) {
       console.error('Failed to save invoice:', error);
@@ -504,8 +553,14 @@ const InvoicePage = () => {
         return;
       }
 
-      const shipmentMap = new Map(shipments.map(s => [s.invoiceNumber, s.id]));
-      const itemMap = new Map(items.map(i => [i.partNumber, i.id]));
+      const [freshShipments, freshItems] = await Promise.all([
+        invoke<Shipment[]>('get_shipments'),
+        invoke<Item[]>('get_items'),
+      ]);
+      const shipmentMap = new Map(
+        freshShipments.map(s => [s.invoiceNumber, s.id])
+      );
+      const itemMap = new Map(freshItems.map(i => [i.partNumber, i.id]));
 
       const invoicesToCreate = new Map<
         string,
@@ -532,10 +587,18 @@ const InvoicePage = () => {
         }
 
         const lineItems = invoicesToCreate.get(shipmentId) || [];
+        const masterItem = freshItems.find(i => i.id === itemId);
         lineItems.push({
           itemId,
           quantity: parseFloat(row.quantity) || 0,
           unitPrice: parseFloat(row.unitPrice) || 0,
+          ...(masterItem
+            ? invoiceTaxSnapshotFromItem(masterItem)
+            : {
+                dutyPercent: 0,
+                swsPercent: 0,
+                igstPercent: 0,
+              }),
         });
         invoicesToCreate.set(shipmentId, lineItems);
       }
@@ -595,7 +658,116 @@ const InvoicePage = () => {
     ]
   );
 
-  if (loading) {
+  const settingsDialog = (
+    <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
+      <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
+        <DialogHeader className="shrink-0">
+          <DialogTitle>Invoice Module Settings</DialogTitle>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto pr-2">
+          <ModuleSettings
+            moduleName="invoice"
+            moduleTitle="Invoice"
+            onClose={() => setSettingsOpen(false)}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (invoicePanel !== 'none') {
+    return (
+      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
+        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={closeInvoicePanel}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Back to invoices
+            </Button>
+            <span className="text-muted-foreground text-sm">
+              {invoicePanel === 'view'
+                ? 'Viewing invoice record'
+                : 'Editing invoice record'}
+            </span>
+          </div>
+
+          {loading ? (
+            <div
+              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              role="status"
+              aria-live="polite"
+            >
+              Loading invoice…
+            </div>
+          ) : !selectedInvoiceFromUrl ? (
+            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
+              <h2 className="text-card-foreground text-lg font-semibold">
+                Invoice not found
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                No invoice with ID{' '}
+                <span className="text-foreground font-mono">
+                  {decodedInvoiceId ?? invoiceIdParam}
+                </span>
+                .
+              </p>
+              <Button
+                type="button"
+                variant="default"
+                useAccentColor
+                onClick={closeInvoicePanel}
+                className="w-fit"
+              >
+                Back to invoices
+              </Button>
+            </div>
+          ) : invoicePanel === 'view' ? (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <InvoiceViewDialog
+                isOpen={true}
+                onOpenChange={open => {
+                  if (!open) closeInvoicePanel();
+                }}
+                invoice={selectedInvoiceFromUrl}
+                items={items}
+                suppliers={suppliers}
+                shipments={shipments}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onEdit={() =>
+                  navigate(invoiceDetailPath(selectedInvoiceFromUrl.id, 'edit'))
+                }
+              />
+            </div>
+          ) : (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <InvoiceForm
+                isOpen={true}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onOpenChange={open => {
+                  if (!open) closeInvoicePanel();
+                }}
+                onSubmit={handleSubmit}
+                shipments={availableShipmentsForForm}
+                items={items}
+                invoiceToEdit={selectedInvoiceFromUrl}
+              />
+            </div>
+          )}
+        </div>
+        {settingsDialog}
+      </div>
+    );
+  }
+
+  if (loading && invoicePanel === 'none') {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
@@ -779,14 +951,6 @@ const InvoicePage = () => {
         items={items}
         invoiceToEdit={invoiceToEdit}
       />
-      <InvoiceViewDialog
-        isOpen={isViewOpen}
-        onOpenChange={setViewOpen}
-        invoice={invoiceToView}
-        items={items}
-        suppliers={suppliers}
-        shipments={shipments}
-      />
       <AlertDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
@@ -810,21 +974,7 @@ const InvoicePage = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Settings Dialog */}
-      <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
-        <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
-          <DialogHeader className="flex-shrink-0">
-            <DialogTitle>Invoice Module Settings</DialogTitle>
-          </DialogHeader>
-          <div className="flex-1 overflow-y-auto pr-2">
-            <ModuleSettings
-              moduleName="invoice"
-              moduleTitle="Invoice"
-              onClose={() => setSettingsOpen(false)}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
+      {settingsDialog}
     </div>
   );
 };

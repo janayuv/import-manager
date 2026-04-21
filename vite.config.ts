@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
+import removeConsole from 'vite-plugin-remove-console';
 
 const manualChunks = (id: string): string | undefined => {
   const norm = id.split('\\').join('/');
@@ -41,7 +42,13 @@ const usePlaywrightTauriStub = process.env.VITE_PLAYWRIGHT === '1';
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    ...(process.env.TAURI_DEBUG === '1' || process.env.TAURI_DEBUG === 'true'
+      ? []
+      : [removeConsole()]),
+  ],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),

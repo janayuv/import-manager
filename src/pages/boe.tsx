@@ -6,16 +6,17 @@ import {
   save,
   writeTextFile,
 } from '@/lib/tauri-bridge';
-import { Download, Loader2, Plus, Upload } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, Plus, Upload } from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { getBoeColumns } from '@/components/boe/columns';
-import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import { BoeForm } from '@/components/boe/form';
 import { BoeViewDialog } from '@/components/boe/view';
+import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,20 +31,54 @@ import { Button } from '@/components/ui/button';
 import { useSettings } from '@/lib/use-settings';
 import type { BoeDetails } from '@/types/boe';
 
+/** URL path for BOE view or edit (bookmarkable, browser back/forward). */
+export function boeDetailPath(boeId: string, mode: 'view' | 'edit') {
+  return `/boe/${encodeURIComponent(boeId)}/${mode}`;
+}
+
+/** URL path to create a new BOE (full page). */
+export const boeNewPath = '/boe/new';
+
 const BoePage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { boeId: boeIdParam } = useParams<{ boeId: string }>();
+
   const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [boes, setBoes] = React.useState<BoeDetails[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [isFormOpen, setFormOpen] = React.useState(false);
-  const [isViewOpen, setViewOpen] = React.useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
-  const [boeToEdit, setBoeToEdit] = React.useState<BoeDetails | null>(null);
-  const [boeToView, setBoeToView] = React.useState<BoeDetails | null>(null);
   const [boeToDelete, setBoeToDelete] = React.useState<{
     id: string;
     number: string;
   } | null>(null);
+
+  const boePanel = React.useMemo((): 'none' | 'view' | 'edit' | 'add' => {
+    if (location.pathname === boeNewPath) return 'add';
+    if (!boeIdParam) return 'none';
+    if (location.pathname.endsWith('/edit')) return 'edit';
+    if (location.pathname.endsWith('/view')) return 'view';
+    return 'none';
+  }, [boeIdParam, location.pathname]);
+
+  const decodedBoeId = React.useMemo(() => {
+    if (!boeIdParam) return null;
+    try {
+      return decodeURIComponent(boeIdParam);
+    } catch {
+      return boeIdParam;
+    }
+  }, [boeIdParam]);
+
+  const selectedBoeFromUrl = React.useMemo(() => {
+    if (!decodedBoeId) return null;
+    return boes.find(b => b.id === decodedBoeId) ?? null;
+  }, [boes, decodedBoeId]);
+
+  const closeBoePanel = React.useCallback(() => {
+    navigate('/boe');
+  }, [navigate]);
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -63,19 +98,22 @@ const BoePage = () => {
   }, [fetchData]);
 
   const handleOpenFormForAdd = () => {
-    setBoeToEdit(null);
-    setFormOpen(true);
+    navigate(boeNewPath);
   };
 
-  const handleOpenFormForEdit = React.useCallback((boe: BoeDetails) => {
-    setBoeToEdit(boe);
-    setFormOpen(true);
-  }, []);
+  const handleOpenFormForEdit = React.useCallback(
+    (boe: BoeDetails) => {
+      navigate(boeDetailPath(boe.id, 'edit'));
+    },
+    [navigate]
+  );
 
-  const handleView = React.useCallback((boe: BoeDetails) => {
-    setBoeToView(boe);
-    setViewOpen(true);
-  }, []);
+  const handleView = React.useCallback(
+    (boe: BoeDetails) => {
+      navigate(boeDetailPath(boe.id, 'view'));
+    },
+    [navigate]
+  );
 
   const handleDeleteRequest = React.useCallback((boe: BoeDetails) => {
     setBoeToDelete({ id: boe.id, number: boe.beNumber });
@@ -88,6 +126,9 @@ const BoePage = () => {
         await invoke('delete_boe', { id: boeToDelete.id });
         notifications.boe.deleted(boeToDelete.number);
         fetchData();
+        if (decodedBoeId === boeToDelete.id) {
+          navigate('/boe');
+        }
       } catch (error) {
         console.error('Failed to delete BOE:', error);
         notifications.boe.error('delete', String(error));
@@ -103,12 +144,13 @@ const BoePage = () => {
         await invoke('update_boe', { boe: { id, ...data } });
         notifications.boe.updated(data.beNumber);
       } else {
-        // The backend command now expects the payload directly
         await invoke('add_boe', { payload: data });
         notifications.boe.created(data.beNumber);
       }
       fetchData();
-      setFormOpen(false);
+      if (boePanel === 'edit' || boePanel === 'add') {
+        navigate('/boe');
+      }
     } catch (error) {
       console.error('Failed to save BOE:', error);
       notifications.boe.error('save', String(error));
@@ -132,7 +174,6 @@ const BoePage = () => {
       if (selectedFile) {
         const csvText = selectedFile.contents;
 
-        // Use PapaParse with proper error handling
         let csvRows: BoeCsvRow[] = [];
         let hasErrors = false;
 
@@ -167,7 +208,7 @@ const BoePage = () => {
         if (csvRows.length > 0 && validRows.length === 0) {
           notifications.error(
             'Import Failed',
-            'No valid BOE rows found. Use the template columns: beNumber, beDate, location, totalAssessmentValue, dutyAmount, paymentDate, dutyPaid.'
+            'No valid BOE rows found. Use the template columns: beNumber, beDate, location, totalAssessmentValue, dutyAmount, paymentDate, dutyPaid, challanNumber, refId, transactionId.'
           );
           return;
         }
@@ -177,6 +218,9 @@ const BoePage = () => {
 
         for (const row of validRows) {
           try {
+            const challanNumber = (row.challanNumber ?? '').trim();
+            const refId = (row.refId ?? '').trim();
+            const transactionId = (row.transactionId ?? '').trim();
             const boeData = {
               beNumber: row.beNumber || '',
               beDate: row.beDate || '',
@@ -185,6 +229,9 @@ const BoePage = () => {
               dutyAmount: parseFloat(row.dutyAmount || '0'),
               paymentDate: row.paymentDate || '',
               dutyPaid: parseFloat(row.dutyPaid || '0'),
+              challanNumber: challanNumber || undefined,
+              refId: refId || undefined,
+              transactionId: transactionId || undefined,
             };
 
             await invoke('add_boe', { payload: boeData });
@@ -227,6 +274,9 @@ const BoePage = () => {
           dutyAmount: boe.dutyAmount,
           paymentDate: boe.paymentDate,
           dutyPaid: boe.dutyPaid,
+          challanNumber: boe.challanNumber ?? '',
+          refId: boe.refId ?? '',
+          transactionId: boe.transactionId ?? '',
         }))
       );
 
@@ -274,6 +324,9 @@ const BoePage = () => {
         dutyAmount: '15000',
         paymentDate: '02-01-2024',
         dutyPaid: '15000',
+        challanNumber: '2041914258',
+        refId: 'REF-EXAMPLE-001',
+        transactionId: 'TXN-EXAMPLE-001',
       },
     ];
 
@@ -304,7 +357,141 @@ const BoePage = () => {
     [handleView, handleOpenFormForEdit, handleDeleteRequest, settings]
   );
 
-  if (loading) {
+  const deleteDialog = (
+    <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+          <AlertDialogDescription>
+            This action cannot be undone. This will permanently delete BOE{' '}
+            <strong>{boeToDelete?.number}</strong>.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel asChild>
+            <Button
+              onClick={() => setBoeToDelete(null)}
+              variant="outline"
+              useAccentColor
+            >
+              Cancel
+            </Button>
+          </AlertDialogCancel>
+          <AlertDialogAction asChild>
+            <Button onClick={handleDeleteConfirm} variant="destructive">
+              Continue
+            </Button>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
+  if (boePanel !== 'none') {
+    return (
+      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={closeBoePanel}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Back to all BOE
+            </Button>
+            <span className="text-muted-foreground text-sm">
+              {boePanel === 'view'
+                ? 'Viewing BOE record'
+                : boePanel === 'edit'
+                  ? 'Editing BOE record'
+                  : 'Adding new BOE'}
+            </span>
+          </div>
+
+          {loading ? (
+            <div
+              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              role="status"
+              aria-live="polite"
+            >
+              Loading…
+            </div>
+          ) : boePanel === 'add' ? (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <BoeForm
+                isOpen={true}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onOpenChange={open => {
+                  if (!open) closeBoePanel();
+                }}
+                onSubmit={handleSubmit}
+                boeToEdit={null}
+                existingBoes={boes}
+              />
+            </div>
+          ) : !selectedBoeFromUrl ? (
+            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
+              <h2 className="text-card-foreground text-lg font-semibold">
+                BOE not found
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                No BOE with ID{' '}
+                <span className="text-foreground font-mono">
+                  {decodedBoeId ?? boeIdParam}
+                </span>
+                .
+              </p>
+              <Button
+                type="button"
+                variant="default"
+                useAccentColor
+                onClick={closeBoePanel}
+                className="w-fit"
+              >
+                Back to all BOE
+              </Button>
+            </div>
+          ) : boePanel === 'view' ? (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <BoeViewDialog
+                isOpen={true}
+                onOpenChange={open => {
+                  if (!open) closeBoePanel();
+                }}
+                boe={selectedBoeFromUrl}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onEdit={() =>
+                  navigate(boeDetailPath(selectedBoeFromUrl.id, 'edit'))
+                }
+              />
+            </div>
+          ) : (
+            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+              <BoeForm
+                isOpen={true}
+                presentation="page"
+                className="min-h-0 flex-1"
+                onOpenChange={open => {
+                  if (!open) closeBoePanel();
+                }}
+                onSubmit={handleSubmit}
+                boeToEdit={selectedBoeFromUrl}
+                existingBoes={boes}
+              />
+            </div>
+          )}
+        </div>
+        {deleteDialog}
+      </div>
+    );
+  }
+
+  if (loading && boePanel === 'none') {
     return (
       <div className="flex h-screen items-center justify-center">
         <Loader2 className="h-16 w-16 animate-spin" />
@@ -369,48 +556,7 @@ const BoePage = () => {
         moduleName="boe"
       />
 
-      <BoeForm
-        isOpen={isFormOpen}
-        onOpenChange={setFormOpen}
-        onSubmit={handleSubmit}
-        boeToEdit={boeToEdit}
-        existingBoes={boes}
-      />
-      <BoeViewDialog
-        isOpen={isViewOpen}
-        onOpenChange={setViewOpen}
-        boe={boeToView}
-      />
-      <AlertDialog
-        open={isDeleteDialogOpen}
-        onOpenChange={setIsDeleteDialogOpen}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete BOE{' '}
-              <strong>{boeToDelete?.number}</strong>.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel asChild>
-              <Button
-                onClick={() => setBoeToDelete(null)}
-                variant="outline"
-                useAccentColor
-              >
-                Cancel
-              </Button>
-            </AlertDialogCancel>
-            <AlertDialogAction asChild>
-              <Button onClick={handleDeleteConfirm} variant="destructive">
-                Continue
-              </Button>
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {deleteDialog}
     </div>
   );
 };

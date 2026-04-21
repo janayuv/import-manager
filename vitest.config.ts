@@ -17,5 +17,17 @@ export default defineConfig({
       'playwright/**',
     ],
     environment: 'jsdom',
+    coverage: {
+      provider: 'v8',
+      reportsDirectory: './coverage',
+      reporter: ['text', 'lcov'],
+      exclude: [
+        'node_modules/**',
+        'dist/**',
+        'tests/**',
+        '**/*.config.*',
+        '**/types/**',
+      ],
+    },
   },
 });

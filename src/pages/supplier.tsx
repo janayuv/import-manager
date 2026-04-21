@@ -4,6 +4,7 @@ import { invoke } from '@tauri-apps/api/core';
 import { openTextFile } from '@/lib/tauri-bridge';
 import {
   ArrowDown,
+  ArrowLeft,
   ArrowUp,
   ArrowUpDown,
   Download,
@@ -14,13 +15,14 @@ import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 import ExcelJS from 'exceljs';
 
 import * as React from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { SupplierActions } from '@/components/supplier/actions';
-import { EditSupplierDialog } from '@/components/supplier/edit';
+import { SupplierEditPanel } from '@/components/supplier/edit';
 import { AddSupplierForm } from '@/components/supplier/form';
 import { ModuleSettings } from '@/components/module-settings';
+import { SupplierViewPanel } from '@/components/supplier/view';
 import { ResponsiveDataTable } from '@/components/ui/responsive-table';
-import { ViewSupplierDialog } from '@/components/supplier/view';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,23 +41,71 @@ import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type { Supplier } from '@/types/supplier';
 
+/** URL path for supplier view or edit (bookmarkable, browser back/forward). */
+export function supplierDetailPath(supplierId: string, mode: 'view' | 'edit') {
+  return `/supplier/${encodeURIComponent(supplierId)}/${mode}`;
+}
+
 const SupplierPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { supplierId: supplierIdParam } = useParams<{ supplierId: string }>();
+
   const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
-  const [isViewOpen, setViewOpen] = React.useState(false);
-  const [isEditOpen, setEditOpen] = React.useState(false);
+  const [isLoadingSuppliers, setIsLoadingSuppliers] = React.useState(true);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
-  const [selectedSupplier, setSelectedSupplier] =
-    React.useState<Supplier | null>(null);
+
+  const supplierPanel = React.useMemo((): 'none' | 'view' | 'edit' => {
+    if (!supplierIdParam) return 'none';
+    if (location.pathname.endsWith('/edit')) return 'edit';
+    if (location.pathname.endsWith('/view')) return 'view';
+    return 'none';
+  }, [supplierIdParam, location.pathname]);
+
+  const decodedSupplierId = React.useMemo(() => {
+    if (!supplierIdParam) return null;
+    try {
+      return decodeURIComponent(supplierIdParam);
+    } catch {
+      return supplierIdParam;
+    }
+  }, [supplierIdParam]);
+
+  const selectedSupplier = React.useMemo(() => {
+    if (!decodedSupplierId) return null;
+    return suppliers.find(s => s.id === decodedSupplierId) ?? null;
+  }, [suppliers, decodedSupplierId]);
+
+  const closeSupplierPanel = React.useCallback(() => {
+    navigate('/supplier');
+  }, [navigate]);
+
+  const handleView = React.useCallback(
+    (supplier: Supplier) => {
+      navigate(supplierDetailPath(supplier.id, 'view'));
+    },
+    [navigate]
+  );
+
+  const handleEdit = React.useCallback(
+    (supplier: Supplier) => {
+      navigate(supplierDetailPath(supplier.id, 'edit'));
+    },
+    [navigate]
+  );
 
   const fetchSuppliers = React.useCallback(async () => {
+    setIsLoadingSuppliers(true);
     try {
       const fetchedSuppliers: Supplier[] = await invoke('get_suppliers');
       setSuppliers(fetchedSuppliers);
     } catch (error) {
       console.error('Failed to fetch suppliers:', error);
       notifications.supplier.error('fetch', String(error));
+    } finally {
+      setIsLoadingSuppliers(false);
     }
     // Context `notifications` changes identity each render; listing it recreated this callback
     // every render and retriggered the mount effect (refetch loop), so imports never showed in UI.
@@ -65,16 +115,6 @@ const SupplierPage = () => {
   React.useEffect(() => {
     fetchSuppliers();
   }, [fetchSuppliers]);
-
-  const handleView = (supplier: Supplier) => {
-    setSelectedSupplier(supplier);
-    setViewOpen(true);
-  };
-
-  const handleEdit = (supplier: Supplier) => {
-    setSelectedSupplier(supplier);
-    setEditOpen(true);
-  };
 
   const handleAdd = async (newSupplierData: Omit<Supplier, 'id'>) => {
     const maxId = suppliers.reduce((max, s) => {
@@ -210,7 +250,28 @@ const SupplierPage = () => {
       }
 
       const content = selectedFile.contents;
-      const lines = content.split(/\r?\n/).slice(1); // Skip header
+      const expectedHeader =
+        'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive';
+      const rawLines = content.split(/\r?\n/);
+      const headerIdx = rawLines.findIndex(
+        l => l.replace(/^\uFEFF/, '').trim() !== ''
+      );
+      if (headerIdx < 0) {
+        notifications.warning(
+          'No New Data',
+          'No new suppliers found in the file.'
+        );
+        return;
+      }
+      const headerLine = rawLines[headerIdx].replace(/^\uFEFF/, '').trim();
+      if (headerLine !== expectedHeader) {
+        notifications.supplier.error(
+          'import',
+          'This file does not match the supplier import template (wrong column headers). Download the template and try again.'
+        );
+        return;
+      }
+      const lines = rawLines.slice(headerIdx + 1);
       const newSuppliers: Supplier[] = [];
       let maxId = suppliers.reduce(
         (max, s) => Math.max(max, parseInt(s.id.split('-')[1])),
@@ -219,6 +280,14 @@ const SupplierPage = () => {
 
       for (const line of lines) {
         if (line.trim() === '') continue;
+        const parts = line.split(',');
+        if (parts.length < 13) {
+          notifications.supplier.error(
+            'import',
+            'One or more data rows have too few columns. Download the supplier template and try again.'
+          );
+          return;
+        }
         const [
           supplierName,
           shortName,
@@ -233,7 +302,15 @@ const SupplierPage = () => {
           iban,
           swiftCode,
           isActiveStr,
-        ] = line.split(',');
+        ] = parts;
+
+        if (!String(supplierName ?? '').trim()) {
+          notifications.supplier.error(
+            'import',
+            'Each supplier row must include a supplier name.'
+          );
+          return;
+        }
 
         maxId++;
         const newId = `Sup-${maxId.toString().padStart(3, '0')}`;
@@ -252,7 +329,10 @@ const SupplierPage = () => {
           accountNo,
           iban,
           swiftCode,
-          isActive: isActiveStr.trim().toLowerCase() === 'true',
+          isActive:
+            String(isActiveStr ?? '')
+              .trim()
+              .toLowerCase() === 'true',
         });
       }
 
@@ -471,7 +551,119 @@ const SupplierPage = () => {
 
       return aOrder - bOrder;
     });
-  }, [settings.modules.supplier, settings.textFormat]);
+  }, [settings.modules.supplier, settings.textFormat, handleView, handleEdit]);
+
+  const settingsDialog = (
+    <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
+      <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-6xl flex-col overflow-hidden">
+        <DialogHeader className="shrink-0 border-b pb-4">
+          <DialogTitle className="text-card-foreground text-xl font-semibold">
+            Supplier Module Settings
+          </DialogTitle>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Customize your supplier table view and preferences
+          </p>
+        </DialogHeader>
+        <div className="flex-1 overflow-y-auto pr-2">
+          <ModuleSettings
+            moduleName="supplier"
+            moduleTitle="Supplier"
+            onClose={() => setSettingsOpen(false)}
+          />
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (supplierPanel !== 'none') {
+    return (
+      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
+          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              onClick={closeSupplierPanel}
+              className="gap-2"
+            >
+              <ArrowLeft className="size-4" aria-hidden />
+              Back to suppliers
+            </Button>
+            <span className="text-muted-foreground text-sm">
+              {supplierPanel === 'view'
+                ? 'Viewing supplier record'
+                : 'Editing supplier record'}
+            </span>
+          </div>
+
+          {isLoadingSuppliers ? (
+            <div
+              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-6xl flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              role="status"
+              aria-live="polite"
+            >
+              Loading supplier…
+            </div>
+          ) : !selectedSupplier ? (
+            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
+              <h2 className="text-card-foreground text-lg font-semibold">
+                Supplier not found
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                There is no supplier with ID{' '}
+                <span className="text-foreground font-mono">
+                  {decodedSupplierId ?? supplierIdParam}
+                </span>
+                . It may have been removed or the link may be incorrect.
+              </p>
+              <Button
+                type="button"
+                variant="default"
+                useAccentColor
+                onClick={closeSupplierPanel}
+                className="w-fit"
+              >
+                Back to suppliers
+              </Button>
+            </div>
+          ) : (
+            <div
+              className="border-border bg-card flex min-h-0 w-full max-w-6xl flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm"
+              role="main"
+              aria-label={
+                supplierPanel === 'view'
+                  ? 'Supplier details'
+                  : 'Edit supplier form'
+              }
+            >
+              {supplierPanel === 'view' ? (
+                <SupplierViewPanel
+                  supplier={selectedSupplier}
+                  onClose={closeSupplierPanel}
+                  onEdit={() =>
+                    navigate(supplierDetailPath(selectedSupplier.id, 'edit'))
+                  }
+                  className="min-h-0 flex-1"
+                />
+              ) : (
+                <SupplierEditPanel
+                  supplier={selectedSupplier}
+                  onCancel={closeSupplierPanel}
+                  onSave={async updated => {
+                    await handleSave(updated);
+                    closeSupplierPanel();
+                  }}
+                  className="min-h-0 flex-1"
+                />
+              )}
+            </div>
+          )}
+        </div>
+        {settingsDialog}
+      </div>
+    );
+  }
 
   return (
     <div className="from-background to-muted/20 min-h-screen bg-gradient-to-br">
@@ -561,8 +753,8 @@ const SupplierPage = () => {
             </div>
           </div>
         </div>
-        {/* Professional Data Table Section */}
-        <div className="bg-card overflow-hidden rounded-xl border shadow-sm">
+
+        <div className="bg-card min-h-[280px] min-w-0 overflow-hidden rounded-xl border shadow-sm">
           <ResponsiveDataTable
             columns={columns}
             data={suppliers}
@@ -587,39 +779,8 @@ const SupplierPage = () => {
             moduleName="supplier"
           />
         </div>
-        {/* Dialogs */}
-        <ViewSupplierDialog
-          isOpen={isViewOpen}
-          onOpenChange={setViewOpen}
-          supplier={selectedSupplier}
-        />
-        <EditSupplierDialog
-          isOpen={isEditOpen}
-          onOpenChange={setEditOpen}
-          supplier={selectedSupplier}
-          onSave={handleSave}
-        />
 
-        {/* Enhanced Settings Dialog */}
-        <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
-          <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-6xl flex-col overflow-hidden">
-            <DialogHeader className="flex-shrink-0 border-b pb-4">
-              <DialogTitle className="text-card-foreground text-xl font-semibold">
-                Supplier Module Settings
-              </DialogTitle>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Customize your supplier table view and preferences
-              </p>
-            </DialogHeader>
-            <div className="flex-1 overflow-y-auto pr-2">
-              <ModuleSettings
-                moduleName="supplier"
-                moduleTitle="Supplier"
-                onClose={() => setSettingsOpen(false)}
-              />
-            </div>
-          </DialogContent>
-        </Dialog>
+        {settingsDialog}
       </div>
     </div>
   );

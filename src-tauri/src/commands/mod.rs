@@ -1,6 +1,7 @@
 // Re-export all command modules to maintain the same public API
 pub mod boe;
 pub mod db_management;
+pub mod google_drive;
 pub mod expenses;
 pub mod invoices;
 pub mod items;
@@ -14,6 +15,7 @@ pub mod utils;
 // Re-export all public functions from submodules
 pub use boe::*;
 pub use db_management::*;
+pub use google_drive::*;
 pub use expenses::*;
 pub use invoices::*;
 pub use items::*;

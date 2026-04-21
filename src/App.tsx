@@ -53,11 +53,11 @@ function App() {
   }, []);
 
   return (
-    <AsyncErrorBoundary componentName="App">
-      <ThemeProvider
-        defaultTheme={{ mode: 'light', color: 'zinc' }}
-        storageKey="import-manager-theme"
-      >
+    <ThemeProvider
+      defaultTheme={{ mode: 'light', color: 'zinc' }}
+      storageKey="import-manager-theme"
+    >
+      <AsyncErrorBoundary componentName="App">
         <SettingsProvider>
           <UserProvider>
             <NotificationProvider>
@@ -72,8 +72,32 @@ function App() {
                       <Route element={<ProtectedRoute />}>
                         <Route element={<AppLayout />}>
                           <Route path="/" element={<DashboardPage />} />
+                          <Route
+                            path="/supplier/:supplierId/view"
+                            element={<SupplierPage />}
+                          />
+                          <Route
+                            path="/supplier/:supplierId/edit"
+                            element={<SupplierPage />}
+                          />
                           <Route path="/supplier" element={<SupplierPage />} />
+                          <Route
+                            path="/shipment/:shipmentId/view"
+                            element={<ShipmentPage />}
+                          />
+                          <Route
+                            path="/shipment/:shipmentId/edit"
+                            element={<ShipmentPage />}
+                          />
                           <Route path="/shipment" element={<ShipmentPage />} />
+                          <Route
+                            path="/invoice/:invoiceId/view"
+                            element={<InvoicePage />}
+                          />
+                          <Route
+                            path="/invoice/:invoiceId/edit"
+                            element={<InvoicePage />}
+                          />
                           <Route path="/invoice" element={<InvoicePage />} />
                           <Route
                             path="/invoice-wizard"
@@ -81,11 +105,48 @@ function App() {
                           />
 
                           <Route
+                            path="/item-master/new"
+                            element={<ItemMasterPage />}
+                          />
+                          <Route
+                            path="/item-master/:itemId/view"
+                            element={<ItemMasterPage />}
+                          />
+                          <Route
+                            path="/item-master/:itemId/edit"
+                            element={<ItemMasterPage />}
+                          />
+                          <Route
                             path="/item-master"
                             element={<ItemMasterPage />}
                           />
+                          <Route path="/boe/new" element={<BOEPage />} />
+                          <Route
+                            path="/boe/:boeId/view"
+                            element={<BOEPage />}
+                          />
+                          <Route
+                            path="/boe/:boeId/edit"
+                            element={<BOEPage />}
+                          />
                           <Route path="/boe" element={<BOEPage />} />
+                          <Route
+                            path="/boe-entry/new"
+                            element={<BOEEntrypage />}
+                          />
+                          <Route
+                            path="/boe-entry/:savedBoeId/view"
+                            element={<BOEEntrypage />}
+                          />
+                          <Route
+                            path="/boe-entry/:savedBoeId/edit"
+                            element={<BOEEntrypage />}
+                          />
                           <Route path="/boe-entry" element={<BOEEntrypage />} />
+                          <Route
+                            path="/boe-summary/:savedBoeId"
+                            element={<BoeSummaryPage />}
+                          />
                           <Route
                             path="/boe-summary"
                             element={<BoeSummaryPage />}
@@ -135,8 +196,8 @@ function App() {
             </NotificationProvider>
           </UserProvider>
         </SettingsProvider>
-      </ThemeProvider>
-    </AsyncErrorBoundary>
+      </AsyncErrorBoundary>
+    </ThemeProvider>
   );
 }
 

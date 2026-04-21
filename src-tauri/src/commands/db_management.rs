@@ -2,12 +2,81 @@
 #![allow(non_snake_case)]
 
 use crate::db::DbState;
-use rusqlite::{params, Connection};
+use chrono::Utc;
+use cron::Schedule;
+use rusqlite::{params, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::time::Duration;
+use std::str::FromStr;
+use tauri::AppHandle;
+use tauri::Manager;
 use tauri::State;
+use tauri::WebviewWindow;
+
+/// Six-field cron (sec min hour day-of-month month day-of-week), UTC. Used by `cron` crate.
+fn compute_next_run_rfc3339(cron_expr: &str) -> Result<String, String> {
+    let schedule = Schedule::from_str(cron_expr.trim())
+        .map_err(|e| format!("Invalid schedule: {}", e))?;
+    let next = schedule
+        .upcoming(Utc)
+        .next()
+        .ok_or_else(|| "No upcoming runs for this cron expression".to_string())?;
+    Ok(next.to_rfc3339())
+}
+
+/// Runs every minute from a background thread; executes due backup schedules.
+pub async fn tick_backup_schedules(app: AppHandle) {
+    if let Err(e) = run_due_backup_schedules(app).await {
+        log::warn!("backup schedule tick failed: {}", e);
+    }
+}
+
+async fn run_due_backup_schedules(app: AppHandle) -> Result<(), String> {
+    if crate::restore_control::background_jobs_paused() {
+        return Ok(());
+    }
+    let db_state: State<'_, DbState> = app.state();
+    let now = Utc::now().to_rfc3339();
+    let due_ids: Vec<i64> = {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let mut stmt = db
+            .prepare(
+                "SELECT id FROM backup_schedules WHERE enabled = 1 AND next_run IS NOT NULL AND next_run <= ?",
+            )
+            .map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map(params![&now], |row| row.get(0))
+            .map_err(|e| e.to_string())?;
+        rows.collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
+
+    for schedule_id in due_ids {
+        if let Err(e) =
+            run_scheduled_backup(db_state.clone(), schedule_id, Some("scheduler".to_string())).await
+        {
+            log::warn!(
+                "scheduled backup id {} failed: {}",
+                schedule_id,
+                e
+            );
+        }
+    }
+    Ok(())
+}
+
+struct TempFileGuard(Option<PathBuf>);
+
+impl Drop for TempFileGuard {
+    fn drop(&mut self) {
+        if let Some(p) = self.0.take() {
+            let _ = fs::remove_file(p);
+        }
+    }
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AuditLog {
@@ -124,6 +193,7 @@ pub struct DatabaseStats {
 }
 
 // Create audit log entry
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn create_audit_log(
     db_state: State<'_, DbState>,
@@ -138,11 +208,14 @@ pub async fn create_audit_log(
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
 
     let mut stmt = db
-        .prepare("INSERT INTO audit_logs (table_name, row_id, action, user_id, before_json, after_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)")
+        .prepare(
+            r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, after_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
+        )
         .map_err(|e| e.to_string())?;
 
     let id = stmt
         .insert(params![
+            tableName.clone(),
             tableName,
             row_id,
             action,
@@ -168,11 +241,11 @@ pub async fn get_audit_logs(
 ) -> Result<Vec<AuditLog>, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
 
-    let mut query = "SELECT id, table_name, row_id, action, user_id, before_json, after_json, metadata, created_at FROM audit_logs WHERE 1=1".to_string();
+    let mut query = "SELECT id, COALESCE(\"tableName\", table_name) AS table_name, row_id, action, user_id, before_json, after_json, metadata, created_at FROM audit_logs WHERE 1=1".to_string();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
 
     if let Some(table) = &tableName {
-        query.push_str(" AND table_name = ?");
+        query.push_str(" AND COALESCE(\"tableName\", table_name) = ?");
         params.push(Box::new(table.clone()));
     }
 
@@ -182,7 +255,7 @@ pub async fn get_audit_logs(
     }
 
     if let Some(user) = &userId {
-        query.push_str(" AND userId = ?");
+        query.push_str(" AND user_id = ?");
         params.push(Box::new(user.clone()));
     }
 
@@ -292,85 +365,128 @@ pub async fn get_database_stats(db_state: State<'_, DbState>) -> Result<Database
 // Create backup
 #[tauri::command]
 pub async fn create_backup(
+    window: WebviewWindow,
     db_state: State<'_, DbState>,
     request: BackupRequest,
     userId: Option<String>,
 ) -> Result<BackupInfo, String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    create_backup_impl(db_state, request, userId, Some(window)).await
+}
 
-    // Generate filename if not provided
-    let filename = request.filename.unwrap_or_else(|| {
+async fn create_backup_impl(
+    db_state: State<'_, DbState>,
+    request: BackupRequest,
+    userId: Option<String>,
+    window: Option<WebviewWindow>,
+) -> Result<BackupInfo, String> {
+    let filename = request.filename.clone().unwrap_or_else(|| {
         let now = chrono::Local::now();
         format!("import-manager-backup-{}.db", now.format("%Y%m%d-%H%M%S"))
     });
 
-    // Determine backup path based on destination
-    let backupPath = match request.destination.as_str() {
-        "local" => {
-            let data_dir = std::env::var("APPDATA")
-                .or_else(|_| std::env::var("HOME"))
-                .map(|home| Path::new(&home).join("ImportManager").join("backups"))
-                .unwrap_or_else(|_| Path::new("./backups").to_path_buf());
+    let data_dir = std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map(|home| Path::new(&home).join("ImportManager").join("backups"))
+        .unwrap_or_else(|_| Path::new("./backups").to_path_buf());
 
-            if !data_dir.exists() {
-                fs::create_dir_all(&data_dir)
-                    .map_err(|e| format!("Failed to create backup directory: {}", e))?;
-            }
+    if !data_dir.exists() {
+        fs::create_dir_all(&data_dir)
+            .map_err(|e| format!("Failed to create backup directory: {}", e))?;
+    }
 
-            data_dir.join(&filename)
-        }
-        _ => return Err("Unsupported backup destination".to_string()),
-    };
+    let staging_path = data_dir.join(&filename);
 
-    // Create backup using SQLite backup API
-    let backupPath_str = backupPath.to_string_lossy().to_string();
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let source_path = db.path().ok_or("Could not get database path")?;
+        fs::copy(source_path, &staging_path)
+            .map_err(|e| format!("Failed to create backup: {}", e))?;
+    }
 
-    // Create backup by copying the database file
-    // Note: This is a simple file copy. For production use, consider using SQLite backup API
-    // or ensuring the database is not being written to during backup
-    let source_path = db.path().ok_or("Could not get database path")?;
-    fs::copy(source_path, &backupPath).map_err(|e| format!("Failed to create backup: {}", e))?;
-
-    // Calculate file size and SHA256
-    let size_bytes = fs::metadata(&backupPath)
+    let size_bytes = fs::metadata(&staging_path)
         .map(|m| m.len() as i64)
         .unwrap_or(0);
 
-    // TODO: Calculate SHA256 hash
     let sha256 = None;
 
-    // Create backup record
+    let (record_path, destination_value) = match request.destination.as_str() {
+        "local" => (
+            staging_path.to_string_lossy().to_string(),
+            "local".to_string(),
+        ),
+        "google_drive" => {
+            if !super::google_drive::is_configured() {
+                fs::remove_file(&staging_path).ok();
+                return Err(
+                    "Google Drive is not configured for this build (set IMPORT_MANAGER_GOOGLE_CLIENT_ID)."
+                        .to_string(),
+                );
+            }
+            if !super::google_drive::has_refresh_token() {
+                fs::remove_file(&staging_path).ok();
+                return Err(
+                    "Not connected to Google Drive. Connect your account first (Database Management → Backup)."
+                        .to_string(),
+                );
+            }
+            let file_id = super::google_drive::upload_backup_file(
+                &staging_path,
+                &filename,
+                window.as_ref(),
+            )
+            .await
+            .map_err(|e| {
+                fs::remove_file(&staging_path).ok();
+                super::google_drive::parse_friendly_error(&e)
+            })?;
+            fs::remove_file(&staging_path).ok();
+            (
+                format!("{}{}", super::google_drive::GDRIVE_PATH_PREFIX, file_id),
+                "google_drive".to_string(),
+            )
+        }
+        _ => {
+            fs::remove_file(&staging_path).ok();
+            return Err("Unsupported backup destination".to_string());
+        }
+    };
+
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+
     let mut stmt = db
         .prepare("INSERT INTO backups (filename, path, destination, size_bytes, sha256, created_by, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
         .map_err(|e| e.to_string())?;
 
     let backup_id = stmt
         .insert(params![
-            filename,
-            backupPath_str,
-            request.destination,
+            filename.clone(),
+            record_path.clone(),
+            destination_value,
             size_bytes,
             sha256,
-            userId,
-            request.notes,
+            userId.clone(),
+            request.notes.clone(),
             "completed"
         ])
         .map_err(|e| e.to_string())?;
 
-    // Create audit log entry
     let audit_metadata = format!(
         "{{\"filename\": \"{}\", \"size_bytes\": {}}}",
         filename, size_bytes
     );
-    let _ = db.execute(
-        "INSERT INTO audit_logs (tableName, row_id, action, userId, metadata) VALUES (?, ?, ?, ?, ?)",
-        params!["backups", backup_id.to_string(), "backup", userId.clone(), audit_metadata]
-    ).map_err(|e| e.to_string())?;
+    crate::db::try_audit_log_metadata(
+        &db,
+        "backups",
+        &backup_id.to_string(),
+        "backup",
+        userId.as_deref(),
+        &audit_metadata,
+    );
 
     Ok(BackupInfo {
         id: Some(backup_id),
         filename,
-        path: backupPath_str,
+        path: record_path,
         destination: request.destination,
         size_bytes: Some(size_bytes),
         sha256,
@@ -381,6 +497,41 @@ pub async fn create_backup(
         status: "completed".to_string(),
         error_message: None,
     })
+}
+
+async fn resolve_backup_to_local_path(
+    backup_path: &str,
+    window: Option<&WebviewWindow>,
+) -> Result<(PathBuf, Option<PathBuf>), String> {
+    if backup_path.starts_with(super::google_drive::GDRIVE_PATH_PREFIX) {
+        let id = backup_path
+            .strip_prefix(super::google_drive::GDRIVE_PATH_PREFIX)
+            .filter(|s| !s.is_empty())
+            .ok_or_else(|| "Invalid Google Drive backup reference".to_string())?;
+        let tmp = std::env::temp_dir().join(format!(
+            "import-manager-gdrive-restore-{}.db",
+            uuid::Uuid::new_v4()
+        ));
+        log::info!(
+            target: "import_manager::restore",
+            "event=gdrive_download_start file_id={}",
+            id
+        );
+        super::google_drive::download_file_by_id(id, &tmp, window)
+            .await
+            .map_err(|e| super::google_drive::parse_friendly_error(&e))?;
+        log::info!(
+            target: "import_manager::restore",
+            "event=gdrive_download_finish path={:?}",
+            tmp
+        );
+        Ok((tmp.clone(), Some(tmp)))
+    } else {
+        if !Path::new(backup_path).exists() {
+            return Err("Backup file does not exist".to_string());
+        }
+        Ok((PathBuf::from(backup_path), None))
+    }
 }
 
 // Get backup history
@@ -454,10 +605,20 @@ pub async fn soft_delete_record(
         .map_err(|e| e.to_string())?;
 
     // Create audit log entry
+    let tn = tableName.as_str();
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?)",
-        params![tableName, record_id, "delete", userId, before_json, "{\"type\": \"soft_delete\"}"]
-    ).map_err(|e| e.to_string())?;
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
+        params![
+            tn,
+            tn,
+            record_id,
+            "delete",
+            userId,
+            before_json,
+            "{\"type\": \"soft_delete\"}"
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -489,10 +650,20 @@ pub async fn hard_delete_record(
         .map_err(|e| e.to_string())?;
 
     // Create audit log entry
+    let tn = tableName.as_str();
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?)",
-        params![tableName, record_id, "hard_delete", userId, before_json, "{\"type\": \"hard_delete\"}"]
-    ).map_err(|e| e.to_string())?;
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
+        params![
+            tn,
+            tn,
+            record_id,
+            "hard_delete",
+            userId,
+            before_json,
+            "{\"type\": \"hard_delete\"}"
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -500,13 +671,13 @@ pub async fn hard_delete_record(
 // Preview restore operation (dry-run)
 #[tauri::command]
 pub async fn preview_restore(
+    window: WebviewWindow,
     db_state: State<'_, DbState>,
     backupPath: String,
 ) -> Result<RestorePreview, String> {
-    // Validate backup file exists
-    if !Path::new(&backupPath).exists() {
-        return Err("Backup file does not exist".to_string());
-    }
+    let (local_path, temp_dl) =
+        resolve_backup_to_local_path(&backupPath, Some(&window)).await?;
+    let _temp_guard = TempFileGuard(temp_dl);
 
     // Get backup info from database
     let backup_info = {
@@ -537,7 +708,7 @@ pub async fn preview_restore(
     let current_stats = get_database_stats(db_state.clone()).await?;
 
     // Check backup file integrity
-    let backup_size = fs::metadata(&backupPath)
+    let backup_size = fs::metadata(&local_path)
         .map(|m| m.len() as i64)
         .unwrap_or(0);
 
@@ -548,14 +719,15 @@ pub async fn preview_restore(
     };
 
     // Check schema compatibility by opening backup database
-    let schema_compatibility = check_schema_compatibility(&backupPath)?;
+    let local_str = local_path.to_string_lossy().to_string();
+    let schema_compatibility = check_schema_compatibility(&local_str)?;
 
     // Estimate changes by comparing table counts
     let mut estimated_changes = HashMap::new();
     let mut warnings = Vec::new();
 
     // Try to get table counts from backup (simplified approach)
-    if let Ok(backup_conn) = Connection::open(&backupPath) {
+    if let Ok(backup_conn) = Connection::open(&local_path) {
         let tables = vec![
             "suppliers",
             "shipments",
@@ -615,210 +787,551 @@ pub async fn preview_restore(
     })
 }
 
+/// Tables copied during restore (must exist in backup for validation).
+const RESTORE_TABLES: &[&str] = &[
+    "suppliers",
+    "shipments",
+    "items",
+    "invoices",
+    "invoice_line_items",
+    "boe_details",
+    "boe_calculations",
+    "service_providers",
+    "expense_types",
+    "expense_invoices",
+    "expenses",
+    "notifications",
+    "audit_logs",
+    "backups",
+];
+
+fn restore_log_ts() -> String {
+    chrono::Local::now()
+        .format("%Y-%m-%d %H:%M:%S%.3f")
+        .to_string()
+}
+
+/// Double-quote a SQLite identifier (escape internal `"` as `""`).
+fn sqlite_double_quote_ident(name: &str) -> String {
+    format!("\"{}\"", name.replace('"', "\"\""))
+}
+
+/// `PRAGMA table_info(table)` for the main / default schema.
+fn pragma_table_info_main(table: &str) -> String {
+    format!("PRAGMA table_info({})", sqlite_double_quote_ident(table))
+}
+
+/// `PRAGMA schema.table_info(table)` for an attached database (NOT `table_info(schema.table)`).
+fn pragma_table_info_attached(schema: &str, table: &str) -> String {
+    format!(
+        "PRAGMA {}.table_info({})",
+        schema,
+        sqlite_double_quote_ident(table)
+    )
+}
+
+/// `PRAGMA index_list(table)` on the main / default schema.
+fn pragma_index_list_main(table: &str) -> String {
+    format!("PRAGMA index_list({})", sqlite_double_quote_ident(table))
+}
+
+/// `PRAGMA schema.index_list(table)` for an attached database.
+fn pragma_index_list_attached(schema: &str, table: &str) -> String {
+    format!(
+        "PRAGMA {}.index_list({})",
+        schema,
+        sqlite_double_quote_ident(table)
+    )
+}
+
+/// Count rows returned by a PRAGMA statement (e.g. `index_list`, `table_info`).
+fn count_pragma_rows(conn: &Connection, pragma_sql: &str) -> Result<usize, String> {
+    let mut stmt = conn
+        .prepare(pragma_sql)
+        .map_err(|e| format!("PRAGMA prepare failed [{}]: {}", pragma_sql, e))?;
+    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+    let mut n = 0usize;
+    while rows.next().map_err(|e| e.to_string())?.is_some() {
+        n += 1;
+    }
+    Ok(n)
+}
+
+/// After data restore, compare index counts between main and attached backup (schema sanity).
+fn log_index_count_comparison(
+    conn: &Connection,
+    backup_schema: &str,
+    tables: &[&str],
+) -> Result<(), String> {
+    for table in tables {
+        let exists: i64 = conn
+            .query_row(
+                &format!(
+                    "SELECT COUNT(*) FROM {}.sqlite_master WHERE type='table' AND name=?",
+                    backup_schema
+                ),
+                params![*table],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        if exists == 0 {
+            continue;
+        }
+
+        let main_sql = pragma_index_list_main(table);
+        let backup_sql = pragma_index_list_attached(backup_schema, table);
+        let n_main = count_pragma_rows(conn, &main_sql)?;
+        let n_backup = count_pragma_rows(conn, &backup_sql)?;
+
+        if n_main != n_backup {
+            log::warn!(
+                target: "import_manager::restore",
+                "[{}] Index count mismatch for `{}`: main={} (via {}) backup={} (via {}) — schema versions may differ",
+                restore_log_ts(),
+                table,
+                n_main,
+                main_sql,
+                n_backup,
+                backup_sql
+            );
+        } else {
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Index count OK for `{}`: {} index(es)",
+                restore_log_ts(),
+                table,
+                n_main
+            );
+        }
+    }
+    Ok(())
+}
+
+fn validate_backup_tables_readonly(backup_path: &Path, tables: &[&str]) -> Result<(), String> {
+    let conn = Connection::open_with_flags(backup_path, OpenFlags::SQLITE_OPEN_READ_ONLY)
+        .map_err(|e| format!("Schema validation: cannot open backup (read-only): {}", e))?;
+    for t in tables {
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+                params![*t],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        if n == 0 {
+            return Err(format!(
+                "Backup schema incompatible: required table `{}` is missing",
+                t
+            ));
+        }
+    }
+    Ok(())
+}
+
+fn validate_main_has_tables(conn: &Connection, tables: &[&str]) -> Result<(), String> {
+    for t in tables {
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+                params![*t],
+                |row| row.get(0),
+            )
+            .unwrap_or(0);
+        if n == 0 {
+            return Err(format!(
+                "Current database missing required table `{}`; aborting restore",
+                t
+            ));
+        }
+    }
+    Ok(())
+}
+
 // Perform actual restore operation
 #[tauri::command]
 pub async fn restore_database(
+    window: WebviewWindow,
     db_state: State<'_, DbState>,
     backupPath: String,
     userId: Option<String>,
 ) -> Result<RestoreResult, String> {
-    // Validate backup file exists
-    if !Path::new(&backupPath).exists() {
-        return Err("Backup file does not exist".to_string());
-    }
+    log::info!(
+        target: "import_manager::restore",
+        "[{}] Restore: command entered backup_path={}",
+        restore_log_ts(),
+        backupPath
+    );
 
-    // Get current database path
-    let current_db_path = {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
-        db.path()
-            .ok_or("Could not get current database path")?
-            .to_string()
-    };
+    crate::restore_control::try_begin_restore()?;
+    crate::restore_control::pause_background_jobs();
+    let session_guard = crate::restore_control::RestoreSessionGuard::new();
 
-    // Create automatic pre-restore backup
-    let pre_restore_backup = create_pre_restore_backup_sync(&current_db_path, userId.clone())?;
+    let outcome: Result<RestoreResult, String> = async {
+        let (local_path, temp_dl) =
+            resolve_backup_to_local_path(&backupPath, Some(&window)).await?;
+        let _temp_guard = TempFileGuard(temp_dl);
 
-    // Perform atomic restore by replacing the database file
-    let temp_path = format!("{}.restore_temp", current_db_path);
+        let local_str = local_path.to_string_lossy().to_string();
 
-    // Copy backup to temporary location
-    fs::copy(&backupPath, &temp_path).map_err(|e| format!("Failed to copy backup: {}", e))?;
+        let current_db_path: PathBuf = {
+            let db = db_state.db.lock().map_err(|e| e.to_string())?;
+            PathBuf::from(db.path().ok_or("Could not get current database path")?)
+        };
 
-    // Verify the copied file
-    let temp_size = fs::metadata(&temp_path).map(|m| m.len()).unwrap_or(0);
-
-    let backup_size = fs::metadata(&backupPath).map(|m| m.len()).unwrap_or(0);
-
-    if temp_size != backup_size {
-        fs::remove_file(&temp_path).ok();
-        return Err("Backup file verification failed".to_string());
-    }
-
-    // Test integrity of the new database
-    let integrity_check = test_database_integrity(&temp_path)?;
-
-    if !integrity_check.contains("ok") {
-        fs::remove_file(&temp_path).ok();
-        return Err(format!(
-            "Database integrity check failed: {}",
-            integrity_check
-        ));
-    }
-
-    // Use SQLite ATTACH DATABASE to restore data without file replacement
-    // This is safer and doesn't require closing the database connection
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
-
-    // Check if backup file is different from current database
-    if let Some(current_db_path) = db.path() {
-        if current_db_path == backupPath {
-            return Err("Cannot restore from the same database file. Please select a different backup file.".to_string());
+        if local_path.as_path() == current_db_path.as_path() {
+            return Err(
+                "Cannot restore from the same database file. Please select a different backup file."
+                    .to_string(),
+            );
         }
-    }
 
-    // Attach the backup database with a unique name to avoid conflicts
-    let backup_db_name = format!("backup_db_{}", chrono::Local::now().timestamp_millis());
-    let attach_sql = format!("ATTACH DATABASE '{}' AS {}", backupPath, backup_db_name);
+        let pre_restore_backup = create_pre_restore_backup_sync(
+            current_db_path.to_string_lossy().as_ref(),
+            userId.clone(),
+        )?;
 
-    // Try to detach any existing backup database first
-    let _ = db.execute(&format!("DETACH DATABASE IF EXISTS {}", backup_db_name), []);
+        let temp_path = format!("{}.restore_temp", current_db_path.display());
+        fs::copy(&local_path, &temp_path).map_err(|e| format!("Failed to copy backup: {}", e))?;
 
-    db.execute(&attach_sql, [])
-        .map_err(|e| {
-            // Provide more helpful error message
-            if e.to_string().contains("database is already in use") {
-                format!("Backup database is already attached. Please try again in a moment, or restart the application if the issue persists.")
-            } else if e.to_string().contains("no such file") {
-                format!("Backup file not found: {}. Please check the file path.", backupPath)
-            } else if e.to_string().contains("not a database") {
-                format!("Invalid backup file: {}. The file is not a valid SQLite database.", backupPath)
-            } else {
-                format!("Failed to attach backup database: {}", e)
-            }
-        })?;
+        let temp_size = fs::metadata(&temp_path).map(|m| m.len()).unwrap_or(0);
+        let backup_size = fs::metadata(&local_path).map(|m| m.len()).unwrap_or(0);
+        if temp_size != backup_size {
+            fs::remove_file(&temp_path).ok();
+            return Err("Backup file verification failed".to_string());
+        }
 
-    // Get list of tables to restore
-    let tables_affected = vec![
-        "suppliers",
-        "shipments",
-        "items",
-        "invoices",
-        "invoice_line_items",
-        "boe_details",
-        "boe_calculations",
-        "service_providers",
-        "expense_types",
-        "expense_invoices",
-        "expenses",
-        "notifications",
-        "audit_logs",
-        "backups",
-    ];
+        let integrity_check = test_database_integrity(&temp_path)?;
+        if !integrity_check.contains("ok") {
+            fs::remove_file(&temp_path).ok();
+            return Err(format!(
+                "Database integrity check failed: {}",
+                integrity_check
+            ));
+        }
 
-    // Begin transaction for atomic restore
-    db.execute("BEGIN TRANSACTION", [])
-        .map_err(|e| format!("Failed to begin transaction: {}", e))?;
+        validate_backup_tables_readonly(&local_path, RESTORE_TABLES)?;
 
-    let mut restored_tables = Vec::new();
+        log::info!(
+            target: "import_manager::restore",
+            "[{}] Schema compatibility pre-check passed",
+            restore_log_ts()
+        );
 
-    for table in &tables_affected {
-        // Check if table exists in backup
-        let table_exists: bool = db
-            .query_row(
-                &format!(
-                    "SELECT COUNT(*) FROM {}.sqlite_master WHERE type='table' AND name=?",
-                    backup_db_name
-                ),
-                params![table],
-                |row| row.get(0),
-            )
-            .unwrap_or(false);
+        log::info!(
+            target: "import_manager::restore",
+            "[{}] Acquiring exclusive DB lock; opening dedicated restore connection",
+            restore_log_ts()
+        );
 
-        if table_exists {
-            // Get column information for both tables
-            let current_columns: Vec<String> = db
-                .prepare(&format!("PRAGMA table_info({})", table))
-                .map_err(|e| e.to_string())?
-                .query_map([], |row| Ok(row.get::<_, String>(1)?))
-                .map_err(|e| e.to_string())?
-                .collect::<Result<Vec<_>, _>>()
+        let restored_table_list: Vec<String> = {
+            let mut main_guard = db_state.db.lock().map_err(|e| e.to_string())?;
+
+            let mut restore_conn = Connection::open(&current_db_path)
+                .map_err(|e| format!("Dedicated restore connection failed: {}", e))?;
+            restore_conn
+                .busy_timeout(Duration::from_secs(60))
                 .map_err(|e| e.to_string())?;
 
-            let backup_columns: Vec<String> = db
-                .prepare(&format!("PRAGMA table_info({}.{})", backup_db_name, table))
-                .map_err(|e| e.to_string())?
-                .query_map([], |row| Ok(row.get::<_, String>(1)?))
-                .map_err(|e| e.to_string())?
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?;
-
-            // Find common columns
-            let common_columns: Vec<String> = current_columns
-                .iter()
-                .filter(|col| backup_columns.contains(col))
-                .cloned()
-                .collect();
-
-            if common_columns.is_empty() {
-                restored_tables.push(format!("{} (skipped - no common columns)", table));
-                continue;
-            }
-
-            // Clear current table
-            let _ = db.execute(&format!("DELETE FROM {}", table), []);
-
-            // Copy data using only common columns
-            let columns_str = common_columns.join(", ");
-            let copy_sql = format!(
-                "INSERT INTO {} ({}) SELECT {} FROM {}.{}",
-                table, columns_str, columns_str, backup_db_name, table
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Restore dedicated connection opened (isolated handle)",
+                restore_log_ts()
             );
 
-            let rows_affected = db
-                .execute(&copy_sql, [])
-                .map_err(|e| format!("Failed to restore table {}: {}", table, e))?;
+            let _ = restore_conn.execute("ROLLBACK", []);
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Restore pre-check rollback executed",
+                restore_log_ts()
+            );
 
-            let skipped_columns = current_columns.len() - common_columns.len();
-            if skipped_columns > 0 {
-                restored_tables.push(format!(
-                    "{} ({} rows, {} columns skipped)",
-                    table, rows_affected, skipped_columns
-                ));
-            } else {
-                restored_tables.push(format!("{} ({} rows)", table, rows_affected));
+            let jm: String = restore_conn
+                .query_row("PRAGMA journal_mode", [], |r| r.get::<_, String>(0))
+                .unwrap_or_default();
+            if jm.eq_ignore_ascii_case("wal") {
+                let _ = restore_conn.execute("PRAGMA wal_checkpoint(TRUNCATE)", []);
+                log::info!(
+                    target: "import_manager::restore",
+                    "[{}] WAL checkpoint completed before restore",
+                    restore_log_ts()
+                );
             }
-        }
+
+            validate_main_has_tables(&restore_conn, RESTORE_TABLES)?;
+
+            let backup_db_name =
+                format!("backup_db_{}", chrono::Local::now().timestamp_millis());
+            let attach_sql = format!("ATTACH DATABASE '{}' AS {}", local_str, backup_db_name);
+            let _ = restore_conn.execute(
+                &format!("DETACH DATABASE IF EXISTS {}", backup_db_name),
+                [],
+            );
+
+            restore_conn.execute(&attach_sql, []).map_err(|e| {
+                if e.to_string().contains("database is already in use") {
+                    "Backup database is already attached. Please try again in a moment, or restart the application if the issue persists.".to_string()
+                } else if e.to_string().contains("no such file") {
+                    format!("Backup file not found: {}. Please check the file path.", local_str)
+                } else if e.to_string().contains("not a database") {
+                    format!(
+                        "Invalid backup file: {}. The file is not a valid SQLite database.",
+                        local_str
+                    )
+                } else {
+                    format!("Failed to attach backup database: {}", e)
+                }
+            })?;
+
+            restore_conn
+                .execute("PRAGMA foreign_keys = OFF", [])
+                .map_err(|e| e.to_string())?;
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Foreign keys disabled",
+                restore_log_ts()
+            );
+
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Restore transaction started (single rusqlite transaction)",
+                restore_log_ts()
+            );
+
+            let copy_result: Result<Vec<String>, String> = {
+                let tx = restore_conn
+                    .transaction()
+                    .map_err(|e| format!("Failed to begin restore transaction: {}", e))?;
+
+                log::info!(
+                    target: "import_manager::restore",
+                    "[{}] Executing restore statements ({} tables)",
+                    restore_log_ts(),
+                    RESTORE_TABLES.len()
+                );
+
+                let mut out = Vec::new();
+                for table in RESTORE_TABLES.iter() {
+                    let table_exists: i64 = tx
+                        .query_row(
+                            &format!(
+                                "SELECT COUNT(*) FROM {}.sqlite_master WHERE type='table' AND name=?",
+                                backup_db_name
+                            ),
+                            params![*table],
+                            |row| row.get(0),
+                        )
+                        .unwrap_or(0);
+
+                    if table_exists == 0 {
+                        continue;
+                    }
+
+                    let pragma_main = pragma_table_info_main(table);
+                    let pragma_backup = pragma_table_info_attached(&backup_db_name, table);
+                    log::info!(
+                        target: "import_manager::restore",
+                        "[{}] Reading schema from backup table: {} | {}",
+                        restore_log_ts(),
+                        table,
+                        pragma_backup
+                    );
+                    log::info!(
+                        target: "import_manager::restore",
+                        "[{}] Reading schema from main table: {} | {}",
+                        restore_log_ts(),
+                        table,
+                        pragma_main
+                    );
+
+                    let current_columns: Vec<String> = tx
+                        .prepare(&pragma_main)
+                        .map_err(|e| e.to_string())?
+                        .query_map([], |row| row.get::<_, String>(1))
+                        .map_err(|e| e.to_string())?
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|e| e.to_string())?;
+
+                    let backup_columns: Vec<String> = tx
+                        .prepare(&pragma_backup)
+                        .map_err(|e| e.to_string())?
+                        .query_map([], |row| row.get::<_, String>(1))
+                        .map_err(|e| e.to_string())?
+                        .collect::<Result<Vec<_>, _>>()
+                        .map_err(|e| e.to_string())?;
+
+                    let common_columns: Vec<String> = current_columns
+                        .iter()
+                        .filter(|col| backup_columns.contains(col))
+                        .cloned()
+                        .collect();
+
+                    if common_columns.is_empty() {
+                        out.push(format!("{} (skipped - no common columns)", table));
+                        continue;
+                    }
+
+                    let table_q = sqlite_double_quote_ident(table);
+                    let _ = tx.execute(&format!("DELETE FROM {}", table_q), []);
+
+                    let columns_str = common_columns.join(", ");
+                    let copy_sql = format!(
+                        "INSERT INTO {} ({}) SELECT {} FROM {}.{}",
+                        table_q, columns_str, columns_str, backup_db_name, table_q
+                    );
+
+                    let rows_affected = tx
+                        .execute(&copy_sql, [])
+                        .map_err(|e| format!("Failed to restore table {}: {}", table, e))?;
+
+                    let skipped_columns = current_columns.len() - common_columns.len();
+                    if skipped_columns > 0 {
+                        out.push(format!(
+                            "{} ({} rows, {} columns skipped)",
+                            table, rows_affected, skipped_columns
+                        ));
+                    } else {
+                        out.push(format!("{} ({} rows)", table, rows_affected));
+                    }
+                }
+
+                tx.commit()
+                    .map_err(|e| format!("Failed to commit restore transaction: {}", e))?;
+                log::info!(
+                    target: "import_manager::restore",
+                    "[{}] Restore committed successfully",
+                    restore_log_ts()
+                );
+                Ok(out)
+            };
+
+            let restored_table_list = match copy_result {
+                Ok(v) => v,
+                Err(e) => {
+                    let _ = restore_conn.execute(
+                        &format!("DETACH DATABASE IF EXISTS {}", backup_db_name),
+                        [],
+                    );
+                    let _ = restore_conn.execute("PRAGMA foreign_keys = ON", []);
+                    log::info!(
+                        target: "import_manager::restore",
+                        "[{}] Foreign keys re-enabled",
+                        restore_log_ts()
+                    );
+                    log::warn!(
+                        target: "import_manager::restore",
+                        "[{}] Restore failed — transaction rolled back",
+                        restore_log_ts()
+                    );
+                    log::warn!(
+                        target: "import_manager::restore",
+                        "[{}] Restore error detail: {}",
+                        restore_log_ts(),
+                        e
+                    );
+                    return Err(e);
+                }
+            };
+
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Validating index counts (main vs backup)",
+                restore_log_ts()
+            );
+            if let Err(e) = log_index_count_comparison(&restore_conn, &backup_db_name, RESTORE_TABLES)
+            {
+                let _ = restore_conn.execute(
+                    &format!("DETACH DATABASE IF EXISTS {}", backup_db_name),
+                    [],
+                );
+                let _ = restore_conn.execute("PRAGMA foreign_keys = ON", []);
+                log::info!(
+                    target: "import_manager::restore",
+                    "[{}] Foreign keys re-enabled",
+                    restore_log_ts()
+                );
+                log::warn!(
+                    target: "import_manager::restore",
+                    "[{}] Index validation failed: {}",
+                    restore_log_ts(),
+                    e
+                );
+                return Err(e);
+            }
+
+            restore_conn
+                .execute(&format!("DETACH DATABASE {}", backup_db_name), [])
+                .map_err(|e| format!("Failed to detach backup database: {}", e))?;
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Backup database detached",
+                restore_log_ts()
+            );
+
+            restore_conn
+                .execute("PRAGMA foreign_keys = ON", [])
+                .map_err(|e| e.to_string())?;
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Foreign keys re-enabled",
+                restore_log_ts()
+            );
+
+            drop(restore_conn);
+
+            *main_guard = Connection::open(&current_db_path)
+                .map_err(|e| format!("Failed to reopen main database after restore: {}", e))?;
+
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Main application connection replaced; no stale page cache",
+                restore_log_ts()
+            );
+
+            restored_table_list
+        };
+
+        fs::remove_file(&temp_path).ok();
+
+        Ok(RestoreResult {
+            success: true,
+            message: format!(
+                "Database restored successfully. Restored tables: {}",
+                restored_table_list.join(", ")
+            ),
+            backup_created: Some(pre_restore_backup),
+            integrity_check,
+            tables_affected: RESTORE_TABLES.iter().map(|s| (*s).to_string()).collect(),
+        })
     }
+    .await;
 
-    // Commit transaction
-    db.execute("COMMIT", [])
-        .map_err(|e| format!("Failed to commit transaction: {}", e))?;
+    std::mem::drop(session_guard);
 
-    // Detach backup database
-    db.execute(&format!("DETACH DATABASE {}", backup_db_name), [])
-        .map_err(|e| format!("Failed to detach backup database: {}", e))?;
-
-    // Create audit log entry
-    let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, action, user_id, metadata) VALUES (?, ?, ?, ?)",
-        params![
-            "database",
-            "restore",
-            userId,
-            format!("{{\"backupPath\": \"{}\", \"pre_restore_backup\": \"{}\", \"restored_tables\": {:?}}}", backupPath, pre_restore_backup, restored_tables)
-        ]
-    ).map_err(|e| e.to_string())?;
-
-    Ok(RestoreResult {
-        success: true,
-        message: format!(
-            "Database restored successfully. Restored tables: {}",
-            restored_tables.join(", ")
-        ),
-        backup_created: Some(pre_restore_backup),
-        integrity_check,
-        tables_affected: tables_affected.into_iter().map(|s| s.to_string()).collect(),
-    })
+    match outcome {
+        Ok(result) => {
+            let restore_meta = format!(
+                "{{\"backupPath\": \"{}\", \"pre_restore_backup\": \"{}\", \"restored_tables\": {:?}}}",
+                backupPath,
+                result.backup_created.as_deref().unwrap_or(""),
+                result.message
+            );
+            let db = db_state.db.lock().map_err(|e| e.to_string())?;
+            crate::db::try_audit_log_no_row(
+                &db,
+                "database",
+                "restore",
+                userId.as_deref(),
+                &restore_meta,
+            );
+            log::info!(
+                target: "import_manager::restore",
+                "[{}] Restore completed successfully",
+                restore_log_ts()
+            );
+            Ok(result)
+        }
+        Err(e) => Err(e),
+    }
 }
 
 // Bulk search with filters
@@ -958,7 +1471,7 @@ pub async fn bulk_delete_records(
     userId: Option<String>,
     delete_type: String, // "soft" or "hard"
 ) -> Result<BulkDeleteResult, String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
 
     // Validate table name
     let valid_tables = vec![
@@ -994,27 +1507,18 @@ pub async fn bulk_delete_records(
     let mut deleted_count = 0;
     let mut failed_deletions = Vec::new();
 
-    // Check if we're already in a transaction by checking the transaction state
-    let in_transaction: bool = db
-        .query_row(
-            "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='sqlite_sequence'",
-            [],
-            |_| Ok(true),
-        )
-        .unwrap_or(false);
+    let _ = db.execute("ROLLBACK", []);
 
-    // Only begin transaction if we're not already in one
-    if !in_transaction {
-        db.execute("BEGIN TRANSACTION", [])
-            .map_err(|e| format!("Failed to begin transaction: {}", e))?;
-    }
+    let tx = db
+        .transaction()
+        .map_err(|e| format!("Failed to begin bulk delete transaction: {}", e))?;
 
     for record_id in &record_ids {
         match delete_type.as_str() {
             "soft" => {
                 // Soft delete
                 let query = format!("UPDATE {} SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ? WHERE id = ? AND deleted_at IS NULL", tableName);
-                let changes = db
+                let changes = tx
                     .execute(&query, params![userId, record_id])
                     .map_err(|e| e.to_string())?;
 
@@ -1022,9 +1526,20 @@ pub async fn bulk_delete_records(
                     deleted_count += 1;
 
                     // Create audit log entry
-                    let _ = db.execute(
-                        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
-                        params![tableName, record_id, "bulk_soft_delete", userId, format!("{{\"type\": \"bulk_soft_delete\", \"batch_size\": {}}}", record_ids.len())]
+                    let tn = tableName.as_str();
+                    let _ = tx.execute(
+                        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
+                        params![
+                            tn,
+                            tn,
+                            record_id,
+                            "bulk_soft_delete",
+                            userId,
+                            format!(
+                                "{{\"type\": \"bulk_soft_delete\", \"batch_size\": {}}}",
+                                record_ids.len()
+                            )
+                        ],
                     );
                 } else {
                     failed_deletions
@@ -1034,7 +1549,7 @@ pub async fn bulk_delete_records(
             "hard" => {
                 // Hard delete
                 let query = format!("DELETE FROM {} WHERE id = ?", tableName);
-                let changes = db
+                let changes = tx
                     .execute(&query, params![record_id])
                     .map_err(|e| e.to_string())?;
 
@@ -1042,9 +1557,20 @@ pub async fn bulk_delete_records(
                     deleted_count += 1;
 
                     // Create audit log entry
-                    let _ = db.execute(
-                        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
-                        params![tableName, record_id, "bulk_hard_delete", userId, format!("{{\"type\": \"bulk_hard_delete\", \"batch_size\": {}}}", record_ids.len())]
+                    let tn = tableName.as_str();
+                    let _ = tx.execute(
+                        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
+                        params![
+                            tn,
+                            tn,
+                            record_id,
+                            "bulk_hard_delete",
+                            userId,
+                            format!(
+                                "{{\"type\": \"bulk_hard_delete\", \"batch_size\": {}}}",
+                                record_ids.len()
+                            )
+                        ],
                     );
                 } else {
                     failed_deletions.push(format!("Record {} not found", record_id));
@@ -1056,11 +1582,8 @@ pub async fn bulk_delete_records(
         }
     }
 
-    // Commit transaction only if we started it
-    if !in_transaction {
-        db.execute("COMMIT", [])
-            .map_err(|e| format!("Failed to commit transaction: {}", e))?;
-    }
+    tx.commit()
+        .map_err(|e| format!("Failed to commit bulk delete transaction: {}", e))?;
 
     Ok(BulkDeleteResult {
         success: deleted_count > 0,
@@ -1085,6 +1608,7 @@ pub struct BulkDeleteResult {
 }
 
 // Backup Schedule Management
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn create_backup_schedule(
     db_state: State<'_, DbState>,
@@ -1093,6 +1617,8 @@ pub async fn create_backup_schedule(
     destination: String,
     retention_count: Option<i32>,
     retention_days: Option<i32>,
+    enabled: Option<bool>,
+    time_zone: Option<String>,
     notes: Option<String>,
     userId: Option<String>,
 ) -> Result<i64, String> {
@@ -1100,25 +1626,48 @@ pub async fn create_backup_schedule(
 
     let retention_count = retention_count.unwrap_or(5);
     let retention_days = retention_days.unwrap_or(30);
+    let enabled = if enabled.unwrap_or(true) { 1 } else { 0 };
+    let tz = time_zone.unwrap_or_else(|| "UTC".to_string());
+    let next_run = compute_next_run_rfc3339(&cron_expr)?;
 
-    let id = db.execute(
-        "INSERT INTO backup_schedules (name, cron_expr, destination, retention_count, retention_days, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        params![name, cron_expr, destination, retention_count, retention_days, notes, userId]
-    ).map_err(|e| e.to_string())?;
+    db.execute(
+        "INSERT INTO backup_schedules (name, cron_expr, time_zone, destination, retention_count, retention_days, enabled, next_run, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        params![
+            name,
+            cron_expr,
+            tz,
+            destination,
+            retention_count,
+            retention_days,
+            enabled,
+            next_run,
+            notes,
+            userId
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let id = db.last_insert_rowid();
 
     // Create audit log entry
+    let t = "backup_schedules";
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
         params![
-            "backup_schedules",
+            t,
+            t,
             id.to_string(),
             "create",
             userId,
-            format!("{{\"type\": \"backup_schedule_created\", \"name\": \"{}\", \"cron_expr\": \"{}\"}}", name, cron_expr)
-        ]
-    ).map_err(|e| e.to_string())?;
+            format!(
+                "{{\"type\": \"backup_schedule_created\", \"name\": \"{}\", \"cron_expr\": \"{}\"}}",
+                name, cron_expr
+            )
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
-    Ok(id as i64)
+    Ok(id)
 }
 
 #[tauri::command]
@@ -1158,6 +1707,7 @@ pub async fn get_backup_schedules(
     Ok(schedules)
 }
 
+#[allow(clippy::too_many_arguments)]
 #[tauri::command]
 pub async fn update_backup_schedule(
     db_state: State<'_, DbState>,
@@ -1168,6 +1718,7 @@ pub async fn update_backup_schedule(
     retention_count: Option<i32>,
     retention_days: Option<i32>,
     enabled: Option<bool>,
+    time_zone: Option<String>,
     notes: Option<String>,
     userId: Option<String>,
 ) -> Result<(), String> {
@@ -1176,6 +1727,7 @@ pub async fn update_backup_schedule(
     // Build dynamic UPDATE query
     let mut set_clauses = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    let recompute_next = cron_expr.is_some();
 
     if let Some(name) = name {
         set_clauses.push("name = ?");
@@ -1200,6 +1752,10 @@ pub async fn update_backup_schedule(
     if let Some(enabled) = enabled {
         set_clauses.push("enabled = ?");
         params.push(Box::new(enabled as i32));
+    }
+    if let Some(tz) = time_zone {
+        set_clauses.push("time_zone = ?");
+        params.push(Box::new(tz));
     }
     if let Some(notes) = notes {
         set_clauses.push("notes = ?");
@@ -1226,17 +1782,41 @@ pub async fn update_backup_schedule(
         return Err("Schedule not found".to_string());
     }
 
+    if recompute_next {
+        let cron_row: Option<String> = db
+            .query_row(
+                "SELECT cron_expr FROM backup_schedules WHERE id = ?",
+                params![schedule_id],
+                |row| row.get(0),
+            )
+            .ok();
+        if let Some(expr) = cron_row {
+            if let Ok(next) = compute_next_run_rfc3339(&expr) {
+                let _ = db.execute(
+                    "UPDATE backup_schedules SET next_run = ? WHERE id = ?",
+                    params![next, schedule_id],
+                );
+            }
+        }
+    }
+
     // Create audit log entry
+    let t = "backup_schedules";
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
         params![
-            "backup_schedules",
+            t,
+            t,
             schedule_id.to_string(),
             "update",
             userId,
-            format!("{{\"type\": \"backup_schedule_updated\", \"fields_updated\": {:?}}}", set_clauses)
-        ]
-    ).map_err(|e| e.to_string())?;
+            format!(
+                "{{\"type\": \"backup_schedule_updated\", \"fields_updated\": {:?}}}",
+                set_clauses
+            )
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -1270,16 +1850,22 @@ pub async fn delete_backup_schedule(
     }
 
     // Create audit log entry
+    let t = "backup_schedules";
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
         params![
-            "backup_schedules",
+            t,
+            t,
             schedule_id.to_string(),
             "delete",
             userId,
-            format!("{{\"type\": \"backup_schedule_deleted\", \"name\": \"{}\"}}", schedule_name)
-        ]
-    ).map_err(|e| e.to_string())?;
+            format!(
+                "{{\"type\": \"backup_schedule_deleted\", \"name\": \"{}\"}}",
+                schedule_name
+            )
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -1331,27 +1917,48 @@ pub async fn run_scheduled_backup(
     let backup_info =
         create_backup_internal(db_state.clone(), backup_request, userId.clone()).await?;
 
-    // Update schedule's last_run
+    let cron_for_next = schedule
+        .cron_expr
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty());
+
+    // Update schedule last_run and next_run (from cron)
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
-        let _ = db
-            .execute(
+        if let Some(expr) = cron_for_next {
+            if let Ok(next_run) = compute_next_run_rfc3339(expr) {
+                let _ = db.execute(
+                    "UPDATE backup_schedules SET last_run = CURRENT_TIMESTAMP, next_run = ? WHERE id = ?",
+                    params![next_run, schedule_id],
+                );
+            } else {
+                let _ = db.execute(
+                    "UPDATE backup_schedules SET last_run = CURRENT_TIMESTAMP WHERE id = ?",
+                    params![schedule_id],
+                );
+            }
+        } else {
+            let _ = db.execute(
                 "UPDATE backup_schedules SET last_run = CURRENT_TIMESTAMP WHERE id = ?",
                 params![schedule_id],
-            )
-            .map_err(|e| e.to_string())?;
+            );
+        }
 
-        // Create audit log entry
-        let _ = db.execute(
-            "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
-            params![
-                "backup_schedules",
-                schedule_id.to_string(),
-                "run",
-                userId,
-                format!("{{\"type\": \"scheduled_backup_run\", \"backup_id\": {}, \"schedule_name\": \"{}\"}}", backup_info.id.unwrap_or(0), schedule.name)
-            ]
-        ).map_err(|e| e.to_string())?;
+        // Create audit log entry (best-effort — never fail the scheduled backup)
+        let meta = format!(
+            "{{\"type\": \"scheduled_backup_run\", \"backup_id\": {}, \"schedule_name\": \"{}\"}}",
+            backup_info.id.unwrap_or(0),
+            schedule.name
+        );
+        crate::db::try_audit_log_metadata(
+            &db,
+            "backup_schedules",
+            &schedule_id.to_string(),
+            "run",
+            userId.as_deref(),
+            &meta,
+        );
     }
 
     Ok(backup_info)
@@ -1385,16 +1992,22 @@ pub async fn create_user_role(
         .map_err(|e| e.to_string())?;
 
     // Create audit log entry
+    let t = "user_roles";
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
         params![
-            "user_roles",
+            t,
+            t,
             id.to_string(),
             "create",
             created_by,
-            format!("{{\"type\": \"user_role_created\", \"user_id\": \"{}\", \"role\": \"{}\"}}", userId, role)
-        ]
-    ).map_err(|e| e.to_string())?;
+            format!(
+                "{{\"type\": \"user_role_created\", \"user_id\": \"{}\", \"role\": \"{}\"}}",
+                userId, role
+            )
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(id as i64)
 }
@@ -1480,16 +2093,22 @@ pub async fn update_user_role(
     }
 
     // Create audit log entry
+    let t = "user_roles";
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
         params![
-            "user_roles",
+            t,
+            t,
             role_id.to_string(),
             "update",
             updated_by,
-            format!("{{\"type\": \"user_role_updated\", \"fields_updated\": {:?}}}", set_clauses)
-        ]
-    ).map_err(|e| e.to_string())?;
+            format!(
+                "{{\"type\": \"user_role_updated\", \"fields_updated\": {:?}}}",
+                set_clauses
+            )
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -1520,16 +2139,22 @@ pub async fn delete_user_role(
     }
 
     // Create audit log entry
+    let t = "user_roles";
     let _ = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?)",
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
         params![
-            "user_roles",
+            t,
+            t,
             role_id.to_string(),
             "delete",
             deleted_by,
-            format!("{{\"type\": \"user_role_deleted\", \"user_id\": \"{}\", \"role\": \"{}\"}}", user_id, role)
-        ]
-    ).map_err(|e| e.to_string())?;
+            format!(
+                "{{\"type\": \"user_role_deleted\", \"user_id\": \"{}\", \"role\": \"{}\"}}",
+                user_id, role
+            )
+        ],
+    )
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
@@ -1554,19 +2179,13 @@ pub async fn check_user_permission(
     // Check role-based permissions
     let has_permission = match role.as_str() {
         "admin" => true, // Admin has all permissions
-        "db_manager" => match permission.as_str() {
+        "db_manager" => matches!(
+            permission.as_str(),
             "backup.create" | "backup.restore" | "backup.schedule" | "data.browse"
-            | "data.edit" | "data.delete" | "audit.view" => true,
-            _ => false,
-        },
-        "user" => match permission.as_str() {
-            "data.browse" | "data.edit" => true,
-            _ => false,
-        },
-        "viewer" => match permission.as_str() {
-            "data.browse" | "audit.view" => true,
-            _ => false,
-        },
+                | "data.edit" | "data.delete" | "audit.view"
+        ),
+        "user" => matches!(permission.as_str(), "data.browse" | "data.edit"),
+        "viewer" => matches!(permission.as_str(), "data.browse" | "audit.view"),
         _ => false,
     };
 
@@ -1629,34 +2248,13 @@ pub struct UserRole {
     pub updated_at: String,
 }
 
-// Helper function to create backup (internal)
+// Helper function to create backup (internal — used by scheduled backups)
 async fn create_backup_internal(
-    _db_state: State<'_, DbState>,
+    db_state: State<'_, DbState>,
     request: BackupRequest,
     userId: Option<String>,
 ) -> Result<BackupInfo, String> {
-    // This is a simplified version of the create_backup function
-    // In a real implementation, you'd call the existing create_backup function
-    // For now, we'll create a basic backup info structure
-
-    let now = chrono::Local::now();
-    let timestamp = now.format("%Y%m%d_%H%M%S").to_string();
-    let filename = format!("backup_{}.db", timestamp);
-
-    Ok(BackupInfo {
-        id: Some(1), // This would be the actual backup ID
-        filename,
-        path: "".to_string(),
-        destination: request.destination,
-        size_bytes: Some(0),
-        sha256: None,
-        created_by: userId,
-        created_at: now.to_rfc3339(),
-        retention_until: None,
-        notes: request.notes,
-        status: "completed".to_string(),
-        error_message: None,
-    })
+    create_backup_impl(db_state, request, userId, None).await
 }
 
 // Helper function to create pre-restore backup (sync version)
@@ -1759,10 +2357,10 @@ pub async fn browse_table_data(
 
     // Get table columns
     let columns: Vec<String> = db
-        .prepare(&format!("PRAGMA table_info({})", tableName))
+        .prepare(&pragma_table_info_main(&tableName))
         .map_err(|e| e.to_string())?
         .query_map([], |row| {
-            Ok(row.get::<_, String>(1)?) // column name
+            row.get::<_, String>(1) // column name
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
@@ -1771,12 +2369,10 @@ pub async fn browse_table_data(
     // Build WHERE clause for soft delete
     let where_clause = if include_deleted {
         "".to_string()
+    } else if columns.contains(&"deleted_at".to_string()) {
+        " WHERE deleted_at IS NULL".to_string()
     } else {
-        if columns.contains(&"deleted_at".to_string()) {
-            " WHERE deleted_at IS NULL".to_string()
-        } else {
-            "".to_string()
-        }
+        "".to_string()
     };
 
     // Get total count
@@ -1925,24 +2521,28 @@ pub async fn update_record(
     let updated_record = get_record_data(&db, &request.tableName, &request.record_id)?;
 
     // Create audit log entry
-    let audit_id = db.execute(
-        "INSERT INTO audit_logs (table_name, row_id, action, user_id, before_json, after_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)",
+    let tn = request.tableName.as_str();
+    let _ = db.execute(
+        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, after_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"#,
         params![
-            request.tableName,
+            tn,
+            tn,
             request.record_id,
             "update",
             request.userId,
             serde_json::to_string(&current_record).unwrap_or_default(),
             serde_json::to_string(&updated_record).unwrap_or_default(),
             serde_json::to_string(&request.updates).unwrap_or_default()
-        ]
-    ).map_err(|e| e.to_string())?;
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    let audit_id = db.last_insert_rowid();
 
     Ok(UpdateResult {
         success: true,
         message: "Record updated successfully".to_string(),
         changes: request.updates,
-        audit_id: Some(audit_id as i64),
+        audit_id: Some(audit_id),
     })
 }
 
@@ -1988,10 +2588,10 @@ fn get_record_data(
 // Helper function to get table columns
 fn get_table_columns(db: &Connection, tableName: &str) -> Result<Vec<String>, String> {
     let columns: Vec<String> = db
-        .prepare(&format!("PRAGMA table_info({})", tableName))
+        .prepare(&pragma_table_info_main(tableName))
         .map_err(|e| e.to_string())?
         .query_map([], |row| {
-            Ok(row.get::<_, String>(1)?) // column name
+            row.get::<_, String>(1) // column name
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
@@ -2009,4 +2609,152 @@ fn test_database_integrity(db_path: &str) -> Result<String, String> {
         .map_err(|e| format!("Integrity check failed: {}", e))?;
 
     Ok(result)
+}
+
+#[cfg(test)]
+mod restore_validation_tests {
+    use super::*;
+    use std::fs;
+
+    fn unique_test_db(name: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("im_restore_{}_{}.db", name, nanos))
+    }
+
+    #[test]
+    fn sqlite_double_quote_ident_escapes_quotes() {
+        assert_eq!(sqlite_double_quote_ident("suppliers"), "\"suppliers\"");
+        assert_eq!(sqlite_double_quote_ident("a\"b"), "\"a\"\"b\"");
+        assert_eq!(sqlite_double_quote_ident("order"), "\"order\"");
+    }
+
+    #[test]
+    fn pragma_table_info_attached_uses_schema_dot_form() {
+        let s = pragma_table_info_attached("backup_db_123", "suppliers");
+        assert_eq!(s, "PRAGMA backup_db_123.table_info(\"suppliers\")");
+        assert!(
+            !s.contains("table_info(backup_db"),
+            "must not use invalid table_info(backup.x) form: {}",
+            s
+        );
+    }
+
+    #[test]
+    fn pragma_index_list_attached_uses_schema_dot_form() {
+        let s = pragma_index_list_attached("backup_db_123", "invoice_line_items");
+        assert_eq!(
+            s,
+            "PRAGMA backup_db_123.index_list(\"invoice_line_items\")"
+        );
+    }
+
+    #[test]
+    fn pragma_preserves_uppercase_and_underscore_table_names() {
+        assert_eq!(
+            pragma_table_info_attached("backup_db_1", "MY_TABLE"),
+            "PRAGMA backup_db_1.table_info(\"MY_TABLE\")"
+        );
+        assert_eq!(
+            pragma_table_info_attached("backup_db_1", "order"),
+            "PRAGMA backup_db_1.table_info(\"order\")"
+        );
+    }
+
+    #[test]
+    fn index_counts_match_for_identical_schema() {
+        let main_path = unique_test_db("main");
+        let backup_path = unique_test_db("bak");
+        {
+            let conn = Connection::open(&main_path).unwrap();
+            conn.execute_batch(
+                r#"
+                CREATE TABLE parent (id INTEGER PRIMARY KEY);
+                CREATE TABLE child (id INTEGER PRIMARY KEY, pid INTEGER REFERENCES parent(id));
+                CREATE INDEX idx_child_pid ON child(pid);
+                INSERT INTO parent VALUES (1);
+                INSERT INTO child VALUES (1, 1);
+                "#,
+            )
+            .unwrap();
+        }
+        fs::copy(&main_path, &backup_path).unwrap();
+
+        let conn = Connection::open(&main_path).unwrap();
+        let alias = "bkp";
+        conn.execute(
+            &format!(
+                "ATTACH DATABASE '{}' AS {}",
+                backup_path.to_string_lossy(),
+                alias
+            ),
+            [],
+        )
+        .unwrap();
+
+        for table in ["parent", "child"] {
+            let m = count_pragma_rows(&conn, &pragma_index_list_main(table)).unwrap();
+            let b = count_pragma_rows(&conn, &pragma_index_list_attached(alias, table)).unwrap();
+            assert_eq!(m, b, "index count for {}", table);
+        }
+        conn.execute(&format!("DETACH DATABASE {}", alias), []).unwrap();
+        drop(conn);
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&backup_path);
+    }
+
+    #[test]
+    fn repeated_attach_detach_no_error() {
+        let main_path = unique_test_db("loop");
+        {
+            let conn = Connection::open(&main_path).unwrap();
+            conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY)", [])
+                .unwrap();
+        }
+        let backup_path = unique_test_db("loop_bak");
+        fs::copy(&main_path, &backup_path).unwrap();
+
+        for _ in 0..10 {
+            let conn = Connection::open(&main_path).unwrap();
+            let alias = "bkp";
+            conn.execute(
+                &format!(
+                    "ATTACH DATABASE '{}' AS {}",
+                    backup_path.to_string_lossy(),
+                    alias
+                ),
+                [],
+            )
+            .unwrap();
+            let n = count_pragma_rows(&conn, &pragma_table_info_attached(alias, "t")).unwrap();
+            assert!(n >= 1);
+            conn.execute(&format!("DETACH DATABASE {}", alias), []).unwrap();
+            drop(conn);
+        }
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&backup_path);
+    }
+
+    #[test]
+    fn invalid_file_fails_integrity_or_open() {
+        let bad = unique_test_db("bad");
+        fs::write(&bad, b"not a sqlite database file").unwrap();
+        let r = test_database_integrity(bad.to_string_lossy().as_ref());
+        let _ = fs::remove_file(&bad);
+        assert!(r.is_err() || !r.unwrap().to_lowercase().contains("ok"));
+    }
+
+    #[test]
+    fn validate_backup_missing_table_errors() {
+        let p = unique_test_db("empty");
+        {
+            let conn = Connection::open(&p).unwrap();
+            conn.execute("CREATE TABLE only_one (x INTEGER)", []).unwrap();
+        }
+        let err = validate_backup_tables_readonly(&p, &["only_one", "missing_table"]).unwrap_err();
+        assert!(err.contains("missing_table"));
+        let _ = fs::remove_file(&p);
+    }
 }

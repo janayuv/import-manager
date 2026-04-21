@@ -2,12 +2,18 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default permissions for the application.",
-  "windows": ["main"],
+  "local": true,
+  "windows": ["*"],
+  "webviews": ["*"],
+  "remote": {
+    "urls": ["http://localhost:*", "http://127.0.0.1:*", "tauri://localhost"]
+  },
   "permissions": [
     "core:default",
+    "dialog:default",
+    "dialog:allow-message",
     "dialog:allow-open",
     "dialog:allow-save",
-    "dialog:allow-confirm",
     "fs:read-all",
     "fs:write-all",
     "fs:allow-exists",
@@ -16,11 +22,11 @@
 
     {
       "identifier": "fs:allow-write-text-file",
-      "allow": [{ "path": "$DOWNLOAD/*" }]
+      "allow": [{ "path": "$HOME/**" }]
     },
     {
       "identifier": "fs:allow-read-text-file",
-      "allow": [{ "path": "$DOWNLOAD/*" }]
+      "allow": [{ "path": "$HOME/**" }]
     }
   ]
 }

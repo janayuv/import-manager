@@ -59,7 +59,8 @@ pub struct Shipment {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Item {
-    pub id: String,
+    /// Present when loaded from DB or when editing; omitted for new items (server assigns id).
+    pub id: Option<String>,
     pub part_number: String,
     pub item_description: String,
     pub unit: String,
@@ -87,6 +88,10 @@ pub struct InvoiceLineItem {
     pub item_id: String,
     pub quantity: f64,
     pub unit_price: f64,
+    /// Snapshot of Item Master BCD (duty) % at invoice time; editable per line.
+    pub duty_percent: f64,
+    pub sws_percent: f64,
+    pub igst_percent: f64,
 }
 
 #[derive(Debug, serde::Serialize, Clone)]
@@ -117,6 +122,12 @@ pub struct NewInvoiceLineItemPayload {
     pub item_id: String,
     pub quantity: f64,
     pub unit_price: f64,
+    #[serde(default)]
+    pub duty_percent: Option<f64>,
+    #[serde(default)]
+    pub sws_percent: Option<f64>,
+    #[serde(default)]
+    pub igst_percent: Option<f64>,
 }
 
 // --- BOE STRUCTS ---
@@ -405,6 +416,87 @@ pub struct ExpenseWithInvoice {
 
 pub struct DbState {
     pub db: Mutex<Connection>,
+}
+
+/// Ensures `audit_logs` has a `"tableName"` column (IPC alias); backfills from `table_name`. Idempotent.
+pub fn ensure_audit_logs_table_name_column(conn: &Connection) -> Result<(), rusqlite::Error> {
+    let mut stmt = conn.prepare("PRAGMA table_info(audit_logs)")?;
+    let names: Vec<String> = stmt
+        .query_map([], |row| row.get::<_, String>(1))?
+        .collect::<Result<Vec<_>, _>>()?;
+    if names.iter().any(|n| n.eq_ignore_ascii_case("tableName")) {
+        return Ok(());
+    }
+    conn.execute(
+        r#"ALTER TABLE audit_logs ADD COLUMN "tableName" TEXT"#,
+        [],
+    )?;
+    conn.execute(
+        r#"UPDATE audit_logs SET "tableName" = table_name WHERE "tableName" IS NULL"#,
+        [],
+    )?;
+    log::info!(
+        target: "import_manager::audit",
+        "Audit log migration executed: tableName column added"
+    );
+    Ok(())
+}
+
+/// Inserts `table_name` + `"tableName"` (same value). Failure only logs — does not fail the caller.
+pub fn try_audit_log_metadata(
+    conn: &Connection,
+    table: &str,
+    row_id: &str,
+    action: &str,
+    user_id: Option<&str>,
+    metadata: &str,
+) {
+    if crate::restore_control::background_jobs_paused() {
+        log::debug!(
+            target: "import_manager::audit",
+            "audit log skipped (background jobs paused)"
+        );
+        return;
+    }
+    let sql = r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#;
+    if let Err(e) = conn.execute(
+        sql,
+        rusqlite::params![table, table, row_id, action, user_id, metadata],
+    ) {
+        log::warn!(
+            target: "import_manager::audit",
+            "audit log insert skipped (operation continues): {}",
+            e
+        );
+    }
+}
+
+/// Same as [`try_audit_log_metadata`] but no `row_id` (e.g. database-wide restore).
+pub fn try_audit_log_no_row(
+    conn: &Connection,
+    table: &str,
+    action: &str,
+    user_id: Option<&str>,
+    metadata: &str,
+) {
+    if crate::restore_control::background_jobs_paused() {
+        log::debug!(
+            target: "import_manager::audit",
+            "audit log skipped (background jobs paused)"
+        );
+        return;
+    }
+    let sql = r#"INSERT INTO audit_logs (table_name, "tableName", action, user_id, metadata) VALUES (?, ?, ?, ?, ?)"#;
+    if let Err(e) = conn.execute(
+        sql,
+        rusqlite::params![table, table, action, user_id, metadata],
+    ) {
+        log::warn!(
+            target: "import_manager::audit",
+            "audit log insert skipped (operation continues): {}",
+            e
+        );
+    }
 }
 
 /// Create a new SQLite database file and apply baseline `init_schema`.

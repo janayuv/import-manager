@@ -801,12 +801,12 @@ impl ExpenseService {
         conn: &Connection,
         filters: &ExpenseReportFilters,
     ) -> Result<ExpenseReportResponse, ExpenseError> {
-        println!(
+        log::debug!(
             "🔍 [DEBUG] Generating expense report with filters: {:?}",
             filters
         );
-        println!("🔍 [DEBUG] Filter values breakdown:");
-        println!(
+        log::debug!("🔍 [DEBUG] Filter values breakdown:");
+        log::debug!(
             "  - shipment_id: {:?} (type: {})",
             filters.shipment_id,
             if filters.shipment_id.is_some() {
@@ -815,7 +815,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - service_provider_id: {:?} (type: {})",
             filters.service_provider_id,
             if filters.service_provider_id.is_some() {
@@ -824,7 +824,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - expense_type_id: {:?} (type: {})",
             filters.expense_type_id,
             if filters.expense_type_id.is_some() {
@@ -833,7 +833,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - date_from: {:?} (type: {})",
             filters.date_from,
             if filters.date_from.is_some() {
@@ -842,7 +842,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - date_to: {:?} (type: {})",
             filters.date_to,
             if filters.date_to.is_some() {
@@ -851,7 +851,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - currency: {:?} (type: {})",
             filters.currency,
             if filters.currency.is_some() {
@@ -860,7 +860,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - min_amount: {:?} (type: {})",
             filters.min_amount,
             if filters.min_amount.is_some() {
@@ -869,7 +869,7 @@ impl ExpenseService {
                 "None"
             }
         );
-        println!(
+        log::debug!(
             "  - max_amount: {:?} (type: {})",
             filters.max_amount,
             if filters.max_amount.is_some() {
@@ -899,8 +899,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
-            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            log::debug!(
                 "🔍 [DEBUG] Date from type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -909,8 +909,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_to) = filters.date_to {
-            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            log::debug!(
                 "🔍 [DEBUG] Date to type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -947,8 +947,8 @@ impl ExpenseService {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
-        println!("🔍 [DEBUG] Where clause: {}", where_clause);
-        println!("🔍 [DEBUG] Number of parameters: {}", params.len());
+        log::debug!("🔍 [DEBUG] Where clause: {}", where_clause);
+        log::debug!("🔍 [DEBUG] Number of parameters: {}", params.len());
 
         // Build the main query - handle both old and new data formats robustly
         let query = format!(
@@ -1026,28 +1026,6 @@ impl ExpenseService {
             let row = row?;
             row_count += 1;
 
-            println!("🔍 [DEBUG] Row {}: invoice_date={}, amount_paise={}, cgst_paise={}, invoice_number={}",
-                row_count, row.invoice_date, row.amount_paise, row.cgst_amount_paise, row.invoice_number);
-
-            // Debug: Check if the date is within the filter range
-            if let Some(ref date_from) = filters.date_from {
-                if let Some(ref date_to) = filters.date_to {
-                    println!(
-                        "🔍 [DEBUG] Date comparison: row_date='{}', date_from='{}', date_to='{}'",
-                        row.invoice_date, date_from, date_to
-                    );
-                    println!(
-                        "🔍 [DEBUG] Date comparison result: '{}' >= '{}' = {}, '{}' <= '{}' = {}",
-                        row.invoice_date,
-                        date_from,
-                        row.invoice_date.as_str() >= date_from.as_str(),
-                        row.invoice_date,
-                        date_to,
-                        row.invoice_date.as_str() <= date_to.as_str()
-                    );
-                }
-            }
-
             totals.total_amount_paise += row.amount_paise;
             totals.total_cgst_amount_paise += row.cgst_amount_paise;
             totals.total_sgst_amount_paise += row.sgst_amount_paise;
@@ -1064,8 +1042,8 @@ impl ExpenseService {
             report_rows.push(row);
         }
 
-        println!("🔍 [DEBUG] Total rows processed: {}", row_count);
-        println!(
+        log::debug!("🔍 [DEBUG] Total rows processed: {}", row_count);
+        log::debug!(
             "🔍 [DEBUG] Final totals: amount_paise={}, cgst_paise={}, line_count={}",
             totals.total_amount_paise, totals.total_cgst_amount_paise, totals.expense_line_count
         );
@@ -1102,8 +1080,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
-            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            log::debug!(
                 "🔍 [DEBUG] Date from type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1112,8 +1090,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_to) = filters.date_to {
-            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            log::debug!(
                 "🔍 [DEBUG] Date to type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1209,8 +1187,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
-            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            log::debug!(
                 "🔍 [DEBUG] Date from type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1219,8 +1197,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_to) = filters.date_to {
-            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            log::debug!(
                 "🔍 [DEBUG] Date to type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1301,8 +1279,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
-            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            log::debug!(
                 "🔍 [DEBUG] Date from type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1311,8 +1289,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_to) = filters.date_to {
-            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            log::debug!(
                 "🔍 [DEBUG] Date to type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1398,8 +1376,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_from) = filters.date_from {
-            println!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_from filter: {}", date_from);
+            log::debug!(
                 "🔍 [DEBUG] Date from type: {:?}",
                 std::any::type_name::<String>()
             );
@@ -1408,8 +1386,8 @@ impl ExpenseService {
         }
 
         if let Some(ref date_to) = filters.date_to {
-            println!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
-            println!(
+            log::debug!("🔍 [DEBUG] Adding date_to filter: {}", date_to);
+            log::debug!(
                 "🔍 [DEBUG] Date to type: {:?}",
                 std::any::type_name::<String>()
             );

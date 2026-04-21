@@ -31,6 +31,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { formatDateForInput, formatDateForDisplay } from '@/lib/date-format';
+import { invoiceTaxSnapshotFromItem } from '@/lib/parse-percentage';
 import {
   parseMultiLinePaste,
   type ParsedPasteLine,
@@ -417,6 +418,7 @@ export function InvoiceWizard({
         partNumber: matched.partNumber,
         quantity: p.quantity || 0,
         unitPrice: p.unitPrice ?? matched.unitPrice ?? 0,
+        ...invoiceTaxSnapshotFromItem(matched),
       });
     });
 
@@ -439,6 +441,36 @@ export function InvoiceWizard({
   ) => {
     setLines(prev =>
       prev.map(l => (l.id === id ? { ...l, [field]: value } : l))
+    );
+  };
+
+  const handleLineItemIdChange = (lineId: string, itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    setLines(prev =>
+      prev.map(l => {
+        if (l.id !== lineId) return l;
+        if (!item) {
+          return {
+            ...l,
+            itemId,
+            dutyPercent: 0,
+            swsPercent: 0,
+            igstPercent: 0,
+          };
+        }
+        const snap = invoiceTaxSnapshotFromItem(item);
+        return {
+          ...l,
+          itemId,
+          dutyPercent: snap.dutyPercent,
+          swsPercent: snap.swsPercent,
+          igstPercent: snap.igstPercent,
+          unitPrice:
+            l.unitPrice !== undefined && l.unitPrice !== 0
+              ? l.unitPrice
+              : item.unitPrice,
+        };
+      })
     );
   };
 
@@ -537,6 +569,9 @@ export function InvoiceWizard({
         itemId: l.itemId,
         quantity: l.quantity,
         unitPrice: l.unitPrice,
+        dutyPercent: l.dutyPercent,
+        swsPercent: l.swsPercent,
+        igstPercent: l.igstPercent,
       })),
     };
 
@@ -910,17 +945,40 @@ export function InvoiceWizard({
               </div>
             </div>
 
-            <div className="rounded border">
-              <Table>
+            <div className="max-h-[min(22rem,45vh)] overflow-auto rounded border">
+              <Table className="min-w-[1180px] table-fixed">
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[200px]">Part No</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead className="w-[80px]">Unit</TableHead>
-                    <TableHead className="w-[100px]">Qty</TableHead>
-                    <TableHead className="w-[120px]">Unit Price</TableHead>
-                    <TableHead className="w-[120px]">Total</TableHead>
-                    <TableHead className="w-[50px]">Action</TableHead>
+                    <TableHead className="w-[168px] min-w-[168px] px-2">
+                      Part No
+                    </TableHead>
+                    <TableHead className="w-[220px] min-w-[220px] px-2">
+                      Description
+                    </TableHead>
+                    <TableHead className="w-[72px] min-w-[72px] px-2">
+                      Unit
+                    </TableHead>
+                    <TableHead className="w-[112px] min-w-[112px] px-2">
+                      Qty
+                    </TableHead>
+                    <TableHead className="w-[128px] min-w-[128px] px-2">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                      Duty %
+                    </TableHead>
+                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                      SWS %
+                    </TableHead>
+                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                      IGST %
+                    </TableHead>
+                    <TableHead className="w-[140px] min-w-[140px] px-2">
+                      Total
+                    </TableHead>
+                    <TableHead className="w-[52px] min-w-[52px] px-1">
+                      Action
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -928,18 +986,25 @@ export function InvoiceWizard({
                     const item = items.find(i => i.id === line.itemId);
                     return (
                       <TableRow key={line.id}>
-                        <TableCell>
+                        <TableCell className="px-2 align-top">
                           <Combobox
                             options={itemIdOptions}
                             value={line.itemId}
-                            onChange={v => updateLine(line.id, 'itemId', v)}
+                            onChange={v => handleLineItemIdChange(line.id, v)}
                             placeholder="Select part"
                             disabled={!header.supplierId}
                           />
                         </TableCell>
-                        <TableCell>{item?.itemDescription || '-'}</TableCell>
-                        <TableCell>{item?.unit || '-'}</TableCell>
-                        <TableCell>
+                        <TableCell
+                          className="max-w-[220px] truncate px-2 align-top text-sm"
+                          title={item?.itemDescription || undefined}
+                        >
+                          {item?.itemDescription || '-'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap px-2 align-top text-sm">
+                          {item?.unit || '-'}
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
                           <Input
                             type="number"
                             value={line.quantity}
@@ -950,16 +1015,17 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
+                            className="h-9 min-w-[5.5rem] font-mono tabular-nums"
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-2 align-top">
                           {(() => {
                             const item = items.find(i => i.id === line.itemId);
                             const hasPriceDifference =
                               item && line.unitPrice !== item.unitPrice;
 
                             return (
-                              <div className="flex items-center gap-1">
+                              <div className="flex min-w-0 items-center gap-1">
                                 <Input
                                   type="number"
                                   value={line.unitPrice}
@@ -970,9 +1036,7 @@ export function InvoiceWizard({
                                       parseFloat(e.target.value) || 0
                                     )
                                   }
-                                  className={
-                                    hasPriceDifference ? 'border-warning' : ''
-                                  }
+                                  className={`h-9 min-w-[6rem] shrink-0 font-mono tabular-nums ${hasPriceDifference ? 'border-warning' : ''}`}
                                 />
                                 {hasPriceDifference && (
                                   <Tooltip>
@@ -1013,15 +1077,61 @@ export function InvoiceWizard({
                             );
                           })()}
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={line.dutyPercent ?? 0}
+                            onChange={e =>
+                              updateLine(
+                                line.id,
+                                'dutyPercent',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={line.swsPercent ?? 0}
+                            onChange={e =>
+                              updateLine(
+                                line.id,
+                                'swsPercent',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={line.igstPercent ?? 0}
+                            onChange={e =>
+                              updateLine(
+                                line.id,
+                                'igstPercent',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
                           <Input
                             value={(
                               (line.quantity || 0) * (line.unitPrice || 0)
                             ).toFixed(2)}
                             readOnly
+                            className="bg-muted h-9 min-w-[7rem] font-mono text-sm tabular-nums"
                           />
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="px-1 align-top">
                           <Button
                             variant="default"
                             useAccentColor
@@ -1098,6 +1208,9 @@ export function InvoiceWizard({
                             itemId: l.itemId,
                             quantity: l.quantity,
                             unitPrice: l.unitPrice,
+                            dutyPercent: l.dutyPercent,
+                            swsPercent: l.swsPercent,
+                            igstPercent: l.igstPercent,
                           })),
                         },
                       });

@@ -38,6 +38,8 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { invoiceTaxSnapshotFromItem } from '@/lib/parse-percentage';
+import { cn } from '@/lib/utils';
 import type { Invoice, InvoiceLineItem } from '@/types/invoice';
 import type { Item } from '@/types/item';
 import type { Shipment } from '@/types/shipment';
@@ -72,6 +74,8 @@ interface InvoiceFormProps {
   shipments: Shipment[];
   items: Item[];
   invoiceToEdit?: Invoice | null;
+  presentation?: 'dialog' | 'page';
+  className?: string;
 }
 
 export const InvoiceForm: React.FC<InvoiceFormProps> = ({
@@ -81,6 +85,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   shipments,
   items,
   invoiceToEdit,
+  presentation = 'dialog',
+  className,
 }) => {
   const [selectedShipment, setSelectedShipment] =
     React.useState<Shipment | null>(null);
@@ -114,7 +120,13 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   }, [selectedShipment, items]);
 
   React.useEffect(() => {
-    if (invoiceToEdit && isOpen) {
+    const visible = isOpen || presentation === 'page';
+    if (!visible) {
+      setSelectedShipment(null);
+      setLineItems([]);
+      return;
+    }
+    if (invoiceToEdit) {
       const shipment = shipments.find(s => s.id === invoiceToEdit.shipmentId);
       setSelectedShipment(shipment || null);
       setLineItems(invoiceToEdit.lineItems || []);
@@ -122,7 +134,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       setSelectedShipment(null);
       setLineItems([]);
     }
-  }, [invoiceToEdit, isOpen, shipments]);
+  }, [invoiceToEdit, isOpen, shipments, presentation]);
 
   React.useEffect(() => {
     // Round to 2 decimal places to avoid floating-point precision issues
@@ -146,6 +158,9 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         itemId: '',
         quantity: 1,
         unitPrice: 0,
+        dutyPercent: 0,
+        swsPercent: 0,
+        igstPercent: 0,
         isNew: true,
       },
     ]);
@@ -160,13 +175,17 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       prevItems.map(item => {
         if (item.id === id) {
           const updatedItem = { ...item, [field]: value };
-          // Only set unit price from item master for new items (isNew flag)
-          if (field === 'itemId' && (item as FormInvoiceLineItem).isNew) {
+          if (field === 'itemId') {
             const selectedItem = items.find((i: Item) => i.id === value);
             if (selectedItem) {
-              updatedItem.unitPrice = selectedItem.unitPrice;
-              // Remove the isNew flag after setting the unit price
-              delete (updatedItem as FormInvoiceLineItem).isNew;
+              const snap = invoiceTaxSnapshotFromItem(selectedItem);
+              updatedItem.dutyPercent = snap.dutyPercent;
+              updatedItem.swsPercent = snap.swsPercent;
+              updatedItem.igstPercent = snap.igstPercent;
+              if ((item as FormInvoiceLineItem).isNew) {
+                updatedItem.unitPrice = selectedItem.unitPrice;
+                delete (updatedItem as FormInvoiceLineItem).isNew;
+              }
             }
           }
           return updatedItem;
@@ -237,6 +256,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                 itemId: item.id,
                 quantity: parseFloat(row.quantity) || 0,
                 unitPrice: parseFloat(row.unitPrice) || item.unitPrice,
+                ...invoiceTaxSnapshotFromItem(item),
               });
             });
 
@@ -340,316 +360,459 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}`
     : 'Create New Invoice';
 
-  return (
-    <Dialog open={isOpen} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-5xl">
-        <DialogHeader>
+  const isPage = presentation === 'page';
+
+  const headerBlock = (
+    <>
+      {isPage ? (
+        <>
+          <h2
+            id="invoice-form-title"
+            className="text-lg font-semibold tracking-tight sm:text-xl"
+          >
+            {invoiceToEdit
+              ? `Edit invoice: ${invoiceToEdit.invoiceNumber}`
+              : 'Create new invoice'}
+          </h2>
+          <p className="text-muted-foreground text-sm">
+            Select a shipment and add line items. Save as draft or finalize when
+            totals match.
+          </p>
+        </>
+      ) : (
+        <>
           <DialogTitle>{formTitle}</DialogTitle>
           <DialogDescription>
             Create or edit an invoice by selecting a shipment and adding line
             items.
           </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-1 gap-4 border-b pb-4 md:grid-cols-3">
-          <div>
-            <Label htmlFor="shipmentId">Shipment (Invoice No)</Label>
-            <Combobox
-              options={shipmentOptions}
-              value={selectedShipment?.id || ''}
-              onChange={handleShipmentSelect}
-              placeholder="Select a shipment..."
-              disabled={!!invoiceToEdit}
-            />
-          </div>
-          <div>
-            <Label>Invoice Number</Label>
-            <Input value={selectedShipment?.invoiceNumber || ''} readOnly />
-          </div>
-          <div>
-            <Label>Invoice Date</Label>
-            <Input value={selectedShipment?.invoiceDate || ''} readOnly />
-          </div>
+        </>
+      )}
+    </>
+  );
+
+  const formFields = (
+    <>
+      <div className="grid grid-cols-1 gap-4 border-b pb-4 md:grid-cols-3">
+        <div>
+          <Label htmlFor="shipmentId">Shipment (Invoice No)</Label>
+          <Combobox
+            options={shipmentOptions}
+            value={selectedShipment?.id || ''}
+            onChange={handleShipmentSelect}
+            placeholder="Select a shipment..."
+            disabled={!!invoiceToEdit}
+          />
         </div>
+        <div>
+          <Label>Invoice Number</Label>
+          <Input value={selectedShipment?.invoiceNumber || ''} readOnly />
+        </div>
+        <div>
+          <Label>Invoice Date</Label>
+          <Input value={selectedShipment?.invoiceDate || ''} readOnly />
+        </div>
+      </div>
 
-        {selectedShipment && (
-          <>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h3 className="text-lg font-semibold">Line Items</h3>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleTemplateDownload}
-                  >
-                    <Download className="mr-2 h-4 w-4" /> Template
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleItemImport}
-                  >
-                    <Upload className="mr-2 h-4 w-4" /> Import Items
-                  </Button>
-                </div>
-              </div>
-              <div className="max-h-64 overflow-y-auto rounded-md border pr-2">
-                <Table>
-                  <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10">
-                    <TableRow>
-                      <TableHead className="w-[200px]">Part No</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead className="w-[80px]">Unit</TableHead>
-                      <TableHead className="w-[100px]">Qty</TableHead>
-                      <TableHead className="w-[120px]">Unit Price</TableHead>
-                      <TableHead className="w-[120px]">Total</TableHead>
-                      <TableHead className="w-[50px]">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {lineItems.map(lineItem => {
-                      const fullItem = items.find(
-                        i => i.id === lineItem.itemId
-                      );
-                      return (
-                        <TableRow key={lineItem.id}>
-                          <TableCell>
-                            {/* FIX: Use the filtered list of items and disable until a supplier is chosen. */}
-                            <Combobox
-                              options={availableItemOptions}
-                              value={lineItem.itemId}
-                              onChange={value =>
-                                handleLineItemChange(
-                                  lineItem.id,
-                                  'itemId',
-                                  value
-                                )
-                              }
-                              searchPlaceholder="Search Part No..."
-                              notFoundText="No parts for this supplier."
-                              disabled={!selectedShipment}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {fullItem?.itemDescription || '-'}
-                          </TableCell>
-                          <TableCell>{fullItem?.unit || '-'}</TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={lineItem.quantity}
-                              onChange={e =>
-                                handleLineItemChange(
-                                  lineItem.id,
-                                  'quantity',
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              type="number"
-                              value={lineItem.unitPrice}
-                              onChange={e =>
-                                handleLineItemChange(
-                                  lineItem.id,
-                                  'unitPrice',
-                                  parseFloat(e.target.value) || 0
-                                )
-                              }
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <Input
-                              value={formatCurrency(
-                                lineItem.quantity * lineItem.unitPrice
-                              )}
-                              readOnly
-                              className="bg-muted"
-                            />
-                          </TableCell>
-                          <TableCell>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <X className="text-destructive h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    Are you sure?
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    This will permanently remove the item from
-                                    this invoice. This action cannot be undone.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel asChild>
-                                    <Button variant="outline" useAccentColor>
-                                      Cancel
-                                    </Button>
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction asChild>
-                                    <Button
-                                      variant="destructive"
-                                      onClick={() =>
-                                        handleRemoveItem(lineItem.id)
-                                      }
-                                    >
-                                      Continue
-                                    </Button>
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleAddItem}
-                disabled={!selectedShipment}
-              >
-                <Plus className="mr-2 h-4 w-4" /> Add Item
-              </Button>
-            </div>
-            <div className="flex items-center justify-between border-t pt-4">
-              <div className="flex items-center gap-6">
-                <div className="text-right">
-                  <p className="text-muted-foreground text-sm">
-                    Shipment Value
-                  </p>
-                  <p className="text-lg font-bold">
-                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-muted-foreground text-sm">
-                    Calculated Total
-                  </p>
-                  <p className="text-lg font-bold">
-                    {formatCurrency(calculatedTotal)}
-                  </p>
-                </div>
-                <div
-                  className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-success' : 'text-destructive'}`}
-                >
-                  {isMatch
-                    ? '✅ Match'
-                    : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
-                </div>
-              </div>
-              {isMatch && (
+      {selectedShipment && (
+        <>
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold">Line Items</h3>
+              <div className="flex gap-2">
                 <Button
-                  type="button"
-                  variant="success"
-                  onClick={handleQuickFinalize}
-                  disabled={isSubmitting}
+                  variant="outline"
+                  size="sm"
+                  onClick={handleTemplateDownload}
                 >
-                  {isSubmitting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  🚀 Quick Finalize
+                  <Download className="mr-2 h-4 w-4" /> Template
                 </Button>
-              )}
+                <Button variant="outline" size="sm" onClick={handleItemImport}>
+                  <Upload className="mr-2 h-4 w-4" /> Import Items
+                </Button>
+              </div>
             </div>
-          </>
-        )}
-
-        <DialogFooter>
-          <DialogClose asChild>
-            <Button type="button" variant="secondary" disabled={isSubmitting}>
-              Cancel
+            <div
+              className={cn(
+                'rounded-md border',
+                isPage
+                  ? 'overflow-visible'
+                  : 'max-h-[min(22rem,45vh)] overflow-auto'
+              )}
+            >
+              <Table className="min-w-[1180px] table-fixed">
+                <TableHeader className="bg-primary text-primary-foreground sticky top-0 z-10">
+                  <TableRow>
+                    <TableHead className="w-[168px] min-w-[168px] px-2">
+                      Part No
+                    </TableHead>
+                    <TableHead className="w-[220px] min-w-[220px] px-2">
+                      Description
+                    </TableHead>
+                    <TableHead className="w-[72px] min-w-[72px] px-2">
+                      Unit
+                    </TableHead>
+                    <TableHead className="w-[112px] min-w-[112px] px-2">
+                      Qty
+                    </TableHead>
+                    <TableHead className="w-[128px] min-w-[128px] px-2">
+                      Unit Price
+                    </TableHead>
+                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                      Duty %
+                    </TableHead>
+                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                      SWS %
+                    </TableHead>
+                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                      IGST %
+                    </TableHead>
+                    <TableHead className="w-[140px] min-w-[140px] px-2">
+                      Total
+                    </TableHead>
+                    <TableHead className="w-[52px] min-w-[52px] px-1">
+                      Action
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {lineItems.map(lineItem => {
+                    const fullItem = items.find(i => i.id === lineItem.itemId);
+                    return (
+                      <TableRow key={lineItem.id}>
+                        <TableCell className="px-2 align-top">
+                          {/* FIX: Use the filtered list of items and disable until a supplier is chosen. */}
+                          <Combobox
+                            options={availableItemOptions}
+                            value={lineItem.itemId}
+                            onChange={value =>
+                              handleLineItemChange(lineItem.id, 'itemId', value)
+                            }
+                            searchPlaceholder="Search Part No..."
+                            notFoundText="No parts for this supplier."
+                            disabled={!selectedShipment}
+                          />
+                        </TableCell>
+                        <TableCell
+                          className="max-w-[220px] truncate px-2 align-top text-sm"
+                          title={fullItem?.itemDescription || undefined}
+                        >
+                          {fullItem?.itemDescription || '-'}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap px-2 align-top text-sm">
+                          {fullItem?.unit || '-'}
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            value={lineItem.quantity}
+                            onChange={e =>
+                              handleLineItemChange(
+                                lineItem.id,
+                                'quantity',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[5.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            value={lineItem.unitPrice}
+                            onChange={e =>
+                              handleLineItemChange(
+                                lineItem.id,
+                                'unitPrice',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[6rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={lineItem.dutyPercent ?? 0}
+                            onChange={e =>
+                              handleLineItemChange(
+                                lineItem.id,
+                                'dutyPercent',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={lineItem.swsPercent ?? 0}
+                            onChange={e =>
+                              handleLineItemChange(
+                                lineItem.id,
+                                'swsPercent',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            type="number"
+                            step="0.01"
+                            value={lineItem.igstPercent ?? 0}
+                            onChange={e =>
+                              handleLineItemChange(
+                                lineItem.id,
+                                'igstPercent',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell className="px-2 align-top">
+                          <Input
+                            value={formatCurrency(
+                              lineItem.quantity * lineItem.unitPrice
+                            )}
+                            readOnly
+                            className="bg-muted h-9 min-w-[7rem] font-mono text-sm tabular-nums"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <X className="text-destructive h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Are you sure?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  This will permanently remove the item from
+                                  this invoice. This action cannot be undone.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel asChild>
+                                  <Button variant="outline" useAccentColor>
+                                    Cancel
+                                  </Button>
+                                </AlertDialogCancel>
+                                <AlertDialogAction asChild>
+                                  <Button
+                                    variant="destructive"
+                                    onClick={() =>
+                                      handleRemoveItem(lineItem.id)
+                                    }
+                                  >
+                                    Continue
+                                  </Button>
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleAddItem}
+              disabled={!selectedShipment}
+            >
+              <Plus className="mr-2 h-4 w-4" /> Add Item
             </Button>
-          </DialogClose>
-          {/* FIX: Disable buttons if no shipment is selected */}
+          </div>
+          <div className="flex items-center justify-between border-t pt-4">
+            <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-muted-foreground text-sm">Shipment Value</p>
+                <p className="text-lg font-bold">
+                  {formatCurrency(selectedShipment?.invoiceValue || 0)}
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-muted-foreground text-sm">
+                  Calculated Total
+                </p>
+                <p className="text-lg font-bold">
+                  {formatCurrency(calculatedTotal)}
+                </p>
+              </div>
+              <div
+                className={`flex items-center gap-2 text-xl font-bold ${isMatch ? 'text-success' : 'text-destructive'}`}
+              >
+                {isMatch
+                  ? '✅ Match'
+                  : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
+              </div>
+            </div>
+            {isMatch && (
+              <Button
+                type="button"
+                variant="success"
+                onClick={handleQuickFinalize}
+                disabled={isSubmitting}
+              >
+                {isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                🚀 Quick Finalize
+              </Button>
+            )}
+          </div>
+        </>
+      )}
+    </>
+  );
+
+  const footerActions = (
+    <>
+      {isPage ? (
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={isSubmitting}
+          onClick={() => onOpenChange(false)}
+        >
+          Cancel
+        </Button>
+      ) : (
+        <DialogClose asChild>
+          <Button type="button" variant="secondary" disabled={isSubmitting}>
+            Cancel
+          </Button>
+        </DialogClose>
+      )}
+      <Button
+        type="button"
+        variant="outline"
+        useAccentColor
+        onClick={() => handleSave('Draft')}
+        disabled={isSubmitting || !selectedShipment}
+      >
+        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save
+        as Draft
+      </Button>
+      <Button
+        type="submit"
+        variant="default"
+        useAccentColor
+        onClick={() => handleSave('Finalized')}
+        disabled={isSubmitting || !selectedShipment}
+      >
+        {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{' '}
+        Finalize Invoice
+      </Button>
+    </>
+  );
+
+  const quickFinalizeDialog = (
+    <AlertDialog
+      open={showQuickFinalizeDialog}
+      onOpenChange={setShowQuickFinalizeDialog}
+    >
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Finalize Invoice</AlertDialogTitle>
+          <AlertDialogDescription>
+            Are you sure you want to finalize invoice{' '}
+            <strong>{selectedShipment?.invoiceNumber}</strong>?
+            <br />
+            <br />
+            <div className="space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span>Shipment Value:</span>
+                <span className="font-semibold">
+                  {formatCurrency(selectedShipment?.invoiceValue || 0)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Calculated Total:</span>
+                <span className="font-semibold">
+                  {formatCurrency(calculatedTotal)}
+                </span>
+              </div>
+              <div className="text-success flex justify-between">
+                <span>Status:</span>
+                <span className="font-semibold">✅ Match</span>
+              </div>
+            </div>
+            <br />
+            This action cannot be undone.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
           <Button
-            type="button"
+            onClick={() => setShowQuickFinalizeDialog(false)}
             variant="outline"
             useAccentColor
-            onClick={() => handleSave('Draft')}
-            disabled={isSubmitting || !selectedShipment}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{' '}
-            Save as Draft
+            Cancel
           </Button>
           <Button
-            type="submit"
             variant="default"
             useAccentColor
-            onClick={() => handleSave('Finalized')}
-            disabled={isSubmitting || !selectedShipment}
+            onClick={() => {
+              setShowQuickFinalizeDialog(false);
+              handleSave('Finalized');
+            }}
           >
-            {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}{' '}
             Finalize Invoice
           </Button>
-        </DialogFooter>
-      </DialogContent>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
 
-      {/* Quick Finalize Confirmation Dialog */}
-      <AlertDialog
-        open={showQuickFinalizeDialog}
-        onOpenChange={setShowQuickFinalizeDialog}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Finalize Invoice</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to finalize invoice{' '}
-              <strong>{selectedShipment?.invoiceNumber}</strong>?
-              <br />
-              <br />
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span>Shipment Value:</span>
-                  <span className="font-semibold">
-                    {formatCurrency(selectedShipment?.invoiceValue || 0)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Calculated Total:</span>
-                  <span className="font-semibold">
-                    {formatCurrency(calculatedTotal)}
-                  </span>
-                </div>
-                <div className="text-success flex justify-between">
-                  <span>Status:</span>
-                  <span className="font-semibold">✅ Match</span>
-                </div>
-              </div>
-              <br />
-              This action cannot be undone.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <Button
-              onClick={() => setShowQuickFinalizeDialog(false)}
-              variant="outline"
-              useAccentColor
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="default"
-              useAccentColor
-              onClick={() => {
-                setShowQuickFinalizeDialog(false);
-                handleSave('Finalized');
-              }}
-            >
-              Finalize Invoice
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+  if (isPage) {
+    return (
+      <>
+        <section
+          className={cn(
+            'bg-card text-card-foreground flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border shadow-sm',
+            className
+          )}
+          aria-labelledby="invoice-form-title"
+        >
+          <header className="shrink-0 border-b px-6 pb-4 pt-6">
+            {headerBlock}
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 [scrollbar-gutter:stable]">
+            {formFields}
+          </div>
+          <footer className="border-border shrink-0 border-t px-6 py-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-2">
+              {footerActions}
+            </div>
+          </footer>
+        </section>
+        {quickFinalizeDialog}
+      </>
+    );
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <DialogContent className="flex max-h-[92vh] w-full max-w-[calc(100vw-1.5rem)] flex-col gap-4 overflow-y-auto sm:max-w-[min(90rem,calc(100vw-2rem))]">
+        <DialogHeader>{headerBlock}</DialogHeader>
+        {formFields}
+        <DialogFooter>{footerActions}</DialogFooter>
+      </DialogContent>
+      {quickFinalizeDialog}
     </Dialog>
   );
 };

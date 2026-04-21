@@ -2,9 +2,9 @@ name: 'CodeQL'
 
 on:
   push:
-    branches: ['main', '2025-11-11-j1zu-20929']
+    branches: ['main', 'develop']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'develop']
   schedule:
     - cron: '0 9 * * 1'
 
@@ -29,10 +29,11 @@ jobs:
           config-file: ./.github/codeql/codeql-config.yml
           queries: security-and-quality
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22.x'
+          cache: npm
 
       - name: Install dependencies
         run: npm ci

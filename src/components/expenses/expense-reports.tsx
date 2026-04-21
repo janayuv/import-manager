@@ -986,35 +986,35 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             <TabsList className="grid w-full grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-5">
               <TabsTrigger
                 value="detailed"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! flex items-center gap-2 bg-transparent"
               >
                 <FileText className="h-4 w-4" />
                 Detailed
               </TabsTrigger>
               <TabsTrigger
                 value="summary-by-type"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! flex items-center gap-2 bg-transparent"
               >
                 <Tag className="h-4 w-4" />
                 By Type
               </TabsTrigger>
               <TabsTrigger
                 value="summary-by-provider"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! flex items-center gap-2 bg-transparent"
               >
                 <Building2 className="h-4 w-4" />
                 By Provider
               </TabsTrigger>
               <TabsTrigger
                 value="summary-by-shipment"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! flex items-center gap-2 bg-transparent"
               >
                 <BarChart3 className="h-4 w-4" />
                 By Shipment
               </TabsTrigger>
               <TabsTrigger
                 value="summary-by-month"
-                className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! flex items-center gap-2 bg-transparent"
               >
                 <Calendar className="h-4 w-4" />
                 By Month

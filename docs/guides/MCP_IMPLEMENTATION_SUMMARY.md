@@ -13,7 +13,7 @@ This document summarizes the complete implementation of an MCP (Model Context Pr
 
 ### Configuration Files
 - **`.cursorrules`** - Cursor IDE configuration for MCP integration
-- **`.github/workflows/quality-checks.yml`** - GitHub Actions CI/CD workflow
+- **`.github/workflows/ci.yml`** - GitHub Actions CI (lint, tests, Tauri build); use the same checks locally or via MCP tools before pushing
 
 ### Documentation
 - **`MCP_QUALITY_SERVER_README.md`** - Comprehensive documentation
