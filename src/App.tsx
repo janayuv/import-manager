@@ -53,11 +53,11 @@ function App() {
   }, []);
 
   return (
-    <AsyncErrorBoundary componentName="App">
-      <ThemeProvider
-        defaultTheme={{ mode: 'light', color: 'zinc' }}
-        storageKey="import-manager-theme"
-      >
+    <ThemeProvider
+      defaultTheme={{ mode: 'light', color: 'zinc' }}
+      storageKey="import-manager-theme"
+    >
+      <AsyncErrorBoundary componentName="App">
         <SettingsProvider>
           <UserProvider>
             <NotificationProvider>
@@ -196,8 +196,8 @@ function App() {
             </NotificationProvider>
           </UserProvider>
         </SettingsProvider>
-      </ThemeProvider>
-    </AsyncErrorBoundary>
+      </AsyncErrorBoundary>
+    </ThemeProvider>
   );
 }
 

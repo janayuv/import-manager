@@ -1,7 +1,7 @@
 // src/pages/invoice/index.tsx
 import { invoke } from '@tauri-apps/api/core';
-import { confirm } from '@tauri-apps/plugin-dialog';
 import {
+  confirm,
   isTauriEnvironment,
   openTextFile,
   save,
@@ -677,7 +677,7 @@ const InvoicePage = () => {
 
   if (invoicePanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
         <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
           <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
             <Button

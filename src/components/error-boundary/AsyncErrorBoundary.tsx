@@ -30,6 +30,22 @@ interface State {
   showDetails: boolean;
 }
 
+/** Dialog plugin IPC can reject before/after bridge fallback; never take down the whole app for that. */
+function isBenignDialogPluginRejection(reason: unknown): boolean {
+  const text =
+    reason instanceof Error
+      ? reason.message
+      : typeof reason === 'string'
+        ? reason
+        : String(reason ?? '');
+  const mentionsDialogApi =
+    /\bdialog\.(confirm|open|save|message|ask)\b/i.test(text) ||
+    /plugin:dialog\|/i.test(text);
+  const accessOrMissing =
+    text.includes('not allowed') || text.includes('Command not found');
+  return mentionsDialogApi && accessOrMissing;
+}
+
 export function AsyncErrorBoundary({
   children,
   fallback,
@@ -66,6 +82,15 @@ export function AsyncErrorBoundary({
   useEffect(() => {
     // Handle unhandled promise rejections
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
+      if (isBenignDialogPluginRejection(event.reason)) {
+        console.warn(
+          'Suppressed unhandled dialog IPC rejection (use @/lib/tauri-bridge confirm or fix capabilities):',
+          event.reason
+        );
+        event.preventDefault();
+        return;
+      }
+
       console.error(
         'AsyncErrorBoundary caught unhandled rejection:',
         event.reason
@@ -94,6 +119,15 @@ export function AsyncErrorBoundary({
 
     // Handle unhandled errors
     const handleError = (event: ErrorEvent) => {
+      if (isBenignDialogPluginRejection(event.error ?? event.message)) {
+        console.warn(
+          'Suppressed dialog-related window error (see tauri-bridge / capabilities):',
+          event.error ?? event.message
+        );
+        event.preventDefault();
+        return;
+      }
+
       console.error('AsyncErrorBoundary caught error:', event.error);
 
       const error = event.error || new Error(event.message);

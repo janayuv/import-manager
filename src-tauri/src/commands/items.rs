@@ -62,7 +62,7 @@ pub fn add_items_bulk(state: State<DbState>, items: Vec<Item>) -> Result<(), Str
 
 #[tauri::command]
 pub fn add_item(item: Item, state: State<DbState>) -> Result<(), String> {
-    println!("Received item: {:?}", item);
+    log::debug!(target: "import_manager::items", "add_item: received item id={:?}", item.id);
     let id = item
         .id
         .clone()

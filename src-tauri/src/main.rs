@@ -7,6 +7,7 @@ mod encryption;
 mod expense;
 mod migrations;
 mod playwright_db;
+mod restore_control;
 
 // Re-export commonly used types
 pub use db::{
@@ -21,9 +22,18 @@ use tauri::Manager;
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_log::Builder::default().build())
+        // Native file + message/confirm dialogs (JS: @tauri-apps/plugin-dialog via src/lib/tauri-bridge.ts).
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
         .setup(|app| {
+            log::info!(
+                target: "import_manager",
+                "Import Manager v{} started (build {} commit {})",
+                env!("CARGO_PKG_VERSION"),
+                env!("IMPORT_MANAGER_BUILD_DATE"),
+                env!("IMPORT_MANAGER_GIT_HASH"),
+            );
+
             let data_dir = app.path().app_data_dir()
                 .map_err(|e| format!("Failed to get app data dir: {}", e))?;
             if !data_dir.exists() {
@@ -91,7 +101,22 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err(Box::new(e));
             }
 
+            if let Err(e) = db::ensure_audit_logs_table_name_column(&db_connection) {
+                log::warn!(
+                    "audit_logs tableName column ensure failed (app continues): {}",
+                    e
+                );
+            }
+
             app.manage(DbState { db: Mutex::new(db_connection) });
+
+            let app_handle = app.handle().clone();
+            std::thread::spawn(move || loop {
+                std::thread::sleep(std::time::Duration::from_secs(60));
+                tauri::async_runtime::block_on(crate::commands::tick_backup_schedules(
+                    app_handle.clone(),
+                ));
+            });
 
             Ok(())
         })
@@ -253,8 +278,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         commands::get_backup_schedules,
         commands::update_backup_schedule,
         commands::delete_backup_schedule,
-        commands::run_scheduled_backup,
-        commands::create_user_role,
+            commands::run_scheduled_backup,
+            commands::google_drive_status,
+            commands::google_drive_refresh_profile,
+            commands::google_drive_connect,
+            commands::google_drive_disconnect,
+            commands::google_drive_reset_cancel,
+            commands::google_drive_cancel_operation,
+            commands::create_user_role,
         commands::get_user_roles,
         commands::update_user_role,
         commands::delete_user_role,

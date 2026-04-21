@@ -625,85 +625,85 @@ pub fn save_boe_attachment_file(
     id: String,
     src_path: String,
 ) -> Result<String, String> {
-    println!("📄 [RUST] Starting BOE attachment file save...");
-    println!("📄 [RUST] BOE ID: {id}");
-    println!("📄 [RUST] Source path: {src_path}");
+    log::debug!("📄 [RUST] Starting BOE attachment file save...");
+    log::debug!("📄 [RUST] BOE ID: {id}");
+    log::debug!("📄 [RUST] Source path: {src_path}");
 
     let base = app.path().app_data_dir().map_err(|e| {
-        println!("❌ [RUST] Failed to get app data directory: {e}");
+        log::debug!("❌ [RUST] Failed to get app data directory: {e}");
         e.to_string()
     })?;
-    println!("📄 [RUST] App data base directory: {base:?}");
+    log::debug!("📄 [RUST] App data base directory: {base:?}");
 
     let attach_dir = base.join("attachments").join(&id);
-    println!("📄 [RUST] Attachment directory: {attach_dir:?}");
+    log::debug!("📄 [RUST] Attachment directory: {attach_dir:?}");
 
     std::fs::create_dir_all(&attach_dir).map_err(|e| {
-        println!("❌ [RUST] Failed to create attachment directory: {e}");
+        log::debug!("❌ [RUST] Failed to create attachment directory: {e}");
         e.to_string()
     })?;
-    println!("✅ [RUST] Attachment directory created successfully");
+    log::debug!("✅ [RUST] Attachment directory created successfully");
 
     let file_name = std::path::Path::new(&src_path)
         .file_name()
         .and_then(|s| s.to_str())
         .ok_or_else(|| {
-            println!("❌ [RUST] Invalid source file name");
+            log::debug!("❌ [RUST] Invalid source file name");
             "Invalid source file name".to_string()
         })?;
-    println!("📄 [RUST] Extracted filename: {file_name}");
+    log::debug!("📄 [RUST] Extracted filename: {file_name}");
 
     let dest_path = attach_dir.join(file_name);
-    println!("📄 [RUST] Destination path: {dest_path:?}");
+    log::debug!("📄 [RUST] Destination path: {dest_path:?}");
 
     std::fs::copy(&src_path, &dest_path).map_err(|e| {
-        println!("❌ [RUST] Failed to copy file: {e}");
+        log::debug!("❌ [RUST] Failed to copy file: {e}");
         e.to_string()
     })?;
-    println!("✅ [RUST] File copied successfully");
+    log::debug!("✅ [RUST] File copied successfully");
 
     let result_path = dest_path.to_string_lossy().to_string();
-    println!("✅ [RUST] Returning saved path: {result_path}");
+    log::debug!("✅ [RUST] Returning saved path: {result_path}");
     Ok(result_path)
 }
 
 // --- Save an item photo into app data attachments/items and return saved path ---
 #[tauri::command]
 pub fn save_item_photo_file(app: tauri::AppHandle, src_path: String) -> Result<String, String> {
-    println!("🖼️ [RUST] Starting item photo file save...");
-    println!("🖼️ [RUST] Source path: {src_path}");
+    log::debug!("🖼️ [RUST] Starting item photo file save...");
+    log::debug!("🖼️ [RUST] Source path: {src_path}");
 
     let base = app.path().app_data_dir().map_err(|e| {
-        println!("❌ [RUST] Failed to get app data directory: {e}");
+        log::debug!("❌ [RUST] Failed to get app data directory: {e}");
         e.to_string()
     })?;
-    println!("🖼️ [RUST] App data base directory: {base:?}");
+    log::debug!("🖼️ [RUST] App data base directory: {base:?}");
 
     let attach_dir = base.join("attachments").join("items");
-    println!("🖼️ [RUST] Item photo directory: {attach_dir:?}");
+    log::debug!("🖼️ [RUST] Item photo directory: {attach_dir:?}");
 
     std::fs::create_dir_all(&attach_dir).map_err(|e| {
-        println!("❌ [RUST] Failed to create item photo directory: {e}");
+        log::debug!("❌ [RUST] Failed to create item photo directory: {e}");
         e.to_string()
     })?;
-    println!("✅ [RUST] Item photo directory created successfully");
+    log::debug!("✅ [RUST] Item photo directory created successfully");
 
     let file_name = std::path::Path::new(&src_path)
         .file_name()
         .and_then(|s| s.to_str())
         .unwrap_or("photo.png");
-    println!("🖼️ [RUST] Extracted filename: {file_name}");
+    log::debug!("🖼️ [RUST] Extracted filename: {file_name}");
 
     let dest_path = attach_dir.join(file_name);
-    println!("🖼️ [RUST] Destination path: {dest_path:?}");
+    log::debug!("🖼️ [RUST] Destination path: {dest_path:?}");
 
     std::fs::copy(&src_path, &dest_path).map_err(|e| {
-        println!("❌ [RUST] Failed to copy item photo file: {e}");
+        log::debug!("❌ [RUST] Failed to copy item photo file: {e}");
         e.to_string()
     })?;
-    println!("✅ [RUST] Item photo file copied successfully");
+    log::debug!("✅ [RUST] Item photo file copied successfully");
 
     let result_path = dest_path.to_string_lossy().to_string();
-    println!("✅ [RUST] Returning saved item photo path: {result_path}");
+    log::debug!("✅ [RUST] Returning saved item photo path: {result_path}");
     Ok(result_path)
 }

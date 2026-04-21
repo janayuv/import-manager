@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 import { useDebugUtils, getEnvironmentConfig } from '@/lib/debug-utils';
+import { confirm as confirmUserAction } from '@/lib/tauri-bridge';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -111,7 +112,7 @@ export function ExpenseDebug() {
 
         // Handle confirmation requirement
         if (action.requiresConfirmation) {
-          const confirmed = confirm(
+          const confirmed = await confirmUserAction(
             `Are you sure you want to ${action.label.toLowerCase()}? This action cannot be undone.`
           );
           if (!confirmed) {

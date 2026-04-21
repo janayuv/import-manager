@@ -11,6 +11,9 @@
   "permissions": [
     "core:default",
     "dialog:default",
+    "dialog:allow-message",
+    "dialog:allow-open",
+    "dialog:allow-save",
     "fs:read-all",
     "fs:write-all",
     "fs:allow-exists",

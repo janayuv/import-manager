@@ -24,6 +24,15 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Progress } from '@/components/ui/progress';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Switch } from '@/components/ui/switch';
+import {
   Table,
   TableBody,
   TableCell,
@@ -36,6 +45,7 @@ import {
   Shield,
   Clock,
   HardDrive,
+  Cloud,
   Download,
   Upload,
   Settings,
@@ -51,6 +61,12 @@ import {
   Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
+
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import {
+  confirm as confirmDestructive,
+  isTauriEnvironment,
+} from '@/lib/tauri-bridge';
 
 interface DatabaseStats {
   db_size_bytes: number;
@@ -123,7 +139,7 @@ interface UpdateResult {
 interface BackupSchedule {
   id?: number;
   name: string;
-  cron_expr: string;
+  cron_expr?: string;
   time_zone?: string;
   destination: string;
   retention_count?: number;
@@ -134,6 +150,167 @@ interface BackupSchedule {
   created_by?: string;
   created_at: string;
   notes?: string;
+}
+
+type SchedulePreset = 'daily' | 'weekly' | 'monthly' | 'custom';
+
+interface ScheduleFormState {
+  name: string;
+  preset: SchedulePreset;
+  hour: number;
+  minute: number;
+  dayOfWeek: number;
+  dayOfMonth: number;
+  customCron: string;
+  destination: 'local' | 'google_drive';
+  retention_count: number;
+  retention_days: number;
+  enabled: boolean;
+  notes: string;
+}
+
+function defaultScheduleForm(): ScheduleFormState {
+  return {
+    name: '',
+    preset: 'daily',
+    hour: 2,
+    minute: 0,
+    dayOfWeek: 1,
+    dayOfMonth: 1,
+    customCron: '0 0 2 * * *',
+    destination: 'local',
+    retention_count: 5,
+    retention_days: 30,
+    enabled: true,
+    notes: '',
+  };
+}
+
+function buildCronExpr(form: ScheduleFormState): string {
+  const sec = 0;
+  const m = Math.min(59, Math.max(0, Math.floor(form.minute)));
+  const h = Math.min(23, Math.max(0, Math.floor(form.hour)));
+  if (form.preset === 'custom') {
+    return form.customCron.trim();
+  }
+  if (form.preset === 'daily') {
+    return `${sec} ${m} ${h} * * *`;
+  }
+  if (form.preset === 'weekly') {
+    const dow = Math.min(6, Math.max(0, Math.floor(form.dayOfWeek)));
+    return `${sec} ${m} ${h} * * ${dow}`;
+  }
+  if (form.preset === 'monthly') {
+    const dom = Math.min(31, Math.max(1, Math.floor(form.dayOfMonth)));
+    return `${sec} ${m} ${h} ${dom} * *`;
+  }
+  return `${sec} ${m} ${h} * * *`;
+}
+
+interface GoogleDriveStatus {
+  configured: boolean;
+  connected: boolean;
+  /** not_configured | not_connected | connected */
+  state: string;
+  email?: string | null;
+}
+
+interface DriveTransferProgressPayload {
+  phase: string;
+  percent: number;
+  bytesTransferred: number;
+  totalBytes: number;
+  attempt?: number;
+  message?: string;
+}
+
+function normalizeGoogleDriveStatus(
+  raw: Partial<GoogleDriveStatus> | null | undefined
+): GoogleDriveStatus {
+  const configured = Boolean(raw?.configured);
+  const connected = Boolean(raw?.connected);
+  let state = raw?.state;
+  if (!state) {
+    if (!configured) state = 'not_configured';
+    else if (!connected) state = 'not_connected';
+    else state = 'connected';
+  }
+  return {
+    configured,
+    connected,
+    state,
+    email: raw?.email ?? null,
+  };
+}
+
+function invokeErrorMessage(err: unknown): string {
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'message' in err) {
+    const m = (err as { message?: unknown }).message;
+    if (typeof m === 'string') return m;
+  }
+  try {
+    return String(err);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
+/** Mirrors Rust `parse_friendly_error` for GDRIVE_ERROR-prefixed strings. */
+function parseGdriveErrorMessage(raw: string): string {
+  if (!raw.includes('GDRIVE_ERROR:')) return raw;
+  const marker = 'GDRIVE_ERROR:';
+  const idx = raw.indexOf(marker);
+  const rest = raw.slice(idx + marker.length);
+  const colonIdx = rest.indexOf(':');
+  if (colonIdx === -1) return raw;
+  const kind = rest.slice(0, colonIdx).trim();
+  const msg = rest.slice(colonIdx + 1).trim();
+  switch (kind) {
+    case 'oauth':
+      return `Google sign-in failed: ${msg}`;
+    case 'network':
+      return `Network problem talking to Google. Check your internet connection. (${msg})`;
+    case 'token':
+      return `Your Google session expired or was revoked. Please connect Google Drive again. (${msg})`;
+    case 'permission':
+      return `Google Drive permission denied. Reconnect and allow Drive access. (${msg})`;
+    case 'upload':
+      return `Could not upload to Google Drive: ${msg}`;
+    case 'download':
+      return `Could not download from Google Drive: ${msg}`;
+    case 'cancelled':
+      return msg;
+    default:
+      return `Google Drive: ${msg}`;
+  }
+}
+
+function friendlyInvokeError(err: unknown): string {
+  return parseGdriveErrorMessage(invokeErrorMessage(err));
+}
+
+function isGdriveBackupPath(path: string): boolean {
+  return path.startsWith('gdrive:');
+}
+
+function gdriveCloudBlocked(status: GoogleDriveStatus | null): boolean {
+  if (!status) return true;
+  return status.state === 'not_configured' || status.state === 'not_connected';
+}
+
+function gdriveStatusIndicator(status: GoogleDriveStatus | null): string {
+  if (!status) return '● Loading…';
+  if (status.state === 'not_configured') return '● Not Configured';
+  if (status.state === 'not_connected') return '● Not Connected';
+  return `● Connected${status.email ? ` (${status.email})` : ''}`;
+}
+
+function backupTypeLabel(backup: BackupInfo): 'Google Drive' | 'Local' {
+  return backup.destination === 'google_drive' ||
+    backup.path.startsWith('gdrive:')
+    ? 'Google Drive'
+    : 'Local';
 }
 
 interface UserRole {
@@ -157,7 +334,79 @@ interface BulkSearchFilters {
   [key: string]: unknown;
 }
 
-export default function DatabaseManagement() {
+/** Coerce backend / IPC payloads so bulk UI never throws on missing arrays. */
+function normalizeTableData(
+  raw: unknown,
+  fallbackTableName: string
+): TableData {
+  if (!raw || typeof raw !== 'object') {
+    return {
+      tableName: fallbackTableName,
+      columns: [],
+      rows: [],
+      totalCount: 0,
+      page: 1,
+      pageSize: 1000,
+    };
+  }
+  const r = raw as Partial<TableData>;
+  const columns = Array.isArray(r.columns) ? r.columns.map(c => String(c)) : [];
+  const rows = Array.isArray(r.rows)
+    ? r.rows.map(row => (Array.isArray(row) ? row : []))
+    : [];
+  const totalCount =
+    typeof r.totalCount === 'number' && !Number.isNaN(r.totalCount)
+      ? r.totalCount
+      : rows.length;
+  return {
+    tableName:
+      typeof r.tableName === 'string' ? r.tableName : fallbackTableName,
+    columns,
+    rows,
+    totalCount,
+    page: typeof r.page === 'number' ? r.page : 1,
+    pageSize: typeof r.pageSize === 'number' ? r.pageSize : 1000,
+  };
+}
+
+function formatBulkCell(cell: unknown): string {
+  if (cell === null || cell === undefined) return '';
+  if (typeof cell === 'object') {
+    try {
+      return JSON.stringify(cell);
+    } catch {
+      return '[object]';
+    }
+  }
+  return String(cell);
+}
+
+/** Avoids render crashes when stats exist but table_counts is missing or wrong shape. */
+function safeTableCounts(
+  stats: DatabaseStats | null | undefined
+): Record<string, number> {
+  const tc = stats?.table_counts;
+  if (!tc || typeof tc !== 'object' || Array.isArray(tc)) {
+    return {};
+  }
+  return tc as Record<string, number>;
+}
+
+function totalRecordsFromStats(
+  stats: DatabaseStats | null | undefined
+): number {
+  return Object.values(safeTableCounts(stats)).reduce(
+    (a, b) => a + (typeof b === 'number' && !Number.isNaN(b) ? b : 0),
+    0
+  );
+}
+
+function auditLogKey(log: AuditLog, index: number): string {
+  if (log.id != null) return String(log.id);
+  return `${log.created_at ?? 'unknown'}-${log.table_name ?? 'table'}-${log.row_id ?? index}`;
+}
+
+function DatabaseManagementContent() {
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [backupHistory, setBackupHistory] = useState<BackupInfo[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -207,27 +456,112 @@ export default function DatabaseManagement() {
     notes: '',
   });
 
-  useEffect(() => {
-    loadDashboardData();
-    loadBackupHistory();
-    loadBackupSchedules();
-    loadUserRoles();
+  const [googleDriveStatus, setGoogleDriveStatus] =
+    useState<GoogleDriveStatus | null>(null);
+
+  /** Active Google upload/download: show progress overlay (Tauri events). */
+  const [gdriveTransfer, setGdriveTransfer] =
+    useState<DriveTransferProgressPayload | null>(null);
+  const [gdriveOpLabel, setGdriveOpLabel] = useState<string | null>(null);
+
+  const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
+  const [editingScheduleId, setEditingScheduleId] = useState<number | null>(
+    null
+  );
+  const [scheduleForm, setScheduleForm] =
+    useState<ScheduleFormState>(defaultScheduleForm);
+
+  /** Refreshes stats, recent backups slice, and audit logs. Never toggles full-page `loading` (avoids unmounting the UI). */
+  const loadDashboardData = useCallback(async () => {
+    try {
+      const [statsData, backupsData, auditData, gdrive] = await Promise.all([
+        invoke<DatabaseStats>('get_database_stats'),
+        invoke<BackupInfo[]>('get_backup_history', { limit: 10 }),
+        invoke<AuditLog[]>('get_audit_logs', { limit: 20 }),
+        invoke<GoogleDriveStatus>('google_drive_status').catch(() =>
+          normalizeGoogleDriveStatus({
+            configured: false,
+            connected: false,
+            state: 'not_configured',
+          })
+        ),
+      ]);
+
+      setStats(statsData);
+      setBackupHistory(Array.isArray(backupsData) ? backupsData : []);
+      setAuditLogs(Array.isArray(auditData) ? auditData : []);
+      setGoogleDriveStatus(normalizeGoogleDriveStatus(gdrive));
+    } catch (error) {
+      console.error('Failed to load dashboard data:', error);
+      toast.error('Failed to load database management data');
+    }
   }, []);
 
-  const loadTableData = useCallback(async () => {
-    try {
-      const data = await invoke<TableData>('browse_table_data', {
-        tableName: selectedTable,
-        page: currentPage,
-        pageSize: pageSize,
-        includeDeleted: includeDeleted,
-      });
-      setTableData(data);
-    } catch (error) {
-      console.error('Failed to load table data:', error);
-      toast.error(`Failed to load table data: ${error}`);
-    }
-  }, [selectedTable, currentPage, pageSize, includeDeleted]);
+  useEffect(() => {
+    if (!isTauriEnvironment) return;
+    let unlisten: (() => void) | undefined;
+    const setup = async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        unlisten = await listen<DriveTransferProgressPayload>(
+          'gdrive-transfer-progress',
+          event => {
+            setGdriveTransfer(event.payload);
+          }
+        );
+      } catch (e) {
+        console.warn('gdrive-transfer-progress listener failed:', e);
+      }
+    };
+    void setup();
+    return () => {
+      unlisten?.();
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const boot = async () => {
+      setLoading(true);
+      try {
+        await loadDashboardData();
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void boot();
+    void loadBackupHistory();
+    void loadBackupSchedules();
+    void loadUserRoles();
+    return () => {
+      cancelled = true;
+    };
+  }, [loadDashboardData]);
+
+  const loadTableData = useCallback(
+    async (opts?: { page?: number }) => {
+      const page =
+        opts &&
+        typeof opts === 'object' &&
+        typeof opts.page === 'number' &&
+        !Number.isNaN(opts.page)
+          ? opts.page
+          : currentPage;
+      try {
+        const data = await invoke<TableData>('browse_table_data', {
+          tableName: selectedTable,
+          page,
+          pageSize: pageSize,
+          includeDeleted: includeDeleted,
+        });
+        setTableData(normalizeTableData(data, selectedTable));
+      } catch (error) {
+        console.error('Failed to load table data:', error);
+        toast.error(`Failed to load table data: ${error}`);
+      }
+    },
+    [selectedTable, currentPage, pageSize, includeDeleted]
+  );
 
   useEffect(() => {
     loadTableData();
@@ -236,35 +570,10 @@ export default function DatabaseManagement() {
   const loadBackupHistory = async () => {
     try {
       const history = await invoke<BackupInfo[]>('get_backup_history');
-      setBackupHistory(history);
+      setBackupHistory(Array.isArray(history) ? history : []);
     } catch (error) {
       console.error('Failed to load backup history:', error);
       toast.error('Failed to load backup history');
-    }
-  };
-
-  const loadDashboardData = async (opts?: { soft?: boolean }) => {
-    const soft = opts?.soft === true;
-    try {
-      if (!soft) {
-        setLoading(true);
-      }
-      const [statsData, backupsData, auditData] = await Promise.all([
-        invoke<DatabaseStats>('get_database_stats'),
-        invoke<BackupInfo[]>('get_backup_history', { limit: 10 }),
-        invoke<AuditLog[]>('get_audit_logs', { limit: 20 }),
-      ]);
-
-      setStats(statsData);
-      setBackupHistory(backupsData);
-      setAuditLogs(auditData);
-    } catch (error) {
-      console.error('Failed to load dashboard data:', error);
-      toast.error('Failed to load database management data');
-    } finally {
-      if (!soft) {
-        setLoading(false);
-      }
     }
   };
 
@@ -279,15 +588,92 @@ export default function DatabaseManagement() {
     return new Date(dateString).toLocaleString();
   };
 
+  const handleConnectGoogleDrive = async () => {
+    try {
+      toast.info('Complete sign-in in your browser…');
+      await invoke('google_drive_connect');
+      try {
+        await invoke('google_drive_refresh_profile');
+      } catch {
+        /* profile optional */
+      }
+      toast.success('Google Drive connected');
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Google Drive connect failed:', error);
+      toast.error(friendlyInvokeError(error));
+    }
+  };
+
+  const handleDisconnectGoogleDrive = async () => {
+    const ok = await confirmDestructive(
+      'Disconnect Google Drive? You can reconnect anytime; backups already on Drive stay there.'
+    );
+    if (!ok) return;
+    try {
+      await invoke('google_drive_disconnect');
+      toast.success('Disconnected from Google Drive');
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Google Drive disconnect failed:', error);
+      toast.error(`Could not disconnect: ${error}`);
+    }
+  };
+
+  const handleRefreshGoogleProfile = async () => {
+    try {
+      await invoke('google_drive_refresh_profile');
+      await loadDashboardData();
+      toast.success('Google account updated');
+    } catch (error) {
+      toast.error(friendlyInvokeError(error));
+    }
+  };
+
+  const handleGdriveCancelTransfer = () => {
+    try {
+      void invoke('google_drive_cancel_operation');
+    } catch {
+      /* ignore */
+    }
+  };
+
   const handleBackupNow = async () => {
+    if (
+      backupForm.destination === 'google_drive' &&
+      gdriveCloudBlocked(googleDriveStatus)
+    ) {
+      toast.error(
+        googleDriveStatus?.state === 'not_configured'
+          ? 'This build is not configured for Google OAuth. Set IMPORT_MANAGER_GOOGLE_CLIENT_ID when building.'
+          : 'Connect Google Drive before backing up to the cloud.'
+      );
+      return;
+    }
+    const toGdrive = backupForm.destination === 'google_drive';
+    let progressInterval: ReturnType<typeof setInterval> | undefined;
     try {
       setBackupInProgress(true);
       setBackupProgress(0);
 
-      // Simulate progress for UI feedback
-      const progressInterval = setInterval(() => {
-        setBackupProgress(prev => Math.min(prev + 10, 90));
-      }, 200);
+      if (toGdrive && isTauriEnvironment) {
+        try {
+          await invoke('google_drive_reset_cancel');
+        } catch {
+          /* ignore */
+        }
+        setGdriveOpLabel('Uploading backup to Google Drive');
+        setGdriveTransfer({
+          phase: 'Starting…',
+          percent: 0,
+          bytesTransferred: 0,
+          totalBytes: 0,
+        });
+      } else {
+        progressInterval = setInterval(() => {
+          setBackupProgress(prev => Math.min(prev + 10, 90));
+        }, 200);
+      }
 
       const result = await invoke<BackupInfo>('create_backup', {
         request: {
@@ -296,16 +682,15 @@ export default function DatabaseManagement() {
           include_wal: backupForm.include_wal,
           notes: backupForm.notes || undefined,
         },
-        user_id: 'current_user', // TODO: Get from auth context
+        userId: 'current_user',
       });
 
-      clearInterval(progressInterval);
+      if (progressInterval) clearInterval(progressInterval);
       setBackupProgress(100);
 
       toast.success(`Backup created successfully: ${result.filename}`);
 
-      // Refresh data without full-page loading (would remount Tabs and jump away from Backup).
-      await loadDashboardData({ soft: true });
+      await loadDashboardData();
 
       // Reset form
       setBackupForm({
@@ -316,37 +701,93 @@ export default function DatabaseManagement() {
       });
     } catch (error) {
       console.error('Backup failed:', error);
-      toast.error(`Backup failed: ${error}`);
+      toast.error(
+        toGdrive
+          ? friendlyInvokeError(error)
+          : `Backup failed: ${invokeErrorMessage(error)}`
+      );
     } finally {
-      setTimeout(() => {
-        setBackupInProgress(false);
-        setBackupProgress(0);
-      }, 1000);
+      if (progressInterval) clearInterval(progressInterval);
+      setTimeout(
+        () => {
+          setBackupInProgress(false);
+          setBackupProgress(0);
+          setGdriveOpLabel(null);
+          setGdriveTransfer(null);
+        },
+        toGdrive ? 600 : 1000
+      );
     }
   };
 
   const handleRestorePreview = async (backupPath: string) => {
+    const gdrive = isGdriveBackupPath(backupPath);
     try {
       setSelectedBackup(backupPath);
+      if (gdrive && isTauriEnvironment) {
+        try {
+          await invoke('google_drive_reset_cancel');
+        } catch {
+          /* ignore */
+        }
+        setGdriveOpLabel('Downloading backup from Google Drive');
+        setGdriveTransfer({
+          phase: 'Starting…',
+          percent: 0,
+          bytesTransferred: 0,
+          totalBytes: 0,
+        });
+      }
       const preview = await invoke<RestorePreview>('preview_restore', {
         backupPath: backupPath,
       });
       setRestorePreview(preview);
     } catch (error) {
       console.error('Failed to preview restore:', error);
-      toast.error(`Failed to preview restore: ${error}`);
+      toast.error(
+        gdrive
+          ? friendlyInvokeError(error)
+          : `Failed to preview restore: ${invokeErrorMessage(error)}`
+      );
+    } finally {
+      if (gdrive) {
+        setTimeout(() => {
+          setGdriveOpLabel(null);
+          setGdriveTransfer(null);
+        }, 400);
+      }
     }
   };
 
   const handleRestoreDatabase = async () => {
     if (!selectedBackup) return;
 
+    const ok = await confirmDestructive(
+      'Restoring this backup will overwrite the current database. Continue?'
+    );
+    if (!ok) return;
+
+    const gdrive = isGdriveBackupPath(selectedBackup);
     try {
       setRestoreInProgress(true);
+      if (gdrive && isTauriEnvironment) {
+        try {
+          await invoke('google_drive_reset_cancel');
+        } catch {
+          /* ignore */
+        }
+        setGdriveOpLabel('Downloading backup from Google Drive');
+        setGdriveTransfer({
+          phase: 'Starting…',
+          percent: 0,
+          bytesTransferred: 0,
+          totalBytes: 0,
+        });
+      }
 
       const result = await invoke<RestoreResult>('restore_database', {
         backupPath: selectedBackup,
-        userId: 'current_user', // TODO: Get from auth context
+        userId: 'current_user',
       });
 
       if (result.success) {
@@ -355,15 +796,25 @@ export default function DatabaseManagement() {
         );
         setRestorePreview(null);
         setSelectedBackup(null);
-        await loadDashboardData({ soft: true });
+        await loadDashboardData();
       } else {
         toast.error(`Restore failed: ${result.message}`);
       }
     } catch (error) {
       console.error('Restore failed:', error);
-      toast.error(`Restore failed: ${error}`);
+      toast.error(
+        gdrive
+          ? friendlyInvokeError(error)
+          : `Restore failed: ${invokeErrorMessage(error)}`
+      );
     } finally {
       setRestoreInProgress(false);
+      if (gdrive) {
+        setTimeout(() => {
+          setGdriveOpLabel(null);
+          setGdriveTransfer(null);
+        }, 400);
+      }
     }
   };
 
@@ -433,14 +884,26 @@ export default function DatabaseManagement() {
         userId: 'current_user', // TODO: Get from auth context
       });
 
-      if (result.success) {
+      if (
+        result &&
+        typeof result === 'object' &&
+        'success' in result &&
+        result.success
+      ) {
         toast.success('Record updated successfully');
         setEditingRecord(null);
         setEditForm({});
         await loadTableData();
         await loadDashboardData(); // Refresh stats
       } else {
-        toast.error(`Update failed: ${result.message}`);
+        const msg =
+          result &&
+          typeof result === 'object' &&
+          'message' in result &&
+          typeof (result as { message?: unknown }).message === 'string'
+            ? (result as { message: string }).message
+            : 'Update failed';
+        toast.error(`Update failed: ${msg}`);
       }
     } catch (error) {
       console.error('Update failed:', error);
@@ -466,7 +929,9 @@ export default function DatabaseManagement() {
   };
 
   // Bulk operations functions
-  const handleBulkSearch = async () => {
+  const handleBulkSearch = async (options?: {
+    suppressSuccessToast?: boolean;
+  }): Promise<TableData | null> => {
     try {
       setBulkOperationInProgress(true);
       const result = await invoke<TableData>('bulk_search_records', {
@@ -476,15 +941,20 @@ export default function DatabaseManagement() {
         includeDeleted,
       });
 
-      setBulkSearchResults(result);
+      const normalized = normalizeTableData(result, selectedTable);
+      setBulkSearchResults(normalized);
       setSelectedRecords(new Set()); // Clear selections
 
-      toast.success(
-        `Found ${result.totalCount} records matching your criteria.`
-      );
+      if (!options?.suppressSuccessToast) {
+        toast.success(
+          `Found ${normalized.totalCount} records matching your criteria.`
+        );
+      }
+      return normalized;
     } catch (error) {
       console.error('Bulk search failed:', error);
       toast.error(`Failed to search records: ${error}`);
+      return null;
     } finally {
       setBulkOperationInProgress(false);
     }
@@ -501,7 +971,7 @@ export default function DatabaseManagement() {
         ? `Are you sure you want to permanently delete ${selectedRecords.size} records? This action cannot be undone.`
         : `Are you sure you want to soft delete ${selectedRecords.size} records?`;
 
-    if (!confirm(confirmMessage)) {
+    if (!(await confirmDestructive(confirmMessage))) {
       return;
     }
 
@@ -514,15 +984,81 @@ export default function DatabaseManagement() {
         deleteType: bulkDeleteType,
       });
 
-      if (result.success) {
+      if (
+        result &&
+        typeof result === 'object' &&
+        'success' in result &&
+        result.success
+      ) {
+        console.log('Bulk delete success — refreshing UI');
+        console.log('Selected record count:', selectedRecords.size);
+        console.log('Bulk delete invoke result:', result);
         toast.success(result.message);
 
-        // Clear selections and refresh data
+        // Immediate UI reset so we never render stale rows while refresh runs.
         setSelectedRecords(new Set());
-        loadTableData();
-        handleBulkSearch(); // Refresh bulk search results
+        setBulkSearchResults(
+          normalizeTableData(
+            { columns: [], rows: [], totalCount: 0, tableName: selectedTable },
+            selectedTable
+          )
+        );
+
+        try {
+          setCurrentPage(1);
+          await loadTableData({ page: 1 });
+          const searchResult = await handleBulkSearch({
+            suppressSuccessToast: true,
+          });
+          console.log('Table reload / bulk search result:', searchResult);
+          await loadDashboardData();
+
+          if (searchResult === null) {
+            setBulkSearchResults(
+              normalizeTableData(
+                {
+                  columns: [],
+                  rows: [],
+                  totalCount: 0,
+                  tableName: selectedTable,
+                },
+                selectedTable
+              )
+            );
+            toast.error('Refresh Warning', {
+              description:
+                'Data was deleted, but reloading search results failed.',
+            });
+          } else if (searchResult.totalCount === 0) {
+            setBulkSearchResults(null);
+          }
+        } catch (refreshError) {
+          console.error('Bulk refresh failed:', refreshError);
+          toast.error('Refresh Warning', {
+            description:
+              'Data was deleted, but refreshing the view encountered an issue.',
+          });
+          setBulkSearchResults(
+            normalizeTableData(
+              {
+                columns: [],
+                rows: [],
+                totalCount: 0,
+                tableName: selectedTable,
+              },
+              selectedTable
+            )
+          );
+        }
       } else {
-        toast.error(result.message);
+        const msg =
+          result &&
+          typeof result === 'object' &&
+          'message' in result &&
+          typeof (result as { message?: unknown }).message === 'string'
+            ? (result as { message: string }).message
+            : 'Bulk delete did not succeed.';
+        toast.error(msg);
       }
     } catch (error) {
       console.error('Bulk delete failed:', error);
@@ -535,17 +1071,21 @@ export default function DatabaseManagement() {
   const handleSelectAll = () => {
     if (!bulkSearchResults) return;
 
-    if (selectedRecords.size === bulkSearchResults.rows.length) {
+    const rows = Array.isArray(bulkSearchResults.rows)
+      ? bulkSearchResults.rows
+      : [];
+
+    if (selectedRecords.size === rows.length) {
       // Deselect all
       setSelectedRecords(new Set());
     } else {
       // Select all, but limit to 100 records
-      const allIds = bulkSearchResults.rows
-        .map(row => row[0]?.toString() || '')
+      const allIds = rows
+        .map(row => (Array.isArray(row) ? row[0]?.toString() || '' : ''))
         .slice(0, 100); // Limit to first 100 records
       setSelectedRecords(new Set(allIds));
 
-      if (bulkSearchResults.rows.length > 100) {
+      if (rows.length > 100) {
         toast.warning(
           'Only the first 100 records were selected due to bulk operation limits.'
         );
@@ -557,7 +1097,7 @@ export default function DatabaseManagement() {
   const loadBackupSchedules = async () => {
     try {
       const schedules = await invoke<BackupSchedule[]>('get_backup_schedules');
-      setBackupSchedules(schedules);
+      setBackupSchedules(Array.isArray(schedules) ? schedules : []);
     } catch (error) {
       console.error('Failed to load backup schedules:', error);
       toast.error('Failed to load backup schedules');
@@ -565,13 +1105,17 @@ export default function DatabaseManagement() {
   };
 
   const handleDeleteSchedule = async (scheduleId: number) => {
-    if (!confirm('Are you sure you want to delete this backup schedule?'))
+    if (
+      !(await confirmDestructive(
+        'Are you sure you want to delete this backup schedule?'
+      ))
+    )
       return;
 
     try {
       await invoke('delete_backup_schedule', {
-        schedule_id: scheduleId,
-        userId: 'admin',
+        scheduleId,
+        userId: 'current_user',
       });
 
       toast.success('Backup schedule deleted successfully');
@@ -585,15 +1129,106 @@ export default function DatabaseManagement() {
   const handleRunSchedule = async (scheduleId: number) => {
     try {
       const backupInfo = await invoke<BackupInfo>('run_scheduled_backup', {
-        schedule_id: scheduleId,
-        userId: 'admin',
+        scheduleId,
+        userId: 'current_user',
       });
 
       toast.success(`Scheduled backup completed: ${backupInfo.filename}`);
-      loadBackupSchedules();
+      await loadDashboardData();
+      await loadBackupSchedules();
     } catch (error) {
       console.error('Failed to run scheduled backup:', error);
-      toast.error('Failed to run scheduled backup');
+      toast.error(`Failed to run scheduled backup: ${error}`);
+    }
+  };
+
+  const openCreateSchedule = () => {
+    setEditingScheduleId(null);
+    setScheduleForm(defaultScheduleForm());
+    setScheduleDialogOpen(true);
+  };
+
+  const openEditSchedule = (schedule: BackupSchedule) => {
+    setEditingScheduleId(schedule.id ?? null);
+    setScheduleForm({
+      ...defaultScheduleForm(),
+      name: schedule.name,
+      preset: 'custom',
+      customCron: schedule.cron_expr?.trim() || '0 0 2 * * *',
+      destination:
+        schedule.destination === 'google_drive' ? 'google_drive' : 'local',
+      retention_count: schedule.retention_count ?? 5,
+      retention_days: schedule.retention_days ?? 30,
+      enabled: schedule.enabled,
+      notes: schedule.notes || '',
+    });
+    setScheduleDialogOpen(true);
+  };
+
+  const saveSchedule = async () => {
+    const name = scheduleForm.name.trim();
+    if (!name) {
+      toast.error('Please enter a schedule name.');
+      return;
+    }
+    if (
+      scheduleForm.destination === 'google_drive' &&
+      gdriveCloudBlocked(googleDriveStatus)
+    ) {
+      toast.error(
+        googleDriveStatus?.state === 'not_configured'
+          ? 'Google Drive is not configured for this build.'
+          : 'Connect Google Drive before scheduling cloud backups.'
+      );
+      return;
+    }
+    let cron: string;
+    try {
+      cron = buildCronExpr(scheduleForm);
+      if (!cron) {
+        toast.error('Enter a valid cron expression.');
+        return;
+      }
+    } catch {
+      toast.error('Could not build schedule from the form.');
+      return;
+    }
+
+    try {
+      if (editingScheduleId != null) {
+        await invoke('update_backup_schedule', {
+          scheduleId: editingScheduleId,
+          name,
+          cronExpr: cron,
+          destination: scheduleForm.destination,
+          retentionCount: scheduleForm.retention_count,
+          retentionDays: scheduleForm.retention_days,
+          enabled: scheduleForm.enabled,
+          timeZone: 'UTC',
+          notes: scheduleForm.notes.trim() || undefined,
+          userId: 'current_user',
+        });
+        toast.success('Schedule updated');
+      } else {
+        await invoke('create_backup_schedule', {
+          name,
+          cronExpr: cron,
+          destination: scheduleForm.destination,
+          retentionCount: scheduleForm.retention_count,
+          retentionDays: scheduleForm.retention_days,
+          enabled: scheduleForm.enabled,
+          timeZone: 'UTC',
+          notes: scheduleForm.notes.trim() || undefined,
+          userId: 'current_user',
+        });
+        toast.success('Schedule created');
+      }
+      setScheduleDialogOpen(false);
+      await loadBackupSchedules();
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Save schedule failed:', error);
+      toast.error(`Save failed: ${error}`);
     }
   };
 
@@ -601,7 +1236,7 @@ export default function DatabaseManagement() {
   const loadUserRoles = async () => {
     try {
       const roles = await invoke<UserRole[]>('get_user_roles');
-      setUserRoles(roles);
+      setUserRoles(Array.isArray(roles) ? roles : []);
     } catch (error) {
       console.error('Failed to load user roles:', error);
       toast.error('Failed to load user roles');
@@ -609,7 +1244,12 @@ export default function DatabaseManagement() {
   };
 
   const handleDeleteRole = async (roleId: number) => {
-    if (!confirm('Are you sure you want to delete this user role?')) return;
+    if (
+      !(await confirmDestructive(
+        'Are you sure you want to delete this user role?'
+      ))
+    )
+      return;
 
     try {
       await invoke('delete_user_role', {
@@ -718,13 +1358,12 @@ export default function DatabaseManagement() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {stats ? formatBytes(stats.db_size_bytes) : '0 Bytes'}
+              {stats
+                ? formatBytes(Number(stats.db_size_bytes ?? 0))
+                : '0 Bytes'}
             </div>
             <p className="text-muted-foreground text-xs">
-              {stats
-                ? Object.values(stats.table_counts).reduce((a, b) => a + b, 0)
-                : 0}{' '}
-              total records
+              {stats ? totalRecordsFromStats(stats) : 0} total records
             </p>
           </CardContent>
         </Card>
@@ -812,8 +1451,8 @@ export default function DatabaseManagement() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-2">
-                  {stats?.table_counts &&
-                    Object.entries(stats.table_counts).map(([table, count]) => (
+                  {Object.entries(safeTableCounts(stats)).map(
+                    ([table, count]) => (
                       <div
                         key={table}
                         className="flex items-center justify-between"
@@ -822,10 +1461,14 @@ export default function DatabaseManagement() {
                           {table.replace(/_/g, ' ')}
                         </span>
                         <Badge variant="outline">
-                          {count.toLocaleString()}
+                          {(typeof count === 'number'
+                            ? count
+                            : 0
+                          ).toLocaleString()}
                         </Badge>
                       </div>
-                    ))}
+                    )
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -838,8 +1481,11 @@ export default function DatabaseManagement() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {auditLogs.slice(0, 5).map(log => (
-                    <div key={log.id} className="flex items-center space-x-3">
+                  {auditLogs.slice(0, 5).map((log, idx) => (
+                    <div
+                      key={auditLogKey(log, idx)}
+                      className="flex items-center space-x-3"
+                    >
                       {getActionIcon(log.action)}
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">
@@ -923,7 +1569,11 @@ export default function DatabaseManagement() {
                     <Label htmlFor="include-deleted">Include Deleted</Label>
                   </div>
 
-                  <Button onClick={loadTableData} variant="outline" size="sm">
+                  <Button
+                    onClick={() => void loadTableData()}
+                    variant="outline"
+                    size="sm"
+                  >
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh
                   </Button>
@@ -932,123 +1582,134 @@ export default function DatabaseManagement() {
             </Card>
 
             {/* Data Table */}
-            {tableData && (
-              <Card>
-                <CardHeader>
-                  <CardTitle>
-                    {tableData.tableName.charAt(0).toUpperCase() +
-                      tableData.tableName.slice(1)}
-                    ({tableData.totalCount.toLocaleString()} records)
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {tableData.columns.map(column => (
-                            <TableHead key={column}>
-                              {column.replace(/_/g, ' ')}
-                            </TableHead>
-                          ))}
-                          <TableHead>Actions</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {tableData.rows.map((row, rowIndex) => {
-                          const recordId = row[0]?.toString() || '';
-                          const recordData: Record<string, unknown> = {};
-                          tableData.columns.forEach((column, colIndex) => {
-                            recordData[column] = row[colIndex];
-                          });
+            {tableData &&
+              Array.isArray(tableData.columns) &&
+              Array.isArray(tableData.rows) && (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>
+                      {(tableData.tableName || '').charAt(0).toUpperCase() +
+                        (tableData.tableName || '').slice(1)}
+                      ({Number(tableData.totalCount ?? 0).toLocaleString()}{' '}
+                      records)
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            {tableData.columns.map(column => (
+                              <TableHead key={column}>
+                                {String(column).replace(/_/g, ' ')}
+                              </TableHead>
+                            ))}
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {tableData.rows.map((row, rowIndex) => {
+                            if (!Array.isArray(row)) return null;
+                            const recordId = row[0]?.toString() || '';
+                            const recordData: Record<string, unknown> = {};
+                            tableData.columns.forEach((column, colIndex) => {
+                              recordData[column] = row[colIndex];
+                            });
 
-                          return (
-                            <TableRow key={rowIndex}>
-                              {row.map((cell, cellIndex) => (
-                                <TableCell key={cellIndex}>
-                                  {cell === null ? (
-                                    <span className="text-muted-foreground">
-                                      null
-                                    </span>
-                                  ) : typeof cell === 'string' &&
-                                    cell.length > 50 ? (
-                                    <span title={cell}>
-                                      {cell.substring(0, 50)}...
-                                    </span>
-                                  ) : (
-                                    cell?.toString() || ''
-                                  )}
+                            return (
+                              <TableRow key={rowIndex}>
+                                {row.map((cell, cellIndex) => (
+                                  <TableCell key={cellIndex}>
+                                    {cell === null ? (
+                                      <span className="text-muted-foreground">
+                                        null
+                                      </span>
+                                    ) : typeof cell === 'string' &&
+                                      cell.length > 50 ? (
+                                      <span title={cell}>
+                                        {cell.substring(0, 50)}...
+                                      </span>
+                                    ) : (
+                                      cell?.toString() || ''
+                                    )}
+                                  </TableCell>
+                                ))}
+                                <TableCell>
+                                  <div className="flex space-x-1">
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() =>
+                                        handleEditRecord(recordId, recordData)
+                                      }
+                                    >
+                                      <Edit3 className="h-3 w-3" />
+                                    </Button>
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={() => handleSoftDelete(recordId)}
+                                      className="text-orange-600 hover:text-orange-700"
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </div>
                                 </TableCell>
-                              ))}
-                              <TableCell>
-                                <div className="flex space-x-1">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      handleEditRecord(recordId, recordData)
-                                    }
-                                  >
-                                    <Edit3 className="h-3 w-3" />
-                                  </Button>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleSoftDelete(recordId)}
-                                    className="text-orange-600 hover:text-orange-700"
-                                  >
-                                    <Trash2 className="h-3 w-3" />
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </div>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </div>
 
-                  {/* Pagination */}
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="text-sm text-gray-600">
-                      Showing {(tableData.page - 1) * tableData.pageSize + 1} to{' '}
-                      {Math.min(
-                        tableData.page * tableData.pageSize,
-                        tableData.totalCount
-                      )}{' '}
-                      of {tableData.totalCount} records
+                    {/* Pagination */}
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="text-sm text-gray-600">
+                        Showing {(tableData.page - 1) * tableData.pageSize + 1}{' '}
+                        to{' '}
+                        {Math.min(
+                          tableData.page * tableData.pageSize,
+                          tableData.totalCount
+                        )}{' '}
+                        of {tableData.totalCount} records
+                      </div>
+                      <div className="flex space-x-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            setCurrentPage(Math.max(1, currentPage - 1))
+                          }
+                          disabled={currentPage === 1}
+                        >
+                          Previous
+                        </Button>
+                        <span className="px-3 py-1 text-sm">
+                          Page {currentPage} of{' '}
+                          {Math.ceil(
+                            tableData.totalCount /
+                              Math.max(1, tableData.pageSize || 1)
+                          )}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCurrentPage(currentPage + 1)}
+                          disabled={
+                            currentPage >=
+                            Math.ceil(
+                              tableData.totalCount /
+                                Math.max(1, tableData.pageSize || 1)
+                            )
+                          }
+                        >
+                          Next
+                        </Button>
+                      </div>
                     </div>
-                    <div className="flex space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() =>
-                          setCurrentPage(Math.max(1, currentPage - 1))
-                        }
-                        disabled={currentPage === 1}
-                      >
-                        Previous
-                      </Button>
-                      <span className="px-3 py-1 text-sm">
-                        Page {currentPage} of{' '}
-                        {Math.ceil(tableData.totalCount / tableData.pageSize)}
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setCurrentPage(currentPage + 1)}
-                        disabled={
-                          currentPage >=
-                          Math.ceil(tableData.totalCount / tableData.pageSize)
-                        }
-                      >
-                        Next
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+                  </CardContent>
+                </Card>
+              )}
           </div>
         </TabsContent>
 
@@ -1105,7 +1766,7 @@ export default function DatabaseManagement() {
                   </div>
 
                   <Button
-                    onClick={handleBulkSearch}
+                    onClick={() => void handleBulkSearch()}
                     disabled={bulkOperationInProgress}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
@@ -1185,7 +1846,10 @@ export default function DatabaseManagement() {
                         size="sm"
                         onClick={handleSelectAll}
                       >
-                        {selectedRecords.size === bulkSearchResults.rows.length
+                        {selectedRecords.size ===
+                        (Array.isArray(bulkSearchResults.rows)
+                          ? bulkSearchResults.rows.length
+                          : 0)
                           ? 'Deselect All'
                           : 'Select All'}
                       </Button>
@@ -1229,13 +1893,20 @@ export default function DatabaseManagement() {
                             <Checkbox
                               checked={
                                 selectedRecords.size ===
-                                  bulkSearchResults.rows.length &&
-                                bulkSearchResults.rows.length > 0
+                                  (Array.isArray(bulkSearchResults.rows)
+                                    ? bulkSearchResults.rows.length
+                                    : 0) &&
+                                (Array.isArray(bulkSearchResults.rows)
+                                  ? bulkSearchResults.rows.length
+                                  : 0) > 0
                               }
                               onCheckedChange={handleSelectAll}
                             />
                           </th>
-                          {bulkSearchResults.columns.map((column, index) => (
+                          {(Array.isArray(bulkSearchResults.columns)
+                            ? bulkSearchResults.columns
+                            : []
+                          ).map((column, index) => (
                             <th
                               key={index}
                               className="border border-gray-300 px-3 py-2 text-left font-medium"
@@ -1246,7 +1917,11 @@ export default function DatabaseManagement() {
                         </tr>
                       </thead>
                       <tbody>
-                        {bulkSearchResults.rows.map((row, rowIndex) => {
+                        {(Array.isArray(bulkSearchResults.rows)
+                          ? bulkSearchResults.rows
+                          : []
+                        ).map((row, rowIndex) => {
+                          if (!Array.isArray(row)) return null;
                           const recordId = row[0]?.toString() || '';
                           return (
                             <tr key={rowIndex} className="hover:bg-gray-50">
@@ -1263,7 +1938,7 @@ export default function DatabaseManagement() {
                                   key={cellIndex}
                                   className="border border-gray-300 px-3 py-2"
                                 >
-                                  {cell ? cell.toString() : '-'}
+                                  {formatBulkCell(cell)}
                                 </td>
                               ))}
                             </tr>
@@ -1301,15 +1976,82 @@ export default function DatabaseManagement() {
                 <CardDescription>Create a new database backup</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {backupInProgress && (
+                {backupInProgress &&
+                  backupForm.destination !== 'google_drive' && (
+                    <Alert>
+                      <RefreshCw className="h-4 w-4 animate-spin" />
+                      <AlertDescription>
+                        Creating backup... {backupProgress}%
+                        <Progress value={backupProgress} className="mt-2" />
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                {googleDriveStatus?.state === 'not_configured' && (
                   <Alert>
-                    <RefreshCw className="h-4 w-4 animate-spin" />
+                    <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      Creating backup... {backupProgress}%
-                      <Progress value={backupProgress} className="mt-2" />
+                      Google Drive requires OAuth credentials at build time (
+                      <code className="text-xs">
+                        IMPORT_MANAGER_GOOGLE_CLIENT_ID
+                      </code>
+                      ). Local backups work without this.
                     </AlertDescription>
                   </Alert>
                 )}
+
+                <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      <Cloud className="mr-1 inline h-4 w-4" />
+                      Google Drive
+                    </span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {googleDriveStatus?.state === 'connected' && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          title="Refresh account email"
+                          onClick={() => void handleRefreshGoogleProfile()}
+                        >
+                          <RefreshCw className="h-4 w-4" />
+                        </Button>
+                      )}
+                      {googleDriveStatus?.configured ? (
+                        googleDriveStatus.state === 'connected' ? (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => void handleDisconnectGoogleDrive()}
+                          >
+                            Disconnect
+                          </Button>
+                        ) : (
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="sm"
+                            onClick={() => void handleConnectGoogleDrive()}
+                          >
+                            Connect
+                          </Button>
+                        )
+                      ) : null}
+                    </div>
+                  </div>
+                  <p className="text-sm font-medium">
+                    {gdriveStatusIndicator(googleDriveStatus)}
+                  </p>
+                  <p className="text-muted-foreground text-xs">
+                    {googleDriveStatus?.state === 'not_configured'
+                      ? 'Not available in this build.'
+                      : googleDriveStatus?.state === 'connected'
+                        ? 'You can back up to Google Drive or restore from cloud backups below. Retry and cancel are shown during upload or download.'
+                        : 'Connect once to upload encrypted backups to your own Drive (app-created files only).'}
+                  </p>
+                </div>
 
                 <div className="space-y-3">
                   <div>
@@ -1325,11 +2067,11 @@ export default function DatabaseManagement() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="local">Local Storage</SelectItem>
+                        <SelectItem value="google_drive">
+                          Google Drive
+                        </SelectItem>
                         <SelectItem value="s3" disabled>
                           AWS S3 (Coming Soon)
-                        </SelectItem>
-                        <SelectItem value="gdrive" disabled>
-                          Google Drive (Coming Soon)
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -1367,7 +2109,11 @@ export default function DatabaseManagement() {
 
                   <Button
                     onClick={handleBackupNow}
-                    disabled={backupInProgress}
+                    disabled={
+                      backupInProgress ||
+                      (backupForm.destination === 'google_drive' &&
+                        gdriveCloudBlocked(googleDriveStatus))
+                    }
                     className="w-full"
                     useAccentColor
                   >
@@ -1397,7 +2143,7 @@ export default function DatabaseManagement() {
                 <div className="space-y-3">
                   {backupHistory.map(backup => (
                     <div
-                      key={backup.id}
+                      key={backup.id ?? backup.path}
                       className="flex items-center justify-between rounded-lg border p-3"
                     >
                       <div className="flex items-center space-x-3">
@@ -1407,8 +2153,17 @@ export default function DatabaseManagement() {
                             {backup.filename}
                           </p>
                           <p className="text-muted-foreground text-xs">
-                            {formatDate(backup.created_at)} •{' '}
-                            {backup.size_bytes
+                            Type: {backupTypeLabel(backup)}
+                          </p>
+                          {backupTypeLabel(backup) === 'Google Drive' && (
+                            <p className="text-muted-foreground text-xs">
+                              Google Drive file name: {backup.filename}
+                            </p>
+                          )}
+                          <p className="text-muted-foreground text-xs">
+                            {formatDate(backup.created_at)}
+                            {' • '}
+                            {backup.size_bytes != null
                               ? formatBytes(backup.size_bytes)
                               : 'Unknown size'}
                           </p>
@@ -1459,12 +2214,7 @@ export default function DatabaseManagement() {
                 Manage automated backup schedules
               </p>
             </div>
-            <Button
-              onClick={() =>
-                toast.info('Schedule creation feature coming soon')
-              }
-              useAccentColor
-            >
+            <Button onClick={openCreateSchedule} useAccentColor>
               <Plus className="mr-2 h-4 w-4" />
               Create Schedule
             </Button>
@@ -1503,11 +2253,20 @@ export default function DatabaseManagement() {
                           </Badge>
                         </div>
                         <p className="text-muted-foreground mt-1 text-sm">
-                          {schedule.cron_expr} • {schedule.destination}
+                          {schedule.cron_expr ?? '—'} •{' '}
+                          {schedule.destination === 'google_drive'
+                            ? 'Google Drive'
+                            : 'Local'}
                         </p>
                         <p className="text-muted-foreground text-xs">
-                          Last run: {schedule.last_run || 'Never'} • Next run:{' '}
-                          {schedule.next_run || 'Not scheduled'}
+                          Last run:{' '}
+                          {schedule.last_run
+                            ? formatDate(schedule.last_run)
+                            : 'Never'}{' '}
+                          • Next run:{' '}
+                          {schedule.next_run
+                            ? formatDate(schedule.next_run)
+                            : 'Not set'}
                         </p>
                         {schedule.notes && (
                           <p className="text-muted-foreground mt-1 text-xs">
@@ -1526,9 +2285,7 @@ export default function DatabaseManagement() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() =>
-                            toast.info('Schedule editing feature coming soon')
-                          }
+                          onClick={() => openEditSchedule(schedule)}
                         >
                           <Edit3 className="h-4 w-4" />
                         </Button>
@@ -1639,9 +2396,9 @@ export default function DatabaseManagement() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {auditLogs.map(log => (
+                {auditLogs.map((log, idx) => (
                   <div
-                    key={log.id}
+                    key={auditLogKey(log, idx)}
                     className="flex items-start space-x-3 rounded-lg border p-3"
                   >
                     {getActionIcon(log.action)}
@@ -1766,6 +2523,23 @@ export default function DatabaseManagement() {
                         {restorePreview.backup_info.status}
                       </Badge>
                     </div>
+                    <div>
+                      <p className="text-sm font-medium">Backup type</p>
+                      <p className="text-muted-foreground">
+                        {backupTypeLabel(restorePreview.backup_info)}
+                      </p>
+                    </div>
+                    {backupTypeLabel(restorePreview.backup_info) ===
+                      'Google Drive' && (
+                      <div>
+                        <p className="text-sm font-medium">
+                          Google Drive file name
+                        </p>
+                        <p className="text-muted-foreground">
+                          {restorePreview.backup_info.filename}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -1902,6 +2676,301 @@ export default function DatabaseManagement() {
         </div>
       )}
 
+      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editingScheduleId != null
+                ? 'Edit backup schedule'
+                : 'New backup schedule'}
+            </DialogTitle>
+            <DialogDescription>
+              Times use six-field cron in <strong>UTC</strong> (sec min hour day
+              month weekday). The app checks every minute and runs due schedules
+              automatically.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="sched-name">Name</Label>
+              <Input
+                id="sched-name"
+                value={scheduleForm.name}
+                onChange={e =>
+                  setScheduleForm(prev => ({ ...prev, name: e.target.value }))
+                }
+                placeholder="e.g. Nightly backup"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Destination</Label>
+              <Select
+                value={scheduleForm.destination}
+                onValueChange={v =>
+                  setScheduleForm(prev => ({
+                    ...prev,
+                    destination: v as 'local' | 'google_drive',
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="local">Local Storage</SelectItem>
+                  <SelectItem value="google_drive">Google Drive</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Frequency</Label>
+              <Select
+                value={scheduleForm.preset}
+                onValueChange={v =>
+                  setScheduleForm(prev => ({
+                    ...prev,
+                    preset: v as SchedulePreset,
+                  }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="daily">Daily</SelectItem>
+                  <SelectItem value="weekly">Weekly</SelectItem>
+                  <SelectItem value="monthly">Monthly</SelectItem>
+                  <SelectItem value="custom">Custom (cron)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {scheduleForm.preset !== 'custom' && (
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="sched-hour">Hour (UTC)</Label>
+                  <Input
+                    id="sched-hour"
+                    type="number"
+                    min={0}
+                    max={23}
+                    value={scheduleForm.hour}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        hour: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sched-min">Minute</Label>
+                  <Input
+                    id="sched-min"
+                    type="number"
+                    min={0}
+                    max={59}
+                    value={scheduleForm.minute}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        minute: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+            )}
+            {scheduleForm.preset === 'weekly' && (
+              <div className="space-y-2">
+                <Label>Weekday (UTC)</Label>
+                <Select
+                  value={String(scheduleForm.dayOfWeek)}
+                  onValueChange={v =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      dayOfWeek: Number(v),
+                    }))
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">Sunday</SelectItem>
+                    <SelectItem value="1">Monday</SelectItem>
+                    <SelectItem value="2">Tuesday</SelectItem>
+                    <SelectItem value="3">Wednesday</SelectItem>
+                    <SelectItem value="4">Thursday</SelectItem>
+                    <SelectItem value="5">Friday</SelectItem>
+                    <SelectItem value="6">Saturday</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            {scheduleForm.preset === 'monthly' && (
+              <div className="space-y-2">
+                <Label htmlFor="sched-dom">Day of month (1–31)</Label>
+                <Input
+                  id="sched-dom"
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={scheduleForm.dayOfMonth}
+                  onChange={e =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      dayOfMonth: Number(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+            )}
+            {scheduleForm.preset === 'custom' && (
+              <div className="space-y-2">
+                <Label htmlFor="sched-cron">Cron expression</Label>
+                <Input
+                  id="sched-cron"
+                  value={scheduleForm.customCron}
+                  onChange={e =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      customCron: e.target.value,
+                    }))
+                  }
+                  placeholder="0 30 9 * * *"
+                />
+                <p className="text-muted-foreground text-xs">
+                  Six fields: second minute hour day-of-month month day-of-week.
+                </p>
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="sched-ret-n">Keep last N backups</Label>
+                <Input
+                  id="sched-ret-n"
+                  type="number"
+                  min={1}
+                  value={scheduleForm.retention_count}
+                  onChange={e =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      retention_count: Number(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="sched-ret-d">Retention (days)</Label>
+                <Input
+                  id="sched-ret-d"
+                  type="number"
+                  min={1}
+                  value={scheduleForm.retention_days}
+                  onChange={e =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      retention_days: Number(e.target.value),
+                    }))
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
+              <div>
+                <p className="text-sm font-medium">Enabled</p>
+                <p className="text-muted-foreground text-xs">
+                  Disabled schedules are skipped by the scheduler.
+                </p>
+              </div>
+              <Switch
+                checked={scheduleForm.enabled}
+                onCheckedChange={checked =>
+                  setScheduleForm(prev => ({ ...prev, enabled: checked }))
+                }
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="sched-notes">Notes</Label>
+              <Textarea
+                id="sched-notes"
+                value={scheduleForm.notes}
+                onChange={e =>
+                  setScheduleForm(prev => ({ ...prev, notes: e.target.value }))
+                }
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="outline"
+              type="button"
+              onClick={() => setScheduleDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={() => void saveSchedule()}
+              useAccentColor
+            >
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Google Drive transfer progress (upload / download) */}
+      {isTauriEnvironment && (gdriveOpLabel || gdriveTransfer) && (
+        <div
+          className="z-60 fixed inset-0 flex items-center justify-center bg-black/60 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="gdrive-transfer-title"
+        >
+          <div className="bg-background w-full max-w-md rounded-lg border p-6 shadow-lg">
+            <h2 id="gdrive-transfer-title" className="text-lg font-semibold">
+              {gdriveOpLabel ?? 'Google Drive'}
+            </h2>
+            <p className="text-muted-foreground mt-1 text-sm">
+              {gdriveTransfer?.phase ?? 'Working…'}
+            </p>
+            {gdriveTransfer?.message ? (
+              <p className="text-muted-foreground mt-1 text-xs">
+                {gdriveTransfer.message}
+              </p>
+            ) : null}
+            <div className="mt-4 space-y-2">
+              <Progress value={Math.min(100, gdriveTransfer?.percent ?? 0)} />
+              <div className="text-muted-foreground flex justify-between text-xs">
+                <span>
+                  {gdriveTransfer?.percent ?? 0}%
+                  {gdriveTransfer?.attempt != null && gdriveTransfer.attempt > 1
+                    ? ` · Retry ${gdriveTransfer.attempt} of 3`
+                    : null}
+                </span>
+                <span>
+                  {formatBytes(Number(gdriveTransfer?.bytesTransferred ?? 0))}
+                  {Number(gdriveTransfer?.totalBytes ?? 0) > 0
+                    ? ` / ${formatBytes(Number(gdriveTransfer?.totalBytes ?? 0))}`
+                    : ''}
+                </span>
+              </div>
+            </div>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleGdriveCancelTransfer}
+              >
+                Cancel transfer
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Edit Record Modal */}
       {editingRecord && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
@@ -2007,5 +3076,13 @@ export default function DatabaseManagement() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function DatabaseManagement() {
+  return (
+    <ErrorBoundary componentName="DatabaseManagement">
+      <DatabaseManagementContent />
+    </ErrorBoundary>
   );
 }

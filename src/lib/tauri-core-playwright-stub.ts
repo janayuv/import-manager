@@ -457,7 +457,13 @@ export async function invoke<T = unknown>(
           errorMessages.push(`${inv.invoiceNumber}: not in Draft status`);
           continue;
         }
-        if (Math.abs(inv.shipmentTotal - inv.calculatedTotal) >= 0.01) {
+        const shipmentTotal = Number(
+          (inv as Record<string, unknown>).shipmentTotal
+        );
+        const calculatedTotal = Number(
+          (inv as Record<string, unknown>).calculatedTotal
+        );
+        if (Math.abs(shipmentTotal - calculatedTotal) >= 0.01) {
           failed += 1;
           errorMessages.push(
             `${inv.invoiceNumber}: shipment total does not match calculated total`
@@ -724,6 +730,41 @@ export async function invoke<T = unknown>(
       const list = stubBackupHistoryList.map(b => ({ ...b }));
       return (limit !== undefined ? list.slice(0, limit) : list) as T;
     }
+    case 'google_drive_status':
+      return {
+        configured: true,
+        connected: true,
+        state: 'connected',
+        email: 'playwright@test.local',
+      } as T;
+    case 'google_drive_refresh_profile':
+      return 'playwright@test.local' as T;
+    case 'google_drive_reset_cancel':
+    case 'google_drive_cancel_operation':
+    case 'google_drive_connect':
+    case 'google_drive_disconnect':
+      return undefined as T;
+    case 'create_backup_schedule':
+      return 1 as T;
+    case 'update_backup_schedule':
+    case 'delete_backup_schedule':
+      return undefined as T;
+    case 'run_scheduled_backup': {
+      const id =
+        Number(
+          (args as { scheduleId?: unknown })?.scheduleId ??
+            (args as { schedule_id?: unknown })?.schedule_id ??
+            0
+        ) || 1;
+      return {
+        id,
+        filename: `scheduled-backup-${id}.db`,
+        path: `playwright-stub://scheduled-${id}`,
+        destination: 'local',
+        created_at: new Date().toISOString(),
+        status: 'completed',
+      } as T;
+    }
     case 'create_backup': {
       const req = (args?.request ?? {}) as Record<string, unknown>;
       const snapshot = captureDbSnapshot();
@@ -781,6 +822,22 @@ export async function invoke<T = unknown>(
     }
     case 'bulk_search_records':
       return emptyBrowseTable('bulk') as T;
+    case 'soft_delete_record':
+      persistLiveDbToSession();
+      return undefined as T;
+    case 'bulk_delete_records': {
+      const ids = Array.isArray(args?.recordIds)
+        ? (args.recordIds as unknown[])
+        : [];
+      persistLiveDbToSession();
+      return {
+        success: true,
+        deleted_count: ids.length,
+        total_requested: ids.length,
+        failed_deletions: [] as string[],
+        message: `Deleted ${ids.length} record(s).`,
+      } as T;
+    }
     case 'reset_test_database': {
       seedPlaywrightDefaults();
       console.info('Test database reset completed');

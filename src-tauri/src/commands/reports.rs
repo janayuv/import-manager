@@ -68,18 +68,13 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
     let mut params = Vec::new();
     let mut idx = 1;
 
-    println!("=== build_report_where called ===");
-    println!("Filters: {filters:?}");
-
     if let Some(start_date) = &filters.start_date {
-        println!("Adding start_date filter: {start_date}");
         conditions.push(format!("invoice_date >= ?{idx}"));
         params.push((format!("start_date_{idx}"), start_date.clone()));
         idx += 1;
     }
 
     if let Some(end_date) = &filters.end_date {
-        println!("Adding end_date filter: {end_date}");
         conditions.push(format!("invoice_date <= ?{idx}"));
         params.push((format!("end_date_{idx}"), end_date.clone()));
         idx += 1;
@@ -87,7 +82,6 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
 
     if let Some(supplier) = &filters.supplier {
         if !supplier.is_empty() {
-            println!("Adding supplier filter: {supplier}");
             conditions.push(format!("supplier LIKE ?{idx}"));
             params.push((format!("supplier_{idx}"), format!("%{supplier}%")));
             idx += 1;
@@ -96,7 +90,6 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
 
     if let Some(invoice_no) = &filters.invoice_no {
         if !invoice_no.is_empty() {
-            println!("Adding invoice_no filter: {invoice_no}");
             conditions.push(format!("invoice_no LIKE ?{idx}"));
             params.push((format!("invoice_no_{idx}"), format!("%{invoice_no}%")));
             idx += 1;
@@ -105,7 +98,6 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
 
     if let Some(part_no) = &filters.part_no {
         if !part_no.is_empty() {
-            println!("Adding part_no filter: {part_no}");
             conditions.push(format!("part_no LIKE ?{idx}"));
             params.push((format!("part_no_{idx}"), format!("%{part_no}%")));
             idx += 1;
@@ -121,9 +113,6 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
         format!(" WHERE {}", conditions.join(" AND "))
     };
 
-    println!("Final WHERE SQL: {where_sql}");
-    println!("Final params: {params:?}");
-
     (where_sql, params)
 }
 
@@ -131,15 +120,7 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
 pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<ReportResponse, String> {
     let conn = state.db.lock().unwrap();
 
-    // Debug logging
-    println!("=== get_report called ===");
-    println!("Filters: {filters:?}");
-
     let (where_sql, params) = build_report_where(&filters);
-
-    // Debug logging
-    println!("Where SQL: {where_sql}");
-    println!("Params: {params:?}");
 
     // Determine sort column and direction
     let sort_col = match filters.sort_by.as_deref() {
@@ -170,32 +151,25 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
     let page_size = filters.page_size.unwrap_or(50);
     let offset = (page - 1) * page_size;
 
-    // Debug logging
-    println!("Sort: {sort_col} {sort_dir}");
-    println!("Page: {page}, PageSize: {page_size}, Offset: {offset}");
-
     // Total rows
     let count_sql = format!("SELECT COUNT(1) FROM report_view{where_sql}");
-    println!("Count SQL: {count_sql}");
 
     let mut count_stmt = conn.prepare(&count_sql).map_err(|e| {
-        println!("Error preparing count statement: {e}");
+        log::warn!("report count prepare failed: {e}");
         e.to_string()
     })?;
 
     let mut count_query = count_stmt
         .query(rusqlite::params_from_iter(params.iter().map(|(_, v)| v)))
         .map_err(|e| {
-            println!("Error executing count query: {e}");
+            log::warn!("report count query failed: {e}");
             e.to_string()
         })?;
 
     let total_rows: u32 = if let Some(row) = count_query.next().map_err(|e| e.to_string())? {
         let count: i64 = row.get(0).map_err(|e| e.to_string())?;
-        println!("Total rows found: {count}");
         count as u32
     } else {
-        println!("No rows found in count query");
         0
     };
 
@@ -219,18 +193,14 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
         params.len() + 2
     );
 
-    println!("Data SQL: {sql}");
-
     let mut stmt = conn.prepare(&sql).map_err(|e| {
-        println!("Error preparing data statement: {e}");
+        log::warn!("report data prepare failed: {e}");
         e.to_string()
     })?;
 
     let mut param_values: Vec<String> = params.iter().map(|(_, v)| v.clone()).collect();
     param_values.push(page_size.to_string());
     param_values.push(offset.to_string());
-
-    println!("Final param values: {param_values:?}");
 
     let rows_iter = stmt
         .query_map(rusqlite::params_from_iter(param_values.iter()), |row| {
@@ -250,20 +220,17 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
                 expenses_total: row.get::<_, String>(12)?.parse::<f64>().unwrap_or(0.0),
                 ldc_per_qty: row.get::<_, String>(13)?.parse::<f64>().unwrap_or(0.0),
             };
-            println!("Row parsed: {report_row:?}");
             Ok(report_row)
         })
         .map_err(|e| {
-            println!("Error in query_map: {e}");
+            log::warn!("report query_map failed: {e}");
             e.to_string()
         })?;
 
     let rows = rows_iter.collect::<Result<Vec<_>, _>>().map_err(|e| {
-        println!("Error collecting rows: {e}");
+        log::warn!("report row collect failed: {e}");
         e.to_string()
     })?;
-
-    println!("Total rows collected: {}", rows.len());
 
     // Calculate totals if requested
     let mut totals = None;
@@ -278,8 +245,6 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
                 printf('%.2f', SUM(expenses_total)) as total_expenses_total
             FROM report_view{where_sql}"
         );
-
-        println!("Totals SQL: {totals_sql}");
 
         let mut totals_stmt = conn.prepare(&totals_sql).map_err(|e| e.to_string())?;
         let mut totals_query = totals_stmt
@@ -319,11 +284,9 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
                     .parse::<f64>()
                     .unwrap_or(0.0),
             });
-            println!("Totals calculated: {totals:?}");
         }
     }
 
-    println!("=== get_report completed ===");
     Ok(ReportResponse {
         rows,
         page,
@@ -395,7 +358,7 @@ pub fn debug_expense_report_filters(
 ) -> Result<String, String> {
     let conn = state.db.lock().unwrap();
 
-    println!("🔍 [DEBUG] Testing expense report filters: {:?}", filters);
+    log::debug!("🔍 [DEBUG] Testing expense report filters: {:?}", filters);
 
     // Test the detailed report generation
     match ExpenseService::generate_expense_report(&conn, &filters) {
@@ -406,12 +369,12 @@ pub fn debug_expense_report_filters(
                 response.totals.invoice_count,
                 response.totals.total_amount_paise
             );
-            println!("🔍 [DEBUG] {}", result);
+            log::debug!("🔍 [DEBUG] {}", result);
             Ok(result)
         }
         Err(e) => {
             let error_msg = format!("❌ Error: {}", e);
-            println!("🔍 [DEBUG] {}", error_msg);
+            log::debug!("🔍 [DEBUG] {}", error_msg);
             Err(error_msg)
         }
     }
@@ -422,7 +385,7 @@ pub fn debug_expense_report_filters(
 pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
     let conn = state.db.lock().unwrap();
 
-    println!("🔍 [DEBUG] Checking expense dates in database...");
+    log::debug!("🔍 [DEBUG] Checking expense dates in database...");
 
     let query = "
         SELECT DISTINCT ei.invoice_date, COUNT(*) as count
@@ -452,6 +415,6 @@ pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
             .map_err(|e| format!("❌ Error reading count: {}", e))?;
         result.push_str(&format!("  {}: {} records\n", date, count));
     }
-    println!("{}", result);
+    log::debug!("{}", result);
     Ok(result)
 }

@@ -14,6 +14,16 @@ const hasWindow = typeof window !== 'undefined';
 const isTauri =
   hasWindow && (window as WindowWithTauri).__TAURI__ !== undefined;
 
+/** Sync browser confirm; never throws (WebView / policy edge cases). */
+function browserConfirm(message: string): boolean {
+  if (!hasWindow) return false;
+  try {
+    return Boolean(window.confirm(message));
+  } catch {
+    return false;
+  }
+}
+
 export async function open(
   options?: OpenDialogOptions
 ): Promise<string | string[] | null> {
@@ -140,17 +150,30 @@ export async function save(
   throw new Error('File save is not supported in web preview.');
 }
 
+/**
+ * Ok/Cancel confirmation. Never rejects: Tauri plugin failures fall back to
+ * `window.confirm` so callers never trigger global `unhandledrejection`.
+ */
 export async function confirm(
   message: string,
   options?: ConfirmDialogOptions
 ): Promise<boolean> {
-  if (isTauri) {
-    const { confirm: tauriConfirm } = await import('@tauri-apps/plugin-dialog');
-    return tauriConfirm(message, options);
+  try {
+    if (isTauri) {
+      try {
+        const { confirm: tauriConfirm } =
+          await import('@tauri-apps/plugin-dialog');
+        return Boolean(await tauriConfirm(message, options));
+      } catch (err) {
+        console.warn('Dialog confirm failed:', err);
+        return browserConfirm(message);
+      }
+    }
+    return browserConfirm(message);
+  } catch (err) {
+    console.warn('confirm() failed:', err);
+    return false;
   }
-  // Basic browser confirm
-
-  return hasWindow ? window.confirm(message) : false;
 }
 
 export async function readTextFile(path: string): Promise<string> {
