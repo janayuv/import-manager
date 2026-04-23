@@ -12,14 +12,16 @@ fn parse_pct_from_item_str(s: &Option<String>) -> f64 {
         .unwrap_or(0.0)
 }
 
-fn item_master_tax_strings(conn: &Connection, item_id: &str) -> (Option<String>, Option<String>, Option<String>) {
-    conn
-        .query_row(
-            "SELECT bcd, sws, igst FROM items WHERE id = ?1",
-            params![item_id],
-            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
-        )
-        .unwrap_or((None, None, None))
+fn item_master_tax_strings(
+    conn: &Connection,
+    item_id: &str,
+) -> (Option<String>, Option<String>, Option<String>) {
+    conn.query_row(
+        "SELECT bcd, sws, igst FROM items WHERE id = ?1",
+        params![item_id],
+        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)),
+    )
+    .unwrap_or((None, None, None))
 }
 
 /// Combine stored line rates (if any) with Item Master fallback.
@@ -179,10 +181,7 @@ pub fn bulk_finalize_invoices(
 
         if inv.status != "Draft" {
             failed += 1;
-            error_messages.push(format!(
-                "{}: not in Draft status",
-                inv.invoice_number
-            ));
+            error_messages.push(format!("{}: not in Draft status", inv.invoice_number));
             continue;
         }
 

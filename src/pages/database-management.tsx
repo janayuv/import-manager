@@ -66,7 +66,11 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
   confirm as confirmDestructive,
   isTauriEnvironment,
+  open as tauriOpenDialog,
 } from '@/lib/tauri-bridge';
+import { logError, logInfo } from '@/lib/logger';
+import { useCurrentUserId } from '@/lib/user-context';
+import { APP_TIMEZONE, formatAppDateTime } from '@/lib/app-timezone';
 
 interface DatabaseStats {
   db_size_bytes: number;
@@ -106,6 +110,14 @@ interface AuditLog {
 interface RestorePreview {
   backup_info: BackupInfo;
   current_db_stats: DatabaseStats;
+  /** Byte length of the backup file on disk at preview time */
+  backup_file_size_bytes: number;
+  /** Informational: (size MB × 0.02) s */
+  estimated_restore_seconds: number;
+  /** `missing` | `valid` | `invalid` */
+  checksum_status: string;
+  /** `null` = no SHA-256 in backups row; `true`/`false` = file vs. recorded */
+  recorded_hash_match: boolean | null;
   integrity_check: string;
   schema_compatibility: boolean;
   estimated_changes: Record<string, number>;
@@ -330,6 +342,78 @@ interface BulkDeleteResult {
   message: string;
 }
 
+interface DeleteDependencySummary {
+  table: string;
+  total_references: number;
+}
+
+interface PreviewDeleteDependencies {
+  total_records: number;
+  blocked_records: number;
+  dependency_summary: DeleteDependencySummary[];
+  can_hard_delete: boolean;
+  /** When true, the scan was aborted (e.g. time limit); do not show partial dependency totals as complete. */
+  scan_timed_out?: boolean;
+}
+
+const PREVIEW_DELETE_CHUNK_SIZE = 500;
+
+/** Merges chunked server previews into one result; on any sub-scan timeout, returns a safe indeterminate summary. */
+function mergeDeletePreviewChunks(
+  parts: PreviewDeleteDependencies[]
+): PreviewDeleteDependencies {
+  if (parts.length === 0) {
+    return {
+      total_records: 0,
+      blocked_records: 0,
+      dependency_summary: [],
+      can_hard_delete: true,
+      scan_timed_out: false,
+    };
+  }
+  const total_records = parts.reduce((s, p) => s + p.total_records, 0);
+  const scan_timed_out = parts.some(p => p.scan_timed_out);
+  if (scan_timed_out) {
+    return {
+      total_records,
+      blocked_records: 0,
+      dependency_summary: [],
+      can_hard_delete: false,
+      scan_timed_out: true,
+    };
+  }
+  const byTable = new Map<string, number>();
+  for (const p of parts) {
+    for (const d of p.dependency_summary) {
+      byTable.set(d.table, (byTable.get(d.table) ?? 0) + d.total_references);
+    }
+  }
+  const dependency_summary = Array.from(byTable.entries())
+    .map(([table, total_references]) => ({ table, total_references }))
+    .sort((a, b) => a.table.localeCompare(b.table));
+  const totalRefRows = dependency_summary.reduce(
+    (s, d) => s + d.total_references,
+    0
+  );
+  const blocked_records = parts.reduce((s, p) => s + p.blocked_records, 0);
+  const can_hard_delete = totalRefRows === 0;
+  return {
+    total_records,
+    blocked_records,
+    dependency_summary,
+    can_hard_delete,
+    scan_timed_out: false,
+  };
+}
+
+function formatTableLabel(table: string): string {
+  if (!table) return table;
+  return table
+    .split('_')
+    .map(w => (w.length ? w[0]!.toUpperCase() + w.slice(1) : w))
+    .join(' ');
+}
+
 interface BulkSearchFilters {
   [key: string]: unknown;
 }
@@ -407,6 +491,7 @@ function auditLogKey(log: AuditLog, index: number): string {
 }
 
 function DatabaseManagementContent() {
+  const userId = useCurrentUserId();
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [backupHistory, setBackupHistory] = useState<BackupInfo[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -441,6 +526,10 @@ function DatabaseManagementContent() {
   );
   const [bulkDeleteType, setBulkDeleteType] = useState<'soft' | 'hard'>('soft');
   const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
+  const [deletePreviewOpen, setDeletePreviewOpen] = useState(false);
+  const [deletePreviewLoading, setDeletePreviewLoading] = useState(false);
+  const [deletePreview, setDeletePreview] =
+    useState<PreviewDeleteDependencies | null>(null);
 
   // Backup schedule state
   const [backupSchedules, setBackupSchedules] = useState<BackupSchedule[]>([]);
@@ -584,18 +673,26 @@ function DatabaseManagementContent() {
     return Math.round((bytes / Math.pow(1024, i)) * 100) / 100 + ' ' + sizes[i];
   };
 
-  const formatDate = (dateString: string): string => {
-    return new Date(dateString).toLocaleString();
-  };
-
   const handleConnectGoogleDrive = async () => {
     try {
       toast.info('Complete sign-in in your browser…');
       await invoke('google_drive_connect');
       try {
+        const s = await invoke<GoogleDriveStatus>('google_drive_status');
+        setGoogleDriveStatus(normalizeGoogleDriveStatus(s));
+      } catch {
+        /* status refresh best-effort */
+      }
+      try {
         await invoke('google_drive_refresh_profile');
       } catch {
         /* profile optional */
+      }
+      try {
+        const s2 = await invoke<GoogleDriveStatus>('google_drive_status');
+        setGoogleDriveStatus(normalizeGoogleDriveStatus(s2));
+      } catch {
+        /* status after profile */
       }
       toast.success('Google Drive connected');
       await loadDashboardData();
@@ -652,6 +749,7 @@ function DatabaseManagementContent() {
     }
     const toGdrive = backupForm.destination === 'google_drive';
     let progressInterval: ReturnType<typeof setInterval> | undefined;
+    const backupUiStart = performance.now();
     try {
       setBackupInProgress(true);
       setBackupProgress(0);
@@ -682,13 +780,27 @@ function DatabaseManagementContent() {
           include_wal: backupForm.include_wal,
           notes: backupForm.notes || undefined,
         },
-        userId: 'current_user',
+        userId,
       });
 
       if (progressInterval) clearInterval(progressInterval);
       setBackupProgress(100);
 
       toast.success(`Backup created successfully: ${result.filename}`);
+      logInfo(
+        `Backup created: ${result.filename} (${result.destination})`,
+        'backup'
+      );
+      logInfo(
+        `Backup completed in ${((performance.now() - backupUiStart) / 1000).toFixed(2)} seconds`,
+        'backup'
+      );
+      if (result.size_bytes != null && result.size_bytes > 0) {
+        logInfo(
+          `Backup size: ${(result.size_bytes / 1_000_000).toFixed(2)} MB`,
+          'backup'
+        );
+      }
 
       await loadDashboardData();
 
@@ -701,6 +813,12 @@ function DatabaseManagementContent() {
       });
     } catch (error) {
       console.error('Backup failed:', error);
+      logError(
+        toGdrive
+          ? friendlyInvokeError(error)
+          : `Backup failed: ${invokeErrorMessage(error)}`,
+        'backup'
+      );
       toast.error(
         toGdrive
           ? friendlyInvokeError(error)
@@ -744,6 +862,12 @@ function DatabaseManagementContent() {
       setRestorePreview(preview);
     } catch (error) {
       console.error('Failed to preview restore:', error);
+      logError(
+        gdrive
+          ? friendlyInvokeError(error)
+          : `Failed to preview restore: ${invokeErrorMessage(error)}`,
+        'restore-preview'
+      );
       toast.error(
         gdrive
           ? friendlyInvokeError(error)
@@ -759,8 +883,68 @@ function DatabaseManagementContent() {
     }
   };
 
+  const handleExportBackupKey = async () => {
+    if (!isTauriEnvironment) {
+      toast.error('Export is only available in the desktop app.');
+      return;
+    }
+    try {
+      await invoke('export_backup_key');
+      toast.success('Backup key saved. Store the file in a safe place.');
+      logInfo('Backup encryption key export completed', 'security');
+    } catch (e) {
+      logError(String(e), 'export-backup-key');
+      toast.error(
+        e instanceof Error ? e.message : 'Failed to export backup key.'
+      );
+    }
+  };
+
+  const handleImportBackupKey = async () => {
+    if (!isTauriEnvironment) {
+      toast.error('Import is only available in the desktop app.');
+      return;
+    }
+    try {
+      const picked = await tauriOpenDialog({
+        multiple: false,
+        filters: [{ name: 'Import Manager key', extensions: ['imkey'] }],
+        title: 'Select backup key file',
+      });
+      if (picked == null) return;
+      const filePath = Array.isArray(picked) ? picked[0] : picked;
+      if (!filePath) return;
+      const hasKey = await invoke<boolean>('has_backup_key_in_keyring');
+      let replaceConfirmed = false;
+      if (hasKey) {
+        const ok = await confirmDestructive(
+          'A backup encryption key is already stored on this system. Replace it with the file you selected?'
+        );
+        if (!ok) return;
+        replaceConfirmed = true;
+      }
+      await invoke('import_backup_key_from_path', {
+        path: filePath,
+        replaceConfirmed,
+      });
+      toast.success(
+        'Backup key imported. You can decrypt backups from your other device.'
+      );
+      logInfo('Backup encryption key import completed', 'security');
+    } catch (e) {
+      logError(String(e), 'import-backup-key');
+      toast.error(
+        e instanceof Error ? e.message : 'Failed to import backup key.'
+      );
+    }
+  };
+
   const handleRestoreDatabase = async () => {
     if (!selectedBackup) return;
+    if (!restorePreview) {
+      toast.error('Open a restore preview from a backup before restoring.');
+      return;
+    }
 
     const ok = await confirmDestructive(
       'Restoring this backup will overwrite the current database. Continue?'
@@ -768,6 +952,7 @@ function DatabaseManagementContent() {
     if (!ok) return;
 
     const gdrive = isGdriveBackupPath(selectedBackup);
+    const restoreUiStart = performance.now();
     try {
       setRestoreInProgress(true);
       if (gdrive && isTauriEnvironment) {
@@ -787,21 +972,36 @@ function DatabaseManagementContent() {
 
       const result = await invoke<RestoreResult>('restore_database', {
         backupPath: selectedBackup,
-        userId: 'current_user',
+        userId,
       });
 
       if (result.success) {
         toast.success(
           `Database restored successfully! Pre-restore backup: ${result.backup_created}`
         );
+        logInfo(
+          `Database restored; pre-restore backup: ${result.backup_created ?? 'n/a'}`,
+          'restore'
+        );
+        logInfo(
+          `Restore completed in ${((performance.now() - restoreUiStart) / 1000).toFixed(2)} seconds`,
+          'restore'
+        );
         setRestorePreview(null);
         setSelectedBackup(null);
         await loadDashboardData();
       } else {
+        logError(`Restore failed: ${result.message}`, 'restore');
         toast.error(`Restore failed: ${result.message}`);
       }
     } catch (error) {
       console.error('Restore failed:', error);
+      logError(
+        gdrive
+          ? friendlyInvokeError(error)
+          : `Restore failed: ${invokeErrorMessage(error)}`,
+        'restore'
+      );
       toast.error(
         gdrive
           ? friendlyInvokeError(error)
@@ -881,7 +1081,7 @@ function DatabaseManagementContent() {
         tableName: selectedTable,
         recordId: editingRecord.id,
         updates: editForm,
-        userId: 'current_user', // TODO: Get from auth context
+        userId,
       });
 
       if (
@@ -916,7 +1116,7 @@ function DatabaseManagementContent() {
       await invoke('soft_delete_record', {
         tableName: selectedTable,
         recordId: recordId,
-        userId: 'current_user', // TODO: Get from auth context
+        userId,
       });
 
       toast.success('Record soft deleted successfully');
@@ -960,28 +1160,14 @@ function DatabaseManagementContent() {
     }
   };
 
-  const handleBulkDelete = async () => {
-    if (selectedRecords.size === 0) {
-      toast.error('Please select records to delete.');
-      return;
-    }
-
-    const confirmMessage =
-      bulkDeleteType === 'hard'
-        ? `Are you sure you want to permanently delete ${selectedRecords.size} records? This action cannot be undone.`
-        : `Are you sure you want to soft delete ${selectedRecords.size} records?`;
-
-    if (!(await confirmDestructive(confirmMessage))) {
-      return;
-    }
-
+  const executeBulkDelete = async (deleteType: 'soft' | 'hard') => {
     try {
       setBulkOperationInProgress(true);
       const result = await invoke<BulkDeleteResult>('bulk_delete_records', {
         tableName: selectedTable,
         recordIds: Array.from(selectedRecords),
-        userId: 'current_user', // TODO: Get from user context
-        deleteType: bulkDeleteType,
+        userId,
+        deleteType,
       });
 
       if (
@@ -990,10 +1176,10 @@ function DatabaseManagementContent() {
         'success' in result &&
         result.success
       ) {
-        console.log('Bulk delete success — refreshing UI');
-        console.log('Selected record count:', selectedRecords.size);
-        console.log('Bulk delete invoke result:', result);
         toast.success(result.message);
+        if (deleteType === 'soft') {
+          logInfo('Soft delete completed after dependency review', 'delete');
+        }
 
         // Immediate UI reset so we never render stale rows while refresh runs.
         setSelectedRecords(new Set());
@@ -1010,7 +1196,6 @@ function DatabaseManagementContent() {
           const searchResult = await handleBulkSearch({
             suppressSuccessToast: true,
           });
-          console.log('Table reload / bulk search result:', searchResult);
           await loadDashboardData();
 
           if (searchResult === null) {
@@ -1061,11 +1246,108 @@ function DatabaseManagementContent() {
         toast.error(msg);
       }
     } catch (error) {
+      const raw = String(error);
+      let friendly = raw;
+      if (raw.includes('Cannot hard delete')) {
+        friendly = raw;
+        logInfo(
+          'Hard delete blocked — dependencies detected (server)',
+          'delete'
+        );
+      } else {
+        try {
+          const o = JSON.parse(raw) as { type?: string };
+          if (o?.type === 'DEPENDENCY_EXISTS') {
+            friendly =
+              'Cannot hard delete — record is referenced in other modules.';
+            logInfo('Hard delete blocked — dependencies detected', 'delete');
+          }
+        } catch {
+          if (
+            raw.toLowerCase().includes('foreign key') &&
+            !raw.startsWith('{')
+          ) {
+            logError('Bulk hard delete: underlying SQLite (FK)', 'delete');
+            friendly =
+              'Cannot hard delete — record is referenced in other modules.';
+          }
+        }
+      }
       console.error('Bulk delete failed:', error);
-      toast.error(`Failed to delete records: ${error}`);
+      toast.error(`Failed to delete records: ${friendly}`);
     } finally {
       setBulkOperationInProgress(false);
     }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedRecords.size === 0) {
+      toast.error('Please select records to delete.');
+      return;
+    }
+
+    if (bulkDeleteType === 'hard') {
+      setDeletePreviewOpen(true);
+      setDeletePreview(null);
+      setDeletePreviewLoading(true);
+      try {
+        const allIds = Array.from(selectedRecords);
+        let p: PreviewDeleteDependencies;
+        if (allIds.length > PREVIEW_DELETE_CHUNK_SIZE) {
+          const parts: PreviewDeleteDependencies[] = [];
+          for (let i = 0; i < allIds.length; i += PREVIEW_DELETE_CHUNK_SIZE) {
+            const recordIds = allIds.slice(i, i + PREVIEW_DELETE_CHUNK_SIZE);
+            const part = await invoke<PreviewDeleteDependencies>(
+              'preview_delete_dependencies',
+              {
+                tableName: selectedTable,
+                recordIds,
+              }
+            );
+            parts.push(part);
+            await new Promise<void>(resolve => {
+              setTimeout(resolve, 0);
+            });
+          }
+          p = mergeDeletePreviewChunks(parts);
+        } else {
+          p = await invoke<PreviewDeleteDependencies>(
+            'preview_delete_dependencies',
+            {
+              tableName: selectedTable,
+              recordIds: allIds,
+            }
+          );
+        }
+        setDeletePreview(p);
+        logInfo(
+          `Delete preview: table=${selectedTable} total_records=${p.total_records} can_hard_delete=${p.can_hard_delete}`,
+          'delete'
+        );
+        if (!p.can_hard_delete) {
+          logInfo('Hard delete blocked — dependencies detected', 'delete');
+        }
+        if (p.scan_timed_out) {
+          logInfo(
+            'Delete preview: reference scan timed out (safe fallback)',
+            'delete'
+          );
+        }
+      } catch (e) {
+        console.error('Delete preview failed:', e);
+        toast.error(`Delete preview failed: ${e}`);
+        setDeletePreviewOpen(false);
+      } finally {
+        setDeletePreviewLoading(false);
+      }
+      return;
+    }
+
+    const confirmMessage = `Are you sure you want to soft delete ${selectedRecords.size} records?`;
+    if (!(await confirmDestructive(confirmMessage))) {
+      return;
+    }
+    await executeBulkDelete('soft');
   };
 
   const handleSelectAll = () => {
@@ -1115,7 +1397,7 @@ function DatabaseManagementContent() {
     try {
       await invoke('delete_backup_schedule', {
         scheduleId,
-        userId: 'current_user',
+        userId,
       });
 
       toast.success('Backup schedule deleted successfully');
@@ -1130,7 +1412,7 @@ function DatabaseManagementContent() {
     try {
       const backupInfo = await invoke<BackupInfo>('run_scheduled_backup', {
         scheduleId,
-        userId: 'current_user',
+        userId,
       });
 
       toast.success(`Scheduled backup completed: ${backupInfo.filename}`);
@@ -1204,9 +1486,9 @@ function DatabaseManagementContent() {
           retentionCount: scheduleForm.retention_count,
           retentionDays: scheduleForm.retention_days,
           enabled: scheduleForm.enabled,
-          timeZone: 'UTC',
+          timeZone: APP_TIMEZONE,
           notes: scheduleForm.notes.trim() || undefined,
-          userId: 'current_user',
+          userId,
         });
         toast.success('Schedule updated');
       } else {
@@ -1217,9 +1499,9 @@ function DatabaseManagementContent() {
           retentionCount: scheduleForm.retention_count,
           retentionDays: scheduleForm.retention_days,
           enabled: scheduleForm.enabled,
-          timeZone: 'UTC',
+          timeZone: APP_TIMEZONE,
           notes: scheduleForm.notes.trim() || undefined,
-          userId: 'current_user',
+          userId,
         });
         toast.success('Schedule created');
       }
@@ -1376,12 +1658,12 @@ function DatabaseManagementContent() {
           <CardContent>
             <div className="text-2xl font-bold">
               {stats?.last_backup
-                ? formatDate(stats.last_backup).split(' ')[0]
+                ? formatAppDateTime(stats.last_backup).split(' ')[0]
                 : 'Never'}
             </div>
             <p className="text-muted-foreground text-xs">
               {stats?.last_backup
-                ? formatDate(stats.last_backup).split(' ')[1]
+                ? formatAppDateTime(stats.last_backup).split(' ')[1]
                 : 'No backups yet'}
             </p>
           </CardContent>
@@ -1395,12 +1677,12 @@ function DatabaseManagementContent() {
           <CardContent>
             <div className="text-2xl font-bold">
               {stats?.next_scheduled_backup
-                ? formatDate(stats.next_scheduled_backup).split(' ')[0]
+                ? formatAppDateTime(stats.next_scheduled_backup).split(' ')[0]
                 : 'None'}
             </div>
             <p className="text-muted-foreground text-xs">
               {stats?.next_scheduled_backup
-                ? formatDate(stats.next_scheduled_backup).split(' ')[1]
+                ? formatAppDateTime(stats.next_scheduled_backup).split(' ')[1]
                 : 'No schedules'}
             </p>
           </CardContent>
@@ -1415,7 +1697,8 @@ function DatabaseManagementContent() {
             <div className="text-2xl font-bold">
               <Badge
                 variant={
-                  stats?.encryption_status === 'Encrypted'
+                  stats?.encryption_status === 'Encrypted' ||
+                  stats?.encryption_status === 'AES-256 Enabled'
                     ? 'default'
                     : 'secondary'
                 }
@@ -1423,7 +1706,37 @@ function DatabaseManagementContent() {
                 {stats?.encryption_status || 'None'}
               </Badge>
             </div>
-            <p className="text-muted-foreground text-xs">Encryption status</p>
+            <p className="text-muted-foreground text-xs">
+              Backups: AES-256-GCM (key in system keyring)
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void handleExportBackupKey();
+                }}
+                disabled={!isTauriEnvironment}
+                title="Save backup_key.imkey for disaster recovery or new PC"
+              >
+                <Download className="mr-1.5 h-3.5 w-3.5" />
+                Export Backup Key
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  void handleImportBackupKey();
+                }}
+                disabled={!isTauriEnvironment}
+                title="Restore a key you exported on another device"
+              >
+                <Upload className="mr-1.5 h-3.5 w-3.5" />
+                Import Backup Key
+              </Button>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -1492,7 +1805,7 @@ function DatabaseManagementContent() {
                           {log.action} on {log.table_name}
                         </p>
                         <p className="text-muted-foreground text-xs">
-                          {formatDate(log.created_at)}
+                          {formatAppDateTime(log.created_at)}
                         </p>
                       </div>
                     </div>
@@ -2161,7 +2474,7 @@ function DatabaseManagementContent() {
                             </p>
                           )}
                           <p className="text-muted-foreground text-xs">
-                            {formatDate(backup.created_at)}
+                            {formatAppDateTime(backup.created_at)}
                             {' • '}
                             {backup.size_bytes != null
                               ? formatBytes(backup.size_bytes)
@@ -2261,11 +2574,11 @@ function DatabaseManagementContent() {
                         <p className="text-muted-foreground text-xs">
                           Last run:{' '}
                           {schedule.last_run
-                            ? formatDate(schedule.last_run)
+                            ? formatAppDateTime(schedule.last_run)
                             : 'Never'}{' '}
                           • Next run:{' '}
                           {schedule.next_run
-                            ? formatDate(schedule.next_run)
+                            ? formatAppDateTime(schedule.next_run)
                             : 'Not set'}
                         </p>
                         {schedule.notes && (
@@ -2417,7 +2730,7 @@ function DatabaseManagementContent() {
                         )}
                       </div>
                       <p className="text-muted-foreground mt-1 text-xs">
-                        {formatDate(log.created_at)}
+                        {formatAppDateTime(log.created_at)}
                         {log.user_id && ` • by ${log.user_id}`}
                       </p>
                       {log.metadata && (
@@ -2500,15 +2813,38 @@ function DatabaseManagementContent() {
                     <div>
                       <p className="text-sm font-medium">Created</p>
                       <p className="text-muted-foreground">
-                        {formatDate(restorePreview.backup_info.created_at)}
+                        {formatAppDateTime(
+                          restorePreview.backup_info.created_at
+                        )}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm font-medium">Size</p>
+                      <p className="text-sm font-medium">Size (recorded)</p>
                       <p className="text-muted-foreground">
                         {restorePreview.backup_info.size_bytes
                           ? formatBytes(restorePreview.backup_info.size_bytes)
                           : 'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        Backup file size (on disk)
+                      </p>
+                      <p className="text-muted-foreground">
+                        {restorePreview.backup_file_size_bytes > 0
+                          ? formatBytes(restorePreview.backup_file_size_bytes)
+                          : 'Unknown'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">
+                        Estimated restore time
+                      </p>
+                      <p className="text-muted-foreground">
+                        ~{restorePreview.estimated_restore_seconds.toFixed(3)} s
+                        <span className="ml-1 text-xs">
+                          (informational: size in MB × 0.02 s)
+                        </span>
                       </p>
                     </div>
                     <div>
@@ -2522,6 +2858,50 @@ function DatabaseManagementContent() {
                       >
                         {restorePreview.backup_info.status}
                       </Badge>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Checksum (database)</p>
+                      <p className="text-sm font-medium">
+                        {(() => {
+                          if (restorePreview.recorded_hash_match === false) {
+                            return (
+                              <span className="text-destructive">
+                                Checksum: FAILED
+                              </span>
+                            );
+                          }
+                          if (restorePreview.recorded_hash_match === true) {
+                            return (
+                              <span className="text-green-600">
+                                Checksum: Verified
+                              </span>
+                            );
+                          }
+                          if (
+                            restorePreview.backup_info.sha256 &&
+                            restorePreview.backup_info.sha256.trim() !== ''
+                          ) {
+                            return (
+                              <span className="text-muted-foreground text-sm font-normal">
+                                (Could not assess)
+                              </span>
+                            );
+                          }
+                          return (
+                            <span className="text-muted-foreground text-sm font-normal">
+                              No SHA-256 stored in library for this file
+                            </span>
+                          );
+                        })()}
+                      </p>
+                      <p className="text-muted-foreground mt-1 text-xs">
+                        Sidecar:{' '}
+                        {restorePreview.checksum_status === 'valid'
+                          ? 'file matches .sha256'
+                          : restorePreview.checksum_status === 'missing'
+                            ? 'no .sha256 file next to backup (older backups are OK if DB hash verified)'
+                            : 'sidecar does not match file'}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm font-medium">Backup type</p>
@@ -2653,7 +3033,10 @@ function DatabaseManagementContent() {
                 <Button
                   onClick={handleRestoreDatabase}
                   disabled={
-                    restoreInProgress || !restorePreview.schema_compatibility
+                    restoreInProgress ||
+                    !restorePreview.schema_compatibility ||
+                    restorePreview.checksum_status === 'invalid' ||
+                    restorePreview.recorded_hash_match === false
                   }
                   className="bg-red-600 hover:bg-red-700"
                   data-testid="restore-database-confirm-button"
@@ -2685,7 +3068,8 @@ function DatabaseManagementContent() {
                 : 'New backup schedule'}
             </DialogTitle>
             <DialogDescription>
-              Times use six-field cron in <strong>UTC</strong> (sec min hour day
+              Times use six-field cron in{' '}
+              <strong>IST (Asia/Kolkata, UTC+05:30)</strong> (sec min hour day
               month weekday). The app checks every minute and runs due schedules
               automatically.
             </DialogDescription>
@@ -2747,7 +3131,7 @@ function DatabaseManagementContent() {
             {scheduleForm.preset !== 'custom' && (
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-2">
-                  <Label htmlFor="sched-hour">Hour (UTC)</Label>
+                  <Label htmlFor="sched-hour">Hour (IST)</Label>
                   <Input
                     id="sched-hour"
                     type="number"
@@ -2782,7 +3166,7 @@ function DatabaseManagementContent() {
             )}
             {scheduleForm.preset === 'weekly' && (
               <div className="space-y-2">
-                <Label>Weekday (UTC)</Label>
+                <Label>Weekday (IST)</Label>
                 <Select
                   value={String(scheduleForm.dayOfWeek)}
                   onValueChange={v =>
@@ -2841,6 +3225,7 @@ function DatabaseManagementContent() {
                 />
                 <p className="text-muted-foreground text-xs">
                   Six fields: second minute hour day-of-month month day-of-week.
+                  Times are in IST (Asia/Kolkata).
                 </p>
               </div>
             )}
@@ -3075,6 +3460,125 @@ function DatabaseManagementContent() {
           </div>
         </div>
       )}
+
+      <Dialog
+        open={deletePreviewOpen}
+        onOpenChange={open => {
+          setDeletePreviewOpen(open);
+          if (!open) {
+            setDeletePreview(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Delete Preview</DialogTitle>
+            <DialogDescription>
+              {deletePreviewLoading
+                ? 'Checking references…'
+                : `Number of records selected: ${selectedRecords.size}`}
+            </DialogDescription>
+          </DialogHeader>
+          {deletePreviewLoading ? (
+            <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              <span>Scanning foreign key references…</span>
+            </div>
+          ) : (
+            deletePreview && (
+              <div className="space-y-3">
+                <p className="text-sm font-medium">
+                  Blocked Records: {deletePreview.blocked_records} of{' '}
+                  {deletePreview.total_records}
+                </p>
+                {deletePreview.scan_timed_out && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Reference scan did not finish in time. Hard delete is
+                      disabled for safety. Try fewer selected records or retry.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {!deletePreview.scan_timed_out &&
+                  !deletePreview.can_hard_delete && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        This data is referenced in other modules.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                {!deletePreview.scan_timed_out &&
+                deletePreview.dependency_summary.length > 0 ? (
+                  <div>
+                    <p className="text-sm font-medium">Referenced In:</p>
+                    <ul className="mt-1 list-inside list-disc text-sm">
+                      {deletePreview.dependency_summary.map(d => (
+                        <li key={d.table}>
+                          {formatTableLabel(d.table)}: {d.total_references}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : !deletePreview.scan_timed_out ? (
+                  <p className="text-muted-foreground text-sm">
+                    No foreign key references from other tables were found for
+                    the selected rows.
+                  </p>
+                ) : null}
+              </div>
+            )
+          )}
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setDeletePreviewOpen(false);
+                setDeletePreview(null);
+              }}
+            >
+              Cancel
+            </Button>
+            {deletePreview && !deletePreview.can_hard_delete && (
+              <Button
+                variant="default"
+                onClick={async () => {
+                  setDeletePreviewOpen(false);
+                  setDeletePreview(null);
+                  setBulkDeleteType('soft');
+                  const ok = await confirmDestructive(
+                    `Soft delete ${selectedRecords.size} record(s)?`
+                  );
+                  if (ok) {
+                    void executeBulkDelete('soft');
+                  }
+                }}
+              >
+                Soft Delete Instead
+              </Button>
+            )}
+            {deletePreview?.can_hard_delete && (
+              <Button
+                variant="destructive"
+                onClick={async () => {
+                  const ok = await confirmDestructive(
+                    `Permanently delete ${selectedRecords.size} record(s)? This cannot be undone.`
+                  );
+                  if (!ok) {
+                    return;
+                  }
+                  setDeletePreviewOpen(false);
+                  setDeletePreview(null);
+                  void executeBulkDelete('hard');
+                }}
+              >
+                Hard Delete
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

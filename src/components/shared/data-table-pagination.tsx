@@ -56,13 +56,9 @@ export function DataTablePagination<TData>({
 
     // Always use module settings if they differ from current page size
     if (moduleSettings.itemsPerPage !== currentPageSize) {
-      console.log(
-        `🔧 Setting page size to ${moduleSettings.itemsPerPage} for ${moduleName} module`
-      );
       table.setPageSize(moduleSettings.itemsPerPage);
     } else if (savedPageSize && Number(savedPageSize) !== currentPageSize) {
       // Use localStorage only if it's different from current
-      console.log(`🔧 Using localStorage page size: ${savedPageSize}`);
       table.setPageSize(Number(savedPageSize));
     }
   }, [table, storageKey, settings]);

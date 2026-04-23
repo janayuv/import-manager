@@ -6,8 +6,10 @@ import {
   Landmark,
   LayoutDashboard,
   Package,
+  ScrollText,
   Settings,
   Ship,
+  Trash2,
   Users,
 } from 'lucide-react';
 
@@ -70,6 +72,16 @@ export const navItems = [
     title: 'Database Management',
     url: '/database-management',
     icon: Database,
+  },
+  {
+    title: 'Recycle Bin',
+    url: '/recycle-bin',
+    icon: Trash2,
+  },
+  {
+    title: 'Logs',
+    url: '/logs',
+    icon: ScrollText,
   },
   {
     title: 'Settings',

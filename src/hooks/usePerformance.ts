@@ -19,15 +19,8 @@ export function usePerformanceMonitor(componentName: string) {
 
   useEffect(() => {
     renderCount.current++;
-    const now = performance.now();
-    const timeSinceLastRender = now - lastRenderTime.current;
-    lastRenderTime.current = now;
-
-    if (process.env.NODE_ENV === 'development') {
-      console.log(
-        `[${componentName}] Render #${renderCount.current} (${timeSinceLastRender.toFixed(2)}ms)`
-      );
-    }
+    lastRenderTime.current = performance.now();
+    void componentName;
   });
 
   return {

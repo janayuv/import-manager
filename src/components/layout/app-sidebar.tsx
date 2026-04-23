@@ -1,6 +1,8 @@
 import { Package2 } from 'lucide-react';
 
 import * as React from 'react';
+import { useLocation } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/core';
 
 import { Separator } from '@/components/ui/separator';
 import {
@@ -20,6 +22,31 @@ import { NavUser } from './nav-user';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user } = useUser();
+  const location = useLocation();
+  const [recycleBinCount, setRecycleBinCount] = React.useState<number | null>(
+    null
+  );
+
+  const fetchRecycleCount = React.useCallback(async () => {
+    try {
+      const n = await invoke<number>('get_recycle_bin_deleted_count');
+      setRecycleBinCount(typeof n === 'number' ? n : 0);
+    } catch {
+      setRecycleBinCount(0);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void fetchRecycleCount();
+  }, [location.pathname, fetchRecycleCount]);
+
+  React.useEffect(() => {
+    const onBinChange = () => {
+      void fetchRecycleCount();
+    };
+    window.addEventListener('recycle-bin-changed', onBinChange);
+    return () => window.removeEventListener('recycle-bin-changed', onBinChange);
+  }, [fetchRecycleCount]);
 
   // Fallback user data if no user is logged in
   const userData = user
@@ -58,7 +85,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       <SidebarContent>
         {/* NavMain now uses your app's navigation items */}
-        <NavMain items={navItems} />
+        <NavMain
+          items={navItems}
+          badges={
+            recycleBinCount != null
+              ? { '/recycle-bin': recycleBinCount }
+              : undefined
+          }
+        />
       </SidebarContent>
 
       <SidebarFooter>

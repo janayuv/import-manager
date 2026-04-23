@@ -2,29 +2,479 @@
 #![allow(non_snake_case)]
 
 use crate::db::DbState;
-use chrono::Utc;
+use chrono::{DateTime, Local, Utc};
 use cron::Schedule;
+use fs4::available_space;
+use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::Duration;
 use std::str::FromStr;
+use std::time::Duration;
 use tauri::AppHandle;
 use tauri::Manager;
 use tauri::State;
 use tauri::WebviewWindow;
+use tauri_plugin_dialog::DialogExt;
 
-/// Six-field cron (sec min hour day-of-month month day-of-week), UTC. Used by `cron` crate.
-fn compute_next_run_rfc3339(cron_expr: &str) -> Result<String, String> {
-    let schedule = Schedule::from_str(cron_expr.trim())
-        .map_err(|e| format!("Invalid schedule: {}", e))?;
-    let next = schedule
-        .upcoming(Utc)
-        .next()
-        .ok_or_else(|| "No upcoming runs for this cron expression".to_string())?;
-    Ok(next.to_rfc3339())
+/// How to interpret the cron wall clock (library field `time_zone`).
+enum ScheduleCronZone {
+    Utc,
+    AsiaKolkata,
+}
+
+fn schedule_cron_zone_from_time_zone_field(s: &str) -> ScheduleCronZone {
+    let t = s.trim();
+    if t.eq_ignore_ascii_case("asia/kolkata")
+        || t.eq_ignore_ascii_case("ist")
+        || t.contains("Kolkata")
+    {
+        ScheduleCronZone::AsiaKolkata
+    } else {
+        ScheduleCronZone::Utc
+    }
+}
+
+/// Six-field cron (sec min hour day-of-month month day-of-week). Evaluated in `time_zone`
+/// (`UTC` or `Asia`/`Kolkata`/`IST`); the returned instant is stored as UTC RFC3339.
+fn compute_next_run_rfc3339(cron_expr: &str, time_zone: &str) -> Result<String, String> {
+    let schedule =
+        Schedule::from_str(cron_expr.trim()).map_err(|e| format!("Invalid schedule: {}", e))?;
+    let next_utc: DateTime<Utc> = match schedule_cron_zone_from_time_zone_field(time_zone) {
+        ScheduleCronZone::AsiaKolkata => {
+            use chrono_tz::Asia::Kolkata;
+            let n = schedule
+                .upcoming(Kolkata)
+                .next()
+                .ok_or_else(|| "No upcoming runs for this cron expression".to_string())?;
+            n.with_timezone(&Utc)
+        }
+        ScheduleCronZone::Utc => schedule
+            .upcoming(Utc)
+            .next()
+            .ok_or_else(|| "No upcoming runs for this cron expression".to_string())?,
+    };
+    Ok(next_utc.to_rfc3339())
+}
+
+fn sha256_hex_file(path: &Path) -> Result<String, String> {
+    let mut file = fs::File::open(path).map_err(|e| format!("Cannot read backup file: {}", e))?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher).map_err(|e| format!("Failed to hash file: {}", e))?;
+    Ok(hex::encode(hasher.finalize()))
+}
+
+/// `backup_2025.db` → `backup_2025.enc` (for encrypted artifacts).
+fn enc_basename_for_staging_db(staging: &str) -> String {
+    if let Some(s) = staging
+        .strip_suffix(".db")
+        .or_else(|| staging.strip_suffix(".DB"))
+    {
+        format!("{}.enc", s)
+    } else {
+        format!("{}.enc", staging)
+    }
+}
+
+fn sidecar_sha256_path(db_file: &Path) -> PathBuf {
+    PathBuf::from(format!("{}{}", db_file.to_string_lossy(), ".sha256"))
+}
+
+fn write_sha256_sidecar(db_file: &Path, hash_hex: &str) -> Result<(), String> {
+    let side = sidecar_sha256_path(db_file);
+    fs::write(&side, format!("{}\n", hash_hex.trim()))
+        .map_err(|e| format!("Failed to write checksum file: {}", e))
+}
+
+fn read_expected_sha256_from_sidecar(sidecar: &Path) -> Result<String, String> {
+    let raw =
+        fs::read_to_string(sidecar).map_err(|e| format!("Cannot read checksum file: {}", e))?;
+    let line = raw.lines().next().unwrap_or("").trim();
+    if line.is_empty() {
+        return Err("Checksum file is empty".to_string());
+    }
+    let token = line.split_whitespace().next().unwrap_or("").to_string();
+    if token.is_empty() {
+        return Err("Invalid checksum file format".to_string());
+    }
+    Ok(token)
+}
+
+/// Non-empty file; if `name.db.sha256` exists beside `name.db`, require SHA256 match.
+fn validate_local_backup_file_for_restore(local_path: &Path) -> Result<(), String> {
+    let meta =
+        fs::metadata(local_path).map_err(|e| format!("Backup file not accessible: {}", e))?;
+    if meta.len() == 0 {
+        return Err("Backup file is empty. Restore was canceled.".to_string());
+    }
+    let side = sidecar_sha256_path(local_path);
+    if !side.exists() {
+        log::warn!(
+            target: "import_manager::restore",
+            "No SHA256 sidecar for {}; continuing (backup created before checksum support)",
+            local_path.display()
+        );
+        return Ok(());
+    }
+    let expected = read_expected_sha256_from_sidecar(&side)?;
+    let actual = sha256_hex_file(local_path)?;
+    if !expected.eq_ignore_ascii_case(&actual) {
+        return Err(
+            "Backup verification failed: the file does not match its saved SHA256 checksum. The file may be corrupted. Restore was canceled."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+const SQLITE_RETRY_ATTEMPTS: u32 = 3;
+const SQLITE_RETRY_DELAY_MS: u64 = 500;
+const BACKUP_RETENTION_MAX: usize = 30;
+const APP_METADATA_BACKUP_COUNT: &str = "backup_count";
+const APP_METADATA_RESTORE_COUNT: &str = "restore_count";
+const APP_METADATA_LAST_BACKUP_TIME: &str = "last_backup_time";
+const APP_METADATA_LAST_RESTORE_TIME: &str = "last_restore_time";
+const FREQUENT_BACKUP_WARN_SECS: i64 = 10;
+/// 5 GiB — observability warning only (no blocking).
+const LARGE_DB_WARN_BYTES: u64 = 5u64 * 1024 * 1024 * 1024;
+
+fn get_app_metadata_string(
+    db_state: &State<'_, DbState>,
+    key: &str,
+) -> Result<Option<String>, String> {
+    let op = format!("get_app_metadata_{key}");
+    with_sqlite_retry(&op, || {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let v: Option<String> = db
+            .query_row(
+                "SELECT value FROM app_metadata WHERE key = ?1",
+                params![key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?;
+        Ok(v.filter(|s| !s.is_empty()))
+    })
+}
+
+fn set_app_metadata_string(
+    db_state: &State<'_, DbState>,
+    key: &str,
+    value: &str,
+) -> Result<(), String> {
+    let op = format!("set_app_metadata_{key}");
+    with_sqlite_retry(&op, || {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        db.execute(
+            "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, value],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    })
+}
+
+/// If a previous successful backup was recorded within `FREQUENT_BACKUP_WARN_SECS`, log (non-blocking).
+fn warn_if_frequent_backup(db_state: &State<'_, DbState>) {
+    let Ok(Some(s)) = get_app_metadata_string(db_state, APP_METADATA_LAST_BACKUP_TIME) else {
+        return;
+    };
+    if let Ok(dt) = DateTime::parse_from_rfc3339(&s) {
+        let last = dt.with_timezone(&Utc);
+        let delta = Utc::now().signed_duration_since(last);
+        if delta.num_seconds() >= 0 && delta.num_seconds() < FREQUENT_BACKUP_WARN_SECS {
+            log::warn!(
+                target: "import_manager::backup",
+                "Frequent backups detected"
+            );
+        }
+    }
+}
+
+fn increment_app_metadata_count(
+    db_state: &State<'_, DbState>,
+    key: &'static str,
+) -> Result<(), String> {
+    let op = format!("increment_app_metadata_{key}");
+    with_sqlite_retry(&op, || {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let current: i64 = db
+            .query_row(
+                "SELECT value FROM app_metadata WHERE key = ?1",
+                params![key],
+                |row| row.get::<_, String>(0),
+            )
+            .optional()
+            .map_err(|e| e.to_string())?
+            .and_then(|s| s.parse::<i64>().ok())
+            .unwrap_or(0);
+        let next = current.saturating_add(1);
+        db.execute(
+            "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![key, next.to_string()],
+        )
+        .map_err(|e| e.to_string())?;
+        Ok(())
+    })
+}
+
+fn unique_random_suffix() -> String {
+    let u = uuid::Uuid::new_v4();
+    u.as_simple().to_string().chars().take(8).collect()
+}
+
+/// `backup_YYYY-MM-DD_HH-MM-SS_mmm_<random8>.db`
+fn generated_unique_backup_basename() -> String {
+    let now = Local::now();
+    let ms = now.timestamp_subsec_millis();
+    let r = unique_random_suffix();
+    format!(
+        "backup_{}_{:03}_{}.db",
+        now.format("%Y-%m-%d_%H-%M-%S"),
+        ms,
+        r
+    )
+}
+
+/// User-provided name, sanitized, never overwriting an existing file in `data_dir`.
+fn unique_local_filename_in_dir(data_dir: &Path, user: &str) -> Result<String, String> {
+    let raw = user.trim();
+    let file_part = Path::new(raw)
+        .file_name()
+        .and_then(|s| s.to_str())
+        .filter(|s| !s.is_empty())
+        .unwrap_or("backup");
+    let stem: String = if let Some(s) = file_part
+        .strip_suffix(".db")
+        .or_else(|| file_part.strip_suffix(".DB"))
+    {
+        s.to_string()
+    } else {
+        file_part.to_string()
+    };
+    let stem = if stem.is_empty() {
+        "backup".to_string()
+    } else {
+        stem
+    };
+    for i in 0u32..64 {
+        let name = if i == 0 {
+            format!("{}.db", stem)
+        } else {
+            format!("{}_{}.db", stem, unique_random_suffix())
+        };
+        let enc = enc_basename_for_staging_db(&name);
+        if !data_dir.join(&name).exists() && !data_dir.join(&enc).exists() {
+            return Ok(name);
+        }
+    }
+    Err("Could not allocate a unique backup filename".to_string())
+}
+
+/// Default or user filename; always a basename unique under `data_dir` when the file is materialized.
+fn resolve_backup_staging_filename(
+    data_dir: &Path,
+    request: &BackupRequest,
+) -> Result<String, String> {
+    if let Some(ref f) = request.filename {
+        let t = f.trim();
+        if !t.is_empty() {
+            return unique_local_filename_in_dir(data_dir, t);
+        }
+    }
+    for _ in 0..32 {
+        let name = generated_unique_backup_basename();
+        let enc = enc_basename_for_staging_db(&name);
+        if !data_dir.join(&name).exists() && !data_dir.join(&enc).exists() {
+            return Ok(name);
+        }
+    }
+    Err("Could not allocate a unique backup filename".to_string())
+}
+
+/// `pre_restore_YYYY-MM-DD_HH-MM-SS_mmm_<random8>.db`
+fn unique_pre_restore_basename() -> String {
+    let now = Local::now();
+    let ms = now.timestamp_subsec_millis();
+    let r = unique_random_suffix();
+    format!(
+        "pre_restore_{}_{:03}_{}.db",
+        now.format("%Y-%m-%d_%H-%M-%S"),
+        ms,
+        r
+    )
+}
+
+/// Unique path in `data_dir` that does not already exist.
+fn unique_pre_restore_path_in_dir(data_dir: &Path) -> Result<PathBuf, String> {
+    for _ in 0..32 {
+        let p = data_dir.join(unique_pre_restore_basename());
+        if !p.exists() {
+            return Ok(p);
+        }
+    }
+    Err("Could not allocate a unique pre-restore filename".to_string())
+}
+
+/// Require strictly more than `2 ×` database file size (bytes) on the volume that holds `backup_dir`.
+fn ensure_free_space_for_main_db_backup(
+    backup_dir: &Path,
+    db_size_bytes: u64,
+) -> Result<(), String> {
+    let free = available_space(backup_dir)
+        .map_err(|e| format!("Could not read available disk space: {}", e))?;
+    if free <= db_size_bytes.saturating_mul(2) {
+        log::warn!(target: "import_manager::backup", "Backup aborted due to low disk space.");
+        return Err("Insufficient disk space for backup".to_string());
+    }
+    Ok(())
+}
+
+fn is_sqlite_lock_err(err: &str) -> bool {
+    let s = err.to_lowercase();
+    s.contains("database is locked")
+        || s.contains("database is busy")
+        || s.contains("sqlite busy")
+        || s.contains("busy: database is locked")
+}
+
+/// Retry on transient SQLite `SQLITE_BUSY` / locked errors.
+pub(crate) fn with_sqlite_retry<T>(
+    op: &str,
+    mut f: impl FnMut() -> Result<T, String>,
+) -> Result<T, String> {
+    for attempt in 1..=SQLITE_RETRY_ATTEMPTS {
+        match f() {
+            Ok(v) => return Ok(v),
+            Err(e) if is_sqlite_lock_err(&e) && attempt < SQLITE_RETRY_ATTEMPTS => {
+                log::warn!(
+                    target: "import_manager::db_retry",
+                    "{} attempt {}/{}: {} — retrying in {}ms",
+                    op,
+                    attempt,
+                    SQLITE_RETRY_ATTEMPTS,
+                    e,
+                    SQLITE_RETRY_DELAY_MS
+                );
+                std::thread::sleep(std::time::Duration::from_millis(SQLITE_RETRY_DELAY_MS));
+            }
+            Err(e) => return Err(e),
+        }
+    }
+    Err("with_sqlite_retry: exhausted retries".to_string())
+}
+
+/// `missing` | `valid` | `invalid` — for restore preview (sidecar next to local file).
+fn checksum_status_for_local_path(local_path: &Path) -> String {
+    let side = sidecar_sha256_path(local_path);
+    if !side.exists() {
+        return "missing".to_string();
+    }
+    match (
+        read_expected_sha256_from_sidecar(&side),
+        sha256_hex_file(local_path),
+    ) {
+        (Ok(exp), Ok(act)) if exp.eq_ignore_ascii_case(&act) => "valid".to_string(),
+        (Ok(_), Ok(_)) => "invalid".to_string(),
+        _ => "invalid".to_string(),
+    }
+}
+
+fn verify_stored_sha256_against_file(
+    artifact: &Path,
+    expected: Option<String>,
+) -> Result<(), String> {
+    let exp = match expected {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => return Ok(()),
+    };
+    let actual = sha256_hex_file(artifact)?;
+    if !exp.eq_ignore_ascii_case(&actual) {
+        return Err(
+            "Backup integrity check failed: the file does not match the recorded SHA-256 checksum. Restore was canceled."
+                .to_string(),
+        );
+    }
+    Ok(())
+}
+
+/// Decrypt `.enc` backups to a temp `.db`; pass through plaintext `.db` unchanged.
+/// Returns `(sqlite_path, temp_file_to_delete_if_any)`.
+fn prepare_restorable_sqlite_path(artifact: &Path) -> Result<(PathBuf, Option<PathBuf>), String> {
+    if !crate::utils::encryption::is_encrypted_backup_artifact_path(artifact) {
+        return Ok((artifact.to_path_buf(), None));
+    }
+    let pw = crate::utils::backup_keyring::get_or_create_backup_encryption_password()?;
+    let tmp = std::env::temp_dir().join(format!(
+        "import-manager-restore-{}.db",
+        uuid::Uuid::new_v4()
+    ));
+    crate::utils::encryption::decrypt_file(artifact, &tmp, &pw)?;
+    let to_delete = Some(tmp.clone());
+    Ok((tmp, to_delete))
+}
+
+/// Keep at most `max_keep` backup rows; delete oldest first. The newest row is never deleted.
+/// Returns Google Drive file ids removed from the DB (local files are deleted in-place; remote deletes are async).
+fn prune_excess_backups(conn: &Connection, max_keep: usize) -> Result<Vec<String>, String> {
+    let count: i64 = conn
+        .query_row("SELECT COUNT(*) FROM backups", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if (count as usize) <= max_keep {
+        return Ok(Vec::new());
+    }
+    let to_remove: usize = (count as usize) - max_keep;
+    let protected_id: i64 = conn
+        .query_row(
+            "SELECT id FROM backups ORDER BY datetime(created_at) DESC, id DESC LIMIT 1",
+            [],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, path FROM backups WHERE id != ?1 ORDER BY datetime(created_at) ASC, id ASC LIMIT ?2",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows: Vec<(i64, String)> = stmt
+        .query_map(params![protected_id, to_remove as i64], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let mut gdrive_to_delete: Vec<String> = Vec::new();
+    for (id, path) in rows {
+        if let Some(fid) = path.strip_prefix(super::google_drive::GDRIVE_PATH_PREFIX) {
+            let fid = fid.to_string();
+            if !fid.is_empty() {
+                gdrive_to_delete.push(fid);
+            }
+        } else {
+            let p = Path::new(&path);
+            if p.exists() {
+                let _ = fs::remove_file(p);
+            }
+            let side = sidecar_sha256_path(p);
+            if side.exists() {
+                let _ = fs::remove_file(&side);
+            }
+        }
+        conn.execute("DELETE FROM backups WHERE id = ?1", params![id])
+            .map_err(|e| e.to_string())?;
+        log::info!(
+            target: "import_manager::backup",
+            "Pruned old backup id={} (retention, max={})",
+            id,
+            max_keep
+        );
+    }
+    Ok(gdrive_to_delete)
 }
 
 /// Runs every minute from a background thread; executes due backup schedules.
@@ -58,21 +508,28 @@ async fn run_due_backup_schedules(app: AppHandle) -> Result<(), String> {
         if let Err(e) =
             run_scheduled_backup(db_state.clone(), schedule_id, Some("scheduler".to_string())).await
         {
-            log::warn!(
-                "scheduled backup id {} failed: {}",
-                schedule_id,
-                e
-            );
+            log::warn!("scheduled backup id {} failed: {}", schedule_id, e);
         }
     }
     Ok(())
 }
 
-struct TempFileGuard(Option<PathBuf>);
+struct TempFileGuards(Vec<PathBuf>);
 
-impl Drop for TempFileGuard {
+impl TempFileGuards {
+    fn new() -> Self {
+        Self(Vec::new())
+    }
+    fn push_opt(&mut self, p: Option<PathBuf>) {
+        if let Some(p) = p {
+            self.0.push(p);
+        }
+    }
+}
+
+impl Drop for TempFileGuards {
     fn drop(&mut self) {
-        if let Some(p) = self.0.take() {
+        for p in self.0.drain(..) {
             let _ = fs::remove_file(p);
         }
     }
@@ -91,7 +548,7 @@ pub struct AuditLog {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupInfo {
     pub id: Option<i64>,
     pub filename: String,
@@ -142,6 +599,14 @@ pub struct RestoreRequest {
 pub struct RestorePreview {
     pub backup_info: BackupInfo,
     pub current_db_stats: DatabaseStats,
+    /// Byte length of the backup file on disk (at preview time).
+    pub backup_file_size_bytes: i64,
+    /// Informational: `(size_MB × 0.02)` seconds; does not block restore.
+    pub estimated_restore_seconds: f64,
+    /// `missing` | `valid` | `invalid` — SHA256 sidecar vs. file.
+    pub checksum_status: String,
+    /// `None` = no SHA-256 stored in the backups table; `Some(true)` = file matches; `Some(false)` = mismatch.
+    pub recorded_hash_match: Option<bool>,
     pub integrity_check: String,
     pub schema_compatibility: bool,
     pub estimated_changes: HashMap<String, i64>,
@@ -301,64 +766,65 @@ pub async fn get_audit_logs(
 // Get database statistics
 #[tauri::command]
 pub async fn get_database_stats(db_state: State<'_, DbState>) -> Result<DatabaseStats, String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    with_sqlite_retry("get_database_stats", || {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        // Get database file size
+        let db_size_bytes = if let Some(path) = db.path() {
+            fs::metadata(path).map(|m| m.len() as i64).unwrap_or(0)
+        } else {
+            0
+        };
 
-    // Get database file size
-    let db_size_bytes = if let Some(path) = db.path() {
-        fs::metadata(path).map(|m| m.len() as i64).unwrap_or(0)
-    } else {
-        0
-    };
+        // Get table counts
+        let tables = vec![
+            "suppliers",
+            "shipments",
+            "items",
+            "invoices",
+            "invoice_line_items",
+            "boe_details",
+            "boe_calculations",
+            "service_providers",
+            "expense_types",
+            "expense_invoices",
+            "expenses",
+            "notifications",
+            "audit_logs",
+            "backups",
+        ];
 
-    // Get table counts
-    let tables = vec![
-        "suppliers",
-        "shipments",
-        "items",
-        "invoices",
-        "invoice_line_items",
-        "boe_details",
-        "boe_calculations",
-        "service_providers",
-        "expense_types",
-        "expense_invoices",
-        "expenses",
-        "notifications",
-        "audit_logs",
-        "backups",
-    ];
+        let mut table_counts = HashMap::new();
+        for table in tables {
+            let query = format!("SELECT COUNT(*) FROM {} WHERE deleted_at IS NULL", table);
+            let count: i64 = db.query_row(&query, [], |row| row.get(0)).unwrap_or(0);
+            table_counts.insert(table.to_string(), count);
+        }
 
-    let mut table_counts = HashMap::new();
-    for table in tables {
-        let query = format!("SELECT COUNT(*) FROM {} WHERE deleted_at IS NULL", table);
-        let count: i64 = db.query_row(&query, [], |row| row.get(0)).unwrap_or(0);
-        table_counts.insert(table.to_string(), count);
-    }
-
-    // Get last backup info
-    let last_backup: Option<String> = db
-        .query_row(
+        // Get last backup info
+        let last_backup: Option<String> = db
+            .query_row(
             "SELECT created_at FROM backups WHERE status = 'completed' ORDER BY created_at DESC LIMIT 1",
             [],
             |row| row.get(0)
         )
         .ok();
 
-    // Get next scheduled backup
-    let next_scheduled_backup: Option<String> = db
-        .query_row(
-            "SELECT next_run FROM backup_schedules WHERE enabled = 1 ORDER BY next_run ASC LIMIT 1",
-            [],
-            |row| row.get(0),
-        )
-        .ok();
+        // Get next scheduled backup
+        let next_scheduled_backup: Option<String> = db
+            .query_row(
+                "SELECT next_run FROM backup_schedules WHERE enabled = 1 ORDER BY next_run ASC LIMIT 1",
+                [],
+                |row| row.get(0),
+            )
+            .ok();
 
-    Ok(DatabaseStats {
-        db_size_bytes,
-        table_counts,
-        last_backup,
-        next_scheduled_backup,
-        encryption_status: "None".to_string(), // TODO: Implement encryption detection
+        Ok(DatabaseStats {
+            db_size_bytes,
+            table_counts,
+            last_backup,
+            next_scheduled_backup,
+            encryption_status: "AES-256 Enabled".to_string(),
+        })
     })
 }
 
@@ -379,11 +845,8 @@ async fn create_backup_impl(
     userId: Option<String>,
     window: Option<WebviewWindow>,
 ) -> Result<BackupInfo, String> {
-    let filename = request.filename.clone().unwrap_or_else(|| {
-        let now = chrono::Local::now();
-        format!("import-manager-backup-{}.db", now.format("%Y%m%d-%H%M%S"))
-    });
-
+    let backup_start = std::time::Instant::now();
+    warn_if_frequent_backup(&db_state);
     let data_dir = std::env::var("APPDATA")
         .or_else(|_| std::env::var("HOME"))
         .map(|home| Path::new(&home).join("ImportManager").join("backups"))
@@ -394,98 +857,205 @@ async fn create_backup_impl(
             .map_err(|e| format!("Failed to create backup directory: {}", e))?;
     }
 
+    let filename = resolve_backup_staging_filename(&data_dir, &request)?;
+
     let staging_path = data_dir.join(&filename);
 
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         let source_path = db.path().ok_or("Could not get database path")?;
+        let db_size = fs::metadata(source_path)
+            .map_err(|e| format!("Failed to read database file: {}", e))?
+            .len();
+        if db_size > LARGE_DB_WARN_BYTES {
+            log::warn!(
+                target: "import_manager::backup",
+                "Large database detected — backup may take longer"
+            );
+        }
+        ensure_free_space_for_main_db_backup(&data_dir, db_size)?;
         fs::copy(source_path, &staging_path)
             .map_err(|e| format!("Failed to create backup: {}", e))?;
     }
 
-    let size_bytes = fs::metadata(&staging_path)
-        .map(|m| m.len() as i64)
-        .unwrap_or(0);
+    let password = crate::utils::backup_keyring::get_or_create_backup_encryption_password()?;
+    let enc_filename = enc_basename_for_staging_db(&filename);
+    let enc_path = data_dir.join(&enc_filename);
+    if let Err(e) = crate::utils::encryption::encrypt_file(&staging_path, &enc_path, &password) {
+        fs::remove_file(&staging_path).ok();
+        return Err(e);
+    }
+    if let Err(e) = fs::remove_file(&staging_path) {
+        fs::remove_file(&enc_path).ok();
+        return Err(format!("Failed to remove plaintext backup: {}", e));
+    }
 
-    let sha256 = None;
+    let size_bytes = fs::metadata(&enc_path).map(|m| m.len() as i64).unwrap_or(0);
 
-    let (record_path, destination_value) = match request.destination.as_str() {
-        "local" => (
-            staging_path.to_string_lossy().to_string(),
-            "local".to_string(),
-        ),
+    let hash_hex = match sha256_hex_file(&enc_path) {
+        Ok(h) => h,
+        Err(e) => {
+            fs::remove_file(&enc_path).ok();
+            return Err(e);
+        }
+    };
+
+    let (record_path, destination_value, sha256) = match request.destination.as_str() {
+        "local" => {
+            if let Err(e) = write_sha256_sidecar(&enc_path, &hash_hex) {
+                fs::remove_file(&enc_path).ok();
+                return Err(e);
+            }
+            (
+                enc_path.to_string_lossy().to_string(),
+                "local".to_string(),
+                Some(hash_hex),
+            )
+        }
         "google_drive" => {
             if !super::google_drive::is_configured() {
-                fs::remove_file(&staging_path).ok();
+                fs::remove_file(&enc_path).ok();
+                fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
                 return Err(
                     "Google Drive is not configured for this build (set IMPORT_MANAGER_GOOGLE_CLIENT_ID)."
                         .to_string(),
                 );
             }
-            if !super::google_drive::has_refresh_token() {
-                fs::remove_file(&staging_path).ok();
-                return Err(
-                    "Not connected to Google Drive. Connect your account first (Database Management → Backup)."
-                        .to_string(),
-                );
+            {
+                let db = db_state.db.lock().map_err(|e| e.to_string())?;
+                if !super::google_drive::has_gdrive_session(&db) {
+                    fs::remove_file(&enc_path).ok();
+                    fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
+                    return Err(
+                        "Not connected to Google Drive. Connect your account first (Database Management → Backup)."
+                            .to_string(),
+                    );
+                }
             }
             let file_id = super::google_drive::upload_backup_file(
-                &staging_path,
-                &filename,
+                &enc_path,
+                &enc_filename,
                 window.as_ref(),
+                Some(&db_state.db),
             )
             .await
             .map_err(|e| {
-                fs::remove_file(&staging_path).ok();
+                fs::remove_file(&enc_path).ok();
+                fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
                 super::google_drive::parse_friendly_error(&e)
             })?;
-            fs::remove_file(&staging_path).ok();
+            fs::remove_file(&enc_path).ok();
+            fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
             (
                 format!("{}{}", super::google_drive::GDRIVE_PATH_PREFIX, file_id),
                 "google_drive".to_string(),
+                Some(hash_hex),
             )
         }
         _ => {
-            fs::remove_file(&staging_path).ok();
+            fs::remove_file(&enc_path).ok();
+            fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
             return Err("Unsupported backup destination".to_string());
         }
     };
 
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let dest_for_log = request.destination.clone();
 
-    let mut stmt = db
-        .prepare("INSERT INTO backups (filename, path, destination, size_bytes, sha256, created_by, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-        .map_err(|e| e.to_string())?;
+    let (backup_id, gdrive_prune_ids): (i64, Vec<String>) = with_sqlite_retry(
+        "create_backup_persist",
+        || {
+            let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
+            let tx = db.transaction().map_err(|e| e.to_string())?;
+            let id = {
+                let mut stmt = tx
+                .prepare("INSERT INTO backups (filename, path, destination, size_bytes, sha256, created_by, notes, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+                .map_err(|e| e.to_string())?;
+                stmt.insert(params![
+                    enc_filename.clone(),
+                    record_path.clone(),
+                    destination_value.clone(),
+                    size_bytes,
+                    sha256.clone(),
+                    userId.clone(),
+                    request.notes.clone(),
+                    "completed"
+                ])
+                .map_err(|e| e.to_string())?
+            };
+            let audit_metadata = format!(
+                "{{\"filename\": \"{}\", \"size_bytes\": {}}}",
+                enc_filename, size_bytes
+            );
+            crate::db::try_audit_log_metadata(
+                &tx,
+                "backups",
+                &id.to_string(),
+                "backup",
+                userId.as_deref(),
+                &audit_metadata,
+            );
+            let gdrive_prune_ids = prune_excess_backups(&tx, BACKUP_RETENTION_MAX)?;
+            tx.commit().map_err(|e| e.to_string())?;
+            Ok((id, gdrive_prune_ids))
+        },
+    )?;
 
-    let backup_id = stmt
-        .insert(params![
-            filename.clone(),
-            record_path.clone(),
-            destination_value,
-            size_bytes,
-            sha256,
-            userId.clone(),
-            request.notes.clone(),
-            "completed"
-        ])
-        .map_err(|e| e.to_string())?;
+    for file_id in gdrive_prune_ids {
+        tauri::async_runtime::spawn(async move {
+            if let Err(e) = super::google_drive::delete_file_by_id(&file_id, None).await {
+                log::warn!(
+                    target: "import_manager::backup",
+                    "Prune: could not delete remote Google Drive file {}: {}",
+                    file_id,
+                    e
+                );
+            }
+        });
+    }
 
-    let audit_metadata = format!(
-        "{{\"filename\": \"{}\", \"size_bytes\": {}}}",
-        filename, size_bytes
+    log::info!(
+        target: "import_manager::backup",
+        "Backup completed id={} filename={} destination={} size_bytes={} sha256_recorded={}",
+        backup_id,
+        enc_filename,
+        dest_for_log,
+        size_bytes,
+        sha256.is_some()
     );
-    crate::db::try_audit_log_metadata(
-        &db,
-        "backups",
-        &backup_id.to_string(),
-        "backup",
-        userId.as_deref(),
-        &audit_metadata,
+    log::info!(
+        target: "import_manager::backup",
+        "Backup completed in {:.2} seconds",
+        backup_start.elapsed().as_secs_f64()
     );
+    log::info!(
+        target: "import_manager::backup",
+        "Backup size: {:.2} MB",
+        (size_bytes as f64) / 1_000_000.0
+    );
+    if let Err(e) = increment_app_metadata_count(&db_state, APP_METADATA_BACKUP_COUNT) {
+        log::warn!(
+            target: "import_manager::backup",
+            "Could not update {}: {}",
+            APP_METADATA_BACKUP_COUNT,
+            e
+        );
+    }
+    if let Err(e) = set_app_metadata_string(
+        &db_state,
+        APP_METADATA_LAST_BACKUP_TIME,
+        &Utc::now().to_rfc3339(),
+    ) {
+        log::warn!(
+            target: "import_manager::backup",
+            "Could not update {}: {}",
+            APP_METADATA_LAST_BACKUP_TIME,
+            e
+        );
+    }
 
     Ok(BackupInfo {
         id: Some(backup_id),
-        filename,
+        filename: enc_filename,
         path: record_path,
         destination: request.destination,
         size_bytes: Some(size_bytes),
@@ -502,6 +1072,7 @@ async fn create_backup_impl(
 async fn resolve_backup_to_local_path(
     backup_path: &str,
     window: Option<&WebviewWindow>,
+    gdrive_db: Option<&std::sync::Mutex<rusqlite::Connection>>,
 ) -> Result<(PathBuf, Option<PathBuf>), String> {
     if backup_path.starts_with(super::google_drive::GDRIVE_PATH_PREFIX) {
         let id = backup_path
@@ -509,7 +1080,7 @@ async fn resolve_backup_to_local_path(
             .filter(|s| !s.is_empty())
             .ok_or_else(|| "Invalid Google Drive backup reference".to_string())?;
         let tmp = std::env::temp_dir().join(format!(
-            "import-manager-gdrive-restore-{}.db",
+            "import-manager-gdrive-restore-{}.enc",
             uuid::Uuid::new_v4()
         ));
         log::info!(
@@ -517,9 +1088,13 @@ async fn resolve_backup_to_local_path(
             "event=gdrive_download_start file_id={}",
             id
         );
-        super::google_drive::download_file_by_id(id, &tmp, window)
+        super::google_drive::download_file_by_id(id, &tmp, window, gdrive_db)
             .await
             .map_err(|e| super::google_drive::parse_friendly_error(&e))?;
+        if fs::metadata(&tmp).map(|m| m.len()).unwrap_or(0) == 0 {
+            let _ = fs::remove_file(&tmp);
+            return Err("Downloaded backup file is empty".to_string());
+        }
         log::info!(
             target: "import_manager::restore",
             "event=gdrive_download_finish path={:?}",
@@ -527,8 +1102,13 @@ async fn resolve_backup_to_local_path(
         );
         Ok((tmp.clone(), Some(tmp)))
     } else {
-        if !Path::new(backup_path).exists() {
+        let p = Path::new(backup_path);
+        if !p.exists() {
             return Err("Backup file does not exist".to_string());
+        }
+        let meta = fs::metadata(p).map_err(|e| format!("Cannot read backup file: {}", e))?;
+        if meta.len() == 0 {
+            return Err("Backup file is empty".to_string());
         }
         Ok((PathBuf::from(backup_path), None))
     }
@@ -636,6 +1216,11 @@ pub async fn hard_delete_record(
         return Err("Invalid confirmation. Type 'DELETE' to confirm.".to_string());
     }
 
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        super::reference_scan::ensure_can_hard_delete(&db, &tableName, &[record_id.clone()])?;
+    }
+
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
 
     // Get current record for audit log
@@ -647,7 +1232,7 @@ pub async fn hard_delete_record(
     // Perform hard delete
     let query = format!("DELETE FROM {} WHERE id = ?", tableName);
     db.execute(&query, params![record_id])
-        .map_err(|e| e.to_string())?;
+        .map_err(super::reference_scan::map_hard_delete_error_rusqlite)?;
 
     // Create audit log entry
     let tn = tableName.as_str();
@@ -676,11 +1261,12 @@ pub async fn preview_restore(
     backupPath: String,
 ) -> Result<RestorePreview, String> {
     let (local_path, temp_dl) =
-        resolve_backup_to_local_path(&backupPath, Some(&window)).await?;
-    let _temp_guard = TempFileGuard(temp_dl);
+        resolve_backup_to_local_path(&backupPath, Some(&window), Some(&db_state.db)).await?;
+    let mut _temp_guards = TempFileGuards::new();
+    _temp_guards.push_opt(temp_dl);
 
     // Get backup info from database
-    let backup_info = {
+    let backup_info = with_sqlite_retry("preview_restore_backup_row", || {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         db.query_row(
             "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message FROM backups WHERE path = ?",
@@ -701,13 +1287,53 @@ pub async fn preview_restore(
                     error_message: row.get(11)?,
                 })
             }
-        ).map_err(|e| format!("Backup not found in database: {}", e))?
+        )
+        .map_err(|e| format!("Backup not found in database: {}", e))
+    })?;
+
+    let recorded_hash_match: Option<bool> = match &backup_info.sha256 {
+        Some(s) if !s.trim().is_empty() => match sha256_hex_file(&local_path) {
+            Ok(actual) => Some(s.eq_ignore_ascii_case(&actual)),
+            Err(_) => Some(false),
+        },
+        _ => None,
     };
+
+    if recorded_hash_match == Some(false) {
+        let checksum_status = checksum_status_for_local_path(&local_path);
+        let current_stats = get_database_stats(db_state.clone()).await?;
+        let backup_size = fs::metadata(&local_path)
+            .map(|m| m.len() as i64)
+            .unwrap_or(0);
+        let mut warnings = vec!["The backup file does not match the recorded SHA-256. Restore is blocked until you use a valid file.".to_string()];
+        if checksum_status == "invalid" {
+            warnings.push("The SHA-256 sidecar also does not match the file.".to_string());
+        }
+        return Ok(RestorePreview {
+            backup_info: backup_info.clone(),
+            current_db_stats: current_stats,
+            backup_file_size_bytes: backup_size,
+            estimated_restore_seconds: (backup_size as f64 / 1_000_000.0) * 0.02,
+            checksum_status,
+            recorded_hash_match,
+            integrity_check: "Record mismatch — cannot trust file contents".to_string(),
+            schema_compatibility: false,
+            estimated_changes: HashMap::new(),
+            warnings,
+        });
+    }
+
+    validate_local_backup_file_for_restore(&local_path)?;
+
+    let (work_path, dec_temp) = prepare_restorable_sqlite_path(&local_path)?;
+    _temp_guards.push_opt(dec_temp);
+
+    let checksum_status = checksum_status_for_local_path(&local_path);
 
     // Get current database stats
     let current_stats = get_database_stats(db_state.clone()).await?;
 
-    // Check backup file integrity
+    // Check backup file integrity (metadata is for the stored artifact, usually `.enc`)
     let backup_size = fs::metadata(&local_path)
         .map(|m| m.len() as i64)
         .unwrap_or(0);
@@ -719,15 +1345,15 @@ pub async fn preview_restore(
     };
 
     // Check schema compatibility by opening backup database
-    let local_str = local_path.to_string_lossy().to_string();
-    let schema_compatibility = check_schema_compatibility(&local_str)?;
+    let work_str = work_path.to_string_lossy().to_string();
+    let schema_compatibility = check_schema_compatibility(&work_str)?;
 
     // Estimate changes by comparing table counts
     let mut estimated_changes = HashMap::new();
     let mut warnings = Vec::new();
 
     // Try to get table counts from backup (simplified approach)
-    if let Ok(backup_conn) = Connection::open(&local_path) {
+    if let Ok(backup_conn) = Connection::open(&work_path) {
         let tables = vec![
             "suppliers",
             "shipments",
@@ -777,9 +1403,22 @@ pub async fn preview_restore(
         ));
     }
 
+    if checksum_status == "invalid" {
+        warnings.push(
+            "Backup SHA256 does not match the checksum file. Restore is not allowed until resolved."
+                .to_string(),
+        );
+    }
+
+    let estimated_restore_seconds = (backup_size as f64 / 1_000_000.0) * 0.02;
+
     Ok(RestorePreview {
         backup_info,
         current_db_stats: current_stats,
+        backup_file_size_bytes: backup_size,
+        estimated_restore_seconds,
+        checksum_status,
+        recorded_hash_match,
         integrity_check,
         schema_compatibility,
         estimated_changes,
@@ -955,6 +1594,7 @@ pub async fn restore_database(
     backupPath: String,
     userId: Option<String>,
 ) -> Result<RestoreResult, String> {
+    let restore_start = std::time::Instant::now();
     log::info!(
         target: "import_manager::restore",
         "[{}] Restore: command entered backup_path={}",
@@ -967,11 +1607,14 @@ pub async fn restore_database(
     let session_guard = crate::restore_control::RestoreSessionGuard::new();
 
     let outcome: Result<RestoreResult, String> = async {
-        let (local_path, temp_dl) =
-            resolve_backup_to_local_path(&backupPath, Some(&window)).await?;
-        let _temp_guard = TempFileGuard(temp_dl);
-
-        let local_str = local_path.to_string_lossy().to_string();
+        let (local_path, temp_dl) = resolve_backup_to_local_path(
+            &backupPath,
+            Some(&window),
+            Some(&db_state.db),
+        )
+        .await?;
+        let mut _temp_guards = TempFileGuards::new();
+        _temp_guards.push_opt(temp_dl);
 
         let current_db_path: PathBuf = {
             let db = db_state.db.lock().map_err(|e| e.to_string())?;
@@ -985,17 +1628,52 @@ pub async fn restore_database(
             );
         }
 
+        let expected_sha: Option<String> = with_sqlite_retry("restore_expected_sha", || {
+            let db = db_state.db.lock().map_err(|e| e.to_string())?;
+            let r: std::result::Result<Option<String>, rusqlite::Error> = db.query_row(
+                "SELECT sha256 FROM backups WHERE path = ?1",
+                params![&backupPath],
+                |row| row.get(0),
+            );
+            match r {
+                Ok(s) => Ok(s),
+                Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+                Err(e) => Err(e.to_string()),
+            }
+        })?;
+
+        verify_stored_sha256_against_file(&local_path, expected_sha)?;
+
+        if let Err(e) = validate_local_backup_file_for_restore(&local_path) {
+            log::error!(
+                target: "import_manager::restore",
+                "Backup file validation failed: {}",
+                e
+            );
+            window
+                .dialog()
+                .message(&e)
+                .title("Cannot restore")
+                .show(|_| {});
+            return Err(e);
+        }
+
+        let (work_path, dec_temp) = prepare_restorable_sqlite_path(&local_path)?;
+        _temp_guards.push_opt(dec_temp);
+
+        let local_str = work_path.to_string_lossy().to_string();
+
         let pre_restore_backup = create_pre_restore_backup_sync(
             current_db_path.to_string_lossy().as_ref(),
             userId.clone(),
         )?;
 
         let temp_path = format!("{}.restore_temp", current_db_path.display());
-        fs::copy(&local_path, &temp_path).map_err(|e| format!("Failed to copy backup: {}", e))?;
+        fs::copy(&work_path, &temp_path).map_err(|e| format!("Failed to copy backup: {}", e))?;
 
         let temp_size = fs::metadata(&temp_path).map(|m| m.len()).unwrap_or(0);
-        let backup_size = fs::metadata(&local_path).map(|m| m.len()).unwrap_or(0);
-        if temp_size != backup_size {
+        let work_size = fs::metadata(&work_path).map(|m| m.len()).unwrap_or(0);
+        if temp_size != work_size {
             fs::remove_file(&temp_path).ok();
             return Err("Backup file verification failed".to_string());
         }
@@ -1009,7 +1687,7 @@ pub async fn restore_database(
             ));
         }
 
-        validate_backup_tables_readonly(&local_path, RESTORE_TABLES)?;
+        validate_backup_tables_readonly(&work_path, RESTORE_TABLES)?;
 
         log::info!(
             target: "import_manager::restore",
@@ -1067,19 +1745,23 @@ pub async fn restore_database(
                 [],
             );
 
-            restore_conn.execute(&attach_sql, []).map_err(|e| {
-                if e.to_string().contains("database is already in use") {
-                    "Backup database is already attached. Please try again in a moment, or restart the application if the issue persists.".to_string()
-                } else if e.to_string().contains("no such file") {
-                    format!("Backup file not found: {}. Please check the file path.", local_str)
-                } else if e.to_string().contains("not a database") {
-                    format!(
-                        "Invalid backup file: {}. The file is not a valid SQLite database.",
-                        local_str
-                    )
-                } else {
-                    format!("Failed to attach backup database: {}", e)
-                }
+            with_sqlite_retry("restore_attach_backup", || {
+                restore_conn.execute(&attach_sql, []).map_err(|e| {
+                    let es = e.to_string();
+                    if es.contains("database is already in use") {
+                        "Backup database is already attached. Please try again in a moment, or restart the application if the issue persists.".to_string()
+                    } else if es.contains("no such file") {
+                        format!("Backup file not found: {}. Please check the file path.", local_str)
+                    } else if es.contains("not a database") {
+                        format!(
+                            "Invalid backup file: {}. The file is not a valid SQLite database.",
+                            local_str
+                        )
+                    } else {
+                        format!("Failed to attach backup database: {}", e)
+                    }
+                })?;
+                Ok::<(), String>(())
             })?;
 
             restore_conn
@@ -1315,13 +1997,40 @@ pub async fn restore_database(
                 result.backup_created.as_deref().unwrap_or(""),
                 result.message
             );
-            let db = db_state.db.lock().map_err(|e| e.to_string())?;
-            crate::db::try_audit_log_no_row(
-                &db,
-                "database",
-                "restore",
-                userId.as_deref(),
-                &restore_meta,
+            {
+                let db = db_state.db.lock().map_err(|e| e.to_string())?;
+                crate::db::try_audit_log_no_row(
+                    &db,
+                    "database",
+                    "restore",
+                    userId.as_deref(),
+                    &restore_meta,
+                );
+            }
+            if let Err(e) = increment_app_metadata_count(&db_state, APP_METADATA_RESTORE_COUNT) {
+                log::warn!(
+                    target: "import_manager::restore",
+                    "Could not update {}: {}",
+                    APP_METADATA_RESTORE_COUNT,
+                    e
+                );
+            }
+            if let Err(e) = set_app_metadata_string(
+                &db_state,
+                APP_METADATA_LAST_RESTORE_TIME,
+                &Utc::now().to_rfc3339(),
+            ) {
+                log::warn!(
+                    target: "import_manager::restore",
+                    "Could not update {}: {}",
+                    APP_METADATA_LAST_RESTORE_TIME,
+                    e
+                );
+            }
+            log::info!(
+                target: "import_manager::restore",
+                "Restore completed in {:.2} seconds",
+                restore_start.elapsed().as_secs_f64()
             );
             log::info!(
                 target: "import_manager::restore",
@@ -1504,6 +2213,13 @@ pub async fn bulk_delete_records(
         return Err(format!("Cannot delete more than 100 records at once. You selected {} records. Please select fewer records or use multiple smaller batches.", record_ids.len()));
     }
 
+    if delete_type == "hard" {
+        {
+            let db = db_state.db.lock().map_err(|e| e.to_string())?;
+            super::reference_scan::ensure_can_hard_delete(&db, &tableName, &record_ids)?;
+        }
+    }
+
     let mut deleted_count = 0;
     let mut failed_deletions = Vec::new();
 
@@ -1551,7 +2267,7 @@ pub async fn bulk_delete_records(
                 let query = format!("DELETE FROM {} WHERE id = ?", tableName);
                 let changes = tx
                     .execute(&query, params![record_id])
-                    .map_err(|e| e.to_string())?;
+                    .map_err(super::reference_scan::map_hard_delete_error_rusqlite)?;
 
                 if changes > 0 {
                     deleted_count += 1;
@@ -1627,8 +2343,8 @@ pub async fn create_backup_schedule(
     let retention_count = retention_count.unwrap_or(5);
     let retention_days = retention_days.unwrap_or(30);
     let enabled = if enabled.unwrap_or(true) { 1 } else { 0 };
-    let tz = time_zone.unwrap_or_else(|| "UTC".to_string());
-    let next_run = compute_next_run_rfc3339(&cron_expr)?;
+    let tz = time_zone.unwrap_or_else(|| "Asia/Kolkata".to_string());
+    let next_run = compute_next_run_rfc3339(&cron_expr, &tz)?;
 
     db.execute(
         "INSERT INTO backup_schedules (name, cron_expr, time_zone, destination, retention_count, retention_days, enabled, next_run, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
@@ -1783,15 +2499,15 @@ pub async fn update_backup_schedule(
     }
 
     if recompute_next {
-        let cron_row: Option<String> = db
+        let row: Option<(String, String)> = db
             .query_row(
-                "SELECT cron_expr FROM backup_schedules WHERE id = ?",
+                "SELECT cron_expr, COALESCE(time_zone, 'Asia/Kolkata') FROM backup_schedules WHERE id = ?",
                 params![schedule_id],
-                |row| row.get(0),
+                |row| Ok((row.get(0)?, row.get(1)?)),
             )
             .ok();
-        if let Some(expr) = cron_row {
-            if let Ok(next) = compute_next_run_rfc3339(&expr) {
+        if let Some((expr, tz)) = row {
+            if let Ok(next) = compute_next_run_rfc3339(&expr, &tz) {
                 let _ = db.execute(
                     "UPDATE backup_schedules SET next_run = ? WHERE id = ?",
                     params![next, schedule_id],
@@ -1927,7 +2643,9 @@ pub async fn run_scheduled_backup(
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         if let Some(expr) = cron_for_next {
-            if let Ok(next_run) = compute_next_run_rfc3339(expr) {
+            let tz = schedule.time_zone.trim();
+            let tz = if tz.is_empty() { "Asia/Kolkata" } else { tz };
+            if let Ok(next_run) = compute_next_run_rfc3339(expr, tz) {
                 let _ = db.execute(
                     "UPDATE backup_schedules SET last_run = CURRENT_TIMESTAMP, next_run = ? WHERE id = ?",
                     params![next_run, schedule_id],
@@ -2181,8 +2899,13 @@ pub async fn check_user_permission(
         "admin" => true, // Admin has all permissions
         "db_manager" => matches!(
             permission.as_str(),
-            "backup.create" | "backup.restore" | "backup.schedule" | "data.browse"
-                | "data.edit" | "data.delete" | "audit.view"
+            "backup.create"
+                | "backup.restore"
+                | "backup.schedule"
+                | "data.browse"
+                | "data.edit"
+                | "data.delete"
+                | "audit.view"
         ),
         "user" => matches!(permission.as_str(), "data.browse" | "data.edit"),
         "viewer" => matches!(permission.as_str(), "data.browse" | "audit.view"),
@@ -2262,9 +2985,6 @@ fn create_pre_restore_backup_sync(
     current_db_path: &str,
     _userId: Option<String>,
 ) -> Result<String, String> {
-    let now = chrono::Local::now();
-    let backup_filename = format!("pre-restore-backup-{}.db", now.format("%Y%m%d-%H%M%S"));
-
     let data_dir = std::env::var("APPDATA")
         .or_else(|_| std::env::var("HOME"))
         .map(|home| Path::new(&home).join("ImportManager").join("backups"))
@@ -2275,7 +2995,12 @@ fn create_pre_restore_backup_sync(
             .map_err(|e| format!("Failed to create backup directory: {}", e))?;
     }
 
-    let backupPath = data_dir.join(&backup_filename);
+    let backupPath = unique_pre_restore_path_in_dir(&data_dir)?;
+    let backup_filename = backupPath
+        .file_name()
+        .and_then(|s| s.to_str())
+        .ok_or_else(|| "Invalid pre-restore path".to_string())?
+        .to_string();
 
     // Create backup
     fs::copy(current_db_path, &backupPath)
@@ -2645,10 +3370,7 @@ mod restore_validation_tests {
     #[test]
     fn pragma_index_list_attached_uses_schema_dot_form() {
         let s = pragma_index_list_attached("backup_db_123", "invoice_line_items");
-        assert_eq!(
-            s,
-            "PRAGMA backup_db_123.index_list(\"invoice_line_items\")"
-        );
+        assert_eq!(s, "PRAGMA backup_db_123.index_list(\"invoice_line_items\")");
     }
 
     #[test]
@@ -2699,7 +3421,8 @@ mod restore_validation_tests {
             let b = count_pragma_rows(&conn, &pragma_index_list_attached(alias, table)).unwrap();
             assert_eq!(m, b, "index count for {}", table);
         }
-        conn.execute(&format!("DETACH DATABASE {}", alias), []).unwrap();
+        conn.execute(&format!("DETACH DATABASE {}", alias), [])
+            .unwrap();
         drop(conn);
         let _ = fs::remove_file(&main_path);
         let _ = fs::remove_file(&backup_path);
@@ -2730,7 +3453,8 @@ mod restore_validation_tests {
             .unwrap();
             let n = count_pragma_rows(&conn, &pragma_table_info_attached(alias, "t")).unwrap();
             assert!(n >= 1);
-            conn.execute(&format!("DETACH DATABASE {}", alias), []).unwrap();
+            conn.execute(&format!("DETACH DATABASE {}", alias), [])
+                .unwrap();
             drop(conn);
         }
         let _ = fs::remove_file(&main_path);
@@ -2751,7 +3475,8 @@ mod restore_validation_tests {
         let p = unique_test_db("empty");
         {
             let conn = Connection::open(&p).unwrap();
-            conn.execute("CREATE TABLE only_one (x INTEGER)", []).unwrap();
+            conn.execute("CREATE TABLE only_one (x INTEGER)", [])
+                .unwrap();
         }
         let err = validate_backup_tables_readonly(&p, &["only_one", "missing_table"]).unwrap_err();
         assert!(err.contains("missing_table"));

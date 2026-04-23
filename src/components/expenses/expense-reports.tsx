@@ -150,68 +150,8 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
     async (showNotification = true) => {
       setLoading(true);
       try {
-        // First, debug the data counts
-        console.log('🔍 [DEBUG] Getting expense data counts...');
-        const debugInfo = await invoke<string>('debug_expense_data_counts');
-        console.log('🔍 [DEBUG] Data counts:', debugInfo);
-
-        console.log(
-          '🔍 [DEBUG] Generating report with filters:',
-          JSON.stringify(filters, null, 2)
-        );
-        console.log('🔍 [DEBUG] Filter values breakdown:');
-        console.log(
-          '  - shipmentId:',
-          filters.shipmentId,
-          typeof filters.shipmentId
-        );
-        console.log(
-          '  - serviceProviderId:',
-          filters.serviceProviderId,
-          typeof filters.serviceProviderId
-        );
-        console.log(
-          '  - expenseTypeId:',
-          filters.expenseTypeId,
-          typeof filters.expenseTypeId
-        );
-        console.log('  - dateFrom:', filters.dateFrom, typeof filters.dateFrom);
-        console.log('  - dateTo:', filters.dateTo, typeof filters.dateTo);
-        console.log('  - currency:', filters.currency, typeof filters.currency);
-        console.log(
-          '  - minAmount:',
-          filters.minAmount,
-          typeof filters.minAmount
-        );
-        console.log(
-          '  - maxAmount:',
-          filters.maxAmount,
-          typeof filters.maxAmount
-        );
-
-        // Clean filters object - remove undefined values
         const cleanFilters = Object.fromEntries(
           Object.entries(filters).filter(([, value]) => value !== undefined)
-        );
-        console.log(
-          '🔍 [DEBUG] Clean filters being sent:',
-          JSON.stringify(cleanFilters, null, 2)
-        );
-        console.log(
-          '🔍 [DEBUG] Date range check: dateFrom =',
-          cleanFilters.dateFrom,
-          'dateTo =',
-          cleanFilters.dateTo
-        );
-
-        // Test with specific date range
-        const testFilters = {
-          dateFrom: '2025-05-01',
-          dateTo: '2025-05-01',
-        };
-        console.log(
-          '🔍 [DEBUG] Testing with specific date range:',
-          JSON.stringify(testFilters, null, 2)
         );
 
         switch (reportType) {
@@ -222,11 +162,6 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 filters: cleanFilters,
               }
             );
-            console.log('🔍 [FRONTEND] Detailed report data:', detailed); // Debug log
-            if (detailed && detailed.rows) {
-              console.log('🔍 [FRONTEND] First row sample:', detailed.rows[0]); // Debug log
-              console.log('🔍 [FRONTEND] Totals:', detailed.totals); // Debug log
-            }
             setDetailedReport(detailed);
             break;
           }
@@ -623,8 +558,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             size="sm"
             onClick={async () => {
               try {
-                const result = await invoke<string>('create_test_expense_data');
-                console.log('Test data creation result:', result);
+                await invoke<string>('create_test_expense_data');
                 // Reload filter options after creating test data
                 const [providers, types] = await Promise.all([
                   invoke<ServiceProvider[]>('get_service_providers'),
@@ -646,10 +580,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             size="sm"
             onClick={async () => {
               try {
-                const result = await invoke<string>(
-                  'debug_expense_data_counts'
-                );
-                console.log('Data counts:', result);
+                await invoke<string>('debug_expense_data_counts');
               } catch (error) {
                 console.error('Failed to get data counts:', error);
               }
@@ -664,8 +595,7 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             size="sm"
             onClick={async () => {
               try {
-                const result = await invoke<string>('debug_expense_dates');
-                console.log('Date debug result:', result);
+                await invoke<string>('debug_expense_dates');
               } catch (error) {
                 console.error('Failed to debug dates:', error);
               }
@@ -684,31 +614,14 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 const testFilters = {
                   dateFrom: '2024-01-01',
                   dateTo: '2025-12-31',
-                  // Add other filters as needed
                 };
-                console.log('🔍 [TEST] Testing filters:', testFilters);
-                const result = await invoke<string>(
-                  'debug_expense_report_filters',
-                  {
-                    filters: testFilters,
-                  }
-                );
-                console.log('🔍 [TEST] Test result:', result);
+                await invoke<string>('debug_expense_report_filters', {
+                  filters: testFilters,
+                });
 
-                // Also test without date filters
-                console.log('🔍 [TEST] Testing without date filters...');
-                const resultNoDate = await invoke<string>(
-                  'debug_expense_report_filters',
-                  {
-                    filters: {},
-                  }
-                );
-                console.log(
-                  '🔍 [TEST] Test result (no date filters):',
-                  resultNoDate
-                );
-
-                // Test completed - check console
+                await invoke<string>('debug_expense_report_filters', {
+                  filters: {},
+                });
               } catch (error) {
                 console.error('Test failed:', error);
               }
@@ -728,19 +641,9 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                   dateFrom: '2025-05-01',
                   dateTo: '2025-05-01',
                 };
-                console.log(
-                  '🔍 [TEST] Testing exact date range from image:',
-                  testFilters
-                );
-                const result = await invoke<string>(
-                  'debug_expense_report_filters',
-                  {
-                    filters: testFilters,
-                  }
-                );
-                console.log('🔍 [TEST] Exact date range test result:', result);
-
-                // Exact date range test completed - check console
+                await invoke<string>('debug_expense_report_filters', {
+                  filters: testFilters,
+                });
               } catch (error) {
                 console.error('Exact date range test failed:', error);
               }
@@ -1038,21 +941,10 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold">
-                          {(() => {
-                            const amount =
-                              (detailedReport.totals.total_amount_paise || 0) /
-                              100;
-                            console.log(
-                              '🔍 [FRONTEND] Total amount calculation:',
-                              {
-                                total_amount_paise:
-                                  detailedReport.totals.total_amount_paise,
-                                dividedBy100: amount,
-                                formatted: formatCurrency(amount),
-                              }
-                            );
-                            return formatCurrency(amount);
-                          })()}
+                          {formatCurrency(
+                            (detailedReport.totals.total_amount_paise || 0) /
+                              100
+                          )}
                         </div>
                         <p className="text-muted-foreground text-xs">
                           {detailedReport.totals.expense_line_count || 0}{' '}

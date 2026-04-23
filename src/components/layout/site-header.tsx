@@ -1,4 +1,12 @@
-import { Monitor, Moon, Palette, SidebarIcon, Sun, Plus } from 'lucide-react';
+import {
+  CircleHelp,
+  Monitor,
+  Moon,
+  Palette,
+  Plus,
+  SidebarIcon,
+  Sun,
+} from 'lucide-react';
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +25,7 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { useSidebar } from '@/components/ui/use-sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { AboutDialog } from '@/components/about-dialog';
 import { CustomColorPicker } from '@/components/ui/custom-color-picker';
 
 export function SiteHeader() {
@@ -26,6 +35,7 @@ export function SiteHeader() {
   const isMobile = useIsMobile();
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
   const [customColorPickerOpen, setCustomColorPickerOpen] = useState(false);
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -116,6 +126,26 @@ export function SiteHeader() {
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label="Help"
+                title="Help"
+              >
+                <CircleHelp className="h-4 w-4" />
+                <span className="sr-only">Help</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
+                About Import Manager
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
           {/* Notifications */}
           <NotificationBell onViewAll={handleViewAllNotifications} />
 
@@ -218,6 +248,8 @@ export function SiteHeader() {
         onOpenChange={setCustomColorPickerOpen}
         initialColor={theme.customAccentColor}
       />
+
+      <AboutDialog open={aboutOpen} onOpenChange={setAboutOpen} />
     </header>
   );
 }

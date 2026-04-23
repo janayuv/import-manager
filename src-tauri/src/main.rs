@@ -8,6 +8,7 @@ mod expense;
 mod migrations;
 mod playwright_db;
 mod restore_control;
+mod utils;
 
 // Re-export commonly used types
 pub use db::{
@@ -18,10 +19,24 @@ use crate::db::DbState;
 use rusqlite::Connection;
 use std::sync::Mutex;
 use tauri::Manager;
+use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::default().build())
+        .plugin(
+            tauri_plugin_log::Builder::default()
+                .clear_targets()
+                .max_file_size(5 * 1024 * 1024)
+                .rotation_strategy(RotationStrategy::KeepSome(5))
+                .targets([
+                    Target::new(TargetKind::Stdout),
+                    Target::new(TargetKind::Webview),
+                    Target::new(TargetKind::LogDir {
+                        file_name: Some("app.log".into()),
+                    }),
+                ])
+                .build(),
+        )
         // Native file + message/confirm dialogs (JS: @tauri-apps/plugin-dialog via src/lib/tauri-bridge.ts).
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -101,12 +116,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err(Box::new(e));
             }
 
+            if let Err(e) = commands::recycle_bin::cleanup_expired_recycle_records(
+                &db_connection,
+            ) {
+                log::error!(
+                    target: "import_manager::recycle_bin",
+                    "cleanup_expired_recycle_records failed (startup continues): {}",
+                    e
+                );
+            }
+
+            if let Err(e) = commands::db_maintenance::run_database_maintenance(&db_connection) {
+                log::error!(
+                    target: "import_manager::database",
+                    "run_database_maintenance failed (startup continues): {}",
+                    e
+                );
+            }
+
             if let Err(e) = db::ensure_audit_logs_table_name_column(&db_connection) {
                 log::warn!(
                     "audit_logs tableName column ensure failed (app continues): {}",
                     e
                 );
             }
+
+            crate::commands::reference_scan::run_startup_fk_diagnostics(&db_connection);
 
             app.manage(DbState { db: Mutex::new(db_connection) });
 
@@ -121,6 +156,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            commands::get_shell_version,
+            commands::log_client_event,
+            commands::get_app_metadata_value,
+            commands::set_app_metadata_value,
             // Supplier commands
             commands::get_suppliers,
             commands::add_supplier,
@@ -264,9 +303,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::create_audit_log,
             commands::get_audit_logs,
             commands::get_database_stats,
+            commands::has_backup_key_in_keyring,
+            commands::export_backup_key,
+            commands::export_backup_key_to_path,
+            commands::import_backup_key_from_path,
             commands::create_backup,
             commands::get_backup_history,
             commands::soft_delete_record,
+            commands::get_reference_counts,
+            commands::preview_delete_dependencies,
+            commands::get_soft_delete_tables,
+            commands::get_recycle_bin_deleted_count,
+            commands::get_application_logs,
+            commands::get_deleted_records,
+            commands::restore_deleted_records,
+            commands::permanently_delete_records,
             commands::hard_delete_record,
             commands::preview_restore,
             commands::restore_database,

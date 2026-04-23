@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
+import { APP_TIMEZONE } from '@/lib/app-timezone';
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -32,6 +34,7 @@ export function formatDate(dateString: string | null | undefined): string {
     return 'Invalid Date';
   }
   return date.toLocaleDateString('en-IN', {
+    timeZone: APP_TIMEZONE,
     year: 'numeric',
     month: 'short',
     day: 'numeric',

@@ -303,12 +303,16 @@ export function getSystemInfo(): Record<string, unknown> {
     application: {
       version:
         typeof import.meta !== 'undefined'
-          ? import.meta.env?.VITE_APP_VERSION || '1.0.0'
-          : '1.0.0',
+          ? import.meta.env?.VITE_APP_VERSION || 'dev'
+          : 'dev',
       buildTime:
         typeof import.meta !== 'undefined'
           ? import.meta.env?.VITE_BUILD_TIME || 'N/A'
           : 'N/A',
+      gitCommit:
+        typeof import.meta !== 'undefined'
+          ? import.meta.env?.VITE_GIT_COMMIT || 'dev'
+          : 'dev',
       mode:
         typeof import.meta !== 'undefined'
           ? import.meta.env?.MODE || 'N/A'

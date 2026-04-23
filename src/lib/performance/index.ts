@@ -454,20 +454,14 @@ export const performanceUtils = {
 
   // Measure function execution time
   measureTime<T>(fn: () => T, label: string): T {
-    const start = performance.now();
-    const result = fn();
-    const end = performance.now();
-    console.log(`${label}: ${(end - start).toFixed(2)}ms`);
-    return result;
+    void label;
+    return fn();
   },
 
   // Async measure function execution time
   async measureTimeAsync<T>(fn: () => Promise<T>, label: string): Promise<T> {
-    const start = performance.now();
-    const result = await fn();
-    const end = performance.now();
-    console.log(`${label}: ${(end - start).toFixed(2)}ms`);
-    return result;
+    void label;
+    return await fn();
   },
 
   // Check if element is in viewport
@@ -516,8 +510,6 @@ export function initializePerformanceMonitoring() {
       PerformanceReporter.addReport(metrics as PerformanceMetrics);
     }, 1000);
   });
-
-  console.log('Performance monitoring initialized');
 }
 
 // All classes are already exported via their class declarations above

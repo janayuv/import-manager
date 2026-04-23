@@ -1044,9 +1044,6 @@ export function loadSettings(): AppSettings {
           !supplierFields.country);
 
       if (hasOldSupplierStructure) {
-        console.log(
-          '🔧 loadSettings - Detected old supplier fields structure, clearing settings...'
-        );
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }
@@ -1063,9 +1060,6 @@ export function loadSettings(): AppSettings {
           !shipmentFields.dateOfDelivery);
 
       if (hasOldShipmentFields) {
-        console.log(
-          '🔧 loadSettings - Detected old shipment fields structure, clearing settings...'
-        );
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }
@@ -1089,9 +1083,6 @@ export function loadSettings(): AppSettings {
           !invoiceFields.invoiceTotal);
 
       if (hasOldInvoiceFields) {
-        console.log(
-          '🔧 loadSettings - Detected old invoice fields structure, clearing settings...'
-        );
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }
@@ -1103,9 +1094,6 @@ export function loadSettings(): AppSettings {
         (!boeFields.id || !boeFields.refId || !boeFields.transactionId);
 
       if (hasOldBoeFields) {
-        console.log(
-          '🔧 loadSettings - Detected old BOE fields structure, clearing settings...'
-        );
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }
@@ -1121,9 +1109,6 @@ export function loadSettings(): AppSettings {
           !expensesFields.updatedAt);
 
       if (hasOldExpensesFields) {
-        console.log(
-          '🔧 loadSettings - Detected old expenses fields structure, clearing settings...'
-        );
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }
@@ -1133,9 +1118,6 @@ export function loadSettings(): AppSettings {
       const hasOldItemMasterFields = itemMasterFields && !itemMasterFields.id;
 
       if (hasOldItemMasterFields) {
-        console.log(
-          '🔧 loadSettings - Detected old item master fields structure, clearing settings...'
-        );
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }
@@ -1173,7 +1155,6 @@ export function saveSettings(settings: AppSettings): void {
 export function clearSettings(): void {
   try {
     localStorage.clear();
-    console.log('🔧 Settings cleared successfully');
     window.location.reload();
   } catch (error) {
     console.error('Failed to clear settings:', error);
@@ -1207,10 +1188,6 @@ export function clearTablePageSizeSettings(): void {
 
     // Also clear the main settings to force refresh
     localStorage.removeItem('import-manager-settings');
-
-    console.log(
-      '🔧 Table page size settings and main settings cleared successfully'
-    );
 
     // Force page reload to apply new settings
     window.location.reload();

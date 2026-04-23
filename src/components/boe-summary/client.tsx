@@ -352,30 +352,17 @@ function printReport(params: {
   summary: SummaryRow[];
   title: string;
 }) {
-  console.log('🖨️ Starting printReport function...');
-  console.log('📋 Print params:', params);
-
   const { itemsRows, summary, title } = params;
 
-  console.log('📊 Items rows count:', itemsRows.length);
-  console.log('📈 Summary rows count:', summary.length);
-  console.log('📝 Title:', title);
-
   try {
-    // Get the ordered fields for consistent column order
-    console.log('🔧 Getting ordered fields...');
     const orderedFields = getOrderedFields();
-    console.log('📋 Ordered fields:', orderedFields);
 
     const fieldDisplayNames = orderedFields.map(fieldName =>
       getFieldDisplayName(fieldName)
     );
-    console.log('🏷️ Field display names:', fieldDisplayNames);
 
-    console.log('🔨 Building item rows HTML...');
     const itemRowsHtml = itemsRows
-      .map((r, index) => {
-        console.log(`📦 Processing row ${index}:`, r);
+      .map(r => {
         const cells = orderedFields
           .map(fieldName => {
             const displayName = getFieldDisplayName(fieldName);
@@ -393,34 +380,23 @@ function printReport(params: {
               'actualDuty',
               'savings',
             ].includes(fieldName);
-            console.log(
-              `  📄 Field: ${fieldName}, Display: ${displayName}, Value: ${value}, Numeric: ${isNumeric}`
-            );
             return `<td class="${isNumeric ? 'num' : ''}">${value}</td>`;
           })
           .join('');
 
         const rowHtml = `<tr>${cells}</tr>`;
-        console.log(`  ✅ Row ${index} HTML:`, rowHtml);
         return rowHtml;
       })
       .join('');
 
-    console.log('📊 Final item rows HTML length:', itemRowsHtml.length);
-
-    console.log('📈 Building summary rows HTML...');
     const summaryRowsHtml = summary
       .map(
-        (
-          r: {
-            label: string;
-            calculated: number;
-            boe: number | null;
-            variance: number | null;
-          },
-          index
-        ) => {
-          console.log(`📊 Processing summary row ${index}:`, r);
+        (r: {
+          label: string;
+          calculated: number;
+          boe: number | null;
+          variance: number | null;
+        }) => {
           const rowHtml = `
           <tr>
             <td>${r.label}</td>
@@ -428,15 +404,11 @@ function printReport(params: {
             <td class="num">${r.boe != null ? r.boe.toFixed(2) : '-'}</td>
             <td class="num">${r.variance != null ? r.variance.toFixed(2) : '-'}</td>
           </tr>`;
-          console.log(`  ✅ Summary row ${index} HTML:`, rowHtml);
           return rowHtml;
         }
       )
       .join('');
 
-    console.log('📊 Final summary rows HTML length:', summaryRowsHtml.length);
-
-    console.log('🏗️ Building complete HTML...');
     const html = `<!doctype html>
     <html><head>
       <meta charset="utf-8"/>
@@ -490,9 +462,6 @@ function printReport(params: {
       <script>window.onload = () => window.print();</script>
     </body></html>`;
 
-    console.log('📄 Complete HTML length:', html.length);
-    console.log('🌐 Opening print window...');
-
     // Try to open the print window
     const printWindow = window.open(
       '',
@@ -502,7 +471,6 @@ function printReport(params: {
 
     if (!printWindow) {
       console.error('❌ Failed to open print window - popup blocked?');
-      console.log('🔄 Trying alternative print method...');
 
       // Fallback: Create a temporary iframe for printing
       try {
@@ -524,17 +492,13 @@ function printReport(params: {
           iframeDoc.write(html);
           iframeDoc.close();
 
-          console.log('✅ HTML written to iframe successfully');
-
           // Wait a moment for content to load, then print
           setTimeout(() => {
             iframe.contentWindow?.print();
-            console.log('🖨️ Print command sent to iframe');
 
             // Remove iframe after printing
             setTimeout(() => {
               document.body.removeChild(iframe);
-              console.log('🧹 Iframe removed');
             }, 1000);
           }, 500);
         } else {
@@ -552,15 +516,9 @@ function printReport(params: {
       return;
     }
 
-    console.log('✅ Print window opened successfully');
-    console.log('📝 Writing HTML to print window...');
-
     printWindow.document.open();
     printWindow.document.write(html);
     printWindow.document.close();
-
-    console.log('✅ HTML written to print window successfully');
-    console.log('🖨️ Print function completed successfully');
   } catch (error) {
     console.error('💥 Error in printReport function:', error);
     console.error('Error details:', {
@@ -677,9 +635,6 @@ function ItemDetailsTable({
     await exportXlsx({ itemsRows: exportRows, summary: [] });
 
   const handlePrint = () => {
-    console.log('🖨️ ItemDetailsTable handlePrint clicked');
-    console.log('📊 Export rows for print:', exportRows);
-
     // Show a helpful message about popup blockers
     toast.info(
       'Printing... If nothing happens, please allow popups for this site.',
@@ -831,9 +786,6 @@ function BoeSummaryTable({
     await exportXlsx({ itemsRows: [], summary: summaryRows });
 
   const handlePrint = () => {
-    console.log('🖨️ BoeSummaryTable handlePrint clicked');
-    console.log('📊 Summary rows for print:', summaryRows);
-
     // Show a helpful message about popup blockers
     toast.info(
       'Printing... If nothing happens, please allow popups for this site.',
@@ -1248,12 +1200,6 @@ export function BoeSummaryClient({
                     variant="default"
                     useAccentColor
                     onClick={async () => {
-                      console.log('📄 Starting BOE document upload process...');
-                      console.log(
-                        '📋 Selected BOE ID:',
-                        selectedData.savedBoe.id
-                      );
-
                       const picked = await openDialog({
                         multiple: false,
                         directory: false,
@@ -1274,28 +1220,15 @@ export function BoeSummaryClient({
                           },
                         ],
                       });
-                      console.log('📁 Picked file result:', picked);
 
                       if (!picked || Array.isArray(picked)) {
-                        console.log(
-                          '❌ No file selected or multiple files selected'
-                        );
                         return;
                       }
 
                       const srcPath = picked as string;
-                      console.log('📤 Source file path:', srcPath);
 
                       const toastId = toast.loading('Saving document...');
                       try {
-                        console.log(
-                          '🔄 Invoking backend command to save BOE attachment...'
-                        );
-                        console.log('📤 Sending parameters:', {
-                          id: selectedData.savedBoe.id,
-                          srcPath: srcPath,
-                        });
-
                         const destPath = await invoke<string>(
                           'save_boe_attachment_file',
                           {
@@ -1303,22 +1236,16 @@ export function BoeSummaryClient({
                             srcPath: srcPath,
                           }
                         );
-                        console.log(
-                          '✅ Document saved successfully at:',
-                          destPath
-                        );
 
                         const idx = savedBoes.findIndex(
                           b => b.id === selectedData.savedBoe.id
                         );
-                        console.log('🔍 Found BOE at index:', idx);
 
                         if (idx >= 0) {
                           const current = savedBoes[idx];
                           const fileName =
                             srcPath.split(/\\|\//).pop() ||
                             `file-${Date.now()}`;
-                          console.log('📝 Extracted filename:', fileName);
 
                           const att = {
                             id: `ATT-${Date.now()}`,
@@ -1327,7 +1254,6 @@ export function BoeSummaryClient({
                             url: destPath,
                             uploadedAt: new Date().toISOString(),
                           };
-                          console.log('📎 Created attachment object:', att);
 
                           const next = {
                             ...current,
@@ -1336,14 +1262,10 @@ export function BoeSummaryClient({
 
                           savedBoes[idx] = next;
 
-                          console.log('💾 Saving attachment to database...');
                           await invoke('add_boe_attachment', {
                             id: next.id,
                             attachment: att,
                           });
-                          console.log(
-                            '✅ Attachment saved to database successfully'
-                          );
 
                           toast.success('Document saved', {
                             id: toastId,

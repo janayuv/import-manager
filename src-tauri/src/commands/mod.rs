@@ -1,11 +1,19 @@
 // Re-export all command modules to maintain the same public API
+pub mod app_info;
+pub mod app_metadata;
+pub mod backup_key;
 pub mod boe;
+pub mod db_maintenance;
 pub mod db_management;
-pub mod google_drive;
 pub mod expenses;
+pub mod google_drive;
 pub mod invoices;
 pub mod items;
+pub mod logs;
+pub mod oauth_callback;
 pub mod options;
+pub mod recycle_bin;
+pub mod reference_scan;
 pub mod reports;
 pub mod shipments;
 pub mod suppliers;
@@ -13,13 +21,19 @@ pub mod test_reset;
 pub mod utils;
 
 // Re-export all public functions from submodules
+pub use app_info::*;
+pub use app_metadata::*;
+pub use backup_key::*;
 pub use boe::*;
 pub use db_management::*;
-pub use google_drive::*;
 pub use expenses::*;
+pub use google_drive::*;
 pub use invoices::*;
 pub use items::*;
+pub use logs::*;
 pub use options::*;
+pub use recycle_bin::*;
+pub use reference_scan::*;
 pub use reports::*;
 pub use shipments::*;
 pub use suppliers::*;

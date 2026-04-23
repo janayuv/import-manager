@@ -6,7 +6,9 @@ static BACKGROUND_JOBS_PAUSED: AtomicBool = AtomicBool::new(false);
 static RESTORE_IN_PROGRESS: AtomicBool = AtomicBool::new(false);
 
 fn ts() -> String {
-    chrono::Local::now().format("%Y-%m-%d %H:%M:%S%.3f").to_string()
+    chrono::Local::now()
+        .format("%Y-%m-%d %H:%M:%S%.3f")
+        .to_string()
 }
 
 /// True while restore requests background schedulers / ticks to stand down.

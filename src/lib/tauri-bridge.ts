@@ -8,11 +8,32 @@ import type {
 
 interface WindowWithTauri {
   __TAURI__?: unknown;
+  __TAURI_INTERNALS__?: unknown;
+  isTauri?: boolean;
 }
 
 const hasWindow = typeof window !== 'undefined';
-const isTauri =
-  hasWindow && (window as WindowWithTauri).__TAURI__ !== undefined;
+
+/**
+ * Tauri 2: IPC and `invoke` use `__TAURI_INTERNALS__` and the official runtime
+ * flag `globalThis.isTauri` — *not* only `window.__TAURI__` (that is for
+ * `app.withGlobalTauri`). Stale `__TAURI__`-only checks make `invoke` work while
+ * UI gating (e.g. Recycle Bin) thinks we are in a plain browser.
+ * Playwright (`VITE_PLAYWRIGHT`) uses a stub `invoke` without a full webview.
+ */
+function detectTauriAtLoad(): boolean {
+  if (!hasWindow) return false;
+  const g = globalThis as { isTauri?: boolean };
+  if (g.isTauri) return true;
+  const w = window as unknown as WindowWithTauri;
+  if (w.isTauri) return true;
+  if (w.__TAURI__ !== undefined) return true;
+  if (w.__TAURI_INTERNALS__ !== undefined) return true;
+  if (import.meta.env.VITE_PLAYWRIGHT === '1') return true;
+  return false;
+}
+
+const isTauri = detectTauriAtLoad();
 
 /** Sync browser confirm; never throws (WebView / policy edge cases). */
 function browserConfirm(message: string): boolean {

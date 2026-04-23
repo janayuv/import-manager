@@ -376,10 +376,6 @@ const InvoicePage = () => {
         return;
       }
 
-      console.log('Tauri env ready');
-      console.log('Runtime URL:', window.location.href);
-      console.log('Confirm type:', typeof confirm);
-
       const confirmed = await confirm('Finalize all matching invoices?', {
         title: 'Confirm Bulk Finalization',
         kind: 'warning',

@@ -1211,8 +1211,6 @@ const ShipmentPage = () => {
                     const uniqueStatuses = [
                       ...new Set(shipments.map(s => s.status).filter(Boolean)),
                     ];
-                    console.log('All shipments:', shipments);
-                    console.log('Unique statuses:', uniqueStatuses);
                     notifications.info(
                       'Debug Statuses',
                       `Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`

@@ -24,7 +24,14 @@ interface NavItem {
   items?: Omit<NavItem, 'icon' | 'items'>[];
 }
 
-export function NavMain({ items }: { items: NavItem[] }) {
+export function NavMain({
+  items,
+  badges,
+}: {
+  items: NavItem[];
+  /** Optional counts shown next to a top-level item title, e.g. { "/recycle-bin": 12 } */
+  badges?: Record<string, number>;
+}) {
   const location = useLocation();
 
   /** Match exact path or nested routes (e.g. /supplier/Sup-001/view). */
@@ -109,6 +116,9 @@ export function NavMain({ items }: { items: NavItem[] }) {
                 <item.icon />
                 <span className="truncate" title={item.title}>
                   {item.title}
+                  {badges && badges[item.url] !== undefined
+                    ? ` (${badges[item.url]})`
+                    : null}
                 </span>
               </NavLink>
             </SidebarMenuButton>

@@ -427,10 +427,7 @@ pub fn ensure_audit_logs_table_name_column(conn: &Connection) -> Result<(), rusq
     if names.iter().any(|n| n.eq_ignore_ascii_case("tableName")) {
         return Ok(());
     }
-    conn.execute(
-        r#"ALTER TABLE audit_logs ADD COLUMN "tableName" TEXT"#,
-        [],
-    )?;
+    conn.execute(r#"ALTER TABLE audit_logs ADD COLUMN "tableName" TEXT"#, [])?;
     conn.execute(
         r#"UPDATE audit_logs SET "tableName" = table_name WHERE "tableName" IS NULL"#,
         [],

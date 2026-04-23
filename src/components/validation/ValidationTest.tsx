@@ -266,8 +266,7 @@ export const ValidationTest = () => {
     });
 
     const handleSupplierSubmit = async () => {
-      const success = await supplierValidation.submit(async data => {
-        console.log('Supplier data:', data);
+      const success = await supplierValidation.submit(async () => {
         toast.success('Supplier validation successful!');
       });
 
@@ -277,8 +276,7 @@ export const ValidationTest = () => {
     };
 
     const handleShipmentSubmit = async () => {
-      const success = await shipmentValidation.submit(async data => {
-        console.log('Shipment data:', data);
+      const success = await shipmentValidation.submit(async () => {
         toast.success('Shipment validation successful!');
       });
 
@@ -288,8 +286,7 @@ export const ValidationTest = () => {
     };
 
     const handleItemSubmit = async () => {
-      const success = await itemValidation.submit(async data => {
-        console.log('Item data:', data);
+      const success = await itemValidation.submit(async () => {
         toast.success('Item validation successful!');
       });
 

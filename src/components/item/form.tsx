@@ -119,30 +119,20 @@ export function ItemForm({
   };
 
   const handlePhotoUpload = async () => {
-    console.log('🖼️ Starting photo upload process...');
     try {
-      console.log('📂 Opening file dialog for image selection...');
       const selected = await open({
         multiple: false,
         filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }],
       });
-      console.log('📁 Selected file path:', selected);
 
       if (typeof selected === 'string') {
-        console.log('🔄 Invoking backend command to save photo file...');
-        console.log('📤 Sending srcPath to backend:', selected);
-
         const savedPath = await invoke<string>('save_item_photo_file', {
           srcPath: selected,
         });
-        console.log('✅ Photo saved successfully at:', savedPath);
 
         setFormData(prev => ({ ...prev, photoPath: savedPath }));
         setPhotoPreview(convertFileSrc(savedPath));
         toast.success(`Photo saved at: ${savedPath}`);
-        console.log('🎯 Photo preview updated and form data set');
-      } else {
-        console.log('❌ No file selected or multiple files selected');
       }
     } catch (error) {
       console.error('💥 Failed to save photo:', error);

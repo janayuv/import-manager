@@ -25,16 +25,8 @@ export function useReport() {
     setLoading(true);
     setError(null);
 
-    console.log('=== useReport: fetchData called ===');
-    console.log('Filters:', filters);
-
     try {
       const response: ReportResponse = await invoke('get_report', { filters });
-      console.log('=== useReport: Response received ===');
-      console.log('Response:', response);
-      console.log('Rows count:', response.rows?.length || 0);
-      console.log('Total rows:', response.totalRows);
-      console.log('Totals:', response.totals);
 
       if (response.rows) {
         setData(response.rows);
@@ -59,19 +51,14 @@ export function useReport() {
   }, [filters]);
 
   useEffect(() => {
-    console.log('=== useReport: useEffect triggered ===');
     fetchData();
   }, [fetchData]);
 
   const updateFilters = useCallback((newFilters: Partial<ReportFilters>) => {
-    console.log('=== useReport: updateFilters called ===');
-    console.log('New filters:', newFilters);
     setFilters(prev => ({ ...prev, ...newFilters, page: 1 }));
   }, []);
 
   const goToPage = useCallback((page: number) => {
-    console.log('=== useReport: goToPage called ===');
-    console.log('Page:', page);
     setFilters(prev => ({ ...prev, page }));
   }, []);
 

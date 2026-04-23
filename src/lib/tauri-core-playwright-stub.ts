@@ -720,6 +720,24 @@ export async function invoke<T = unknown>(
         totalRows: 0,
         totals: null,
       } as T;
+    case 'get_shell_version': {
+      const v =
+        typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_VERSION
+          ? String(import.meta.env.VITE_APP_VERSION)
+          : '0.0.0';
+      return v as T;
+    }
+    case 'log_client_event':
+      return undefined as T;
+    case 'get_app_metadata_value': {
+      const k = String((args as { key?: string })?.key ?? '');
+      if (k === 'db_version') {
+        return '1' as T;
+      }
+      return null as T;
+    }
+    case 'set_app_metadata_value':
+      return undefined as T;
     case 'get_database_stats':
       return getStubDatabaseStats() as T;
     case 'get_backup_history': {
@@ -822,6 +840,49 @@ export async function invoke<T = unknown>(
     }
     case 'bulk_search_records':
       return emptyBrowseTable('bulk') as T;
+    case 'preview_delete_dependencies': {
+      const recordIds = Array.isArray(
+        (args as { recordIds?: unknown })?.recordIds
+      )
+        ? ((args as { recordIds: unknown[] }).recordIds as unknown[]).length
+        : 0;
+      return {
+        total_records: recordIds,
+        blocked_records: 0,
+        dependency_summary: [] as { table: string; total_references: number }[],
+        can_hard_delete: true,
+        scan_timed_out: false,
+      } as T;
+    }
+    case 'get_reference_counts':
+      return [] as T;
+    case 'get_soft_delete_tables':
+      return [
+        'suppliers',
+        'shipments',
+        'items',
+        'invoices',
+        'boe_details',
+        'expenses',
+      ] as T;
+    case 'get_recycle_bin_deleted_count':
+      return 0 as T;
+    case 'get_application_logs':
+      return [
+        '[2026-01-01][00:00:00][import_manager::recycle_bin][INFO] sample recycle line',
+        '[2026-01-01][00:00:01][import_manager::restore][INFO] sample restore line',
+      ] as T;
+    case 'get_deleted_records':
+      return {
+        total: 0,
+        page: 1,
+        pageSize: 50,
+        items: [] as { table: string; record: Record<string, unknown> }[],
+      } as T;
+    case 'restore_deleted_records':
+      return 'Records restored successfully' as T;
+    case 'permanently_delete_records':
+      return 'Records permanently deleted' as T;
     case 'soft_delete_record':
       persistLiveDbToSession();
       return undefined as T;
@@ -870,7 +931,11 @@ export async function invoke<T = unknown>(
           status: 'completed',
           size_bytes: snapBytes,
         },
+        backup_file_size_bytes: snapBytes,
+        estimated_restore_seconds: (snapBytes / 1_000_000) * 0.02,
         current_db_stats: getStubDatabaseStats(),
+        checksum_status: 'missing',
+        recorded_hash_match: true,
         integrity_check: 'Backup readable; integrity OK (Playwright stub).',
         schema_compatibility: true,
         estimated_changes: {},
@@ -896,6 +961,12 @@ export async function invoke<T = unknown>(
       });
       return { backupPath: path } as T;
     }
+    case 'has_backup_key_in_keyring':
+      return true as T;
+    case 'export_backup_key':
+    case 'export_backup_key_to_path':
+    case 'import_backup_key_from_path':
+      return undefined as T;
     default:
       if (cmd.startsWith('get_') || cmd.startsWith('browse_')) {
         return [] as unknown as T;

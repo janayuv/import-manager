@@ -347,14 +347,6 @@ export function InvoiceWizard({
         matchedItem = partNumberToItem.get(normalizedPn);
       }
 
-      // Debug logging for unmatched items
-      if (!matchedItem && pn) {
-        const keys = Array.from(partNumberToItem.keys());
-        console.log(
-          `Item lookup failed: raw=${pnRaw}, normalized=${normalizedPn}, itemMasterCount=${items.length}, sample=[${keys.slice(0, 10).join(', ')}]`
-        );
-      }
-
       if (
         matchedItem &&
         line.unitPrice !== undefined &&
@@ -406,10 +398,6 @@ export function InvoiceWizard({
 
       if (!matched) {
         notFound.push(p.partNumber || p.raw);
-        const keys = Array.from(partNumberToItem.keys());
-        console.log(
-          `Failed to add item: raw=${pnRaw}, normalized=${normalizedPn}, itemMasterCount=${items.length}, sample=[${keys.slice(0, 10).join(', ')}]`
-        );
         return;
       }
       newLines.push({
@@ -430,7 +418,6 @@ export function InvoiceWizard({
       toast.warning(
         `Skipped ${notFound.length} unknown parts: ${notFound.slice(0, 3).join(', ')}${notFound.length > 3 ? '...' : ''}`
       );
-      console.log('All skipped items:', notFound);
     }
   };
 

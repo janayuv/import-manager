@@ -45,8 +45,7 @@ export function useNotificationHelpers() {
     markAsRead(notification.id);
 
     if (notification.actionUrl) {
-      // Handle navigation to action URL
-      console.log('Navigate to:', notification.actionUrl);
+      // Navigation to action URL can be wired here when routes support deep links.
     }
   };
 

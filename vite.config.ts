@@ -1,8 +1,29 @@
+import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { defineConfig } from 'vite';
 import removeConsole from 'vite-plugin-remove-console';
+
+const __rootDir = dirname(fileURLToPath(import.meta.url));
+const { version: appVersion } = JSON.parse(
+  readFileSync(resolve(__rootDir, 'package.json'), 'utf-8')
+) as { version: string };
+const appBuildTime = new Date().toISOString();
+
+let gitShort = 'dev';
+try {
+  gitShort = execSync('git rev-parse --short HEAD', {
+    cwd: __rootDir,
+    encoding: 'utf-8',
+  }).trim();
+} catch {
+  /* not a git checkout or git missing */
+}
 
 const manualChunks = (id: string): string | undefined => {
   const norm = id.split('\\').join('/');
@@ -76,6 +97,11 @@ export default defineConfig({
   // 3. to make use of `TAURI_DEBUG` and other env variables
   // https://tauri.app/v1/api/config#buildconfig.beforedevcommand
   envPrefix: ['VITE_', 'TAURI_'],
+  define: {
+    'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
+    'import.meta.env.VITE_BUILD_TIME': JSON.stringify(appBuildTime),
+    'import.meta.env.VITE_GIT_COMMIT': JSON.stringify(gitShort),
+  },
   build: {
     // 4. Tauri uses Chromium on Windows - edgeDAMN WebView2
     // Windows + WebView2 (Chromium). When `TAURI_PLATFORM` is unset (plain `vite build`), still target Chromium.

@@ -358,8 +358,6 @@ pub fn debug_expense_report_filters(
 ) -> Result<String, String> {
     let conn = state.db.lock().unwrap();
 
-    log::debug!("🔍 [DEBUG] Testing expense report filters: {:?}", filters);
-
     // Test the detailed report generation
     match ExpenseService::generate_expense_report(&conn, &filters) {
         Ok(response) => {
@@ -369,12 +367,10 @@ pub fn debug_expense_report_filters(
                 response.totals.invoice_count,
                 response.totals.total_amount_paise
             );
-            log::debug!("🔍 [DEBUG] {}", result);
             Ok(result)
         }
         Err(e) => {
             let error_msg = format!("❌ Error: {}", e);
-            log::debug!("🔍 [DEBUG] {}", error_msg);
             Err(error_msg)
         }
     }
@@ -384,8 +380,6 @@ pub fn debug_expense_report_filters(
 #[tauri::command]
 pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
     let conn = state.db.lock().unwrap();
-
-    log::debug!("🔍 [DEBUG] Checking expense dates in database...");
 
     let query = "
         SELECT DISTINCT ei.invoice_date, COUNT(*) as count
@@ -402,7 +396,7 @@ pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
         .query([])
         .map_err(|e| format!("❌ Error querying dates: {}", e))?;
 
-    let mut result = String::from("🔍 [DEBUG] Sample dates in database:\n");
+    let mut result = String::from("Sample dates in database:\n");
     while let Some(row) = rows
         .next()
         .map_err(|e| format!("❌ Error reading row: {}", e))?
@@ -415,6 +409,5 @@ pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
             .map_err(|e| format!("❌ Error reading count: {}", e))?;
         result.push_str(&format!("  {}: {} records\n", date, count));
     }
-    log::debug!("{}", result);
     Ok(result)
 }

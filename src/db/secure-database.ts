@@ -218,8 +218,7 @@ export async function exampleSecureDatabaseUsage() {
     ]);
 
     // Query data
-    const users = await db.all('SELECT * FROM users');
-    console.log('Users:', users);
+    await db.all('SELECT * FROM users');
   } catch (error) {
     console.error('Database error:', error);
   } finally {

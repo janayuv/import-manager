@@ -294,9 +294,7 @@ const ErrorHandlerTest = () => {
       });
     }, ErrorContexts.dataFetch('ErrorHandlerTest'));
 
-    if (result) {
-      console.log('Async operation succeeded:', result);
-    }
+    void result;
   };
 
   const testWrappedFunction = async () => {
@@ -308,9 +306,7 @@ const ErrorHandlerTest = () => {
     }, ErrorContexts.formSubmit('ErrorHandlerTest'));
 
     const result = await wrappedFn('Test wrapped function error');
-    if (result) {
-      console.log('Wrapped function succeeded:', result);
-    }
+    void result;
   };
 
   return (

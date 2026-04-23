@@ -13,7 +13,10 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 // Corrected import name
 import { Toaster } from '@/components/ui/sonner';
+import { validateBuildMetadata } from '@/lib/build-metadata';
 import { initializePerformanceMonitoring } from '@/lib/performance';
+import { logStartupContextOnce } from '@/lib/startup-log';
+import { runVersionConsistencyCheck } from '@/lib/version-check';
 import { SettingsProvider } from '@/lib/settings-context';
 import { UserProvider } from '@/lib/user-context';
 import { ResponsiveProvider } from '@/providers/ResponsiveProvider';
@@ -40,6 +43,8 @@ import SettingsPage from '@/pages/settings';
 import ShipmentPage from '@/pages/shipment';
 import SupplierPage from '@/pages/supplier';
 import DatabaseManagement from '@/pages/database-management';
+import RecycleBin from '@/pages/RecycleBin';
+import LogsPage from '@/pages/Logs';
 
 const ProtectedRoute = () => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -50,6 +55,12 @@ function App() {
   // Initialize performance monitoring
   React.useEffect(() => {
     initializePerformanceMonitoring();
+  }, []);
+
+  React.useEffect(() => {
+    validateBuildMetadata();
+    void runVersionConsistencyCheck();
+    logStartupContextOnce();
   }, []);
 
   return (
@@ -186,6 +197,8 @@ function App() {
                             path="/database-management"
                             element={<DatabaseManagement />}
                           />
+                          <Route path="/recycle-bin" element={<RecycleBin />} />
+                          <Route path="/logs" element={<LogsPage />} />
                         </Route>
                       </Route>
                     </Routes>

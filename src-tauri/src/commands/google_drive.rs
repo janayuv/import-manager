@@ -2,16 +2,21 @@
 //! Build with env vars: `IMPORT_MANAGER_GOOGLE_CLIENT_ID` and `IMPORT_MANAGER_GOOGLE_CLIENT_SECRET`
 //! (OAuth "Desktop" client from Google Cloud Console). Add redirect URI: `http://127.0.0.1:8765/`
 
+use chrono::Duration as ChronoDuration;
+use chrono::Utc;
 use futures_util::StreamExt;
 use keyring::Entry;
+use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
 use std::fs::{self, File};
 use std::io::{Read, Write};
-use std::net::TcpListener;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
-use tauri::{Emitter, WebviewWindow};
+use tauri::{Emitter, State, WebviewWindow};
+
+use crate::db::DbState;
 
 pub const GDRIVE_PATH_PREFIX: &str = "gdrive:";
 
@@ -23,7 +28,109 @@ const OAUTH_REDIRECT: &str = "http://127.0.0.1:8765/";
 const OAUTH_SCOPE: &str =
     "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email";
 
+const META_GDRIVE_ACCESS: &str = "gdrive_access_token";
+const META_GDRIVE_REFRESH: &str = "gdrive_refresh_token";
+const META_GDRIVE_EXPIRY: &str = "gdrive_token_expiry";
+
 static OPERATION_CANCEL: AtomicBool = AtomicBool::new(false);
+static GDRIVE_TOKEN_DB_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+/// Remember DB path so token read fallbacks can open the same file without `State`.
+fn record_gdrive_token_db_path(conn: &Connection) {
+    if let Some(p) = conn.path() {
+        let _ = GDRIVE_TOKEN_DB_PATH.get_or_init(|| PathBuf::from(p));
+    }
+}
+
+fn read_gdrive_metadata_str(conn: &Connection, key: &str) -> Option<String> {
+    match conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = ?1",
+            params![key],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+    {
+        Ok(Some(s)) => {
+            let t = s.trim();
+            if t.is_empty() {
+                None
+            } else {
+                Some(t.to_string())
+            }
+        }
+        _ => None,
+    }
+}
+
+fn read_gdrive_refresh_from_metadata(conn: &Connection) -> Option<String> {
+    read_gdrive_metadata_str(conn, META_GDRIVE_REFRESH)
+}
+
+/// Persist OAuth tokens in SQLite (reliable) and use when OS keyring is unavailable.
+fn store_gdrive_tokens_in_metadata(
+    conn: &Connection,
+    access: &str,
+    refresh: &str,
+    access_expires_at_rfc3339: &str,
+) -> Result<(), String> {
+    for (k, v) in [
+        (META_GDRIVE_ACCESS, access),
+        (META_GDRIVE_REFRESH, refresh),
+        (META_GDRIVE_EXPIRY, access_expires_at_rfc3339),
+    ] {
+        conn.execute(
+            "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
+            params![k, v],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+fn clear_gdrive_metadata_tokens(conn: &Connection) {
+    for k in [META_GDRIVE_ACCESS, META_GDRIVE_REFRESH, META_GDRIVE_EXPIRY] {
+        let _ = conn.execute("DELETE FROM app_metadata WHERE key = ?1", params![k]);
+    }
+}
+
+/// True if keyring or `app_metadata` has a non-empty refresh token.
+pub fn has_gdrive_session(conn: &Connection) -> bool {
+    record_gdrive_token_db_path(conn);
+    if has_refresh_token() {
+        return true;
+    }
+    read_gdrive_refresh_from_metadata(conn).is_some()
+}
+
+fn read_gdrive_refresh_from_path_file() -> Option<String> {
+    let p = GDRIVE_TOKEN_DB_PATH.get()?;
+    let c = Connection::open(p).ok()?;
+    read_gdrive_refresh_from_metadata(&c)
+}
+
+/// Resolve refresh token: keyring first, then [app_metadata], then on-disk path fallback.
+fn get_refresh_token_unified(db: Option<&Mutex<Connection>>) -> Result<String, String> {
+    if let Ok(e) = keyring_entry_refresh() {
+        if let Ok(s) = e.get_password() {
+            if !s.is_empty() {
+                return Ok(s);
+            }
+        }
+    }
+    if let Some(m) = db {
+        if let Ok(g) = m.lock() {
+            record_gdrive_token_db_path(&g);
+            if let Some(s) = read_gdrive_refresh_from_metadata(&g) {
+                return Ok(s);
+            }
+        }
+    }
+    if let Some(s) = read_gdrive_refresh_from_path_file() {
+        return Ok(s);
+    }
+    Err(user_message("token", "Not signed in to Google Drive."))
+}
 
 /// Reset cancel flag before starting upload/download (also callable from frontend).
 #[tauri::command]
@@ -103,10 +210,7 @@ fn emit_progress(win: Option<&WebviewWindow>, p: &DriveTransferProgress) {
 fn check_cancelled() -> Result<(), String> {
     if OPERATION_CANCEL.load(Ordering::SeqCst) {
         log::warn!(target: "google_drive", "event=transfer_cancelled_by_user");
-        return Err(user_message(
-            "cancelled",
-            "Transfer was cancelled.",
-        ));
+        return Err(user_message("cancelled", "Transfer was cancelled."));
     }
     Ok(())
 }
@@ -142,17 +246,19 @@ pub fn parse_friendly_error(err: &str) -> String {
 }
 
 #[tauri::command]
-pub async fn google_drive_status() -> Result<GoogleDriveStatus, String> {
+pub async fn google_drive_status(
+    db_state: State<'_, DbState>,
+) -> Result<GoogleDriveStatus, String> {
     let configured = is_configured();
-    let connected = configured && has_refresh_token();
-    let mut email = if connected {
-        read_stored_email()
-    } else {
-        None
+    let connected = {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        record_gdrive_token_db_path(&db);
+        configured && has_gdrive_session(&db)
     };
+    let mut email = if connected { read_stored_email() } else { None };
 
     if connected && email.is_none() {
-        if let Ok(tok) = get_access_token().await {
+        if let Ok(tok) = get_access_token_for_transfer(Some(&db_state.db)).await {
             if let Ok(e) = fetch_user_email(&tok).await {
                 if let Ok(entry) = keyring_entry_email() {
                     let _ = entry.set_password(&e);
@@ -181,11 +287,16 @@ pub async fn google_drive_status() -> Result<GoogleDriveStatus, String> {
 
 /// Refresh profile email from Google (call after connect or from UI).
 #[tauri::command]
-pub async fn google_drive_refresh_profile() -> Result<Option<String>, String> {
-    if !has_refresh_token() {
-        return Ok(None);
+pub async fn google_drive_refresh_profile(
+    db_state: State<'_, DbState>,
+) -> Result<Option<String>, String> {
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        if !has_gdrive_session(&db) {
+            return Ok(None);
+        }
     }
-    let tok = get_access_token().await?;
+    let tok = get_access_token_for_transfer(Some(&db_state.db)).await?;
     let email = fetch_user_email(&tok).await?;
     if let Ok(e) = keyring_entry_email() {
         let _ = e.set_password(&email);
@@ -195,18 +306,22 @@ pub async fn google_drive_refresh_profile() -> Result<Option<String>, String> {
 }
 
 #[tauri::command]
-pub async fn google_drive_disconnect() -> Result<(), String> {
+pub async fn google_drive_disconnect(db_state: State<'_, DbState>) -> Result<(), String> {
     let e = keyring_entry_refresh()?;
     let _ = e.delete_credential();
     if let Ok(em) = keyring_entry_email() {
         let _ = em.delete_credential();
+    }
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        clear_gdrive_metadata_tokens(&db);
     }
     log::info!(target: "google_drive", "event=disconnected");
     Ok(())
 }
 
 #[tauri::command]
-pub async fn google_drive_connect() -> Result<(), String> {
+pub async fn google_drive_connect(db_state: State<'_, DbState>) -> Result<(), String> {
     let id = client_id()
         .filter(|s| !s.is_empty())
         .ok_or_else(|| {
@@ -228,68 +343,44 @@ pub async fn google_drive_connect() -> Result<(), String> {
 
     log::info!(target: "google_drive", "event=oauth_browser_open");
 
-    let code = std::thread::spawn(move || capture_oauth_code(&auth_url))
-        .join()
-        .map_err(|_| user_message("oauth", "Sign-in thread panicked"))??;
+    let code =
+        std::thread::spawn(move || crate::commands::oauth_callback::capture_oauth_code(&auth_url))
+            .join()
+            .map_err(|_| user_message("oauth", "Sign-in thread panicked"))??;
 
     log::info!(target: "google_drive", "event=oauth_code_received");
 
-    exchange_code_for_tokens_store_and_profile(&id, secret.as_deref(), &code).await?;
+    let tr = exchange_code_http(&id, secret.as_deref(), &code).await?;
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        record_gdrive_token_db_path(&db);
+        persist_gdrive_token_exchange(&db, &tr)?;
+    }
+
+    if let Some(ref access) = tr.access_token {
+        if let Ok(email) = fetch_user_email(access).await {
+            if let Ok(e) = keyring_entry_email() {
+                let _ = e.set_password(&email);
+            }
+            log::info!(
+                target: "google_drive",
+                "event=oauth_user_email_stored email={}",
+                email
+            );
+        }
+    }
+    log::info!(
+        target: "import_manager::gdrive",
+        "Google Drive connected successfully"
+    );
     Ok(())
 }
 
-fn capture_oauth_code(auth_url: &str) -> Result<String, String> {
-    let listener = TcpListener::bind("127.0.0.1:8765").map_err(|e| {
-        user_message(
-            "oauth",
-            format!(
-                "Could not listen on port 8765 ({e}). Add http://127.0.0.1:8765/ as a redirect URI."
-            ),
-        )
-    })?;
-    listener.set_nonblocking(false).map_err(|e| e.to_string())?;
-
-    open::that(auth_url).map_err(|e| user_message("oauth", format!("Could not open browser: {e}")))?;
-
-    let (mut stream, _) = listener
-        .accept()
-        .map_err(|e| user_message("oauth", format!("OAuth redirect failed: {e}")))?;
-    let _ = stream.set_read_timeout(Some(Duration::from_secs(120)));
-    let mut buf = vec![0u8; 16384];
-    let n = stream.read(&mut buf).map_err(|e| e.to_string())?;
-    let req = String::from_utf8_lossy(&buf[..n]);
-
-    let body = br#"<!DOCTYPE html><html><head><meta charset="utf-8"><title>Import Manager</title></head><body><p>Sign-in complete. You can close this window.</p><script>setTimeout(function(){try{window.close();}catch(e){}},400);</script></body></html>"#;
-    let resp = format!(
-        "HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: {}\r\nConnection: close\r\n\r\n",
-        body.len()
-    );
-    let _ = stream.write_all(resp.as_bytes());
-    let _ = stream.write_all(body);
-
-    if let Some(err) = parse_query_param(&req, "error=") {
-        return Err(user_message(
-            "oauth",
-            format!("Google returned an error: {err}"),
-        ));
-    }
-    parse_query_param(&req, "code=")
-        .ok_or_else(|| user_message("oauth", "No authorization code in callback."))
-}
-
-fn parse_query_param(req: &str, key: &str) -> Option<String> {
-    let line = req.lines().next()?;
-    let path = line.split_whitespace().nth(1)?;
-    let q = path.find('?')?;
-    let query = &path[q + 1..];
-    for pair in query.split('&') {
-        if let Some(rest) = pair.strip_prefix(key) {
-            let v = rest.split('&').next().unwrap_or(rest);
-            let v = v.split_whitespace().next().unwrap_or(v);
-            return Some(urlencoding::decode(v).ok()?.into_owned());
-        }
-    }
-    None
+#[derive(Debug)]
+struct ExchangedGdriveTokens {
+    access_token: Option<String>,
+    refresh_token: String,
+    expires_in_secs: i64,
 }
 
 #[derive(Deserialize)]
@@ -305,11 +396,11 @@ struct UserInfoEmail {
     email: Option<String>,
 }
 
-async fn exchange_code_for_tokens_store_and_profile(
+async fn exchange_code_http(
     client_id: &str,
     client_secret: Option<&str>,
     code: &str,
-) -> Result<(), String> {
+) -> Result<ExchangedGdriveTokens, String> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
         .build()
@@ -350,23 +441,34 @@ async fn exchange_code_for_tokens_store_and_profile(
             "No refresh token returned. Revoke app access in Google Account and try again.",
         )
     })?;
+    let expires_in = tr.expires_in.unwrap_or(3600);
 
-    let entry = keyring_entry_refresh()?;
-    entry
-        .set_password(&refresh)
-        .map_err(|e| user_message("oauth", format!("Could not store token: {e}")))?;
+    Ok(ExchangedGdriveTokens {
+        access_token: tr.access_token,
+        refresh_token: refresh,
+        expires_in_secs: expires_in,
+    })
+}
 
-    log::info!(target: "google_drive", "event=oauth_token_stored");
-
-    if let Some(access) = tr.access_token {
-        if let Ok(email) = fetch_user_email(&access).await {
-            if let Ok(e) = keyring_entry_email() {
-                let _ = e.set_password(&email);
-            }
-            log::info!(target: "google_drive", "event=oauth_user_email_stored email={}", email);
+/// Keyring (best-effort) + [app_metadata] (reliable fallback for "connected" and API).
+fn persist_gdrive_token_exchange(
+    conn: &Connection,
+    tr: &ExchangedGdriveTokens,
+) -> Result<(), String> {
+    if let Ok(entry) = keyring_entry_refresh() {
+        if let Err(e) = entry.set_password(&tr.refresh_token) {
+            log::warn!(
+                target: "google_drive",
+                "event=oauth_keyring_store_failed err={} (using app_metadata only)",
+                e
+            );
+        } else {
+            log::info!(target: "google_drive", "event=oauth_token_stored");
         }
     }
-
+    let access = tr.access_token.as_deref().unwrap_or("");
+    let exp = Utc::now() + ChronoDuration::seconds(tr.expires_in_secs.clamp(1, 365 * 24 * 3600));
+    store_gdrive_tokens_in_metadata(conn, access, &tr.refresh_token, &exp.to_rfc3339())?;
     Ok(())
 }
 
@@ -392,9 +494,9 @@ async fn fetch_user_email(access_token: &str) -> Result<String, String> {
 }
 
 async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
-    let id = client_id().filter(|s| !s.is_empty()).ok_or_else(|| {
-        user_message("token", "OAuth client id missing at build time.")
-    })?;
+    let id = client_id()
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| user_message("token", "OAuth client id missing at build time."))?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
@@ -433,25 +535,57 @@ async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
         .ok_or_else(|| user_message("token", "No access token from refresh."))
 }
 
-async fn refresh_access_token_force() -> Result<String, String> {
-    let entry = keyring_entry_refresh()?;
-    let refresh = entry
-        .get_password()
-        .map_err(|_| user_message("token", "Not signed in."))?;
+async fn refresh_access_token_force(db: Option<&Mutex<Connection>>) -> Result<String, String> {
+    let refresh = get_refresh_token_unified(db)?;
     refresh_access_token(&refresh).await
 }
 
-pub async fn get_access_token() -> Result<String, String> {
-    let entry = keyring_entry_refresh()?;
-    let refresh = entry
-        .get_password()
-        .map_err(|_| {
-            user_message(
-                "token",
-                "Not signed in to Google Drive.",
-            )
-        })?;
+/// Resolves a fresh access token (from refresh). Pass [Some(&DbState::db)] when in-app so metadata fallback works.
+pub async fn get_access_token_for_transfer(
+    db: Option<&Mutex<Connection>>,
+) -> Result<String, String> {
+    let refresh = get_refresh_token_unified(db)?;
     refresh_access_token(&refresh).await
+}
+
+/// Backward-compatible: keyring and on-disk [app_metadata] fallback (no in-memory handle).
+#[allow(dead_code)] // Public API; internal paths use [get_access_token_for_transfer] with the DB handle.
+pub async fn get_access_token() -> Result<String, String> {
+    get_access_token_for_transfer(None).await
+}
+
+/// Delete a file created by this app on Drive (best-effort; used when pruning old backups).
+pub async fn delete_file_by_id(
+    file_id: &str,
+    db: Option<&Mutex<Connection>>,
+) -> Result<(), String> {
+    if file_id.is_empty() {
+        return Err(user_message("upload", "Empty Drive file id."));
+    }
+    let token = get_access_token_for_transfer(db).await?;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}?supportsAllDrives=true",
+        file_id
+    );
+    let res = client
+        .delete(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let status = res.status();
+    if status == reqwest::StatusCode::NOT_FOUND {
+        return Ok(());
+    }
+    if !status.is_success() {
+        let body = res.text().await.unwrap_or_default();
+        return Err(map_http_error(status, &body));
+    }
+    Ok(())
 }
 
 #[derive(Deserialize)]
@@ -484,6 +618,7 @@ pub async fn upload_backup_file(
     staging: &Path,
     filename: &str,
     window: Option<&WebviewWindow>,
+    db: Option<&Mutex<Connection>>,
 ) -> Result<String, String> {
     OPERATION_CANCEL.store(false, Ordering::SeqCst);
     let file_len = fs::metadata(staging)
@@ -519,7 +654,7 @@ pub async fn upload_backup_file(
             },
         );
 
-        match upload_once_with_progress(staging, filename, file_len, window, attempt).await {
+        match upload_once_with_progress(staging, filename, file_len, window, attempt, db).await {
             Ok(id) => {
                 log::info!(
                     target: "google_drive",
@@ -548,12 +683,14 @@ pub async fn upload_backup_file(
                     attempt,
                     e
                 );
-                if attempt < max_attempts && (e.contains("network") || e.contains("HTTP 5") || e.contains("timeout")) {
+                if attempt < max_attempts
+                    && (e.contains("network") || e.contains("HTTP 5") || e.contains("timeout"))
+                {
                     std::thread::sleep(Duration::from_millis(800 * attempt as u64));
                     continue;
                 }
                 if attempt < max_attempts && (e.contains("token") || e.contains("401")) {
-                    let _ = refresh_access_token_force().await;
+                    let _ = refresh_access_token_force(db).await;
                     std::thread::sleep(Duration::from_millis(400));
                     continue;
                 }
@@ -571,8 +708,9 @@ async fn upload_once_with_progress(
     file_len: u64,
     window: Option<&WebviewWindow>,
     _attempt: u32,
+    db: Option<&Mutex<Connection>>,
 ) -> Result<String, String> {
-    let token = get_access_token().await?;
+    let token = get_access_token_for_transfer(db).await?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3600))
@@ -597,7 +735,7 @@ async fn upload_once_with_progress(
 
     if init.status() == reqwest::StatusCode::UNAUTHORIZED {
         log::info!(target: "google_drive", "event=upload_init_401_refresh");
-        let token2 = refresh_access_token_force().await?;
+        let token2 = refresh_access_token_force(db).await?;
         let init2 = client
             .post("https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable&supportsAllDrives=true")
             .header("Authorization", format!("Bearer {token2}"))
@@ -646,7 +784,9 @@ async fn upload_from_init(
     let mut body_buf: Vec<u8> = Vec::new();
     loop {
         check_cancelled()?;
-        let n = file.read(&mut buf).map_err(|e| user_message("upload", e.to_string()))?;
+        let n = file
+            .read(&mut buf)
+            .map_err(|e| user_message("upload", e.to_string()))?;
         if n == 0 {
             break;
         }
@@ -693,6 +833,7 @@ pub async fn download_file_by_id(
     file_id: &str,
     dest: &Path,
     window: Option<&WebviewWindow>,
+    db: Option<&Mutex<Connection>>,
 ) -> Result<(), String> {
     OPERATION_CANCEL.store(false, Ordering::SeqCst);
 
@@ -703,7 +844,7 @@ pub async fn download_file_by_id(
         dest
     );
 
-    let token = get_access_token().await?;
+    let token = get_access_token_for_transfer(db).await?;
     let url = format!("https://www.googleapis.com/drive/v3/files/{file_id}?alt=media");
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3600))
@@ -714,7 +855,7 @@ pub async fn download_file_by_id(
 
     let res = if res.status() == reqwest::StatusCode::UNAUTHORIZED {
         log::info!(target: "google_drive", "event=download_401_refresh");
-        let t2 = refresh_access_token_force().await?;
+        let t2 = refresh_access_token_force(db).await?;
         download_get_with_auth(&client, &url, &t2).await?
     } else {
         res
@@ -726,9 +867,7 @@ pub async fn download_file_by_id(
         return Err(map_http_error(status, &t));
     }
 
-    let total = res
-        .content_length()
-        .unwrap_or(0);
+    let total = res.content_length().unwrap_or(0);
 
     let mut stream = res.bytes_stream();
     if let Some(parent) = dest.parent() {
@@ -740,8 +879,7 @@ pub async fn download_file_by_id(
     while let Some(item) = stream.next().await {
         check_cancelled()?;
         let chunk = item.map_err(|e| user_message("network", e.to_string()))?;
-        file
-            .write_all(&chunk)
+        file.write_all(&chunk)
             .map_err(|e| user_message("download", e.to_string()))?;
         written += chunk.len() as u64;
         let pct = if total > 0 {

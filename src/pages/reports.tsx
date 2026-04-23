@@ -16,12 +16,6 @@ export default function ReportsPage() {
   const { data, totals, loading, error, updateFilters } = useReport();
   const notifications = useUnifiedNotifications();
 
-  console.log('=== ReportsPage: Component rendered ===');
-  console.log('Data:', data);
-  console.log('Totals:', totals);
-  console.log('Loading:', loading);
-  console.log('Error:', error);
-
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
   const [supplier, setSupplier] = useState('');
@@ -29,15 +23,6 @@ export default function ReportsPage() {
   const [partNo, setPartNo] = useState('');
 
   const handleSearch = () => {
-    console.log('=== ReportsPage: Search triggered ===');
-    console.log('Search filters:', {
-      startDate,
-      endDate,
-      supplier,
-      invoiceNo,
-      partNo,
-    });
-
     updateFilters({
       startDate: startDate || undefined,
       endDate: endDate || undefined,
@@ -48,7 +33,6 @@ export default function ReportsPage() {
   };
 
   const handleClear = () => {
-    console.log('=== ReportsPage: Clear filters ===');
     setStartDate('');
     setEndDate('');
     setSupplier('');
@@ -64,9 +48,6 @@ export default function ReportsPage() {
   };
 
   const exportCsv = () => {
-    console.log('=== ReportsPage: CSV export triggered ===');
-    console.log('Exporting data:', data);
-
     const header = [
       'Supplier',
       'Invoice No',
@@ -121,7 +102,6 @@ export default function ReportsPage() {
   };
 
   const exportPdf = () => {
-    console.log('=== ReportsPage: PDF export triggered ===');
     window.print();
   };
 

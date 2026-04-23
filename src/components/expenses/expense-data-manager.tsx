@@ -43,7 +43,6 @@ const ExpenseDataManager: React.FC = () => {
     try {
       const result = await invoke<string>('debug_expense_data');
       setMessage(result);
-      console.log('Debug result:', result);
     } catch (error) {
       console.error('Failed to debug expense data:', error);
       setMessage(`Error: ${error}`);
@@ -66,7 +65,6 @@ const ExpenseDataManager: React.FC = () => {
     try {
       const result = await invoke<string>('cleanup_orphaned_expenses');
       setMessage(result);
-      console.log('Cleanup result:', result);
     } catch (error) {
       console.error('Failed to cleanup orphaned expenses:', error);
       setMessage(`Error: ${error}`);

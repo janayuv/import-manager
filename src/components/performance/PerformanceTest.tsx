@@ -182,13 +182,11 @@ export const PerformanceTest = () => {
   // Clear cache test
   const clearCache = useCallback(() => {
     cache.clearAll();
-    console.log('All caches cleared');
   }, []);
 
   // Memory cleanup test
   const triggerMemoryCleanup = useCallback(() => {
     MemoryManager.checkMemoryUsage();
-    console.log('Memory cleanup triggered');
   }, []);
 
   // Export performance report
@@ -272,14 +270,16 @@ export const PerformanceTest = () => {
                     </div>
                     <div className="flex space-x-2">
                       <OptimizedButton
-                        onClick={() =>
-                          console.log(cache.memory.get('test-key'))
-                        }
+                        onClick={() => {
+                          void cache.memory.get('test-key');
+                        }}
                       >
                         Get Memory Cache
                       </OptimizedButton>
                       <OptimizedButton
-                        onClick={() => console.log(cache.smart.get('test-key'))}
+                        onClick={() => {
+                          void cache.smart.get('test-key');
+                        }}
                       >
                         Get Smart Cache
                       </OptimizedButton>

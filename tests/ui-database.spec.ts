@@ -186,6 +186,10 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
       ).toBeVisible({ timeout: 20_000 });
       await expect(page.getByText('Schema is compatible')).toBeVisible();
 
+      // `confirmDestructive` uses `window.confirm` in the Vite/Playwright stub (no Tauri); accept it.
+      page.once('dialog', dialog => {
+        void dialog.accept();
+      });
       await page.getByTestId('restore-database-confirm-button').click();
       await expect(
         sonnerSuccess(page, /Database restored successfully/i)
