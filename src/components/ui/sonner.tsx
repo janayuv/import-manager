@@ -7,53 +7,37 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
-      className="toaster group"
+      className="toaster group pointer-events-auto"
       position="top-right"
-      expand={true}
-      richColors={true}
-      closeButton={true}
+      expand
+      richColors
+      closeButton
       duration={4000}
-      style={
-        {
-          '--normal-bg': 'hsl(var(--popover))',
-          '--normal-text': 'hsl(var(--popover-foreground))',
-          '--normal-border': 'hsl(var(--border))',
-          '--success-bg': 'hsl(var(--background))',
-          '--success-text': 'hsl(var(--foreground))',
-          '--success-border': 'hsl(142 76% 36%)',
-          '--error-bg': 'hsl(var(--background))',
-          '--error-text': 'hsl(var(--foreground))',
-          '--error-border': 'hsl(0 84% 60%)',
-          '--warning-bg': 'hsl(var(--background))',
-          '--warning-text': 'hsl(var(--foreground))',
-          '--warning-border': 'hsl(38 92% 50%)',
-          '--info-bg': 'hsl(var(--background))',
-          '--info-text': 'hsl(var(--foreground))',
-          '--info-border': 'hsl(221 83% 53%)',
-        } as React.CSSProperties
-      }
       toastOptions={{
-        style: {
-          background: 'hsl(var(--background))',
-          color: 'hsl(var(--foreground))',
-          border: '1px solid hsl(var(--border))',
-          borderRadius: '8px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          fontSize: '14px',
-          fontWeight: '400',
-          lineHeight: '1.5',
-        },
         classNames: {
-          title: 'font-semibold text-sm',
-          description: 'text-sm opacity-90 mt-1',
+          toast:
+            '!border !border-border !shadow-lg !opacity-100 !backdrop-blur-none ' +
+            '!bg-popover !text-popover-foreground',
+          title: '!text-popover-foreground font-semibold text-sm',
+          description: '!text-popover-foreground/95 mt-1 text-sm',
           actionButton:
-            'bg-primary text-primary-foreground hover:bg-primary/90',
-          cancelButton: 'bg-muted text-muted-foreground hover:bg-muted/80',
-          closeButton: 'bg-muted text-muted-foreground hover:bg-muted/80',
-          error: 'border-red-500',
-          success: 'border-green-500',
-          warning: 'border-yellow-500',
-          info: 'border-blue-500',
+            '!bg-primary !text-primary-foreground hover:!bg-primary/90',
+          cancelButton: '!bg-muted !text-muted-foreground hover:!bg-muted/90',
+          closeButton:
+            '!border-0 !bg-muted/80 !text-foreground hover:!bg-muted',
+          // Solid surfaces so text never sits on transparent / page chrome (e.g. over accent buttons)
+          success:
+            '!border !border-emerald-800/90 !bg-emerald-950 !text-emerald-50 ' +
+            '[&_[data-description]]:!text-emerald-100/95',
+          error:
+            '!border !border-red-800/90 !bg-red-950 !text-red-50 ' +
+            '[&_[data-description]]:!text-red-100/95',
+          warning:
+            '!border !border-amber-800/90 !bg-amber-950 !text-amber-50 ' +
+            '[&_[data-description]]:!text-amber-100/95',
+          info:
+            '!border !border-sky-800/90 !bg-sky-950 !text-sky-50 ' +
+            '[&_[data-description]]:!text-sky-100/95',
         },
       }}
       {...props}

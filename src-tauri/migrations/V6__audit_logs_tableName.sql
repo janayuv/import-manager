@@ -1,8 +1,3 @@
--- V6: Add IPC-aligned tableName column (nullable); backfill from legacy table_name.
--- Existing rows keep table_name; new code can set both for consistency.
-
-ALTER TABLE audit_logs ADD COLUMN "tableName" TEXT;
-
-UPDATE audit_logs
-SET "tableName" = table_name
-WHERE "tableName" IS NULL AND table_name IS NOT NULL;
+-- V6: IPC-aligned `tableName` on audit_logs (nullable); backfill from `table_name`.
+-- Applied in Rust after all refinery migrations (`crate::db::ensure_audit_logs_table_name_column`).
+SELECT 1;

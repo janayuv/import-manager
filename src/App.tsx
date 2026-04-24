@@ -219,7 +219,7 @@ function App() {
                     </Routes>
                   </Router>
                 </ErrorBoundary>
-                <Toaster position="top-right" richColors />
+                <Toaster />
               </ResponsiveProvider>
             </NotificationProvider>
           </UserProvider>

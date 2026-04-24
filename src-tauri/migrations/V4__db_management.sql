@@ -58,36 +58,8 @@ CREATE TABLE IF NOT EXISTS user_roles (
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
--- Add soft delete columns to existing tables
-ALTER TABLE suppliers ADD COLUMN deleted_at DATETIME;
-ALTER TABLE suppliers ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE shipments ADD COLUMN deleted_at DATETIME;
-ALTER TABLE shipments ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE items ADD COLUMN deleted_at DATETIME;
-ALTER TABLE items ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE invoices ADD COLUMN deleted_at DATETIME;
-ALTER TABLE invoices ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE boe_details ADD COLUMN deleted_at DATETIME;
-ALTER TABLE boe_details ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE boe_calculations ADD COLUMN deleted_at DATETIME;
-ALTER TABLE boe_calculations ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE service_providers ADD COLUMN deleted_at DATETIME;
-ALTER TABLE service_providers ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE expense_types ADD COLUMN deleted_at DATETIME;
-ALTER TABLE expense_types ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE expense_invoices ADD COLUMN deleted_at DATETIME;
-ALTER TABLE expense_invoices ADD COLUMN deleted_by TEXT;
-
-ALTER TABLE expenses ADD COLUMN deleted_at DATETIME;
-ALTER TABLE expenses ADD COLUMN deleted_by TEXT;
+-- Soft-delete columns and idx_*_deleted_at indexes are created in Rust after all refinery
+-- migrations complete (see `post_refinery_migrations` in src/migrations.rs).
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_audit_logs_table_name ON audit_logs(table_name);
@@ -103,15 +75,3 @@ CREATE INDEX IF NOT EXISTS idx_backup_schedules_next_run ON backup_schedules(nex
 
 CREATE INDEX IF NOT EXISTS idx_user_roles_user_id ON user_roles(user_id);
 CREATE INDEX IF NOT EXISTS idx_user_roles_role ON user_roles(role);
-
--- Create indexes for soft delete columns
-CREATE INDEX IF NOT EXISTS idx_suppliers_deleted_at ON suppliers(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_shipments_deleted_at ON shipments(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_items_deleted_at ON items(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_invoices_deleted_at ON invoices(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_boe_details_deleted_at ON boe_details(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_boe_calculations_deleted_at ON boe_calculations(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_service_providers_deleted_at ON service_providers(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_expense_types_deleted_at ON expense_types(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_expense_invoices_deleted_at ON expense_invoices(deleted_at);
-CREATE INDEX IF NOT EXISTS idx_expenses_deleted_at ON expenses(deleted_at);
