@@ -1,8 +1,11 @@
 import {
   BarChart3,
+  Bot,
   CircleDollarSign,
+  ClipboardList,
   Database,
   FileText,
+  Gauge,
   Landmark,
   LayoutDashboard,
   Package,
@@ -11,9 +14,21 @@ import {
   Ship,
   Trash2,
   Users,
+  type LucideIcon,
 } from 'lucide-react';
 
-export const navItems = [
+export type AppNavItem = {
+  title: string;
+  url: string;
+  icon: LucideIcon;
+  items?: { title: string; url: string }[];
+  /** When true, link is shown only to users with an admin role. */
+  adminOnly?: boolean;
+  /** Automation console: admin, automation manager, or viewer. */
+  automationConsole?: boolean;
+};
+
+export const navItems: AppNavItem[] = [
   {
     title: 'Dashboard',
     url: '/',
@@ -72,6 +87,24 @@ export const navItems = [
     title: 'Database Management',
     url: '/database-management',
     icon: Database,
+  },
+  {
+    title: 'Activity log',
+    url: '/admin/activity-log',
+    icon: ClipboardList,
+    adminOnly: true,
+  },
+  {
+    title: 'Automation',
+    url: '/admin/automation-rules',
+    icon: Bot,
+    automationConsole: true,
+  },
+  {
+    title: 'Operations center',
+    url: '/admin/operations-center',
+    icon: Gauge,
+    automationConsole: true,
   },
   {
     title: 'Recycle Bin',

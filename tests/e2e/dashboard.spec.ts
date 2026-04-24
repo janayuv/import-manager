@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('should load dashboard page successfully', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(2000);
 
   // Check if the page loads
@@ -10,7 +10,7 @@ test('should load dashboard page successfully', async ({ page }) => {
 });
 
 test('should display dashboard content', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(2000);
 
   // Check if there's any content in the root area
@@ -19,7 +19,7 @@ test('should display dashboard content', async ({ page }) => {
 });
 
 test('should have basic app functionality', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(2000);
 
   // Check if page is interactive (has any clickable elements)

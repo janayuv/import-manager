@@ -1,5 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
+async function readRootAccent(page: Page): Promise<string> {
+  return page.evaluate(() =>
+    getComputedStyle(document.documentElement)
+      .getPropertyValue('--accent')
+      .trim()
+  );
+}
+
 /** Opens the custom accent dialog (Vite dev only; see SiteHeader __E2E_openCustomAccent). */
 async function openCustomColorDialog(page: Page) {
   await expect(page.locator('header')).toBeVisible();
@@ -104,26 +112,22 @@ test.describe('Custom Accent Color Feature', () => {
   });
 
   test('should reset to default color', async ({ page }) => {
+    const baselineAccent = await readRootAccent(page);
+
     // First set a custom color
     await openCustomColorDialog(page);
     await page.fill('input[placeholder="#3b82f6"]', '#ff5733');
     await page.click('button:has-text("Save Color")');
 
     // Verify custom color is applied
-    let accentColor = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--accent')
-    );
-    expect(accentColor.trim()).toBe('#ff5733');
+    expect(await readRootAccent(page)).toBe('#ff5733');
 
     // Reset to default
     await openCustomColorDialog(page);
     await page.click('button:has-text("Reset to Default")');
 
-    // Check that custom color is removed
-    accentColor = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--accent')
-    );
-    expect(accentColor.trim()).toBe('');
+    // Theme default is a real color (e.g. oklch), not an empty custom override
+    expect(await readRootAccent(page)).toBe(baselineAccent);
   });
 
   test('should persist custom color across page reloads', async ({ page }) => {
@@ -164,6 +168,8 @@ test.describe('Custom Accent Color Feature', () => {
   });
 
   test('should cancel without saving', async ({ page }) => {
+    const baselineAccent = await readRootAccent(page);
+
     // Open custom color picker
     await openCustomColorDialog(page);
 
@@ -177,10 +183,7 @@ test.describe('Custom Accent Color Feature', () => {
     await expect(page.locator('text=Custom Accent Color')).not.toBeVisible();
 
     // Check that color wasn't saved
-    const accentColor = await page.evaluate(() =>
-      getComputedStyle(document.documentElement).getPropertyValue('--accent')
-    );
-    expect(accentColor.trim()).toBe('');
+    expect(await readRootAccent(page)).toBe(baselineAccent);
   });
 
   test('should disable save button for invalid colors', async ({ page }) => {

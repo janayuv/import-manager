@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('UI Tests', () => {
   test('homepage loads correctly', async ({ page }) => {
     // Navigate to the Tauri dev server
-    await page.goto('http://localhost:1421');
+    await page.goto('/');
 
     // Wait for the page to load
     await page.waitForLoadState('networkidle');
@@ -16,7 +16,7 @@ test.describe('UI Tests', () => {
   });
 
   test('font-size elements are visible', async ({ page }) => {
-    await page.goto('http://localhost:1421');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     // Verify heading elements are visible
@@ -33,7 +33,7 @@ test.describe('UI Tests', () => {
   });
 
   test('table is visible and adjusts properly', async ({ page }) => {
-    await page.goto('http://localhost:1421');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     // Look for table elements
@@ -67,7 +67,7 @@ test.describe('UI Tests', () => {
   });
 
   test('take screenshot for visual regression', async ({ page }) => {
-    await page.goto('http://localhost:1421');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     // Take a full page screenshot
@@ -82,7 +82,7 @@ test.describe('UI Tests', () => {
   });
 
   test('responsive design works correctly', async ({ page }) => {
-    await page.goto('http://localhost:1421');
+    await page.goto('/');
     await page.waitForLoadState('networkidle');
 
     // Test desktop viewport

@@ -8,6 +8,13 @@ interface KPICardProps {
   title: string;
   value: string | number;
   description?: string;
+  /** Relative data freshness, e.g. "Last refreshed 12s ago" */
+  freshnessLabel?: string;
+  /** Direction from latest vs previous daily KPI snapshot (when history exists). */
+  historyTrend?: {
+    direction: 'up' | 'down' | 'flat';
+    label: string;
+  };
   icon?: ComponentType<{ className?: string }>;
   trend?: {
     value: number;
@@ -23,6 +30,8 @@ export function KPICard({
   title,
   value,
   description,
+  freshnessLabel,
+  historyTrend,
   icon: Icon,
   trend,
   variant = 'default',
@@ -85,7 +94,7 @@ export function KPICard({
       )}
     >
       {/* Background pattern */}
-      <div className="to-muted/20 absolute inset-0 bg-gradient-to-br from-transparent via-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+      <div className="to-muted/20 bg-linear-to-br absolute inset-0 from-transparent via-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
 
       <div className="relative flex items-center justify-between">
         <div className="space-y-1">
@@ -101,6 +110,25 @@ export function KPICard({
 
           {description && (
             <p className="text-muted-foreground text-xs">{description}</p>
+          )}
+
+          {freshnessLabel && (
+            <p className="text-muted-foreground text-[11px]">
+              {freshnessLabel}
+            </p>
+          )}
+
+          {historyTrend && (
+            <div className="text-muted-foreground flex items-center gap-1.5 text-xs">
+              <span className="font-mono" aria-hidden>
+                {historyTrend.direction === 'up'
+                  ? '▲'
+                  : historyTrend.direction === 'down'
+                    ? '▼'
+                    : '●'}
+              </span>
+              <span>{historyTrend.label}</span>
+            </div>
           )}
 
           {trend && (

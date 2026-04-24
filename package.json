@@ -1,7 +1,7 @@
 {
   "name": "Import Manager",
   "private": true,
-  "version": "0.1.8",
+  "version": "0.2.0",
   "description": "Windows-only desktop application for managing import/export operations",
   "os": [
     "win32"
@@ -26,7 +26,7 @@
     "test:pw-install": "playwright install chromium",
     "test:unit": "vitest run",
     "test:unit:coverage": "vitest run --coverage",
-    "test:e2e:ci": "playwright install chromium && playwright test tests/ui-smoke.spec.ts tests/ui-workflows.spec.ts tests/ui-edge-cases.spec.ts tests/ui-data-integrity.spec.ts tests/ui-performance.spec.ts tests/ui-reliability.spec.ts tests/ui-database.spec.ts --project=chromium --workers=1",
+    "test:e2e:ci": "playwright install chromium && playwright test tests/ui-smoke.spec.ts tests/ui-workflows.spec.ts tests/ui-edge-cases.spec.ts tests/ui-data-integrity.spec.ts tests/ui-performance.spec.ts tests/ui-reliability.spec.ts tests/ui-operational-reliability.spec.ts tests/ui-database.spec.ts --project=chromium --workers=1",
     "test": "npm run test:unit && npm run test:e2e:ci",
     "test:ci": "npm run test:unit:coverage && npm run test:e2e:ci",
     "test:performance": "node scripts/check-performance-baselines.js",
@@ -136,5 +136,8 @@
     "vite": "^8.0.8",
     "vite-plugin-remove-console": "^2.2.0",
     "vitest": "^4.1.4"
+  },
+  "overrides": {
+    "uuid": "^14.0.0"
   }
 }

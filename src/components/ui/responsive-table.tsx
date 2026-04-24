@@ -1,6 +1,7 @@
 import React from 'react';
 import {
   type ColumnDef,
+  type Row,
   type SortingState,
   flexRender,
   getCoreRowModel,
@@ -35,6 +36,8 @@ interface ResponsiveDataTableProps<TData, TValue> {
   statusFilter?: React.ReactNode;
   statusActions?: React.ReactNode;
   moduleName?: string;
+  /** Extra row classes (e.g. exception highlighting). */
+  rowClassName?: (row: Row<TData>) => string | undefined;
 }
 
 export function ResponsiveDataTable<TData, TValue>({
@@ -50,6 +53,7 @@ export function ResponsiveDataTable<TData, TValue>({
   statusFilter,
   statusActions,
   moduleName,
+  rowClassName,
 }: ResponsiveDataTableProps<TData, TValue>) {
   const { settings } = useSettings();
   const { isSmallScreen, getTableClass, getInputClass, getTextClass } =
@@ -228,7 +232,7 @@ export function ResponsiveDataTable<TData, TValue>({
                     key={row.id}
                     className={`hover:bg-muted/50 transition-colors ${
                       index % 2 === 0 ? 'bg-card' : 'bg-muted/20'
-                    }`}
+                    } ${rowClassName?.(row) ?? ''}`}
                   >
                     {row.getVisibleCells().map(cell => {
                       const columnStyle = getColumnStyle(cell.column.id);

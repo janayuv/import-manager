@@ -45,6 +45,9 @@ import SupplierPage from '@/pages/supplier';
 import DatabaseManagement from '@/pages/database-management';
 import RecycleBin from '@/pages/RecycleBin';
 import LogsPage from '@/pages/Logs';
+import AdminActivityLogPage from '@/pages/admin/activity-log';
+import AutomationRulesAdminPage from '@/pages/admin/automation-rules';
+import OperationsCenterPage from '@/pages/admin/operations-center';
 
 const ProtectedRoute = () => {
   const isAuthenticated = localStorage.getItem('isAuthenticated');
@@ -196,6 +199,18 @@ function App() {
                           <Route
                             path="/database-management"
                             element={<DatabaseManagement />}
+                          />
+                          <Route
+                            path="/admin/activity-log"
+                            element={<AdminActivityLogPage />}
+                          />
+                          <Route
+                            path="/admin/automation-rules"
+                            element={<AutomationRulesAdminPage />}
+                          />
+                          <Route
+                            path="/admin/operations-center"
+                            element={<OperationsCenterPage />}
                           />
                           <Route path="/recycle-bin" element={<RecycleBin />} />
                           <Route path="/logs" element={<LogsPage />} />

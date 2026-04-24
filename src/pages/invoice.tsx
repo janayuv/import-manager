@@ -2,7 +2,7 @@
 import { invoke } from '@tauri-apps/api/core';
 import {
   confirm,
-  isTauriEnvironment,
+  useNativeFileDialogs,
   openTextFile,
   save,
   writeTextFile,
@@ -490,7 +490,7 @@ const InvoicePage = () => {
   const handleDownloadTemplate = async () => {
     const headers = 'shipmentInvoiceNumber,itemPartNumber,quantity,unitPrice';
     try {
-      if (!isTauriEnvironment) {
+      if (!useNativeFileDialogs) {
         const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

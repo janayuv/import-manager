@@ -35,6 +35,16 @@ function detectTauriAtLoad(): boolean {
 
 const isTauri = detectTauriAtLoad();
 
+/** Playwright runs the Vite app in Chromium with `invoke` stubbed; native Tauri dialogs are unavailable. */
+const isPlaywrightBrowser =
+  hasWindow && import.meta.env.VITE_PLAYWRIGHT === '1';
+
+/**
+ * When false, use browser downloads and `<input type="file">` (including Playwright automation).
+ * When true, use `@tauri-apps/plugin-dialog` open/save and disk read/write.
+ */
+export const useNativeFileDialogs = isTauri && !isPlaywrightBrowser;
+
 /** Sync browser confirm; never throws (WebView / policy edge cases). */
 function browserConfirm(message: string): boolean {
   if (!hasWindow) return false;
@@ -81,7 +91,7 @@ const buildAcceptString = (options?: OpenDialogOptions) => {
 export async function openTextFile(
   options?: OpenDialogOptions
 ): Promise<OpenedTextFile | null> {
-  if (isTauri) {
+  if (isTauri && !isPlaywrightBrowser) {
     const selected = await open(options);
     if (!selected) {
       return null;
@@ -180,7 +190,7 @@ export async function confirm(
   options?: ConfirmDialogOptions
 ): Promise<boolean> {
   try {
-    if (isTauri) {
+    if (isTauri && !isPlaywrightBrowser) {
       try {
         const { confirm: tauriConfirm } =
           await import('@tauri-apps/plugin-dialog');

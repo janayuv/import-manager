@@ -4,7 +4,7 @@ test('should load the application and navigate to different pages', async ({
   page,
 }) => {
   // Navigate to the app
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
 
   // Check if the page loads
   await expect(page).toHaveTitle(/Vite \+ React \+ TS/);
@@ -21,7 +21,7 @@ test('should load the application and navigate to different pages', async ({
 });
 
 test('should handle page refresh gracefully', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(2000);
 
   // Refresh the page
@@ -33,7 +33,7 @@ test('should handle page refresh gracefully', async ({ page }) => {
 });
 
 test('should have basic app structure', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(2000);
 
   // Check for basic app elements

@@ -16,7 +16,7 @@ import {
 } from '@/components/ui/sidebar';
 import { useUser } from '@/lib/user-context';
 
-import { navItems } from './nav-data';
+import { navItems, type AppNavItem } from './nav-data';
 import { NavMain } from './nav-main';
 import { NavUser } from './nav-user';
 
@@ -39,6 +39,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   React.useEffect(() => {
     void fetchRecycleCount();
   }, [location.pathname, fetchRecycleCount]);
+
+  const visibleNavItems = React.useMemo(() => {
+    const r = (user?.role ?? '').toLowerCase().replace(/\s+/g, '');
+    const admin = r.includes('admin');
+    const automationConsole =
+      admin || r.includes('automationmanager') || r.includes('viewer');
+    return (navItems as AppNavItem[]).filter(it => {
+      if (it.adminOnly && !admin) return false;
+      if (it.automationConsole && !automationConsole) return false;
+      return true;
+    });
+  }, [user?.role]);
 
   React.useEffect(() => {
     const onBinChange = () => {
@@ -86,7 +98,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarContent>
         {/* NavMain now uses your app's navigation items */}
         <NavMain
-          items={navItems}
+          items={visibleNavItems}
           badges={
             recycleBinCount != null
               ? { '/recycle-bin': recycleBinCount }

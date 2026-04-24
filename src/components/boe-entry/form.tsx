@@ -3,7 +3,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import Papa, { type ParseResult } from 'papaparse';
-import { isTauriEnvironment, save, writeTextFile } from '@/lib/tauri-bridge';
+import { save, useNativeFileDialogs, writeTextFile } from '@/lib/tauri-bridge';
 import { toast } from 'sonner';
 import * as z from 'zod';
 
@@ -337,7 +337,7 @@ export function BoeEntryForm({
     };
 
     try {
-      if (!isTauriEnvironment) {
+      if (!useNativeFileDialogs) {
         downloadViaBrowser();
         toast.success('BOE item override template downloaded.');
         return;

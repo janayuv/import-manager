@@ -9,6 +9,15 @@ embed_migrations!("migrations");
 pub struct DatabaseMigrations;
 
 impl DatabaseMigrations {
+    /// Refinery runner only (no disk backup). For unit tests / parallel-safe in-memory DBs.
+    #[cfg(test)]
+    pub fn run_migrations_test(conn: &mut Connection) -> Result<(), String> {
+        migrations::runner()
+            .run(conn)
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
     /// Run all pending migrations on the database
     pub fn run_migrations(conn: &mut Connection) -> Result<()> {
         log::info!("Running database migrations...");
@@ -151,8 +160,8 @@ mod tests {
         assert!(DatabaseMigrations::needs_migration(&conn)
             .map_err(|e| format!("Failed to check migration status: {}", e))?);
 
-        // Run migrations
-        DatabaseMigrations::run_migrations(&mut conn)
+        // Run migrations (test runner: no VACUUM backup file — safe for parallel in-memory tests)
+        DatabaseMigrations::run_migrations_test(&mut conn)
             .map_err(|e| format!("Failed to run migrations: {}", e))?;
 
         // Should not need migration after running

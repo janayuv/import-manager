@@ -2,7 +2,7 @@
 // react-table imports not used here; table lives in a shared component
 import { invoke } from '@tauri-apps/api/core';
 import {
-  isTauriEnvironment,
+  useNativeFileDialogs,
   openTextFile,
   save,
   writeTextFile,
@@ -35,7 +35,12 @@ import {
 } from '@/lib/shipment-import';
 
 import * as React from 'react';
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import {
+  useLocation,
+  useNavigate,
+  useParams,
+  useSearchParams,
+} from 'react-router-dom';
 
 import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import { getShipmentColumns } from '@/components/shipment/columns';
@@ -79,8 +84,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { logDashboardActivity } from '@/lib/dashboard-activity';
+import {
+  isShipmentEtaOverdue,
+  parseInvoiceDateForFilter,
+} from '@/lib/shipment-exception-helpers';
+import { formatDateForInput } from '@/lib/date-format';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
+import { useUser } from '@/lib/user-context';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type { Option } from '@/types/options';
 import type { Shipment } from '@/types/shipment';
@@ -103,6 +115,8 @@ type OptionType =
 const ShipmentPage = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const { user } = useUser();
   const { shipmentId: shipmentIdParam } = useParams<{ shipmentId: string }>();
 
   const { settings } = useSettings();
@@ -150,8 +164,122 @@ const ShipmentPage = () => {
   const [statuses, setStatuses] = React.useState<Option[]>([]);
   const [currencies, setCurrencies] = React.useState<Option[]>([]);
   const [statusFilter, setStatusFilter] = React.useState('All');
+  const [supplierFilterId, setSupplierFilterId] = React.useState('');
+  const [dateFromFilter, setDateFromFilter] = React.useState('');
+  const [dateToFilter, setDateToFilter] = React.useState('');
+  const [urlOverdue, setUrlOverdue] = React.useState(false);
+  const [urlBoeMissing, setUrlBoeMissing] = React.useState(false);
+  const [urlExpenseMissing, setUrlExpenseMissing] = React.useState(false);
+  const [shipmentIdsWithBoe, setShipmentIdsWithBoe] = React.useState(
+    () => new Set<string>()
+  );
+  const [shipmentIdsWithExpense, setShipmentIdsWithExpense] = React.useState(
+    () => new Set<string>()
+  );
+  const skipUrlWriteRef = React.useRef(true);
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('cards');
   const [searchTerm, setSearchTerm] = React.useState('');
+
+  React.useEffect(() => {
+    const st = searchParams.get('status');
+    setStatusFilter(st ? decodeURIComponent(st) : 'All');
+    setSupplierFilterId(searchParams.get('supplier_id')?.trim() ?? '');
+    setDateFromFilter(searchParams.get('date_from')?.trim() ?? '');
+    setDateToFilter(searchParams.get('date_to')?.trim() ?? '');
+    setUrlOverdue(searchParams.get('overdue') === 'true');
+    setUrlBoeMissing(searchParams.get('boe_missing') === 'true');
+    setUrlExpenseMissing(searchParams.get('expense_missing') === 'true');
+    skipUrlWriteRef.current = false;
+  }, [searchParams]);
+
+  /** Deep link `/shipment?id=<shipmentId>` → canonical `/shipment/:id/view` (preserves other query params). */
+  React.useEffect(() => {
+    const idQ = searchParams.get('id')?.trim();
+    if (!idQ || shipmentIdParam) return;
+    if (shipments.length === 0) return;
+    if (!shipments.some(s => s.id === idQ)) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete('id');
+    const q = next.toString();
+    const path = shipmentDetailPath(idQ, 'view');
+    navigate(q ? `${path}?${q}` : path, { replace: true });
+  }, [shipments, searchParams, shipmentIdParam, navigate]);
+
+  React.useEffect(() => {
+    if (shipmentPanel !== 'none') return;
+    if (skipUrlWriteRef.current) return;
+    const next = new URLSearchParams();
+    if (statusFilter !== 'All') next.set('status', statusFilter);
+    if (supplierFilterId) next.set('supplier_id', supplierFilterId);
+    if (dateFromFilter) next.set('date_from', dateFromFilter);
+    if (dateToFilter) next.set('date_to', dateToFilter);
+    if (urlOverdue) next.set('overdue', 'true');
+    if (urlBoeMissing) next.set('boe_missing', 'true');
+    if (urlExpenseMissing) next.set('expense_missing', 'true');
+    if (next.toString() === searchParams.toString()) return;
+    setSearchParams(next, { replace: true });
+  }, [
+    statusFilter,
+    supplierFilterId,
+    dateFromFilter,
+    dateToFilter,
+    urlOverdue,
+    urlBoeMissing,
+    urlExpenseMissing,
+    shipmentPanel,
+    setSearchParams,
+    searchParams,
+  ]);
+
+  const getShipmentExceptionFlags = React.useCallback(
+    (s: Shipment) => {
+      const overdue = isShipmentEtaOverdue(s);
+      const hasBoe = shipmentIdsWithBoe.has(s.id);
+      const hasExp = shipmentIdsWithExpense.has(s.id);
+      const boeMissing = !hasBoe;
+      const expenseMissing = !hasExp;
+      return {
+        overdue,
+        boeMissing,
+        expenseMissing,
+        any: overdue || boeMissing || expenseMissing,
+      };
+    },
+    [shipmentIdsWithBoe, shipmentIdsWithExpense]
+  );
+
+  const exceptionSummary = React.useMemo(() => {
+    let overdue = 0;
+    let boe = 0;
+    let exp = 0;
+    for (const s of shipments) {
+      const f = getShipmentExceptionFlags(s);
+      if (f.overdue) overdue += 1;
+      if (f.boeMissing) boe += 1;
+      if (f.expenseMissing) exp += 1;
+    }
+    return { overdue, boeMissing: boe, expenseMissing: exp };
+  }, [shipments, getShipmentExceptionFlags]);
+
+  React.useEffect(() => {
+    if (!user?.id) return;
+    if (!urlOverdue && !urlBoeMissing && !urlExpenseMissing) return;
+    const q = new URLSearchParams();
+    if (urlOverdue) q.set('overdue', 'true');
+    if (urlBoeMissing) q.set('boe_missing', 'true');
+    if (urlExpenseMissing) q.set('expense_missing', 'true');
+    void logDashboardActivity({
+      userId: user.id,
+      actionType: 'shipment_exception_view',
+      details: JSON.stringify({
+        overdue: urlOverdue,
+        boe_missing: urlBoeMissing,
+        expense_missing: urlExpenseMissing,
+      }),
+      moduleName: 'Shipment',
+      navigationTarget: `/shipment?${q.toString()}`,
+    });
+  }, [user?.id, urlOverdue, urlBoeMissing, urlExpenseMissing]);
 
   const fetchShipments = React.useCallback(async () => {
     try {
@@ -303,8 +431,56 @@ const ShipmentPage = () => {
       );
     }
 
+    if (supplierFilterId) {
+      filtered = filtered.filter(s => s.supplierId === supplierFilterId);
+    }
+
+    if (dateFromFilter) {
+      const from = parseInvoiceDateForFilter(dateFromFilter);
+      if (from) {
+        filtered = filtered.filter(s => {
+          const d = parseInvoiceDateForFilter(s.invoiceDate);
+          return d && d >= from;
+        });
+      }
+    }
+
+    if (dateToFilter) {
+      const to = parseInvoiceDateForFilter(dateToFilter);
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(s => {
+          const d = parseInvoiceDateForFilter(s.invoiceDate);
+          return d && d <= end;
+        });
+      }
+    }
+
+    if (urlOverdue) {
+      filtered = filtered.filter(s => isShipmentEtaOverdue(s));
+    }
+    if (urlBoeMissing) {
+      filtered = filtered.filter(s => !shipmentIdsWithBoe.has(s.id));
+    }
+    if (urlExpenseMissing) {
+      filtered = filtered.filter(s => !shipmentIdsWithExpense.has(s.id));
+    }
+
     return filtered;
-  }, [shipments, statusFilter, searchTerm]);
+  }, [
+    shipments,
+    statusFilter,
+    searchTerm,
+    supplierFilterId,
+    dateFromFilter,
+    dateToFilter,
+    urlOverdue,
+    urlBoeMissing,
+    urlExpenseMissing,
+    shipmentIdsWithBoe,
+    shipmentIdsWithExpense,
+  ]);
 
   const columns = React.useMemo(
     () =>
@@ -365,6 +541,17 @@ const ShipmentPage = () => {
         setSuppliers(supplierOptions);
         await fetchShipments();
         await fetchOptions();
+        try {
+          const [boeIds, expIds] = await Promise.all([
+            invoke<string[]>('get_shipment_ids_with_boe_calculations'),
+            invoke<string[]>('get_shipment_ids_with_expense_lines'),
+          ]);
+          setShipmentIdsWithBoe(new Set(boeIds));
+          setShipmentIdsWithExpense(new Set(expIds));
+        } catch {
+          setShipmentIdsWithBoe(new Set());
+          setShipmentIdsWithExpense(new Set());
+        }
       } catch (error) {
         console.error('Failed to load initial data:', error);
         notifications.shipment.error('load initial data', String(error));
@@ -622,7 +809,7 @@ const ShipmentPage = () => {
     });
 
     try {
-      if (!isTauriEnvironment) {
+      if (!useNativeFileDialogs) {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -734,11 +921,32 @@ const ShipmentPage = () => {
   };
 
   // CRM Card Component
-  const ShipmentCard = ({ shipment }: { shipment: Shipment }) => {
+  type ShipmentExceptionFlags = {
+    overdue: boolean;
+    boeMissing: boolean;
+    expenseMissing: boolean;
+    any: boolean;
+  };
+
+  const ShipmentCard = ({
+    shipment,
+    flags,
+  }: {
+    shipment: Shipment;
+    flags: ShipmentExceptionFlags;
+  }) => {
     const supplier = suppliers.find(s => s.value === shipment.supplierId);
 
     return (
-      <Card className="cursor-pointer transition-shadow duration-200 hover:shadow-lg">
+      <Card
+        className={`cursor-pointer transition-shadow duration-200 hover:shadow-lg ${
+          flags.overdue
+            ? 'ring-2 ring-amber-400/80'
+            : flags.any
+              ? 'ring-1 ring-sky-400/70'
+              : ''
+        }`}
+      >
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex-1">
@@ -748,13 +956,28 @@ const ShipmentPage = () => {
               <CardDescription className="mb-2 text-sm text-white/80">
                 {supplier?.label || 'Unknown Supplier'}
               </CardDescription>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge
                   variant={getStatusBadgeVariant(shipment.status || '')}
                   className="text-xs"
                 >
                   {getStatusDisplayName(shipment.status || '')}
                 </Badge>
+                {flags.overdue && (
+                  <Badge variant="warning" className="text-xs">
+                    Overdue ETA
+                  </Badge>
+                )}
+                {flags.boeMissing && (
+                  <Badge variant="secondary" className="text-xs">
+                    No BOE
+                  </Badge>
+                )}
+                {flags.expenseMissing && (
+                  <Badge variant="outline" className="text-xs">
+                    No expenses
+                  </Badge>
+                )}
                 <div className="flex items-center gap-1">
                   <span className="text-xs text-white/70">#{shipment.id}</span>
                   <Button
@@ -898,7 +1121,7 @@ const ShipmentPage = () => {
 
   if (shipmentPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
         <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
           <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
             <Button
@@ -1141,9 +1364,126 @@ const ShipmentPage = () => {
           </Card>
         </div>
 
+        <Card className="bg-muted/20 mb-4 border-amber-200/60">
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm font-medium">
+              Exception awareness
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Totals across all loaded shipments. Quick filters align with
+              dashboard exception routes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="text-muted-foreground flex flex-wrap gap-4 text-sm">
+              <span>
+                Overdue ETA:{' '}
+                <span className="text-foreground font-semibold">
+                  {exceptionSummary.overdue}
+                </span>
+              </span>
+              <span>
+                Missing BOE:{' '}
+                <span className="text-foreground font-semibold">
+                  {exceptionSummary.boeMissing}
+                </span>
+              </span>
+              <span>
+                Missing expenses:{' '}
+                <span className="text-foreground font-semibold">
+                  {exceptionSummary.expenseMissing}
+                </span>
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Button
+                type="button"
+                size="sm"
+                variant={urlOverdue ? 'default' : 'outline'}
+                onClick={() => setUrlOverdue(v => !v)}
+                useAccentColor={urlOverdue}
+              >
+                Overdue ETA
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={urlBoeMissing ? 'default' : 'outline'}
+                onClick={() => setUrlBoeMissing(v => !v)}
+                useAccentColor={urlBoeMissing}
+              >
+                Missing BOE
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant={urlExpenseMissing ? 'default' : 'outline'}
+                onClick={() => setUrlExpenseMissing(v => !v)}
+                useAccentColor={urlExpenseMissing}
+              >
+                Missing expenses
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setSupplierFilterId('');
+                  setDateFromFilter('');
+                  setDateToFilter('');
+                  setUrlOverdue(false);
+                  setUrlBoeMissing(false);
+                  setUrlExpenseMissing(false);
+                }}
+              >
+                Clear route filters
+              </Button>
+            </div>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Supplier</p>
+                <Select
+                  value={supplierFilterId || 'all'}
+                  onValueChange={v => setSupplierFilterId(v === 'all' ? '' : v)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="All suppliers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All suppliers</SelectItem>
+                    {suppliers.map(s => (
+                      <SelectItem key={s.value} value={s.value}>
+                        {s.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Invoice from</p>
+                <Input
+                  type="date"
+                  className="w-[160px]"
+                  value={formatDateForInput(dateFromFilter)}
+                  onChange={e => setDateFromFilter(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1">
+                <p className="text-muted-foreground text-xs">Invoice to</p>
+                <Input
+                  type="date"
+                  className="w-[160px]"
+                  value={formatDateForInput(dateToFilter)}
+                  onChange={e => setDateToFilter(e.target.value)}
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Controls */}
-        <div className="mb-6 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-wrap items-center gap-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
               <Input
@@ -1230,6 +1570,11 @@ const ShipmentPage = () => {
           <p className="text-sm text-gray-600">
             Showing {filteredShipments.length} of {shipments.length} shipments
             {statusFilter !== 'All' && ` (${statusFilter})`}
+            {supplierFilterId && ' · supplier filter'}
+            {(dateFromFilter || dateToFilter) && ' · date range'}
+            {urlOverdue && ' · overdue'}
+            {urlBoeMissing && ' · no BOE'}
+            {urlExpenseMissing && ' · no expenses'}
             {searchTerm && ` matching "${searchTerm}"`}
           </p>
         </div>
@@ -1239,13 +1584,24 @@ const ShipmentPage = () => {
       {viewMode === 'cards' ? (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredShipments.map(shipment => (
-            <ShipmentCard key={shipment.id} shipment={shipment} />
+            <ShipmentCard
+              key={shipment.id}
+              shipment={shipment}
+              flags={getShipmentExceptionFlags(shipment)}
+            />
           ))}
         </div>
       ) : (
         <ResponsiveDataTable
           columns={columns}
           data={filteredShipments}
+          rowClassName={row => {
+            const f = getShipmentExceptionFlags(row.original);
+            if (!f.any) return undefined;
+            if (f.overdue)
+              return 'border-l-4 border-l-amber-500 bg-amber-500/5';
+            return 'border-l-4 border-l-sky-500 bg-sky-500/5';
+          }}
           searchPlaceholder="Search shipments..."
           hideColumnsOnSmall={[
             'supplierName',

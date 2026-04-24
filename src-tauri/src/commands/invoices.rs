@@ -1,3 +1,4 @@
+use crate::commands::dashboard_cache;
 use crate::commands::utils::generate_id;
 use crate::db::{DbState, Invoice, InvoiceLineItem, NewInvoiceLineItemPayload, NewInvoicePayload};
 use rusqlite::{params, Connection, Transaction};
@@ -237,6 +238,8 @@ pub fn bulk_finalize_invoices(
         }
     }
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
+
     Ok(BulkFinalizeInvoicesResult {
         finalized,
         failed,
@@ -300,6 +303,7 @@ pub fn add_invoice(payload: NewInvoicePayload, state: State<DbState>) -> Result<
     match execute_add_invoice(&tx, &payload) {
         Ok(id) => {
             tx.commit().map_err(|e| e.to_string())?;
+            let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
             Ok(id)
         }
         Err(e) => {
@@ -329,6 +333,7 @@ pub fn add_invoices_bulk(
     }
 
     tx.commit().map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
     Ok(new_ids)
 }
 
@@ -380,6 +385,7 @@ pub fn update_invoice(
     match execute_update_invoice(&tx, &id, &payload) {
         Ok(_) => {
             tx.commit().map_err(|e| e.to_string())?;
+            let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
             Ok(())
         }
         Err(e) => {
@@ -394,5 +400,6 @@ pub fn delete_invoice(id: String, state: State<DbState>) -> Result<(), String> {
     let db = state.db.lock().unwrap();
     db.execute("DELETE FROM invoices WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
     Ok(())
 }

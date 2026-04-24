@@ -1,3 +1,4 @@
+use crate::commands::dashboard_cache;
 use crate::commands::utils::{generate_id, BoeShipmentMap};
 use crate::db::{
     Attachment, BoeDetails, BoeReconciliationReport, BoeShipment, BoeShipmentItem, DbState,
@@ -49,6 +50,7 @@ pub fn add_boe(payload: NewBoePayload, state: State<DbState>) -> Result<String, 
             payload.ref_id, payload.transaction_id
         ],
     ).map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(new_id)
 }
 
@@ -64,6 +66,7 @@ pub fn update_boe(boe: BoeDetails, state: State<DbState>) -> Result<(), String> 
             boe.ref_id, boe.transaction_id
         ],
     ).map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
 
@@ -72,6 +75,7 @@ pub fn delete_boe(id: String, state: State<DbState>) -> Result<(), String> {
     let conn = state.db.lock().unwrap();
     conn.execute("DELETE FROM boe_details WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
 
@@ -175,6 +179,7 @@ pub fn add_boe_calculation(payload: SavedBoe, state: State<DbState>) -> Result<S
     )
     .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(new_id.to_string())
 }
 
@@ -208,6 +213,7 @@ pub fn update_boe_calculation(payload: SavedBoe, state: State<DbState>) -> Resul
         ],
     ).map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
 
@@ -216,6 +222,7 @@ pub fn delete_boe_calculation(id: String, state: State<DbState>) -> Result<(), S
     let conn = state.db.lock().unwrap();
     conn.execute("DELETE FROM boe_calculations WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
 
@@ -433,6 +440,7 @@ pub fn update_boe_status(id: String, status: String, state: State<DbState>) -> R
         params![id, status],
     )
     .map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
 
@@ -464,6 +472,7 @@ pub fn add_boe_attachment(
         params![id, new_json],
     )
     .map_err(|e| e.to_string())?;
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
 
@@ -706,4 +715,23 @@ pub fn save_item_photo_file(app: tauri::AppHandle, src_path: String) -> Result<S
     let result_path = dest_path.to_string_lossy().to_string();
     log::debug!("✅ [RUST] Returning saved item photo path: {result_path}");
     Ok(result_path)
+}
+
+/// Distinct shipment IDs that have at least one BOE calculation row (for shipment list filters).
+#[tauri::command]
+pub fn get_shipment_ids_with_boe_calculations(
+    state: State<DbState>,
+) -> Result<Vec<String>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT shipment_id FROM boe_calculations
+             WHERE shipment_id IS NOT NULL AND TRIM(shipment_id) != ''",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }

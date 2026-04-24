@@ -191,19 +191,19 @@ export function ItemForm({
       <TabsList className="grid w-full grid-cols-3">
         <TabsTrigger
           value="general"
-          className="text-foreground bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
         >
           General Details
         </TabsTrigger>
         <TabsTrigger
           value="customs"
-          className="text-foreground bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
         >
           Commercial & Customs
         </TabsTrigger>
         <TabsTrigger
           value="specs"
-          className="text-foreground bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
         >
           Specifications
         </TabsTrigger>

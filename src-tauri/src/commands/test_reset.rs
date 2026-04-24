@@ -14,6 +14,12 @@ fn seed_minimal_test_data(conn: &Connection) -> Result<(), String> {
         params!["admin-001", "admin", Option::<&str>::None],
     )
     .map_err(|e| e.to_string())?;
+    // Playwright DB: keep prod safety gate off so UI deploy flows stay deterministic.
+    let _ = conn.execute(
+        "INSERT INTO app_metadata (key, value) VALUES ('workflow_deploy_prod_safety_enforcement', '0')
+         ON CONFLICT(key) DO UPDATE SET value = '0'",
+        [],
+    );
     Ok(())
 }
 

@@ -1,3 +1,4 @@
+use crate::commands::dashboard_cache;
 use crate::DbState;
 use crate::Shipment;
 use rusqlite::params;
@@ -131,6 +132,8 @@ pub fn add_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), Str
     )
     .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(())
 }
 
@@ -164,6 +167,8 @@ pub fn update_shipment(state: State<DbState>, shipment: Shipment) -> Result<(), 
     )
     .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(())
 }
 
@@ -173,6 +178,8 @@ pub fn delete_shipment(state: State<DbState>, id: String) -> Result<(), String> 
     let conn = state.db.lock().unwrap();
     conn.execute("DELETE FROM shipments WHERE id = ?1", params![id])
         .map_err(|e| e.to_string())?;
+
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
 
     Ok(())
 }
@@ -191,6 +198,8 @@ pub fn update_shipment_status_on_invoice_add(
     )
     .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(())
 }
 
@@ -207,6 +216,8 @@ pub fn update_shipment_status_on_boe_add(
         params![shipment_id],
     )
     .map_err(|e| e.to_string())?;
+
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
 
     Ok(())
 }
@@ -238,6 +249,8 @@ pub fn check_and_update_ready_for_delivery(state: State<DbState>) -> Result<(), 
     conn.execute(sql, params![today.to_string()])
         .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(())
 }
 
@@ -251,6 +264,8 @@ pub fn migrate_shipment_statuses(state: State<DbState>) -> Result<(), String> {
         [],
     )
     .map_err(|e| e.to_string())?;
+
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
 
     Ok(())
 }
@@ -341,6 +356,8 @@ pub fn add_shipments_bulk(state: State<DbState>, shipments: Vec<Shipment>) -> Re
         .map_err(|e| e.to_string())?;
     }
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(())
 }
 
@@ -401,6 +418,8 @@ pub fn freeze_shipment(state: State<DbState>, id: String) -> Result<(), String> 
     )
     .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(())
 }
 
@@ -416,6 +435,8 @@ pub fn update_shipment_status(
         params![status, id],
     )
     .map_err(|e| e.to_string())?;
+
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
 
     Ok(())
 }

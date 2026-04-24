@@ -99,3 +99,27 @@ pub fn add_option_to_table(
     .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+/// Stable checksum over immutable activity fields (excludes `id` and server `timestamp`).
+pub fn dashboard_activity_checksum(
+    user_id: &str,
+    action_type: &str,
+    details: &str,
+    module_name: &str,
+    record_reference: &str,
+    navigation_target: &str,
+    action_context: &str,
+) -> String {
+    use sha2::{Digest, Sha256};
+    let payload = format!(
+        "{}|{}|{}|{}|{}|{}|{}",
+        user_id,
+        action_type,
+        details,
+        module_name,
+        record_reference,
+        navigation_target,
+        action_context
+    );
+    format!("{:x}", Sha256::digest(payload.as_bytes()))
+}

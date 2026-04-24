@@ -12,7 +12,9 @@ interface UserContextType {
 const UserContext = createContext<UserContextType | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() =>
+    typeof window !== 'undefined' ? getCurrentUser() : null
+  );
   const [isLoading, setIsLoading] = useState(true);
 
   const refreshUser = () => {

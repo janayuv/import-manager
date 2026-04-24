@@ -1,4 +1,5 @@
 #![allow(clippy::uninlined_format_args)]
+use crate::commands::dashboard_cache;
 use crate::commands::utils::generate_id;
 use crate::db::{
     DbState, Expense, ExpenseAttachment, ExpenseInvoice, ExpenseType, ExpenseWithInvoice,
@@ -880,6 +881,8 @@ pub fn attach_invoice_to_expense(
         ],
     ).map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(new_attachment)
 }
 
@@ -1230,6 +1233,8 @@ pub fn add_expense_invoice_with_expenses(
         })
         .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(expense_invoice)
 }
 
@@ -1308,6 +1313,8 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
         })
         .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(expense)
 }
 
@@ -1376,6 +1383,8 @@ pub fn update_expense(
         })
         .map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     Ok(expense)
 }
 
@@ -1411,6 +1420,8 @@ pub fn delete_expense(id: String, state: State<DbState>) -> Result<(), String> {
 
     // Update the invoice total
     update_invoice_total(&conn, &expense_invoice_id)?;
+
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
 
     Ok(())
 }
@@ -1588,6 +1599,8 @@ pub fn add_expenses_bulk(
 
     tx.commit().map_err(|e| e.to_string())?;
 
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
+
     // Return the first invoice ID for backward compatibility
     Ok(created_invoice_ids
         .first()
@@ -1633,6 +1646,8 @@ pub fn delete_expense_invoice(invoice_id: String, state: State<DbState>) -> Resu
 
     // Commit the transaction
     tx.commit().map_err(|e| e.to_string())?;
+
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
 
     Ok(())
 }
@@ -1920,4 +1935,21 @@ pub fn cleanup_orphaned_expense_invoices(state: State<DbState>) -> Result<String
     }
 
     Ok(result)
+}
+
+/// Distinct shipment IDs that have at least one expense line (for shipment list exception filters).
+#[tauri::command]
+pub fn get_shipment_ids_with_expense_lines(state: State<DbState>) -> Result<Vec<String>, String> {
+    let conn = state.db.lock().unwrap();
+    let mut stmt = conn
+        .prepare(
+            "SELECT DISTINCT shipment_id FROM expenses
+             WHERE shipment_id IS NOT NULL AND TRIM(shipment_id) != ''",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }

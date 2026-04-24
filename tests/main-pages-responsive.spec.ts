@@ -30,7 +30,7 @@ test.describe('Main pages responsive snapshots', () => {
               console.warn('Failed to set localStorage:', error);
             }
           });
-          await page.goto(`http://localhost:1421${p.path}`);
+          await page.goto(p.path);
           await page.waitForLoadState('networkidle');
 
           // Header visible

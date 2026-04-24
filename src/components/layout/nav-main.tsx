@@ -22,6 +22,8 @@ interface NavItem {
   url: string;
   icon: LucideIcon;
   items?: Omit<NavItem, 'icon' | 'items'>[];
+  /** Filtered out client-side for non-admins when true. */
+  adminOnly?: boolean;
 }
 
 export function NavMain({

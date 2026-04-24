@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 
 test('should load the application', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(3000);
 
   // Just check if the page loads and has content
@@ -17,14 +17,14 @@ test('should load different pages', async ({ page }) => {
   const pages = ['/', '/expenses', '/supplier', '/shipment'];
 
   for (const pagePath of pages) {
-    await page.goto(`http://localhost:1421${pagePath}`);
+    await page.goto(pagePath);
     await page.waitForTimeout(2000);
     await expect(page.locator('#root')).toBeVisible();
   }
 });
 
 test('should have basic HTML structure', async ({ page }) => {
-  await page.goto('http://localhost:1421');
+  await page.goto('/');
   await page.waitForTimeout(3000);
 
   // Check basic HTML elements exist

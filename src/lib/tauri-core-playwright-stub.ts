@@ -6,6 +6,11 @@
  */
 import * as realCore from '@tauri-apps/api/core-real';
 
+import {
+  initOperationalReliabilityStub,
+  routeOperationalReliabilityInvoke,
+} from '@/lib/playwright-operational-reliability-stub';
+
 export const Channel = realCore.Channel;
 export const Resource = realCore.Resource;
 export const SERIALIZE_TO_IPC_FN = realCore.SERIALIZE_TO_IPC_FN;
@@ -269,6 +274,9 @@ function seedPlaywrightDefaults(): void {
   stubBackupSeq = 0;
   stubBackupSnapshots.clear();
   stubBackupHistoryList.length = 0;
+  if (import.meta.env.VITE_PLAYWRIGHT === '1') {
+    initOperationalReliabilityStub();
+  }
   persistLiveDbToSession();
 }
 
@@ -324,6 +332,10 @@ export async function invoke<T = unknown>(
   cmd: string,
   args?: Record<string, unknown>
 ): Promise<T> {
+  if (import.meta.env.VITE_PLAYWRIGHT === '1') {
+    const routed = routeOperationalReliabilityInvoke(cmd, args);
+    if (routed !== null) return routed as T;
+  }
   switch (cmd) {
     case 'get_suppliers':
       return stubSuppliers.map(s => ({ ...s })) as T;
@@ -720,6 +732,555 @@ export async function invoke<T = unknown>(
         totalRows: 0,
         totals: null,
       } as T;
+    case 'get_dashboard_metrics': {
+      const now = new Date().toISOString();
+      const pending = stubShipments.filter(
+        s => String(s.status) === 'docu-received'
+      ).length;
+      const delivered = stubShipments.filter(
+        s => String(s.status) === 'delivered'
+      ).length;
+      return {
+        snapshotAt: now,
+        totalSuppliers: stubSuppliers.length,
+        totalItems: stubItems.length,
+        totalShipments: stubShipments.length,
+        pendingShipments: pending,
+        deliveredShipments: delivered,
+        reconciledBoes: stubBoes.filter(b => String(b.status) === 'Reconciled')
+          .length,
+        totalInvoiceValue: stubShipments.reduce(
+          (sum, s) => sum + (Number(s.invoiceValue) || 0),
+          0
+        ),
+        avgTransitDays: null,
+        expenseTotal: 0,
+        dutyTotal: 0,
+        totalDutySavingsEstimate: 0,
+        landedCostTotal: 0,
+        monthlySummary: [],
+        exceptions: [
+          {
+            kind: 'overdue_eta',
+            severity: 'warning',
+            message: 'Stub: overdue shipments',
+            count: 1,
+            exceptionType: 'OVERDUE_ETA',
+            entityType: 'aggregate',
+            sampleShipmentIds: stubShipments.slice(0, 3).map(s => String(s.id)),
+            navigationTarget: '/shipment',
+            navigationUrl: '/shipment?overdue=true',
+            filterParameters: { overdue: 'true' },
+          },
+        ],
+        documentCompliance: {
+          shipmentsMissingEta: 0,
+          shipmentsMissingEtd: 0,
+          shipmentsWithoutBoeRow: 0,
+          shipmentsWithoutExpense: 0,
+        },
+        erp: {
+          entityExceptions: [],
+          exceptionWorkflow: {
+            openCount: 0,
+            resolvedTodayCount: 0,
+            slaBreachedCount: 0,
+            avgResolutionDays: null,
+            byType: [],
+            byPriority: [],
+          },
+        },
+      } as T;
+    }
+    case 'log_dashboard_activity':
+      return undefined as T;
+    case 'get_dashboard_activity_log': {
+      const lim =
+        typeof (args as { limit?: number })?.limit === 'number'
+          ? Math.min(2000, Math.max(1, (args as { limit: number }).limit))
+          : 50;
+      const now = new Date().toISOString();
+      const rows = Array.from({ length: Math.min(3, lim) }, (_, i) => ({
+        id: 100 - i,
+        userId: 'stub-user',
+        timestamp: now,
+        actionType: i === 0 ? 'dashboard_viewed' : 'csv_exported',
+        details: '{}',
+        moduleName: 'Dashboard',
+        recordReference: '',
+        navigationTarget: '',
+        actionContext: '',
+        checksum: '',
+      }));
+      return rows as T;
+    }
+    case 'query_dashboard_activity_log': {
+      const q = (args as { query?: { limit?: number } })?.query;
+      const lim =
+        typeof q?.limit === 'number'
+          ? Math.min(2000, Math.max(1, q.limit))
+          : 50;
+      const now = new Date().toISOString();
+      const rows = Array.from({ length: Math.min(3, lim) }, (_, i) => ({
+        id: 200 - i,
+        userId: 'stub-user',
+        timestamp: now,
+        actionType: i === 0 ? 'dashboard_viewed' : 'csv_exported',
+        details: '{}',
+        moduleName: 'Dashboard',
+        recordReference: '',
+        navigationTarget: '',
+        actionContext: '',
+        checksum: '',
+      }));
+      return rows as T;
+    }
+    case 'list_exception_cases':
+      return [] as T;
+    case 'update_exception_case':
+    case 'add_exception_note':
+    case 'record_exception_viewed':
+      return undefined as T;
+    case 'list_exception_notes':
+      return [] as T;
+    case 'get_exception_lifecycle_events':
+      return [] as T;
+    case 'bulk_resolve_exception_cases':
+      return 0 as T;
+    case 'validate_exception_integrity_command':
+      return 0 as T;
+    case 'revalidate_open_exceptions_command':
+      return undefined as T;
+    case 'simulate_exception_load_command':
+      return {
+        inserted: 1,
+        durationMs: 1,
+        cleaned: 1,
+        ruleSimulation: null,
+      } as T;
+    case 'simulate_rule_execution_command':
+      return {
+        predictedAutoResolves: 0,
+        predictedByPredicate: {},
+        predictedAssignments: 0,
+        predictedPriorityAdjusts: 0,
+      } as T;
+    case 'list_workflow_decision_rules':
+      return [] as T;
+    case 'run_workflow_automation_cycle_command':
+      return {
+        skippedPaused: false,
+        autoResolved: 0,
+        autoAssigned: 0,
+        priorityAdjusted: 0,
+        repairs: 0,
+        adaptiveSlaRows: 0,
+      } as T;
+    case 'analyze_workflow_efficiency_command':
+      return {
+        recommendations: [],
+        slowestResolutionHours90d: null,
+        mostEscalatedExceptionType: '',
+      } as T;
+    case 'suggest_resolution_actions_command':
+      return [] as T;
+    case 'get_exception_reliability_report':
+      return {
+        slaMetrics: [],
+        backlogSnapshots: [],
+        latestResolutionAnalytics: null,
+        integrityIssuesLast7Days: 0,
+      } as T;
+    case 'get_workflow_health_summary':
+      return {
+        openExceptions: 0,
+        criticalExceptions: 0,
+        slaBreachesToday: 0,
+        workflowTimeouts: 0,
+        integrityIssues: 0,
+        recurringExceptions: 0,
+        lastMaintenanceRun: '',
+        lastIntegrityCheck: '',
+      } as T;
+    case 'get_workflow_maintenance_history':
+      return [] as T;
+    case 'run_recovery_readiness_check':
+      return {
+        backupStatus: 'OK',
+        snapshotStatus: 'OK',
+        integrityStatus: 'OK',
+        auditStatus: 'OK',
+      } as T;
+    case 'reconstruct_exception_lifecycle':
+      return 0 as T;
+    case 'get_reliability_diagnostics':
+      return {
+        mostCommonExceptionType: '',
+        highestRecurrenceEntity: '',
+        longestUnresolvedCaseId: '',
+        mostFrequentSlaBreachType: '',
+        slowestResolutionWorkflowType: '',
+      } as T;
+    case 'get_predictive_workflow_risk':
+      return { riskLevel: 'LOW' } as T;
+    case 'get_audit_verification_summary':
+      return {
+        checksumMismatches: 0,
+        integrityWarnings: 0,
+        missingChecksumEntries: 0,
+      } as T;
+    case 'set_workflow_decision_rule_enabled':
+    case 'set_workflow_automation_master_enabled':
+    case 'set_automation_guardrails':
+    case 'set_adaptive_sla_apply_enabled':
+      return undefined as T;
+    case 'apply_adaptive_sla_decision':
+      return 0 as T;
+    case 'query_workflow_automation_log':
+      return [] as T;
+    case 'get_rule_performance_dashboard':
+      return {
+        topPerformingRules: [],
+        lowPerformingRules: [],
+        unusedRules: [],
+        highFailureRateRules: [],
+      } as T;
+    case 'list_rule_effectiveness_metrics':
+      return [] as T;
+    case 'list_automation_roi_metrics':
+      return [] as T;
+    case 'list_automation_benchmark_history':
+      return [] as T;
+    case 'list_automation_stability_alerts':
+      return [] as T;
+    case 'acknowledge_automation_stability_alert':
+      return undefined as T;
+    case 'generate_rule_optimization_recommendations_command':
+      return { suggestions: [] } as T;
+    case 'generate_automation_learning_suggestions_command':
+      return { ideas: [] } as T;
+    case 'simulate_multiple_rule_sets_command': {
+      const staged = args?.stagedVersionId;
+      const tid = (args as { tenantId?: string | null })?.tenantId;
+      const eid = (args as { environmentId?: string | null })?.environmentId;
+      const base = {
+        currentRules: {},
+        allAutomationRulesDisabled: {},
+        modifiedRulesAutoResolveOnly: {},
+        tenantId: tid ?? null,
+        environmentId: eid ?? null,
+        notes: '',
+        economics: {
+          estimatedCostUnits: {
+            currentRules: 0,
+            allAutomationRulesDisabled: 0,
+            modifiedRulesAutoResolveOnly: 0,
+          },
+          estimatedBenefitProxy: {
+            currentRules: 0,
+            allAutomationRulesDisabled: 0,
+            modifiedRulesAutoResolveOnly: 0,
+          },
+          totalCostDifferenceVsDisabled: 0,
+          totalBenefitDifferenceVsDisabled: 0,
+          totalCostDifferenceVsConservative: 0,
+          totalBenefitDifferenceVsConservative: 0,
+        },
+      } as Record<string, unknown>;
+      if (staged != null && String(staged).trim() !== '') {
+        base.deploymentSimulation = {
+          stagedVersionId: String(staged).trim(),
+          ruleId: 'stub-rule',
+          compareActiveVsStaged: { summary: 'stub', changes: [] },
+          notes: 'stub',
+        };
+      }
+      base.notes = `stub sim tenant=${tid ?? ''} env=${eid ?? ''}`;
+      return base as T;
+    }
+    case 'list_workflow_rule_versions':
+      return [] as T;
+    case 'create_workflow_rule_version':
+      return 'stub-version-id' as T;
+    case 'compare_rule_versions_command':
+      return { changes: [], summary: 'stub' } as T;
+    case 'create_workflow_rule_staging':
+      return 'stub-staging-id' as T;
+    case 'update_workflow_rule_staging_status':
+      return undefined as T;
+    case 'list_workflow_rule_staging':
+      return [] as T;
+    case 'submit_rule_version_approval':
+      return 'stub-approval-id' as T;
+    case 'record_rule_approval_decision':
+      return undefined as T;
+    case 'list_workflow_rule_approvals':
+      return [] as T;
+    case 'rollback_rule_version_command':
+      return undefined as T;
+    case 'validate_rule_deployment_command':
+      return {
+        ok: true,
+        ruleId: String((args as { ruleId?: string })?.ruleId ?? ''),
+        versionId: String((args as { versionId?: string })?.versionId ?? ''),
+        checks: [{ name: 'stub', passed: true }],
+      } as T;
+    case 'run_deployment_dry_run_command':
+      return {
+        predictedOutcome: 'read_only',
+        governance: { ok: true },
+        safety: {
+          safe_to_deploy: true,
+          risk_level: 'LOW',
+          risk_score: 3,
+        },
+        simulationAttachment: {},
+        notes: 'stub',
+      } as T;
+    case 'get_deployment_safety_dashboard_command':
+      return {
+        prodSafetyEnforcement: false,
+        latestRiskAssessment: null,
+        pendingApprovals: 0,
+        conflictsLogged7d: 0,
+        latestCapacityLoadPct: 0,
+      } as T;
+    case 'get_smart_deployment_recommendations_command':
+      return {
+        suggestedWindow: 'stub window',
+        successDeployments30d: 0,
+        recentSafetyBlocks14d: 0,
+        latestLoadPct: 0,
+      } as T;
+    case 'generate_deployment_safety_audit_report_command':
+      return {
+        reportType: 'deployment_safety_report',
+        generatedAt: new Date().toISOString(),
+        governanceValidation: { ok: true },
+        safetyEvaluation: { safe_to_deploy: true, risk_level: 'LOW' },
+        riskTimeline: [],
+        recentConflicts: [],
+      } as T;
+    case 'list_deployment_conflict_log_command':
+      return [] as T;
+    case 'set_deployment_prod_safety_enforcement_command':
+      return undefined as T;
+    case 'list_workflow_environments':
+      return [
+        {
+          environmentId: 'env-dev',
+          environmentName: 'DEV',
+          environmentType: 'DEV',
+          isActive: 1,
+          createdAt: '2026-01-01',
+        },
+        {
+          environmentId: 'env-test',
+          environmentName: 'TEST',
+          environmentType: 'TEST',
+          isActive: 1,
+          createdAt: '2026-01-01',
+        },
+        {
+          environmentId: 'env-prod',
+          environmentName: 'PROD',
+          environmentType: 'PROD',
+          isActive: 1,
+          createdAt: '2026-01-01',
+        },
+      ] as T;
+    case 'list_workflow_tenants':
+      return [
+        {
+          tenantId: 'tenant-default',
+          tenantName: 'Default tenant',
+          tenantStatus: 'ACTIVE',
+          createdAt: '2026-01-01',
+        },
+      ] as T;
+    case 'get_workflow_execution_context':
+      return {
+        activeTenantId: 'tenant-default',
+        executionEnvironmentId: 'env-dev',
+        defaultVersionEnvironmentId: 'env-dev',
+      } as T;
+    case 'set_workflow_active_tenant':
+    case 'set_workflow_execution_environment':
+      return undefined as T;
+    case 'list_workflow_environment_deployment_log': {
+      const today = new Date().toISOString().slice(0, 10);
+      return [
+        {
+          deploymentId: 'dep-stub-1',
+          tenantId: 'tenant-default',
+          environmentId: 'env-prod',
+          ruleId: 'stub-rule',
+          versionId: 'stub-rule:env-prod:v1',
+          status: 'SUCCESS',
+          timestamp: `${today} 10:00:00`,
+          detailsJson: JSON.stringify({
+            deployedBy: 'stub',
+            liveRulesUpdated: true,
+          }),
+        },
+        {
+          deploymentId: 'dep-stub-2',
+          tenantId: 'tenant-default',
+          environmentId: 'env-test',
+          ruleId: 'stub-rule',
+          versionId: 'stub-rule:env-test:v2',
+          status: 'ROLLBACK',
+          timestamp: `${today} 11:30:00`,
+          detailsJson: JSON.stringify({ performedBy: 'stub' }),
+        },
+      ] as T;
+    }
+    case 'get_environment_health_dashboard':
+      return {
+        environments: [],
+        notes: 'stub',
+      } as T;
+    case 'get_tenant_performance_dashboard':
+      return {
+        tenantId: (args as { tenantId?: string | null })?.tenantId ?? null,
+        workload: {},
+        notes: 'stub',
+      } as T;
+    case 'promote_rule_version_command':
+      return 'stub-promoted-version-id' as T;
+    case 'set_canary_rule_deployment':
+    case 'clear_canary_rule_deployment':
+      return undefined as T;
+    case 'list_canary_rule_deployments':
+      return [] as T;
+    case 'set_deployment_freeze':
+    case 'set_deployment_requires_approval':
+      return undefined as T;
+    case 'get_deployment_freeze_status':
+      return {
+        deploymentFrozen: false,
+        requiresApproval: false,
+      } as T;
+    case 'list_rule_deployment_impact_metrics':
+      return [] as T;
+    case 'refresh_rule_deployment_impact_metrics':
+      return undefined as T;
+    case 'rollback_automation_action':
+      return 'stub-rollback-id' as T;
+    case 'get_automation_cost_vs_benefit_dashboard':
+      return {
+        totals14d: {
+          totalCostUnits: 0,
+          totalResolutionGainHours: 0,
+          totalActions: 0,
+          costPerResolutionHour: 0,
+        },
+        latestRoi: null,
+        economicsIndexTrend: [],
+        costTrend30d: [],
+        benefitTrend30d: [],
+      } as T;
+    case 'list_automation_capacity_load':
+      return [] as T;
+    case 'list_daily_automation_economics_index':
+      return [] as T;
+    case 'get_automation_cost_limits':
+      return {
+        id: 'default',
+        maxCostUnitsPerCycle: 500000,
+        maxExecutionTimePerCycleMs: 120000,
+        maxRecordsProcessedPerCycle: 500000,
+        updatedAt: '',
+      } as T;
+    case 'set_automation_cost_limits':
+      return undefined as T;
+    case 'list_rule_execution_cost_estimates':
+      return [] as T;
+    case 'upsert_rule_execution_cost_estimate':
+      return undefined as T;
+    case 'list_rule_cost_efficiency_metrics':
+      return [] as T;
+    case 'detect_inefficient_rules_command':
+      return { flags: [] } as T;
+    case 'generate_cost_optimization_suggestions_command':
+      return { suggestions: [] } as T;
+    case 'predictive_capacity_forecast_command':
+      return {
+        capacityRiskScore: 0,
+        recent7dAvgDailyCostUnits: 0,
+        baseline30dAvgDailyCostUnits: 0,
+        trendCostUnits: 0,
+        horizonDays: 14,
+        notes: '',
+      } as T;
+    case 'get_automation_health':
+      return {
+        masterEnabled: true,
+        paused: false,
+        lastCycleAt: '',
+        actionsLast24h: 0,
+        errorsLast24h: 0,
+        status: 'HEALTHY',
+      } as T;
+    case 'simulate_background_jobs_command':
+      return { mode: 'simulation', jobs: [], dependencies: [] } as T;
+    case 'detect_job_failures_command':
+      return 0 as T;
+    case 'get_automation_impact_summary':
+      return {
+        autoResolve7d: 0,
+        autoAssign7d: 0,
+        priorityAdjust7d: 0,
+        autoRepair7d: 0,
+        escalationsLogged7d: 0,
+        cycleSummaries7d: 0,
+      } as T;
+    case 'list_adaptive_sla_adjustments':
+      return [] as T;
+    case 'list_workflow_rule_change_log':
+      return [] as T;
+    case 'get_shipment_ids_with_boe_calculations':
+      return stubShipments
+        .filter((_, idx) => idx % 2 === 0)
+        .map(s => String(s.id)) as T;
+    case 'get_shipment_ids_with_expense_lines':
+      return stubShipments
+        .filter((_, idx) => idx % 3 !== 0)
+        .map(s => String(s.id)) as T;
+    case 'get_kpi_metadata':
+      return [] as T;
+    case 'get_kpi_snapshot_history': {
+      const d0 = new Date();
+      d0.setUTCDate(d0.getUTCDate() - 2);
+      const d1 = new Date();
+      d1.setUTCDate(d1.getUTCDate() - 1);
+      const d2 = new Date();
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      const mk = (
+        date: string,
+        name: string,
+        value: number
+      ): Record<string, unknown> => ({
+        snapshotDate: date,
+        kpiName: name,
+        value,
+        createdAt: `${date} 00:00:00`,
+      });
+      const t0 = fmt(d0);
+      const t1 = fmt(d1);
+      const t2 = fmt(d2);
+      return [
+        mk(t0, 'total_shipments', 8),
+        mk(t0, 'duty_total', 100000),
+        mk(t0, 'expense_total', 40000),
+        mk(t1, 'total_shipments', 9),
+        mk(t1, 'duty_total', 105000),
+        mk(t1, 'expense_total', 45000),
+        mk(t2, 'total_shipments', 10),
+        mk(t2, 'duty_total', 102000),
+        mk(t2, 'expense_total', 52000),
+      ] as T;
+    }
     case 'get_shell_version': {
       const v =
         typeof import.meta !== 'undefined' && import.meta.env?.VITE_APP_VERSION
@@ -981,6 +1542,10 @@ type InvokeFn = <T = unknown>(
 ) => Promise<T>;
 
 tryHydrateLiveDbFromSession();
+/** After a full page reload, repopulate job-governance stub state (not part of live DB snapshot). */
+if (import.meta.env.VITE_PLAYWRIGHT === '1') {
+  initOperationalReliabilityStub();
+}
 
 /** Lets Playwright call the same stub `invoke` from `page.evaluate` (bare module specifiers are unavailable there). */
 if (import.meta.env.VITE_PLAYWRIGHT === '1' && typeof window !== 'undefined') {

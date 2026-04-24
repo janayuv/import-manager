@@ -1,5 +1,5 @@
 // src/components/invoice/view.tsx (MODIFIED - Formats tax numbers as percentages)
-import { isTauriEnvironment, save, writeTextFile } from '@/lib/tauri-bridge';
+import { save, useNativeFileDialogs, writeTextFile } from '@/lib/tauri-bridge';
 import { Download } from 'lucide-react';
 import Papa from 'papaparse';
 import { toast } from 'sonner';
@@ -129,7 +129,7 @@ export function InvoiceViewDialog({
 
     const csv = Papa.unparse(exportData);
     try {
-      if (!isTauriEnvironment) {
+      if (!useNativeFileDialogs) {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');

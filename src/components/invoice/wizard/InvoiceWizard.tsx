@@ -1002,7 +1002,7 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="h-9 min-w-[5.5rem] font-mono tabular-nums"
+                            className="min-w-22 h-9 font-mono tabular-nums"
                           />
                         </TableCell>
                         <TableCell className="px-2 align-top">
@@ -1023,7 +1023,7 @@ export function InvoiceWizard({
                                       parseFloat(e.target.value) || 0
                                     )
                                   }
-                                  className={`h-9 min-w-[6rem] shrink-0 font-mono tabular-nums ${hasPriceDifference ? 'border-warning' : ''}`}
+                                  className={`h-9 min-w-24 shrink-0 font-mono tabular-nums ${hasPriceDifference ? 'border-warning' : ''}`}
                                 />
                                 {hasPriceDifference && (
                                   <Tooltip>
@@ -1076,7 +1076,7 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                            className="min-w-18 h-9 font-mono tabular-nums"
                           />
                         </TableCell>
                         <TableCell className="px-2 align-top">
@@ -1091,7 +1091,7 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                            className="min-w-18 h-9 font-mono tabular-nums"
                           />
                         </TableCell>
                         <TableCell className="px-2 align-top">
@@ -1106,7 +1106,7 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="h-9 min-w-[4.5rem] font-mono tabular-nums"
+                            className="min-w-18 h-9 font-mono tabular-nums"
                           />
                         </TableCell>
                         <TableCell className="px-2 align-top">
@@ -1115,7 +1115,7 @@ export function InvoiceWizard({
                               (line.quantity || 0) * (line.unitPrice || 0)
                             ).toFixed(2)}
                             readOnly
-                            className="bg-muted h-9 min-w-[7rem] font-mono text-sm tabular-nums"
+                            className="bg-muted h-9 min-w-28 font-mono text-sm tabular-nums"
                           />
                         </TableCell>
                         <TableCell className="px-1 align-top">
