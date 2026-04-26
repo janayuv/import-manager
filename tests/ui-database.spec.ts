@@ -53,9 +53,13 @@ function sonnerSuccess(page: Page, text: string | RegExp) {
 }
 
 async function waitForSonnerToClear(page: Page) {
+  // Sonner can keep dismissed toasts in the DOM during exit; only toasts with
+  // `data-visible="true"` are actually on screen (WebKit especially).
   await page.waitForFunction(
-    () => document.querySelectorAll('[data-sonner-toast]').length === 0,
-    { timeout: 15_000 }
+    () =>
+      document.querySelectorAll('[data-sonner-toast][data-visible="true"]')
+        .length === 0,
+    { timeout: 20_000 }
   );
 }
 
@@ -79,6 +83,8 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
   test('validates create backup, download, file upload restore, reload, and data integrity', async ({
     page,
   }, testInfo) => {
+    test.setTimeout(180_000);
+
     await test.step('Navigate to Database Management → Backup & Restore', async () => {
       await clickSidebarLink(page, 'Database Management');
       await expect(

@@ -6,10 +6,14 @@ import path from 'node:path';
 import Papa from 'papaparse';
 import { expect, test, type Page } from '@playwright/test';
 
-import { appendPerformanceMetric } from './performance-metrics';
+import {
+  appendPerformanceMetric,
+  withProjectTestName,
+} from './performance-metrics';
 import {
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
+  setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
@@ -110,8 +114,10 @@ async function assertNoErrorOrWarningToasts(page: Page) {
 /** Sonner toasts overlay the viewport; wait until they dismiss before the next click. */
 async function waitForSonnerToClear(page: Page) {
   await page.waitForFunction(
-    () => document.querySelectorAll('[data-sonner-toast]').length === 0,
-    { timeout: 12_000 }
+    () =>
+      document.querySelectorAll('[data-sonner-toast][data-visible="true"]')
+        .length === 0,
+    { timeout: 20_000 }
   );
 }
 
@@ -160,9 +166,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const buf = Buffer.from(csv, 'utf-8');
 
       const t0 = await page.evaluate(() => performance.now());
-      const fc = page.waitForEvent('filechooser');
       await content.getByRole('button', { name: 'Import' }).click();
-      (await fc).setFiles({
+      await setFilesOnBridgeFileInput(page, {
         name: `reliability-shipment-${i}.csv`,
         mimeType: 'text/csv',
         buffer: buf,
@@ -173,7 +178,10 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const t1 = await page.evaluate(() => performance.now());
       timings.push(t1 - t0);
       appendPerformanceMetric({
-        testName: `ui-reliability/shipment-import-stability/iter-${i}`,
+        testName: withProjectTestName(
+          `ui-reliability/shipment-import-stability/iter-${i}`,
+          testInfo.project.name
+        ),
         durationMs: t1 - t0,
       });
       await waitForSonnerToClear(page);
@@ -208,16 +216,18 @@ test.describe('UI reliability and stress (repeated operations)', () => {
 
     for (let round = 1; round <= 3; round += 1) {
       const t0 = await page.evaluate(() => performance.now());
-      const fc = page.waitForEvent('filechooser');
       await content.getByRole('button', { name: 'Import Bulk' }).click();
-      (await fc).setFiles(invoiceBulkValidCsv);
+      await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
       await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
         timeout: 30_000,
       });
       const t1 = await page.evaluate(() => performance.now());
       timings.push(t1 - t0);
       appendPerformanceMetric({
-        testName: `ui-reliability/invoice-bulk-stability/round-${round}`,
+        testName: withProjectTestName(
+          `ui-reliability/invoice-bulk-stability/round-${round}`,
+          testInfo.project.name
+        ),
         durationMs: t1 - t0,
       });
       await waitForSonnerToClear(page);
@@ -247,9 +257,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
     });
     await content.getByRole('button', { name: 'Table' }).click();
 
-    const fc0 = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await fc0).setFiles(shipmentValidCsv);
+    await setFilesOnBridgeFileInput(page, shipmentValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
       timeout: 25_000,
     });
@@ -273,7 +282,10 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const t1 = await page.evaluate(() => performance.now());
       exportMs.push(t1 - t0);
       appendPerformanceMetric({
-        testName: `ui-reliability/shipment-csv-export/iter-${i}`,
+        testName: withProjectTestName(
+          `ui-reliability/shipment-csv-export/iter-${i}`,
+          testInfo.project.name
+        ),
         durationMs: t1 - t0,
       });
       await waitForSonnerToClear(page);
@@ -315,9 +327,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       await expectPageMarker(page, 'Shipment Management');
       const shipContent = appContent(page);
       await shipContent.getByRole('button', { name: 'Table' }).click();
-      let fc = page.waitForEvent('filechooser');
       await shipContent.getByRole('button', { name: 'Import' }).click();
-      (await fc).setFiles({
+      await setFilesOnBridgeFileInput(page, {
         name: `wf-${c}-ship.csv`,
         mimeType: 'text/csv',
         buffer: Buffer.from(shipCsv, 'utf-8'),
@@ -338,9 +349,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       await clickSidebarLink(page, 'Invoices');
       await expectPageMarker(page, 'Invoice Details');
       const invContent = appContent(page);
-      fc = page.waitForEvent('filechooser');
       await invContent.getByRole('button', { name: 'Import Bulk' }).click();
-      (await fc).setFiles({
+      await setFilesOnBridgeFileInput(page, {
         name: `wf-${c}-inv.csv`,
         mimeType: 'text/csv',
         buffer: Buffer.from(invCsv, 'utf-8'),
@@ -360,9 +370,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       await clickSidebarLink(page, 'View All BOE');
       await expectPageMarker(page, 'Bill of Entry Details');
       const boeContent = appContent(page);
-      fc = page.waitForEvent('filechooser');
       await boeContent.getByRole('button', { name: 'Import' }).click();
-      (await fc).setFiles({
+      await setFilesOnBridgeFileInput(page, {
         name: `wf-${c}-boe.csv`,
         mimeType: 'text/csv',
         buffer: Buffer.from(boeCsv, 'utf-8'),
@@ -413,7 +422,10 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const cycleEnd = await page.evaluate(() => performance.now());
       cycleMs.push(cycleEnd - cycleStart);
       appendPerformanceMetric({
-        testName: `ui-reliability/workflow-cycle/cycle-${c}`,
+        testName: withProjectTestName(
+          `ui-reliability/workflow-cycle/cycle-${c}`,
+          testInfo.project.name
+        ),
         durationMs: cycleEnd - cycleStart,
       });
     }

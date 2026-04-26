@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
-import { defineConfig } from 'vite';
+import { defineConfig, loadEnv } from 'vite';
 import removeConsole from 'vite-plugin-remove-console';
 
 const __rootDir = dirname(fileURLToPath(import.meta.url));
@@ -61,8 +61,25 @@ const manualChunks = (id: string): string | undefined => {
 
 const usePlaywrightTauriStub = process.env.VITE_PLAYWRIGHT === '1';
 
+/**
+ * Build-time hint: whether the dev/build environment suggests DeepSeek
+ * (AI_API_KEY) is set or explicitly opted in via VITE flags. The packaged app
+ * may still have different runtime host env; users can set VITE_DEEPSEEK_API_CONFIGURED
+ * in .env to align the UI warning with their setup.
+ */
+function isDeepseekExtractionEnvHintOk(mode: string, root: string): boolean {
+  const env = loadEnv(mode, root, '');
+  const p = (k: string) => env[k] ?? process.env[k];
+  const key = p('AI_API_KEY')?.trim() ?? '';
+  if (key !== '') return true;
+  const c = p('VITE_DEEPSEEK_API_CONFIGURED');
+  if (c === 'true' || c === '1') return true;
+  if (p('VITE_PLAYWRIGHT') === '1') return true;
+  return false;
+}
+
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     tailwindcss(),
@@ -101,6 +118,9 @@ export default defineConfig({
     'import.meta.env.VITE_APP_VERSION': JSON.stringify(appVersion),
     'import.meta.env.VITE_BUILD_TIME': JSON.stringify(appBuildTime),
     'import.meta.env.VITE_GIT_COMMIT': JSON.stringify(gitShort),
+    'import.meta.env.IMPORT_MANAGER_DEEPSEEK_ENV_OK': JSON.stringify(
+      isDeepseekExtractionEnvHintOk(mode, __rootDir) ? 'true' : 'false'
+    ),
   },
   build: {
     // 4. Tauri uses Chromium on Windows - edgeDAMN WebView2
@@ -155,4 +175,4 @@ export default defineConfig({
   css: {
     devSourcemap: true,
   },
-});
+}));

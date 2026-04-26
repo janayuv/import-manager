@@ -5,10 +5,14 @@ import fs from 'node:fs';
 import Papa from 'papaparse';
 import { expect, test, type Page } from '@playwright/test';
 
-import { appendPerformanceMetric } from './performance-metrics';
+import {
+  appendPerformanceMetric,
+  withProjectTestName,
+} from './performance-metrics';
 import {
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
+  setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
@@ -165,12 +169,10 @@ test.describe('UI performance (large datasets)', () => {
 
     await content.getByRole('button', { name: 'Table' }).click();
 
-    const importChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    const fc = await importChooser;
 
     const startMs = await page.evaluate(() => performance.now());
-    await fc.setFiles({
+    await setFilesOnBridgeFileInput(page, {
       name: `perf-shipments-${LARGE_SHIPMENT_COUNT}.csv`,
       mimeType: 'text/csv',
       buffer: csv,
@@ -182,7 +184,10 @@ test.describe('UI performance (large datasets)', () => {
     const endMs = await page.evaluate(() => performance.now());
     const elapsed = endMs - startMs;
     appendPerformanceMetric({
-      testName: `ui-performance/shipment-import-${LARGE_SHIPMENT_COUNT}-rows`,
+      testName: withProjectTestName(
+        `ui-performance/shipment-import-${LARGE_SHIPMENT_COUNT}-rows`,
+        testInfo.project.name
+      ),
       durationMs: elapsed,
     });
     await testInfo.attach('perf-shipment-import-ms.txt', {
@@ -216,12 +221,10 @@ test.describe('UI performance (large datasets)', () => {
       timeout: 20_000,
     });
 
-    const importChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import Bulk' }).click();
-    const fc = await importChooser;
 
     const startMs = await page.evaluate(() => performance.now());
-    await fc.setFiles({
+    await setFilesOnBridgeFileInput(page, {
       name: `perf-invoices-${LARGE_INVOICE_LINE_COUNT}.csv`,
       mimeType: 'text/csv',
       buffer: csv,
@@ -233,7 +236,10 @@ test.describe('UI performance (large datasets)', () => {
     const endMs = await page.evaluate(() => performance.now());
     const elapsed = endMs - startMs;
     appendPerformanceMetric({
-      testName: `ui-performance/invoice-bulk-import-${LARGE_INVOICE_LINE_COUNT}-lines`,
+      testName: withProjectTestName(
+        `ui-performance/invoice-bulk-import-${LARGE_INVOICE_LINE_COUNT}-lines`,
+        testInfo.project.name
+      ),
       durationMs: elapsed,
     });
     await testInfo.attach('perf-invoice-import-ms.txt', {
@@ -304,7 +310,10 @@ test.describe('UI performance (large datasets)', () => {
     });
     const expenseImportEnd = await page.evaluate(() => performance.now());
     appendPerformanceMetric({
-      testName: `ui-performance/expense-import-${LARGE_EXPENSE_COUNT}-rows`,
+      testName: withProjectTestName(
+        `ui-performance/expense-import-${LARGE_EXPENSE_COUNT}-rows`,
+        testInfo.project.name
+      ),
       durationMs: expenseImportEnd - expenseImportStart,
     });
 
@@ -327,14 +336,20 @@ test.describe('UI performance (large datasets)', () => {
     const exportText = fs.readFileSync(exportPath, 'utf-8');
     const exportEnd = await page.evaluate(() => performance.now());
     appendPerformanceMetric({
-      testName: `ui-performance/expense-report-csv-export-${LARGE_EXPENSE_COUNT}-rows`,
+      testName: withProjectTestName(
+        `ui-performance/expense-report-csv-export-${LARGE_EXPENSE_COUNT}-rows`,
+        testInfo.project.name
+      ),
       durationMs: exportEnd - exportStart,
     });
 
     const flowEnd = await page.evaluate(() => performance.now());
     const elapsed = flowEnd - flowStart;
     appendPerformanceMetric({
-      testName: `ui-performance/expense-flow-import-report-export-${LARGE_EXPENSE_COUNT}-rows`,
+      testName: withProjectTestName(
+        `ui-performance/expense-flow-import-report-export-${LARGE_EXPENSE_COUNT}-rows`,
+        testInfo.project.name
+      ),
       durationMs: elapsed,
     });
     await testInfo.attach('perf-expense-flow-ms.txt', {

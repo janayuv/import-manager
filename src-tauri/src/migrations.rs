@@ -2,6 +2,7 @@
 use refinery::embed_migrations;
 use rusqlite::{params, Connection, Result};
 use std::path::Path;
+use std::time::Instant;
 
 embed_migrations!("migrations");
 
@@ -16,6 +17,7 @@ const SOFT_DELETE_TABLES: &[&str] = &[
     "expense_types",
     "expense_invoices",
     "expenses",
+    "workflow_incidents",
 ];
 
 /// Index name, table, column (for `CREATE INDEX IF NOT EXISTS … ON table(column)`).
@@ -30,6 +32,35 @@ const SOFT_DELETE_INDEXES: &[(&str, &str, &str)] = &[
     ("idx_expense_types_deleted_at", "expense_types", "deleted_at"),
     ("idx_expense_invoices_deleted_at", "expense_invoices", "deleted_at"),
     ("idx_expenses_deleted_at", "expenses", "deleted_at"),
+    (
+        "idx_workflow_incidents_deleted_at",
+        "workflow_incidents",
+        "deleted_at",
+    ),
+];
+
+/// `ai_extraction_log` required columns (V46); nullable columns are still part of the contract.
+const AI_EXTRACTION_LOG_TABLE: &str = "ai_extraction_log";
+/// V48 performance indexes (IF NOT EXISTS in SQL); verified in [verify_schema_integrity].
+const V48_PERFORMANCE_INDEXES: &[&str] = &[
+    "idx_shipments_supplier_invoice",
+    "idx_suppliers_name",
+    "idx_items_part_number",
+    "idx_ai_extraction_log_created",
+];
+const AI_EXTRACTION_LOG_REQUIRED_COLUMNS: &[&str] = &[
+    "id",
+    "file_hash",
+    "file_name",
+    "supplier_hint",
+    "provider_used",
+    "prompt_version",
+    "raw_ai_response",
+    "extracted_json",
+    "confidence_score",
+    "status",
+    "created_at",
+    "created_by",
 ];
 
 pub struct DatabaseMigrations;
@@ -73,6 +104,18 @@ fn table_has_column(conn: &Connection, table: &str, col: &str) -> Result<bool> {
 /// Case-insensitive column check. `table` must be a trusted identifier (constants only).
 pub fn column_exists(conn: &Connection, table: &str, column: &str) -> Result<bool, String> {
     table_has_column(conn, table, column).map_err(|e| e.to_string())
+}
+
+/// True if a user index exists (`sqlite_master` name match). `index_name` is trusted (constants only).
+fn index_exists(conn: &Connection, index_name: &str) -> Result<bool, String> {
+    let n: i32 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type='index' AND name=?1",
+            [index_name],
+            |r| r.get(0),
+        )
+        .map_err(|e| e.to_string())?;
+    Ok(n > 0)
 }
 
 fn execute_alter_ignore_duplicate(conn: &Connection, sql: &str) -> Result<(), String> {
@@ -350,6 +393,104 @@ fn require_migration_head(conn: &Connection) -> Result<i32, String> {
     Ok(v)
 }
 
+/// Escape a host path for use inside SQLite `VACUUM INTO '…'` (single-quoted literal).
+fn path_for_vacuum_into(dest: &Path) -> String {
+    let normalized = dest.to_string_lossy().replace('\\', "/");
+    normalized.replace('\'', "''")
+}
+
+/// Snapshot the open database to `dest` before running migrations (restore by replacing the main DB file).
+pub fn backup_database(conn: &Connection, dest: &Path) -> Result<(), String> {
+    if let Some(parent) = dest.parent() {
+        if !parent.as_os_str().is_empty() {
+            std::fs::create_dir_all(parent).map_err(|e| format!("backup create_dir_all: {e}"))?;
+        }
+    }
+    if dest.exists() {
+        std::fs::remove_file(dest).map_err(|e| format!("backup remove existing: {e}"))?;
+    }
+    let quoted = path_for_vacuum_into(dest);
+    let sql = format!("VACUUM INTO '{quoted}'");
+    conn
+        .execute(&sql, [])
+        .map_err(|e| format!("VACUUM INTO backup failed: {e}"))?;
+    log::info!(
+        target: "import_manager::migrations",
+        "Pre-migration database backup written to {}",
+        dest.display()
+    );
+    Ok(())
+}
+
+/// Validates critical workflow tables, soft-delete columns, and refinery history after migrations.
+/// Returns a readable error (no panic) if anything is missing.
+pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
+    let mut problems: Vec<String> = Vec::new();
+
+    for table in [
+        "workflow_incidents",
+        "workflow_incident_history",
+        "workflow_failure_forecast",
+    ] {
+        if !table_exists(conn, table).map_err(|e| e.to_string())? {
+            problems.push(table.to_string());
+        }
+    }
+
+    if !column_exists(conn, "workflow_incidents", "deleted_at").map_err(|e| e.to_string())? {
+        problems.push("workflow_incidents.deleted_at".to_string());
+    }
+    if !column_exists(conn, "workflow_incidents", "deleted_by").map_err(|e| e.to_string())? {
+        problems.push("workflow_incidents.deleted_by".to_string());
+    }
+
+    if !table_exists(conn, AI_EXTRACTION_LOG_TABLE).map_err(|e| e.to_string())? {
+        problems.push("ai_extraction_log".to_string());
+    } else {
+        for col in AI_EXTRACTION_LOG_REQUIRED_COLUMNS {
+            if !column_exists(conn, AI_EXTRACTION_LOG_TABLE, col)
+                .map_err(|e| e.to_string())?
+            {
+                problems.push(format!("{AI_EXTRACTION_LOG_TABLE}.{col}"));
+            }
+        }
+    }
+
+    if !migration_table_exists(conn).map_err(|e| e.to_string())? {
+        problems.push("refinery_schema_history (table missing)".to_string());
+    } else {
+        let n: i32 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM refinery_schema_history",
+                [],
+                |r| r.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        if n == 0 {
+            problems.push("refinery_schema_history (empty)".to_string());
+        }
+    }
+
+    for idx in V48_PERFORMANCE_INDEXES {
+        if !index_exists(conn, idx).map_err(|e| e.to_string())? {
+            problems.push(format!("index missing: {idx}"));
+        }
+    }
+
+    if problems.is_empty() {
+        log::info!(
+            target: "import_manager::migrations",
+            "Schema integrity verification passed"
+        );
+        return Ok(());
+    }
+
+    let detail = problems.join(", ");
+    let msg = format!("Schema integrity verification failed: missing or invalid: {detail}");
+    log::error!(target: "import_manager::migrations", "{msg}");
+    Err(msg)
+}
+
 impl DatabaseMigrations {
     #[cfg(test)]
     pub fn run_migrations_test(conn: &mut Connection) -> Result<(), String> {
@@ -358,6 +499,7 @@ impl DatabaseMigrations {
 
     /// 1) Full refinery run. 2) Post-migration DDL (soft delete + indexes + tax columns). 3) Validate history.
     fn run_migrations_once(conn: &mut Connection) -> std::result::Result<usize, String> {
+        let start = Instant::now();
         log::info!(
             target: "import_manager::migrations",
             "Running database migrations"
@@ -376,54 +518,66 @@ impl DatabaseMigrations {
             "Refinery schema head: version {}",
             head
         );
+        if applied == 0 {
+            log::info!(
+                target: "import_manager::migrations",
+                "No pending migrations to apply"
+            );
+        } else {
+            log::info!(
+                target: "import_manager::migrations",
+                "Applied {} migration(s) in this run",
+                applied
+            );
+        }
+        log::info!(
+            target: "import_manager::migrations",
+            "Migrations completed in {} ms",
+            start.elapsed().as_millis()
+        );
+
+        verify_schema_integrity(conn)?;
+
+        log::info!(
+            target: "import_manager::migrations",
+            "Migrations pipeline complete"
+        );
         Ok(applied)
     }
 
-    pub fn run_migrations(conn: &mut Connection) -> Result<()> {
-        let backup_path = Path::new("import-manager.db.backup");
-        if backup_path.exists() {
-            if let Err(e) = std::fs::remove_file(backup_path) {
-                log::warn!("Failed to remove existing backup: {}", e);
-            }
-        }
+    /// Runs pre-migration backup, refinery + post steps, schema integrity checks, and timing logs.
+    pub fn run_migrations(conn: &mut Connection, pre_migration_backup: &Path) -> Result<(), String> {
+        log::info!(
+            target: "import_manager::migrations",
+            "Creating pre-migration backup at {}",
+            pre_migration_backup.display()
+        );
+        let backup_start = Instant::now();
+        backup_database(conn, pre_migration_backup)?;
+        log::info!(
+            target: "import_manager::migrations",
+            "Pre-migration backup finished in {} ms",
+            backup_start.elapsed().as_millis()
+        );
 
         match Self::run_migrations_once(conn) {
-            Ok(applied_count) => {
-                if applied_count == 0 {
-                    log::info!(
-                        target: "import_manager::migrations",
-                        "No pending migrations to apply"
-                    );
-                } else {
-                    log::info!(
-                        target: "import_manager::migrations",
-                        "Applied {} migration(s) in this run",
-                        applied_count
-                    );
-                    let backup_str = backup_path.to_str().ok_or_else(|| {
-                        rusqlite::Error::InvalidPath("Invalid backup path".into())
-                    })?;
-                    conn.execute(&format!("VACUUM INTO '{}'", backup_str), [])?;
-                    log::info!(
-                        target: "import_manager::migrations",
-                        "Database backup created at import-manager.db.backup"
-                    );
-                }
-                log::info!(
-                    target: "import_manager::migrations",
-                    "Migrations complete"
-                );
-                Ok(())
-            }
+            Ok(_) => Ok(()),
             Err(e) => {
                 log::error!("Migration failed: {}", e);
                 if e.contains("different than filesystem") {
                     log::error!(
                         "Migration checksum mismatch with refinery_schema_history. \
-                         Restore from import-manager.db.backup or repair the database."
+                         Restore the database file from the pre-migration backup at {} if needed.",
+                        pre_migration_backup.display()
+                    );
+                } else {
+                    log::error!(
+                        target: "import_manager::migrations",
+                        "If the database is unusable, restore from {}",
+                        pre_migration_backup.display()
                     );
                 }
-                Err(rusqlite::Error::InvalidPath(e.into()))
+                Err(e)
             }
         }
     }
@@ -506,6 +660,77 @@ mod tests {
             "soft-delete columns must exist after migrations"
         );
 
+        assert!(
+            table_exists(&conn, AI_EXTRACTION_LOG_TABLE)
+                .map_err(|e| format!("table_exists: {}", e))?,
+            "ai_extraction_log must exist after migrations"
+        );
+        for col in AI_EXTRACTION_LOG_REQUIRED_COLUMNS {
+            assert!(
+                column_exists(&conn, AI_EXTRACTION_LOG_TABLE, col)
+                    .map_err(|e| format!("column_exists {col}: {e}"))?,
+                "ai_extraction_log.{col} must exist"
+            );
+        }
+
+        let max_v: i32 = conn.query_row(
+            "SELECT MAX(version) FROM refinery_schema_history",
+            [],
+            |r| r.get(0),
+        )?;
+        assert!(
+            max_v >= 48,
+            "expected migration head at least V48 (performance indexes), got {max_v}"
+        );
+
+        assert!(
+            user_table_exists(&conn, "app_settings")
+                .map_err(|e| format!("app_settings: {e}"))?,
+            "app_settings must exist after migrations"
+        );
+
         Ok(())
+    }
+
+    #[test]
+    fn test_ai_extraction_log_migration_idempotent_rerun() -> Result<(), Box<dyn std::error::Error>> {
+        let mut conn = Connection::open_in_memory()?;
+
+        DatabaseMigrations::run_migrations_test(&mut conn)
+            .map_err(|e| format!("first run_migrations_test: {e}"))?;
+        verify_schema_integrity(&conn).map_err(|e| format!("verify after first: {e}"))?;
+
+        DatabaseMigrations::run_migrations_test(&mut conn)
+            .map_err(|e| format!("second run_migrations_test (idempotent): {e}"))?;
+        verify_schema_integrity(&conn).map_err(|e| format!("verify after second: {e}"))?;
+
+        Ok(())
+    }
+
+    fn assert_v48_indexes(conn: &Connection) -> Result<(), String> {
+        for idx in V48_PERFORMANCE_INDEXES {
+            if !index_exists(conn, idx)? {
+                return Err(format!("index must exist: {idx}"));
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn v48_performance_indexes_present_after_migrations() -> Result<(), String> {
+        let mut conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
+        DatabaseMigrations::run_migrations_test(&mut conn)?;
+        assert_v48_indexes(&conn)
+    }
+
+    /// Second migration run is a no-op for `CREATE INDEX IF NOT EXISTS` (V48); schema verify still passes.
+    #[test]
+    fn v48_migrations_idempotent() -> Result<(), String> {
+        let mut conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
+        DatabaseMigrations::run_migrations_test(&mut conn)?;
+        assert_v48_indexes(&conn)?;
+        DatabaseMigrations::run_migrations_test(&mut conn)?;
+        assert_v48_indexes(&conn)?;
+        verify_schema_integrity(&conn)
     }
 }

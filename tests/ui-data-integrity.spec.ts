@@ -8,6 +8,7 @@ import { expect, test, type Download, type Page } from '@playwright/test';
 import {
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
+  setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
@@ -136,9 +137,8 @@ test.describe('UI data integrity (import vs export)', () => {
       timeout: 20_000,
     });
 
-    const importChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await importChooser).setFiles(shipmentValidCsv);
+    await setFilesOnBridgeFileInput(page, shipmentValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
     });
@@ -193,9 +193,8 @@ test.describe('UI data integrity (import vs export)', () => {
       timeout: 20_000,
     });
 
-    const fc = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import Bulk' }).click();
-    (await fc).setFiles(invoiceBulkValidCsv);
+    await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
     });
@@ -265,9 +264,8 @@ test.describe('UI data integrity (import vs export)', () => {
     await expectPageMarker(page, 'Bill of Entry Details');
 
     const content = appContent(page);
-    const fc = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await fc).setFiles(boeValidCsv);
+    await setFilesOnBridgeFileInput(page, boeValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
     });

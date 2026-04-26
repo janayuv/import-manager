@@ -15,6 +15,18 @@ export type PerformanceHistoryEntry = {
   durationMs: number;
 };
 
+/**
+ * Drift and regression use `testName` as the only key. Full `test:e2e` runs
+ * Chromium, then Firefox, then WebKit; without a project suffix, samples from
+ * different engines are mixed and slopes become meaningless (false critical drift).
+ */
+export function withProjectTestName(
+  testName: string,
+  projectName: string
+): string {
+  return `${testName}@${projectName}`;
+}
+
 const HISTORY_REL = path.join('test-results', 'performance-history.json');
 const BASELINES_REL = path.join('test-results', 'performance-baselines.json');
 const DRIFT_STATE_REL = path.join('test-results', 'drift-state.json');

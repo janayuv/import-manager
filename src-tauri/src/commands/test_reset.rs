@@ -59,7 +59,8 @@ pub fn reset_test_database(app: AppHandle, state: State<'_, DbState>) -> Result<
     }
 
     let mut new_conn = db::create_new_database(&db_path)?;
-    DatabaseMigrations::run_migrations(&mut new_conn).map_err(|e| e.to_string())?;
+    let pre_migration_backup = data_dir.join("import-manager.db.backup");
+    DatabaseMigrations::run_migrations(&mut new_conn, &pre_migration_backup)?;
     seed_minimal_test_data(&new_conn)?;
 
     {

@@ -1528,6 +1528,106 @@ export async function invoke<T = unknown>(
     case 'export_backup_key_to_path':
     case 'import_backup_key_from_path':
       return undefined as T;
+    case 'extract_invoice_with_ai':
+      return {
+        supplier: { supplierName: 'Demo Supplier Pvt Ltd' },
+        shipment: {
+          invoiceNumber: 'INV-DEMO-001',
+          invoiceDate: '2025-01-01',
+          invoiceValue: 1250.0,
+          invoiceCurrency: 'USD',
+        },
+        invoice: {
+          shipmentTotal: 1250.0,
+          lineItems: [
+            {
+              partNumber: 'P-1001',
+              itemName: 'Demo Bolt',
+              quantity: 100,
+              unitPrice: 12.5,
+            },
+          ],
+        },
+        confidenceScore: 0.85,
+        logId: 1,
+      } as T;
+    case 'get_ai_extraction_summary':
+      return {
+        total: 0,
+        successCount: 0,
+        failureCount: 0,
+        ocrCount: 0,
+        avgConfidence: null,
+      } as T;
+    case 'get_provider_usage_summary':
+      return [] as T;
+    case 'get_ai_provider_settings':
+      return {
+        aiProvider: 'mock',
+        deepseekApiKey: '',
+        ollamaEndpoint: 'http://localhost:11434/api/chat',
+        ollamaModel: 'llama3',
+      } as T;
+    case 'set_ai_provider_settings':
+      return undefined as T;
+    case 'get_ai_extraction_config_hint':
+      return {
+        defaultProvider: 'mock',
+        deepseekConfigured: false,
+        ollamaEndpointResolved: true,
+      } as T;
+    case 'process_invoice_batch': {
+      const files = (args as { files?: { fileName?: string }[] } | undefined)
+        ?.files;
+      if (!files?.length) {
+        return {
+          results: [],
+          total: 0,
+          successCount: 0,
+          errorCount: 0,
+        } as T;
+      }
+      return {
+        results: files.map((f, i) => ({
+          fileName: f.fileName ?? `file-${i}`,
+          status: 'success' as const,
+          error: null,
+          confidenceScore: 0.85,
+          logId: i + 1,
+          extraction: {
+            supplier: { supplierName: 'Demo Supplier Pvt Ltd' },
+            shipment: {
+              invoiceNumber: 'INV-DEMO-001',
+              invoiceDate: '2025-01-01',
+              invoiceValue: 1250.0,
+              invoiceCurrency: 'USD',
+            },
+            invoice: {
+              shipmentTotal: 1250.0,
+              lineItems: [
+                {
+                  partNumber: 'P-1001',
+                  itemName: 'Demo Bolt',
+                  quantity: 100,
+                  unitPrice: 12.5,
+                },
+              ],
+            },
+            confidenceScore: 0.85,
+            logId: i + 1,
+          },
+        })),
+        total: files.length,
+        successCount: files.length,
+        errorCount: 0,
+      } as T;
+    }
+    case 'save_ai_extracted_invoice':
+      return {
+        shipmentId: 'SHP-stub-001',
+        invoiceId: 'INV-stub-001',
+        warnings: [] as string[],
+      } as T;
     default:
       if (cmd.startsWith('get_') || cmd.startsWith('browse_')) {
         return [] as unknown as T;

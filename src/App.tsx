@@ -35,11 +35,14 @@ import ExpenseDataManagerPage from '@/pages/expense-data-manager';
 import ExpenseReportsPage from '@/pages/expense-reports';
 import ExpensesPage from '@/pages/expenses';
 import FrozenShipmentsPage from '@/pages/frozen-shipments';
+import AIInvoicePage from '@/pages/ai-invoice/AIInvoicePage';
+import AIAnalyticsDashboard from '@/pages/ai-invoice/AIAnalyticsDashboard';
 import InvoicePage from '@/pages/invoice';
 import InvoiceWizardPage from '@/pages/invoice-wizard';
 import ItemMasterPage from '@/pages/item';
 import ReportsPage from '@/pages/reports';
 import SettingsPage from '@/pages/settings';
+import AIProviderSettingsPage from '@/pages/ai-provider/AIProviderSettingsPage';
 import ShipmentPage from '@/pages/shipment';
 import SupplierPage from '@/pages/supplier';
 import DatabaseManagement from '@/pages/database-management';
@@ -116,6 +119,14 @@ function App() {
                           <Route
                             path="/invoice-wizard"
                             element={<InvoiceWizardPage />}
+                          />
+                          <Route
+                            path="/ai-invoice"
+                            element={<AIInvoicePage />}
+                          />
+                          <Route
+                            path="/ai-analytics"
+                            element={<AIAnalyticsDashboard />}
                           />
 
                           <Route
@@ -196,6 +207,10 @@ function App() {
                             element={<AccountPasswordPage />}
                           />
                           <Route path="/settings" element={<SettingsPage />} />
+                          <Route
+                            path="/settings/ai-provider"
+                            element={<AIProviderSettingsPage />}
+                          />
                           <Route
                             path="/database-management"
                             element={<DatabaseManagement />}

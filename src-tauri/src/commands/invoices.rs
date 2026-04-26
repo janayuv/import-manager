@@ -247,7 +247,7 @@ pub fn bulk_finalize_invoices(
     })
 }
 
-fn execute_add_invoice(
+pub(crate) fn execute_add_invoice(
     tx: &Transaction,
     payload: &NewInvoicePayload,
 ) -> Result<String, rusqlite::Error> {

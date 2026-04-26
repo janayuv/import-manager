@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
+  setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
@@ -110,9 +111,8 @@ async function gotoSupplierPageWithStubReset(page: Page) {
 }
 
 async function pickSupplierCsv(page: Page, csvPath: string) {
-  const fileChooser = page.waitForEvent('filechooser');
   await appContent(page).getByRole('button', { name: 'Import' }).click();
-  (await fileChooser).setFiles(csvPath);
+  await setFilesOnBridgeFileInput(page, csvPath);
 }
 
 async function expectSupplierErrorToast(page: Page) {
@@ -227,9 +227,8 @@ test.describe('UI smoke', () => {
     const template = await templateDownload;
     expect(template.suggestedFilename()).toMatch(/supplier/i);
 
-    const fileChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await fileChooser).setFiles(supplierFixture);
+    await setFilesOnBridgeFileInput(page, supplierFixture);
 
     const toast = page.locator('[data-sonner-toast]');
     await expect(toast.first()).toBeVisible({ timeout: 20_000 });

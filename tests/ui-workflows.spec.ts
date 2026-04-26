@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
+  setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
@@ -115,9 +116,8 @@ test.describe('UI workflows', () => {
     const template = await templateDl;
     expect(template.suggestedFilename()).toMatch(/shipment|template/i);
 
-    const importChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await importChooser).setFiles(shipmentValidCsv);
+    await setFilesOnBridgeFileInput(page, shipmentValidCsv);
 
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
@@ -150,9 +150,8 @@ test.describe('UI workflows', () => {
       timeout: 20_000,
     });
 
-    const fileChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import Bulk' }).click();
-    (await fileChooser).setFiles(invoiceBulkValidCsv);
+    await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
 
     const importToast = sonnerSuccess(page, 'Import Complete');
     await expect(importToast).toBeVisible({ timeout: 20_000 });
@@ -171,9 +170,8 @@ test.describe('UI workflows', () => {
 
     const content = appContent(page);
     const pickCsv = async (csvPath: string) => {
-      const fc = page.waitForEvent('filechooser');
       await content.getByRole('button', { name: 'Import' }).click();
-      (await fc).setFiles(csvPath);
+      await setFilesOnBridgeFileInput(page, csvPath);
     };
 
     await pickCsv(itemMasterValidCsv);
@@ -197,9 +195,8 @@ test.describe('UI workflows', () => {
     await expectPageMarker(page, 'Bill of Entry Details');
 
     const content = appContent(page);
-    const fc = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await fc).setFiles(boeValidCsv);
+    await setFilesOnBridgeFileInput(page, boeValidCsv);
 
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,

@@ -5,6 +5,7 @@ import { expect, test, type Page } from '@playwright/test';
 import {
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
+  setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
@@ -120,9 +121,8 @@ test.describe('UI edge cases and import failures', () => {
       timeout: 20_000,
     });
 
-    const importChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await importChooser).setFiles(shipmentInvalidWrongHeaders);
+    await setFilesOnBridgeFileInput(page, shipmentInvalidWrongHeaders);
 
     await expect(
       sonnerError(page, /Invalid Shipment Import|invalid shipment import/i)
@@ -145,9 +145,8 @@ test.describe('UI edge cases and import failures', () => {
       timeout: 20_000,
     });
 
-    const fileChooser = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import Bulk' }).click();
-    (await fileChooser).setFiles(invoiceBulkUnknownShipment);
+    await setFilesOnBridgeFileInput(page, invoiceBulkUnknownShipment);
 
     await expect(
       sonnerWarning(page, /Skipping row: Shipment with invoice number/i)
@@ -168,9 +167,8 @@ test.describe('UI edge cases and import failures', () => {
     await expectPageMarker(page, 'Item Master');
 
     const content = appContent(page);
-    const fc = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await fc).setFiles(itemMasterDuplicatePartNumbers);
+    await setFilesOnBridgeFileInput(page, itemMasterDuplicatePartNumbers);
 
     await expect(
       sonnerWarning(page, /duplicate items were skipped/i)
@@ -189,9 +187,8 @@ test.describe('UI edge cases and import failures', () => {
     await expectPageMarker(page, 'Bill of Entry Details');
 
     const content = appContent(page);
-    const fc = page.waitForEvent('filechooser');
     await content.getByRole('button', { name: 'Import' }).click();
-    (await fc).setFiles(boeInvalidWrongHeaders);
+    await setFilesOnBridgeFileInput(page, boeInvalidWrongHeaders);
 
     await expect(sonnerError(page, /Import Failed/i)).toBeVisible({
       timeout: 20_000,

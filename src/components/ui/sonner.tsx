@@ -7,8 +7,8 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme={theme as ToasterProps['theme']}
-      className="toaster group pointer-events-auto"
-      position="top-right"
+      className="toaster group pointer-events-none"
+      position="bottom-right"
       expand
       richColors
       closeButton
@@ -16,7 +16,7 @@ const Toaster = ({ ...props }: ToasterProps) => {
       toastOptions={{
         classNames: {
           toast:
-            '!border !border-border !shadow-lg !opacity-100 !backdrop-blur-none ' +
+            '!pointer-events-auto !border !border-border !shadow-lg !opacity-100 !backdrop-blur-none ' +
             '!bg-popover !text-popover-foreground',
           title: '!text-popover-foreground font-semibold text-sm',
           description: '!text-popover-foreground/95 mt-1 text-sm',

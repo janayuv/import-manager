@@ -7,6 +7,15 @@ declare module 'vite/client' {
     readonly VITE_APP_VERSION: string;
     readonly VITE_BUILD_TIME: string;
     readonly VITE_GIT_COMMIT: string;
+    /**
+     * Build-time "true" | "false" — see `vite.config.ts` (AI_API_KEY / VITE_DEEPSEEK flags).
+     */
+    readonly IMPORT_MANAGER_DEEPSEEK_ENV_OK: string;
+    /**
+     * Optional. Set to `true` in `.env` when the runtime host is configured
+     * for DeepSeek to align the "API key" warning in the UI.
+     */
+    readonly VITE_DEEPSEEK_API_CONFIGURED?: string;
   }
 }
 

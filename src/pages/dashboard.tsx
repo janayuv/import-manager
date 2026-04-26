@@ -1468,7 +1468,7 @@ const DashboardPage = () => {
           <Card className="flex min-h-0 flex-col">
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-4">
-                <CardTitle>Shipment analytics</CardTitle>
+                <CardTitle>Shipment Analytics</CardTitle>
                 <div className="flex items-center gap-2">
                   <LayoutControls
                     onReset={() => {}}
@@ -1569,7 +1569,7 @@ const DashboardPage = () => {
           <div className="flex min-h-0 flex-col space-y-4">
             <Card className="flex min-h-0 flex-col">
               <CardHeader>
-                <CardTitle>Shipment status</CardTitle>
+                <CardTitle>Shipment Status</CardTitle>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 p-4 pt-0">
                 <div className="h-[160px] min-h-0 w-full">
@@ -1605,7 +1605,7 @@ const DashboardPage = () => {
 
             <Card className="flex min-h-0 flex-col">
               <CardHeader>
-                <CardTitle>Invoice trend</CardTitle>
+                <CardTitle>Invoice Trend</CardTitle>
               </CardHeader>
               <CardContent className="min-h-0 flex-1 p-4 pt-0">
                 <div className="h-[160px] min-h-0 w-full">
@@ -1739,7 +1739,7 @@ const DashboardPage = () => {
       {showExpenses && (
         <Card>
           <CardHeader>
-            <CardTitle>Expenses overview</CardTitle>
+            <CardTitle>Expenses Overview</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap items-center gap-6">

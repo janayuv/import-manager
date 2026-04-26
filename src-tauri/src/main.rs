@@ -1,13 +1,27 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(clippy::uninlined_format_args)]
 
+mod crypto_utils;
+mod app_settings;
+mod ai_provider;
+mod ai_prompt_builder;
 mod commands;
+mod deepseek_client;
+mod excel_parser;
+mod ollama_client;
+mod ocr_engine;
+mod confidence_engine;
+mod duplicate_detector;
+mod retry_engine;
+mod batch_processor;
+mod ai_analytics;
 mod db;
 mod encryption;
 mod expense;
 mod migrations;
 mod playwright_db;
 mod restore_control;
+mod supplier_matcher;
 mod utils;
 
 // Re-export commonly used types
@@ -110,10 +124,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?
             };
 
-            // Run migrations
-            if let Err(e) = migrations::DatabaseMigrations::run_migrations(&mut db_connection) {
+            // Run migrations (pre-migration snapshot beside the DB file for instant rollback)
+            let pre_migration_backup = data_dir.join("import-manager.db.backup");
+            if let Err(e) = migrations::DatabaseMigrations::run_migrations(
+                &mut db_connection,
+                &pre_migration_backup,
+            ) {
                 log::error!("Failed to run database migrations: {}", e);
-                return Err(Box::new(e));
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, e).into());
             }
 
             if let Err(e) = commands::recycle_bin::cleanup_expired_recycle_records(
@@ -187,6 +205,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::bulk_finalize_invoices,
             commands::delete_invoice,
             commands::get_unfinalized_shipments,
+            commands::extract_invoice_with_ai,
+            batch_processor::process_invoice_batch,
+            commands::save_ai_extracted_invoice,
+            ai_analytics::get_ai_extraction_summary,
+            ai_analytics::get_provider_usage_summary,
+            app_settings::get_ai_provider_settings,
+            app_settings::set_ai_provider_settings,
+            app_settings::get_ai_extraction_config_hint,
 
             // BOE Details commands
             commands::get_boes,
