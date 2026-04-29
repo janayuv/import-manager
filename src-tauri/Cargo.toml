@@ -25,7 +25,7 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 paste = "1.0"
-keyring = "3.6"
+keyring = "4.0"
 base64 = "0.21"
 hex = "0.4"
 refinery = { version = "0.8", features = ["rusqlite"] }
