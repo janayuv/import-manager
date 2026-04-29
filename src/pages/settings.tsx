@@ -1,6 +1,7 @@
 // src/pages/settings.tsx
 'use client';
 
+import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
 import * as React from 'react';
@@ -28,6 +29,7 @@ import {
   formatText,
   loadSettings,
 } from '@/lib/settings';
+import { useCurrentUserId } from '@/lib/user-context';
 import { useSettings } from '@/lib/use-settings';
 
 // src/pages/settings.tsx
@@ -37,6 +39,7 @@ import { useSettings } from '@/lib/use-settings';
 // src/pages/settings.tsx
 
 export default function SettingsPage() {
+  const userId = useCurrentUserId();
   const {
     settings,
     updateSettings,
@@ -46,6 +49,50 @@ export default function SettingsPage() {
   } = useSettings();
   const [selectedModule, setSelectedModule] = React.useState<string | null>(
     null
+  );
+  const [lineTotalDecimals, setLineTotalDecimals] = React.useState<0 | 2>(2);
+  const [invoiceTotalDecimals, setInvoiceTotalDecimals] = React.useState<0 | 2>(
+    2
+  );
+
+  React.useEffect(() => {
+    let isMounted = true;
+    invoke<{ lineTotalDecimals: 0 | 2; invoiceTotalDecimals: 0 | 2 }>(
+      'get_invoice_calculation_settings'
+    )
+      .then(config => {
+        if (!isMounted) return;
+        setLineTotalDecimals(config.lineTotalDecimals);
+        setInvoiceTotalDecimals(config.invoiceTotalDecimals);
+      })
+      .catch(error => {
+        console.error('Failed to load invoice calculation settings:', error);
+      });
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const persistInvoiceCalculationSettings = React.useCallback(
+    async (lineDecimals: 0 | 2, invoiceDecimals: 0 | 2) => {
+      try {
+        const updated = await invoke<{
+          lineTotalDecimals: 0 | 2;
+          invoiceTotalDecimals: 0 | 2;
+        }>('set_invoice_calculation_settings', {
+          lineTotalDecimals: lineDecimals,
+          invoiceTotalDecimals: invoiceDecimals,
+          userId,
+        });
+        setLineTotalDecimals(updated.lineTotalDecimals);
+        setInvoiceTotalDecimals(updated.invoiceTotalDecimals);
+        toast.success('Invoice calculation settings updated');
+      } catch (error) {
+        console.error('Failed to save invoice calculation settings:', error);
+        toast.error('Failed to save invoice calculation settings');
+      }
+    },
+    [userId]
   );
 
   const handleSave = () => {
@@ -142,6 +189,56 @@ export default function SettingsPage() {
       )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Invoice Calculation Settings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <div>
+                <Label>Line Total Precision</Label>
+                <Select
+                  value={lineTotalDecimals.toString()}
+                  onValueChange={value =>
+                    void persistInvoiceCalculationSettings(
+                      value === '0' ? 0 : 2,
+                      invoiceTotalDecimals
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">2 decimals</SelectItem>
+                    <SelectItem value="0">0 decimals</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label>Invoice Total Precision</Label>
+                <Select
+                  value={invoiceTotalDecimals.toString()}
+                  onValueChange={value =>
+                    void persistInvoiceCalculationSettings(
+                      lineTotalDecimals,
+                      value === '0' ? 0 : 2
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="2">2 decimals</SelectItem>
+                    <SelectItem value="0">0 decimals</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Number Format Settings */}
         <Card>
           <CardHeader>

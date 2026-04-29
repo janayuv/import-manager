@@ -29,6 +29,7 @@ import {
   isTauriEnvironment,
 } from '@/lib/tauri-bridge';
 import { logInfo, logWarn } from '@/lib/logger';
+import { useCurrentUserId } from '@/lib/user-context';
 
 const PAGE_SIZE = 50;
 
@@ -170,6 +171,7 @@ function groupIdsByTable(
 }
 
 function RecycleBinContent() {
+  const userId = useCurrentUserId();
   const [tables, setTables] = useState<string[]>([]);
   const [filterTable, setFilterTable] = useState<string>('');
   const [search, setSearch] = useState('');
@@ -301,6 +303,7 @@ function RecycleBinContent() {
         await invoke<string>('restore_deleted_records', {
           tableName: table,
           recordIds: ids,
+          userId,
         });
       } catch (e) {
         const raw =
@@ -411,6 +414,7 @@ function RecycleBinContent() {
         await invoke<string>('permanently_delete_records', {
           tableName: table,
           recordIds: ids,
+          userId,
         });
       }
       toast.success('Selected records were permanently deleted');

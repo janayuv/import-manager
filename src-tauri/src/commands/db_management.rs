@@ -9,16 +9,24 @@ use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection, OpenFlags};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::time::Duration;
+use std::time::{Duration, Instant};
+use std::sync::{Mutex, OnceLock};
+use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
+use tauri::Emitter;
 use tauri::Manager;
 use tauri::State;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
+use argon2::{
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
 
 /// How to interpret the cron wall clock (library field `time_zone`).
 enum ScheduleCronZone {
@@ -132,14 +140,533 @@ fn validate_local_backup_file_for_restore(local_path: &Path) -> Result<(), Strin
 
 const SQLITE_RETRY_ATTEMPTS: u32 = 3;
 const SQLITE_RETRY_DELAY_MS: u64 = 500;
+const BULK_DELETE_BATCH_RETRY_ATTEMPTS: u32 = 3;
+const BULK_DELETE_BATCH_RETRY_DELAY_MS: u64 = 250;
+const BULK_DELETE_OPERATION_TIMEOUT_MS: u64 = 10 * 60 * 1000;
+const BULK_DELETE_OPERATION_TIMEOUT_MIN_MS: u64 = 30 * 1000;
+const BULK_DELETE_OPERATION_TIMEOUT_MAX_MS: u64 = 10 * 60 * 1000;
+const BULK_DELETE_UNDO_WINDOW_SECS: i64 = 5 * 60;
 const BACKUP_RETENTION_MAX: usize = 30;
 const APP_METADATA_BACKUP_COUNT: &str = "backup_count";
 const APP_METADATA_RESTORE_COUNT: &str = "restore_count";
 const APP_METADATA_LAST_BACKUP_TIME: &str = "last_backup_time";
 const APP_METADATA_LAST_RESTORE_TIME: &str = "last_restore_time";
+const APP_METADATA_RESTORE_STATUS: &str = "restore_status";
 const FREQUENT_BACKUP_WARN_SECS: i64 = 10;
 /// 5 GiB — observability warning only (no blocking).
 const LARGE_DB_WARN_BYTES: u64 = 5u64 * 1024 * 1024 * 1024;
+const APP_METADATA_HARD_DELETE_PIN_HASH: &str = "hard_delete_pin_hash";
+const APP_METADATA_HARD_DELETE_PIN_ENABLED: &str = "hard_delete_pin_enabled";
+const APP_METADATA_HARD_DELETE_PIN_THRESHOLD: &str = "hard_delete_pin_threshold";
+const APP_METADATA_HARD_DELETE_FAILED_ATTEMPTS: &str = "hard_delete_failed_attempts";
+const APP_METADATA_HARD_DELETE_LOCK_UNTIL: &str = "hard_delete_lock_until";
+const HARD_DELETE_PIN_DEFAULT_THRESHOLD: u32 = 10;
+const HARD_DELETE_PIN_MAX_FAILED_ATTEMPTS: u32 = 3;
+const HARD_DELETE_PIN_LOCK_SECS: i64 = 30;
+const DB_STATS_CACHE_TTL_MS: u128 = 5_000;
+const PERM_BACKUP_CREATE: &str = "backup.create";
+const PERM_BACKUP_RESTORE: &str = "backup.restore";
+const PERM_BACKUP_SCHEDULE: &str = "backup.schedule";
+const PERM_DATA_EDIT: &str = "data.edit";
+const PERM_DATA_DELETE: &str = "data.delete";
+const PERM_USER_MANAGE: &str = "user.manage";
+const BULK_DELETE_LOCK_STORM_LIMIT: u32 = 6;
+const SCALE_WARNING_BULK_RECORDS: usize = 10_000;
+const SCALE_WARNING_RESTORE_TABLES: usize = 10;
+const SCALE_WARNING_AUDIT_LIMIT: i64 = 5_000;
+const SCALE_ESCALATION_WARN_COUNT: usize = 3;
+const SCALE_ESCALATION_CRITICAL_COUNT: usize = 6;
+const LIFECYCLE_IDLE_BOUNDARY_MS: u64 = 15 * 60 * 1000;
+const LIFECYCLE_SUMMARY_INTERVAL: u64 = 25;
+
+static BULK_DELETE_ACTIVE_COUNT: AtomicUsize = AtomicUsize::new(0);
+static LARGE_BULK_OPERATION_COUNT: AtomicUsize = AtomicUsize::new(0);
+static LARGE_RESTORE_OPERATION_COUNT: AtomicUsize = AtomicUsize::new(0);
+static LARGE_AUDIT_QUERY_COUNT: AtomicUsize = AtomicUsize::new(0);
+static AUDIT_QUERY_RUN_COUNT: AtomicU64 = AtomicU64::new(0);
+static HEAVY_WORKFLOW_SEQUENCE: AtomicU64 = AtomicU64::new(0);
+static SQLITE_RETRY_EVENT_COUNT: AtomicUsize = AtomicUsize::new(0);
+static LOCK_CONFLICT_EVENT_COUNT: AtomicUsize = AtomicUsize::new(0);
+static HEAVY_WORKFLOW_FAILURE_COUNT: AtomicUsize = AtomicUsize::new(0);
+static PERF_OBSERVATION_COUNT: AtomicU64 = AtomicU64::new(0);
+static LAST_ACTIVITY_MS: AtomicU64 = AtomicU64::new(0);
+
+#[derive(Clone, Debug, Default)]
+struct PerfBaseline {
+    count: u64,
+    mean_ms: f64,
+    m2_ms: f64,
+    ewma_ms: f64,
+    last_ms: f64,
+    last_resource_units: usize,
+    max_resource_units: usize,
+    mean_resource_units: f64,
+    long_ewma_ms: f64,
+}
+
+fn db_stats_cache() -> &'static Mutex<Option<(Instant, DatabaseStats)>> {
+    static CACHE: OnceLock<Mutex<Option<(Instant, DatabaseStats)>>> = OnceLock::new();
+    CACHE.get_or_init(|| Mutex::new(None))
+}
+
+fn sqlite_retry_delay_ms(base_delay_ms: u64, attempt: u32) -> u64 {
+    let factor = 1u64 << attempt.saturating_sub(1).min(3);
+    base_delay_ms.saturating_mul(factor).min(2_000)
+}
+
+fn log_scale_escalation(counter: &AtomicUsize, workflow: &str, size: usize) {
+    let seen = counter.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    if seen >= SCALE_ESCALATION_CRITICAL_COUNT {
+        log::warn!(
+            target: "import_manager::scale",
+            "event=scale.escalation level=critical workflow={} occurrence={} size={}",
+            workflow,
+            seen,
+            size
+        );
+    } else if seen >= SCALE_ESCALATION_WARN_COUNT {
+        log::warn!(
+            target: "import_manager::scale",
+            "event=scale.escalation level=warning workflow={} occurrence={} size={}",
+            workflow,
+            seen,
+            size
+        );
+    } else {
+        log::info!(
+            target: "import_manager::scale",
+            "event=scale.escalation level=notice workflow={} occurrence={} size={}",
+            workflow,
+            seen,
+            size
+        );
+    }
+}
+
+fn log_failure_pattern(counter: &AtomicUsize, pattern: &str, detail: &str) {
+    let seen = counter.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    let level = if seen >= SCALE_ESCALATION_CRITICAL_COUNT {
+        "critical"
+    } else if seen >= SCALE_ESCALATION_WARN_COUNT {
+        "warning"
+    } else {
+        "notice"
+    };
+    log::warn!(
+        target: "import_manager::failure_pattern",
+        "event=failure.pattern level={} pattern={} occurrence={} detail={}",
+        level,
+        pattern,
+        seen,
+        detail
+    );
+}
+
+fn next_run_id(counter: &AtomicU64) -> u64 {
+    counter.fetch_add(1, Ordering::SeqCst).saturating_add(1)
+}
+
+fn now_unix_ms() -> u64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
+}
+
+fn maybe_emit_lifecycle_summary(total_observations: u64) {
+    if total_observations == 0 || total_observations % LIFECYCLE_SUMMARY_INTERVAL != 0 {
+        return;
+    }
+    if let Ok(guard) = perf_baseline_registry().lock() {
+        let workflows = guard.len();
+        let avg_mean_ms = if workflows > 0 {
+            guard.values().map(|b| b.mean_ms).sum::<f64>() / workflows as f64
+        } else {
+            0.0
+        };
+        let max_resource = guard
+            .values()
+            .map(|b| b.max_resource_units)
+            .max()
+            .unwrap_or(0);
+        log::info!(
+            target: "import_manager::lifecycle",
+            "event=lifecycle.summary observations={} workflows={} avg_mean_ms={:.2} max_resource_units={}",
+            total_observations,
+            workflows,
+            avg_mean_ms,
+            max_resource
+        );
+    }
+}
+
+fn log_upgrade_readiness(operation: &str) {
+    log::info!(
+        target: "import_manager::upgrade_readiness",
+        "event=upgrade.readiness operation={} restore_active={} active_bulk={} rollback_ready=true compatibility_profile=stable_v1",
+        operation,
+        crate::restore_control::restore_in_progress(),
+        current_bulk_delete_active_count()
+    );
+}
+
+pub fn governance_tick() {
+    let total_observations = PERF_OBSERVATION_COUNT.load(Ordering::SeqCst);
+    let retry_events = SQLITE_RETRY_EVENT_COUNT.load(Ordering::SeqCst);
+    let lock_conflicts = LOCK_CONFLICT_EVENT_COUNT.load(Ordering::SeqCst);
+    let heavy_failures = HEAVY_WORKFLOW_FAILURE_COUNT.load(Ordering::SeqCst);
+
+    log::info!(
+        target: "import_manager::governance",
+        "event=governance.health_verification observations={} retry_events={} lock_conflicts={} heavy_failures={} active_bulk={}",
+        total_observations,
+        retry_events,
+        lock_conflicts,
+        heavy_failures,
+        current_bulk_delete_active_count()
+    );
+
+    if let Ok(guard) = perf_baseline_registry().lock() {
+        let workflow_count = guard.len();
+        let drifted = guard
+            .iter()
+            .filter(|(_, b)| b.count >= 12 && b.ewma_ms > (b.long_ewma_ms * 1.25))
+            .count();
+        let unstable = guard
+            .iter()
+            .filter(|(_, b)| {
+                if b.count <= 1 {
+                    return false;
+                }
+                let variance = b.m2_ms / (b.count as f64 - 1.0);
+                let stddev = variance.max(0.0).sqrt();
+                stddev > (b.mean_ms * 0.5)
+            })
+            .count();
+        let growth_risk = guard
+            .iter()
+            .filter(|(_, b)| {
+                b.count >= 6
+                    && b.last_resource_units > 0
+                    && (b.last_resource_units as f64) > (b.mean_resource_units * 1.75)
+            })
+            .count();
+        let candidate_count = guard
+            .iter()
+            .filter(|(_, b)| b.count >= 5 && b.last_ms > (b.ewma_ms * 1.5))
+            .count();
+
+        log::info!(
+            target: "import_manager::governance",
+            "event=governance.drift_awareness workflows={} drifted={} unstable={} growth_risk={}",
+            workflow_count,
+            drifted,
+            unstable,
+            growth_risk
+        );
+        log::info!(
+            target: "import_manager::governance",
+            "event=governance.optimization_discipline candidates={} incremental_only=true measurable_only=true reversible_only=true",
+            candidate_count
+        );
+    }
+
+    log::info!(
+        target: "import_manager::governance",
+        "event=governance.upgrade_readiness restore_active={} active_bulk={} rollback_ready=true",
+        crate::restore_control::restore_in_progress(),
+        current_bulk_delete_active_count()
+    );
+
+    maybe_emit_lifecycle_summary(total_observations);
+}
+
+fn perf_baseline_registry() -> &'static Mutex<HashMap<String, PerfBaseline>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<String, PerfBaseline>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+pub fn record_performance_observation(
+    workflow: &str,
+    elapsed_ms: u128,
+    resource_units: usize,
+    retry_events: u32,
+) {
+    let now_ms = now_unix_ms();
+    let previous = LAST_ACTIVITY_MS.swap(now_ms, Ordering::SeqCst);
+    if previous > 0 {
+        let idle_gap = now_ms.saturating_sub(previous);
+        if idle_gap >= LIFECYCLE_IDLE_BOUNDARY_MS {
+            log::info!(
+                target: "import_manager::lifecycle",
+                "event=lifecycle.idle_boundary idle_gap_ms={}",
+                idle_gap
+            );
+        }
+    }
+    let total_observations = PERF_OBSERVATION_COUNT
+        .fetch_add(1, Ordering::SeqCst)
+        .saturating_add(1);
+
+    let elapsed = elapsed_ms as f64;
+    if let Ok(mut guard) = perf_baseline_registry().lock() {
+        let baseline = guard
+            .entry(workflow.to_string())
+            .or_insert_with(PerfBaseline::default);
+        baseline.count = baseline.count.saturating_add(1);
+
+        // Welford online mean/variance.
+        let delta = elapsed - baseline.mean_ms;
+        baseline.mean_ms += delta / baseline.count as f64;
+        let delta2 = elapsed - baseline.mean_ms;
+        baseline.m2_ms += delta * delta2;
+
+        // EWMA to make drift visible quickly.
+        if baseline.count == 1 {
+            baseline.ewma_ms = elapsed;
+            baseline.long_ewma_ms = elapsed;
+        } else {
+            baseline.ewma_ms = (0.25 * elapsed) + (0.75 * baseline.ewma_ms);
+            baseline.long_ewma_ms = (0.05 * elapsed) + (0.95 * baseline.long_ewma_ms);
+        }
+        baseline.last_ms = elapsed;
+        baseline.last_resource_units = resource_units;
+        baseline.max_resource_units = baseline.max_resource_units.max(resource_units);
+        if baseline.count == 1 {
+            baseline.mean_resource_units = resource_units as f64;
+        } else {
+            baseline.mean_resource_units =
+                (0.2 * resource_units as f64) + (0.8 * baseline.mean_resource_units);
+        }
+
+        let variance = if baseline.count > 1 {
+            baseline.m2_ms / (baseline.count as f64 - 1.0)
+        } else {
+            0.0
+        };
+        let stddev = variance.max(0.0).sqrt();
+
+        log::info!(
+            target: "import_manager::perf_baseline",
+            "event=perf.baseline.observe workflow={} count={} elapsed_ms={} mean_ms={:.2} ewma_ms={:.2} stddev_ms={:.2} resource_units={} retry_events={}",
+            workflow,
+            baseline.count,
+            elapsed_ms,
+            baseline.mean_ms,
+            baseline.ewma_ms,
+            stddev,
+            resource_units,
+            retry_events
+        );
+
+        if baseline.count >= 5 && elapsed > (baseline.ewma_ms * 1.5) {
+            log::warn!(
+                target: "import_manager::perf_regression",
+                "event=perf.regression_detected workflow={} elapsed_ms={} ewma_ms={:.2}",
+                workflow,
+                elapsed_ms,
+                baseline.ewma_ms
+            );
+        }
+
+        if baseline.count >= 12 && baseline.ewma_ms > (baseline.long_ewma_ms * 1.25) {
+            log::warn!(
+                target: "import_manager::lifecycle_drift",
+                "event=lifecycle.drift_detected workflow={} ewma_ms={:.2} long_ewma_ms={:.2}",
+                workflow,
+                baseline.ewma_ms,
+                baseline.long_ewma_ms
+            );
+        }
+
+        if baseline.count >= 6 && stddev > (baseline.mean_ms * 0.5) {
+            log::warn!(
+                target: "import_manager::perf_stability",
+                "event=perf.variance_spike workflow={} stddev_ms={:.2} mean_ms={:.2}",
+                workflow,
+                stddev,
+                baseline.mean_ms
+            );
+        }
+
+        if retry_events > 0 {
+            log::warn!(
+                target: "import_manager::perf_opportunity",
+                "event=perf.optimization_candidate workflow={} reason=retries retry_events={}",
+                workflow,
+                retry_events
+            );
+        }
+
+        if baseline.count >= 4 && resource_units > baseline.max_resource_units.saturating_sub(1) {
+            log::info!(
+                target: "import_manager::resource_health",
+                "event=resource.health.new_peak workflow={} resource_units={} mean_resource_units={:.2}",
+                workflow,
+                resource_units,
+                baseline.mean_resource_units
+            );
+        }
+
+        if baseline.count >= 6
+            && (resource_units as f64) > (baseline.mean_resource_units * 1.75)
+            && resource_units > 0
+        {
+            log::warn!(
+                target: "import_manager::resource_health",
+                "event=resource.health.growth_trend workflow={} resource_units={} mean_resource_units={:.2}",
+                workflow,
+                resource_units,
+                baseline.mean_resource_units
+            );
+        }
+
+        let health_state = if retry_events > 0 || stddev > (baseline.mean_ms * 0.5) {
+            "watch"
+        } else {
+            "stable"
+        };
+        log::info!(
+            target: "import_manager::lifecycle_health",
+            "event=lifecycle.health workflow={} state={} count={} mean_ms={:.2} stddev_ms={:.2} mean_resource_units={:.2}",
+            workflow,
+            health_state,
+            baseline.count,
+            baseline.mean_ms,
+            stddev,
+            baseline.mean_resource_units
+        );
+
+        if baseline.count % 10 == 0 {
+            log::info!(
+                target: "import_manager::perf_governance",
+                "event=perf.baseline_checkpoint workflow={} count={} mean_ms={:.2} ewma_ms={:.2} max_resource_units={}",
+                workflow,
+                baseline.count,
+                baseline.mean_ms,
+                baseline.ewma_ms,
+                baseline.max_resource_units
+            );
+        }
+        if baseline.count % 20 == 0 {
+            log::info!(
+                target: "import_manager::evolution_readiness",
+                "event=evolution.readiness workflow={} reversible=true compatibility_preserved=true safe_tuning_cycle=true",
+                workflow
+            );
+        }
+    }
+    maybe_emit_lifecycle_summary(total_observations);
+}
+
+fn current_bulk_delete_active_count() -> usize {
+    BULK_DELETE_ACTIVE_COUNT.load(Ordering::SeqCst)
+}
+
+struct BulkDeleteAdmissionGuard;
+
+impl BulkDeleteAdmissionGuard {
+    fn try_enter() -> Result<Self, String> {
+        if crate::restore_control::restore_in_progress() {
+            return Err("Restore is in progress. Please retry bulk delete after restore completes.".to_string());
+        }
+        let current = BULK_DELETE_ACTIVE_COUNT.load(Ordering::SeqCst);
+        if current > 0 {
+            return Err("Another bulk delete operation is already running. Please retry after it completes.".to_string());
+        }
+        BULK_DELETE_ACTIVE_COUNT.fetch_add(1, Ordering::SeqCst);
+        log::info!(
+            target: "import_manager::workload",
+            "event=workload.admission.accepted category=heavy operation=bulk_delete active_bulk={}",
+            BULK_DELETE_ACTIVE_COUNT.load(Ordering::SeqCst)
+        );
+        Ok(Self)
+    }
+}
+
+impl Drop for BulkDeleteAdmissionGuard {
+    fn drop(&mut self) {
+        BULK_DELETE_ACTIVE_COUNT.fetch_sub(1, Ordering::SeqCst);
+        log::info!(
+            target: "import_manager::workload",
+            "event=workload.release category=heavy operation=bulk_delete active_bulk={}",
+            BULK_DELETE_ACTIVE_COUNT.load(Ordering::SeqCst)
+        );
+    }
+}
+
+pub fn invalidate_database_stats_cache() {
+    if let Ok(mut cache_guard) = db_stats_cache().lock() {
+        *cache_guard = None;
+    }
+}
+
+fn role_allows_permission(role: &str, permission: &str) -> bool {
+    match role {
+        "admin" => true,
+        "db_manager" => matches!(
+            permission,
+            "backup.create"
+                | "backup.restore"
+                | "backup.schedule"
+                | "data.browse"
+                | "data.edit"
+                | "data.delete"
+                | "audit.view"
+        ),
+        "user" => matches!(permission, "data.browse" | "data.edit"),
+        "viewer" => matches!(permission, "data.browse" | "audit.view"),
+        _ => false,
+    }
+}
+
+fn ensure_command_permission(
+    db: &Connection,
+    actor_user_id: Option<&str>,
+    permission: &str,
+) -> Result<(), String> {
+    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
+        log::warn!(
+            target: "import_manager::authz",
+            "event=authz.denied stage=validation reason=missing_actor permission={}",
+            permission
+        );
+        return Err("Permission denied: missing user context.".to_string());
+    };
+    if actor.eq_ignore_ascii_case("scheduler") || actor.eq_ignore_ascii_case("system") {
+        return Ok(());
+    }
+    let role: String = db
+        .query_row(
+            "SELECT role FROM user_roles WHERE user_id = ?",
+            params![actor],
+            |row| row.get(0),
+        )
+        .map_err(|_| {
+            log::warn!(
+                target: "import_manager::authz",
+                "event=authz.denied stage=validation reason=missing_role actor={} permission={}",
+                actor,
+                permission
+            );
+            "Permission denied: user role not configured.".to_string()
+        })?;
+    if role_allows_permission(&role, permission) {
+        Ok(())
+    } else {
+        log::warn!(
+            target: "import_manager::authz",
+            "event=authz.denied stage=validation reason=insufficient_permission actor={} role={} permission={}",
+            actor,
+            role,
+            permission
+        );
+        Err(format!(
+            "Permission denied: '{}' requires '{}'.",
+            actor, permission
+        ))
+    }
+}
 
 fn get_app_metadata_string(
     db_state: &State<'_, DbState>,
@@ -220,6 +747,251 @@ fn increment_app_metadata_count(
         )
         .map_err(|e| e.to_string())?;
         Ok(())
+    })
+}
+
+fn is_valid_hard_delete_pin(pin: &str) -> bool {
+    pin.len() >= 4 && pin.chars().all(|c| c.is_ascii_digit())
+}
+
+fn get_hard_delete_pin_hash(db_state: &State<'_, DbState>) -> Result<Option<String>, String> {
+    get_app_metadata_string(db_state, APP_METADATA_HARD_DELETE_PIN_HASH)
+}
+
+fn get_hard_delete_pin_enabled(db_state: &State<'_, DbState>) -> bool {
+    get_app_metadata_string(db_state, APP_METADATA_HARD_DELETE_PIN_ENABLED)
+        .ok()
+        .flatten()
+        .map(|v| matches!(v.trim(), "1" | "true" | "TRUE" | "True"))
+        .unwrap_or(false)
+}
+
+fn get_hard_delete_pin_threshold(db_state: &State<'_, DbState>) -> u32 {
+    get_app_metadata_string(db_state, APP_METADATA_HARD_DELETE_PIN_THRESHOLD)
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<u32>().ok())
+        .filter(|v| *v > 0)
+        .unwrap_or(HARD_DELETE_PIN_DEFAULT_THRESHOLD)
+}
+
+fn get_hard_delete_failed_attempts(db_state: &State<'_, DbState>) -> u32 {
+    get_app_metadata_string(db_state, APP_METADATA_HARD_DELETE_FAILED_ATTEMPTS)
+        .ok()
+        .flatten()
+        .and_then(|v| v.parse::<u32>().ok())
+        .unwrap_or(0)
+}
+
+fn get_hard_delete_lock_until(db_state: &State<'_, DbState>) -> Option<DateTime<Utc>> {
+    get_app_metadata_string(db_state, APP_METADATA_HARD_DELETE_LOCK_UNTIL)
+        .ok()
+        .flatten()
+        .and_then(|v| DateTime::parse_from_rfc3339(&v).ok())
+        .map(|dt| dt.with_timezone(&Utc))
+}
+
+fn is_hard_delete_lock_active(db_state: &State<'_, DbState>) -> (bool, Option<String>, u32) {
+    if let Some(lock_until) = get_hard_delete_lock_until(db_state) {
+        if lock_until > Utc::now() {
+            return (true, Some(lock_until.to_rfc3339()), get_hard_delete_failed_attempts(db_state));
+        }
+    }
+    (false, None, get_hard_delete_failed_attempts(db_state))
+}
+
+fn set_hard_delete_failed_attempts(db_state: &State<'_, DbState>, attempts: u32) -> Result<(), String> {
+    set_app_metadata_string(
+        db_state,
+        APP_METADATA_HARD_DELETE_FAILED_ATTEMPTS,
+        &attempts.to_string(),
+    )
+}
+
+fn clear_hard_delete_lock(db_state: &State<'_, DbState>) -> Result<(), String> {
+    set_app_metadata_string(db_state, APP_METADATA_HARD_DELETE_LOCK_UNTIL, "")
+}
+
+fn hash_hard_delete_pin(pin: &str) -> Result<String, String> {
+    let salt = SaltString::generate(&mut argon2::password_hash::rand_core::OsRng);
+    Argon2::default()
+        .hash_password(pin.as_bytes(), &salt)
+        .map(|h| h.to_string())
+        .map_err(|e| format!("Failed to hash PIN: {e}"))
+}
+
+fn verify_hard_delete_pin_hash(stored_hash: &str, pin: &str) -> Result<bool, String> {
+    let parsed = PasswordHash::new(stored_hash).map_err(|e| format!("Invalid stored PIN hash: {e}"))?;
+    Ok(Argon2::default()
+        .verify_password(pin.as_bytes(), &parsed)
+        .is_ok())
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HardDeletePinSettings {
+    pub enabled: bool,
+    pub threshold: u32,
+    pub has_pin: bool,
+    pub failed_attempts: u32,
+    pub lock_until: Option<String>,
+    pub lock_active: bool,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct HardDeletePinVerifyResult {
+    pub ok: bool,
+    pub failed_attempts: u32,
+    pub lock_until: Option<String>,
+    pub message: String,
+}
+
+#[tauri::command]
+pub async fn get_hard_delete_pin_settings(
+    db_state: State<'_, DbState>,
+) -> Result<HardDeletePinSettings, String> {
+    let (lock_active, lock_until, failed_attempts) = is_hard_delete_lock_active(&db_state);
+    Ok(HardDeletePinSettings {
+        enabled: get_hard_delete_pin_enabled(&db_state),
+        threshold: get_hard_delete_pin_threshold(&db_state),
+        has_pin: get_hard_delete_pin_hash(&db_state)?.is_some(),
+        failed_attempts,
+        lock_until,
+        lock_active,
+    })
+}
+
+#[tauri::command]
+pub async fn set_hard_delete_pin_enabled(
+    db_state: State<'_, DbState>,
+    enabled: bool,
+) -> Result<(), String> {
+    if enabled && get_hard_delete_pin_hash(&db_state)?.is_none() {
+        return Err("Set a PIN before enabling hard delete PIN protection.".to_string());
+    }
+    set_app_metadata_string(
+        &db_state,
+        APP_METADATA_HARD_DELETE_PIN_ENABLED,
+        if enabled { "1" } else { "0" },
+    )
+}
+
+#[tauri::command]
+pub async fn set_hard_delete_pin_threshold(
+    db_state: State<'_, DbState>,
+    threshold: u32,
+) -> Result<(), String> {
+    let value = threshold.max(1);
+    set_app_metadata_string(
+        &db_state,
+        APP_METADATA_HARD_DELETE_PIN_THRESHOLD,
+        &value.to_string(),
+    )
+}
+
+#[tauri::command]
+pub async fn set_hard_delete_pin(
+    db_state: State<'_, DbState>,
+    pin: String,
+) -> Result<(), String> {
+    if !is_valid_hard_delete_pin(&pin) {
+        return Err("PIN must be numeric and at least 4 digits.".to_string());
+    }
+    let hash = hash_hard_delete_pin(&pin)?;
+    set_app_metadata_string(&db_state, APP_METADATA_HARD_DELETE_PIN_HASH, &hash)?;
+    set_app_metadata_string(&db_state, APP_METADATA_HARD_DELETE_PIN_ENABLED, "1")?;
+    if get_app_metadata_string(&db_state, APP_METADATA_HARD_DELETE_PIN_THRESHOLD)?
+        .and_then(|v| v.parse::<u32>().ok())
+        .is_none()
+    {
+        set_app_metadata_string(
+            &db_state,
+            APP_METADATA_HARD_DELETE_PIN_THRESHOLD,
+            &HARD_DELETE_PIN_DEFAULT_THRESHOLD.to_string(),
+        )?;
+    }
+    set_hard_delete_failed_attempts(&db_state, 0)?;
+    clear_hard_delete_lock(&db_state)?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn change_hard_delete_pin(
+    db_state: State<'_, DbState>,
+    current_pin: String,
+    new_pin: String,
+) -> Result<(), String> {
+    if !is_valid_hard_delete_pin(&new_pin) {
+        return Err("New PIN must be numeric and at least 4 digits.".to_string());
+    }
+    let Some(stored) = get_hard_delete_pin_hash(&db_state)? else {
+        return Err("No existing PIN configured.".to_string());
+    };
+    if !verify_hard_delete_pin_hash(&stored, &current_pin)? {
+        return Err("Current PIN is incorrect.".to_string());
+    }
+    let hash = hash_hard_delete_pin(&new_pin)?;
+    set_app_metadata_string(&db_state, APP_METADATA_HARD_DELETE_PIN_HASH, &hash)?;
+    set_hard_delete_failed_attempts(&db_state, 0)?;
+    clear_hard_delete_lock(&db_state)?;
+    log::info!(target: "import_manager::security", "[SECURITY] PIN changed");
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn verify_hard_delete_pin(
+    db_state: State<'_, DbState>,
+    pin: String,
+) -> Result<HardDeletePinVerifyResult, String> {
+    let (lock_active, lock_until, failed_attempts) = is_hard_delete_lock_active(&db_state);
+    if lock_active {
+        return Ok(HardDeletePinVerifyResult {
+            ok: false,
+            failed_attempts,
+            lock_until,
+            message: "Too many incorrect attempts. Try again later.".to_string(),
+        });
+    }
+    let Some(stored) = get_hard_delete_pin_hash(&db_state)? else {
+        return Err("No PIN configured.".to_string());
+    };
+    if verify_hard_delete_pin_hash(&stored, &pin)? {
+        set_hard_delete_failed_attempts(&db_state, 0)?;
+        clear_hard_delete_lock(&db_state)?;
+        log::info!(target: "import_manager::security", "[SECURITY] Hard delete PIN verified");
+        return Ok(HardDeletePinVerifyResult {
+            ok: true,
+            failed_attempts: 0,
+            lock_until: None,
+            message: "PIN verified".to_string(),
+        });
+    }
+
+    let next_attempts = get_hard_delete_failed_attempts(&db_state).saturating_add(1);
+    set_hard_delete_failed_attempts(&db_state, next_attempts)?;
+    log::warn!(target: "import_manager::security", "[SECURITY] Failed PIN attempt");
+    if next_attempts >= HARD_DELETE_PIN_MAX_FAILED_ATTEMPTS {
+        let lock_until_dt = Utc::now() + chrono::Duration::seconds(HARD_DELETE_PIN_LOCK_SECS);
+        set_app_metadata_string(
+            &db_state,
+            APP_METADATA_HARD_DELETE_LOCK_UNTIL,
+            &lock_until_dt.to_rfc3339(),
+        )?;
+        log::warn!(target: "import_manager::security", "[SECURITY] PIN lock triggered");
+        return Ok(HardDeletePinVerifyResult {
+            ok: false,
+            failed_attempts: next_attempts,
+            lock_until: Some(lock_until_dt.to_rfc3339()),
+            message: "Too many incorrect attempts. Try again later.".to_string(),
+        });
+    }
+
+    Ok(HardDeletePinVerifyResult {
+        ok: false,
+        failed_attempts: next_attempts,
+        lock_until: None,
+        message: "Invalid PIN".to_string(),
     })
 }
 
@@ -352,6 +1124,12 @@ pub(crate) fn with_sqlite_retry<T>(
         match f() {
             Ok(v) => return Ok(v),
             Err(e) if is_sqlite_lock_err(&e) && attempt < SQLITE_RETRY_ATTEMPTS => {
+                let delay_ms = sqlite_retry_delay_ms(SQLITE_RETRY_DELAY_MS, attempt);
+                log_failure_pattern(
+                    &SQLITE_RETRY_EVENT_COUNT,
+                    "sqlite_retry",
+                    &format!("op={} attempt={}/{}", op, attempt, SQLITE_RETRY_ATTEMPTS),
+                );
                 log::warn!(
                     target: "import_manager::db_retry",
                     "{} attempt {}/{}: {} — retrying in {}ms",
@@ -359,11 +1137,20 @@ pub(crate) fn with_sqlite_retry<T>(
                     attempt,
                     SQLITE_RETRY_ATTEMPTS,
                     e,
-                    SQLITE_RETRY_DELAY_MS
+                    delay_ms
                 );
-                std::thread::sleep(std::time::Duration::from_millis(SQLITE_RETRY_DELAY_MS));
+                std::thread::sleep(std::time::Duration::from_millis(delay_ms));
             }
-            Err(e) => return Err(e),
+            Err(e) => {
+                if is_sqlite_lock_err(&e) {
+                    log_failure_pattern(
+                        &LOCK_CONFLICT_EVENT_COUNT,
+                        "sqlite_lock_conflict",
+                        &format!("op={} attempt={}/{}", op, attempt, SQLITE_RETRY_ATTEMPTS),
+                    );
+                }
+                return Err(e);
+            }
         }
     }
     Err("with_sqlite_retry: exhausted retries".to_string())
@@ -525,6 +1312,9 @@ impl TempFileGuards {
             self.0.push(p);
         }
     }
+    fn push(&mut self, p: PathBuf) {
+        self.0.push(p);
+    }
 }
 
 impl Drop for TempFileGuards {
@@ -648,7 +1438,7 @@ pub struct UpdateResult {
     pub audit_id: Option<i64>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DatabaseStats {
     pub db_size_bytes: i64,
     pub table_counts: HashMap<String, i64>,
@@ -704,13 +1494,35 @@ pub async fn get_audit_logs(
     limit: Option<i64>,
     offset: Option<i64>,
 ) -> Result<Vec<AuditLog>, String> {
+    let started_at = Instant::now();
+    let run_id = next_run_id(&AUDIT_QUERY_RUN_COUNT);
+    log::info!(
+        target: "import_manager::workload",
+        "event=workload.classification category=interactive operation=audit_logs run_id={}",
+        run_id
+    );
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let lim_for_awareness = limit.unwrap_or(100);
+    let off_for_awareness = offset.unwrap_or(0);
+    if lim_for_awareness >= SCALE_WARNING_AUDIT_LIMIT || off_for_awareness >= SCALE_WARNING_AUDIT_LIMIT {
+        log::warn!(
+            target: "import_manager::audit",
+            "event=workflow.audit.scale_readiness stage=entry limit={} offset={}",
+            lim_for_awareness,
+            off_for_awareness
+        );
+        log_scale_escalation(
+            &LARGE_AUDIT_QUERY_COUNT,
+            "audit_query",
+            lim_for_awareness.max(off_for_awareness) as usize,
+        );
+    }
 
     let mut query = "SELECT id, COALESCE(\"tableName\", table_name) AS table_name, row_id, action, user_id, before_json, after_json, metadata, created_at FROM audit_logs WHERE 1=1".to_string();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = vec![];
 
     if let Some(table) = &tableName {
-        query.push_str(" AND COALESCE(\"tableName\", table_name) = ?");
+        query.push_str(" AND \"tableName\" = ?");
         params.push(Box::new(table.clone()));
     }
 
@@ -723,8 +1535,16 @@ pub async fn get_audit_logs(
         query.push_str(" AND user_id = ?");
         params.push(Box::new(user.clone()));
     }
+    log::info!(
+        target: "import_manager::audit",
+        "event=workflow.audit.progress stage=execution run_id={} has_table_filter={} has_action_filter={} has_user_filter={}",
+        run_id,
+        tableName.is_some(),
+        action.is_some(),
+        userId.is_some()
+    );
 
-    query.push_str(" ORDER BY created_at DESC");
+    query.push_str(" ORDER BY datetime(created_at) DESC, id DESC");
 
     if let Some(lim) = limit {
         query.push_str(" LIMIT ?");
@@ -759,6 +1579,19 @@ pub async fn get_audit_logs(
     for row in rows {
         audit_logs.push(row.map_err(|e| e.to_string())?);
     }
+    log::info!(
+        target: "import_manager::audit",
+        "event=workflow.audit.progress stage=completion run_id={} rows={} elapsed_ms={}",
+        run_id,
+        audit_logs.len(),
+        started_at.elapsed().as_millis()
+    );
+    record_performance_observation(
+        "audit_listing",
+        started_at.elapsed().as_millis(),
+        audit_logs.len(),
+        0,
+    );
 
     Ok(audit_logs)
 }
@@ -766,6 +1599,13 @@ pub async fn get_audit_logs(
 // Get database statistics
 #[tauri::command]
 pub async fn get_database_stats(db_state: State<'_, DbState>) -> Result<DatabaseStats, String> {
+    if let Ok(cache_guard) = db_stats_cache().lock() {
+        if let Some((at, cached)) = cache_guard.as_ref() {
+            if at.elapsed().as_millis() <= DB_STATS_CACHE_TTL_MS {
+                return Ok(cached.clone());
+            }
+        }
+    }
     with_sqlite_retry("get_database_stats", || {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         // Get database file size
@@ -818,13 +1658,17 @@ pub async fn get_database_stats(db_state: State<'_, DbState>) -> Result<Database
             )
             .ok();
 
-        Ok(DatabaseStats {
+        let stats = DatabaseStats {
             db_size_bytes,
             table_counts,
             last_backup,
             next_scheduled_backup,
             encryption_status: "AES-256 Enabled".to_string(),
-        })
+        };
+        if let Ok(mut cache_guard) = db_stats_cache().lock() {
+            *cache_guard = Some((Instant::now(), stats.clone()));
+        }
+        Ok(stats)
     })
 }
 
@@ -836,7 +1680,40 @@ pub async fn create_backup(
     request: BackupRequest,
     userId: Option<String>,
 ) -> Result<BackupInfo, String> {
-    create_backup_impl(db_state, request, userId, Some(window)).await
+    log_upgrade_readiness("create_backup");
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_CREATE)?;
+    }
+    let backup_destination = request.destination.clone();
+    let started_at = Instant::now();
+    log::info!(
+        target: "import_manager::backup",
+        "event=workflow.backup.start stage=entry destination={} user_id={}",
+        backup_destination,
+        userId.as_deref().unwrap_or("unknown")
+    );
+    match create_backup_impl(db_state, request, userId, Some(window)).await {
+        Ok(info) => {
+            log::info!(
+                target: "import_manager::backup",
+                "event=workflow.backup.success stage=completion destination={} elapsed_ms={}",
+                backup_destination,
+                started_at.elapsed().as_millis()
+            );
+            Ok(info)
+        }
+        Err(e) => {
+            log::warn!(
+                target: "import_manager::backup",
+                "event=workflow.backup.failure stage=completion destination={} elapsed_ms={} error={}",
+                backup_destination,
+                started_at.elapsed().as_millis(),
+                e
+            );
+            Err(e)
+        }
+    }
 }
 
 async fn create_backup_impl(
@@ -846,6 +1723,11 @@ async fn create_backup_impl(
     window: Option<WebviewWindow>,
 ) -> Result<BackupInfo, String> {
     let backup_start = std::time::Instant::now();
+    log::info!(
+        target: "import_manager::backup",
+        "event=workflow.backup.progress stage=initialization destination={}",
+        request.destination
+    );
     warn_if_frequent_backup(&db_state);
     let data_dir = std::env::var("APPDATA")
         .or_else(|_| std::env::var("HOME"))
@@ -862,6 +1744,10 @@ async fn create_backup_impl(
     let staging_path = data_dir.join(&filename);
 
     {
+        log::info!(
+            target: "import_manager::backup",
+            "event=workflow.backup.progress stage=validation step=filesystem_prechecks"
+        );
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         let source_path = db.path().ok_or("Could not get database path")?;
         let db_size = fs::metadata(source_path)
@@ -879,6 +1765,10 @@ async fn create_backup_impl(
     }
 
     let password = crate::utils::backup_keyring::get_or_create_backup_encryption_password()?;
+    log::info!(
+        target: "import_manager::backup",
+        "event=workflow.backup.progress stage=execution step=encryption"
+    );
     let enc_filename = enc_basename_for_staging_db(&filename);
     let enc_path = data_dir.join(&enc_filename);
     if let Err(e) = crate::utils::encryption::encrypt_file(&staging_path, &enc_path, &password) {
@@ -964,6 +1854,10 @@ async fn create_backup_impl(
     let (backup_id, gdrive_prune_ids): (i64, Vec<String>) = with_sqlite_retry(
         "create_backup_persist",
         || {
+            log::info!(
+                target: "import_manager::backup",
+                "event=workflow.backup.progress stage=execution step=persist_metadata"
+            );
             let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
             let tx = db.transaction().map_err(|e| e.to_string())?;
             let id = {
@@ -1052,6 +1946,7 @@ async fn create_backup_impl(
             e
         );
     }
+    invalidate_database_stats_cache();
 
     Ok(BackupInfo {
         id: Some(backup_id),
@@ -1169,6 +2064,7 @@ pub async fn soft_delete_record(
     userId: Option<String>,
 ) -> Result<(), String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
 
     // Get current record for audit log
     let before_json = format!(
@@ -1200,6 +2096,7 @@ pub async fn soft_delete_record(
     )
     .map_err(|e| e.to_string())?;
 
+    invalidate_database_stats_cache();
     Ok(())
 }
 
@@ -1212,16 +2109,23 @@ pub async fn hard_delete_record(
     userId: Option<String>,
     confirmation: String,
 ) -> Result<(), String> {
+    let _trace = super::reference_scan::HardDeleteFnLogGuard::new(
+        "hard_delete_record",
+        &tableName,
+        &record_id,
+        "n/a",
+    );
     if confirmation != "DELETE" {
         return Err("Invalid confirmation. Type 'DELETE' to confirm.".to_string());
     }
 
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
         super::reference_scan::ensure_can_hard_delete(&db, &tableName, &[record_id.clone()])?;
     }
 
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
 
     // Get current record for audit log
     let before_json = format!(
@@ -1229,19 +2133,38 @@ pub async fn hard_delete_record(
         record_id, tableName
     );
 
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Begin transaction"
+    );
+    let tx = db
+        .transaction()
+        .map_err(|e| format!("Failed to begin hard delete transaction: {}", e))?;
+    super::reference_scan::delete_fk_dependent_children(&tx, &tableName, &[record_id.clone()])?;
+
     // Perform hard delete
     let query = format!("DELETE FROM {} WHERE id = ?", tableName);
-    db.execute(&query, params![record_id])
+    let exec_started = Instant::now();
+    tx.execute(&query, params![record_id.as_str()])
         .map_err(super::reference_scan::map_hard_delete_error_rusqlite)?;
+    let exec_ms = exec_started.elapsed().as_millis();
+    if exec_ms > 500 {
+        log::warn!(
+            target: "import_manager::hard_delete",
+            "[HARD_DELETE WARNING] Slow DELETE for ID={} took {} ms",
+            record_id,
+            exec_ms
+        );
+    }
 
     // Create audit log entry
     let tn = tableName.as_str();
-    let _ = db.execute(
+    let _ = tx.execute(
         r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         params![
             tn,
             tn,
-            record_id,
+            record_id.as_str(),
             "hard_delete",
             userId,
             before_json,
@@ -1250,6 +2173,14 @@ pub async fn hard_delete_record(
     )
     .map_err(|e| e.to_string())?;
 
+    tx.commit()
+        .map_err(|e| format!("Failed to commit hard delete transaction: {}", e))?;
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Commit transaction"
+    );
+
+    invalidate_database_stats_cache();
     Ok(())
 }
 
@@ -1594,19 +2525,66 @@ pub async fn restore_database(
     backupPath: String,
     userId: Option<String>,
 ) -> Result<RestoreResult, String> {
+    log_upgrade_readiness("restore_database");
+    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_RESTORE)?;
+    }
     let restore_start = std::time::Instant::now();
     log::info!(
         target: "import_manager::restore",
-        "[{}] Restore: command entered backup_path={}",
-        restore_log_ts(),
-        backupPath
+        "event=workflow.restore.start stage=entry sequence={} backup_path={} user_id={}",
+        heavy_seq,
+        backupPath,
+        userId.as_deref().unwrap_or("unknown")
     );
+    log::info!(
+        target: "import_manager::workload",
+        "event=workload.classification category=heavy operation=restore"
+    );
+    if current_bulk_delete_active_count() > 0 {
+        return Err("Bulk delete is in progress. Please retry restore when bulk operations are complete.".to_string());
+    }
+    if RESTORE_TABLES.len() >= SCALE_WARNING_RESTORE_TABLES {
+        log::info!(
+            target: "import_manager::restore",
+            "event=workflow.restore.scale_readiness stage=entry restore_tables={}",
+            RESTORE_TABLES.len()
+        );
+        log_scale_escalation(
+            &LARGE_RESTORE_OPERATION_COUNT,
+            "restore_scope",
+            RESTORE_TABLES.len(),
+        );
+    }
 
     crate::restore_control::try_begin_restore()?;
     crate::restore_control::pause_background_jobs();
     let session_guard = crate::restore_control::RestoreSessionGuard::new();
+    let restore_started_at = Utc::now().to_rfc3339();
+    let restore_status_start = format!(
+        "in_progress|started_at={}|backup_path={}",
+        restore_started_at, backupPath
+    );
+    if let Err(e) = set_app_metadata_string(
+        &db_state,
+        APP_METADATA_RESTORE_STATUS,
+        &restore_status_start,
+    ) {
+        log::warn!(
+            target: "import_manager::restore",
+            "Could not set {}: {}",
+            APP_METADATA_RESTORE_STATUS,
+            e
+        );
+    }
 
     let outcome: Result<RestoreResult, String> = async {
+        log::info!(
+            target: "import_manager::restore",
+            "event=workflow.restore.progress stage=initialization"
+        );
         let (local_path, temp_dl) = resolve_backup_to_local_path(
             &backupPath,
             Some(&window),
@@ -1615,6 +2593,11 @@ pub async fn restore_database(
         .await?;
         let mut _temp_guards = TempFileGuards::new();
         _temp_guards.push_opt(temp_dl);
+        log::info!(
+            target: "import_manager::resource",
+            "event=resource.temp_files stage=restore_init tracked_temp_files={}",
+            1
+        );
 
         let current_db_path: PathBuf = {
             let db = db_state.db.lock().map_err(|e| e.to_string())?;
@@ -1643,6 +2626,10 @@ pub async fn restore_database(
         })?;
 
         verify_stored_sha256_against_file(&local_path, expected_sha)?;
+        log::info!(
+            target: "import_manager::restore",
+            "event=workflow.restore.progress stage=validation step=checksum_and_format"
+        );
 
         if let Err(e) = validate_local_backup_file_for_restore(&local_path) {
             log::error!(
@@ -1667,20 +2654,29 @@ pub async fn restore_database(
             current_db_path.to_string_lossy().as_ref(),
             userId.clone(),
         )?;
+        log::info!(
+            target: "import_manager::restore",
+            "event=workflow.restore.progress stage=execution step=pre_restore_backup"
+        );
 
-        let temp_path = format!("{}.restore_temp", current_db_path.display());
+        let temp_path = PathBuf::from(format!("{}.restore_temp", current_db_path.display()));
+        _temp_guards.push(temp_path.clone());
+        log::info!(
+            target: "import_manager::resource",
+            "event=resource.temp_files stage=restore_execution temp_file={} tracked_temp_files={}",
+            temp_path.display(),
+            2
+        );
         fs::copy(&work_path, &temp_path).map_err(|e| format!("Failed to copy backup: {}", e))?;
 
         let temp_size = fs::metadata(&temp_path).map(|m| m.len()).unwrap_or(0);
         let work_size = fs::metadata(&work_path).map(|m| m.len()).unwrap_or(0);
         if temp_size != work_size {
-            fs::remove_file(&temp_path).ok();
             return Err("Backup file verification failed".to_string());
         }
 
-        let integrity_check = test_database_integrity(&temp_path)?;
+        let integrity_check = test_database_integrity(&temp_path.to_string_lossy())?;
         if !integrity_check.contains("ok") {
-            fs::remove_file(&temp_path).ok();
             return Err(format!(
                 "Database integrity check failed: {}",
                 integrity_check
@@ -1702,6 +2698,10 @@ pub async fn restore_database(
         );
 
         let restored_table_list: Vec<String> = {
+            log::info!(
+                target: "import_manager::restore",
+                "event=workflow.restore.progress stage=execution step=table_copy"
+            );
             let mut main_guard = db_state.db.lock().map_err(|e| e.to_string())?;
 
             let mut restore_conn = Connection::open(&current_db_path)
@@ -1972,8 +2972,6 @@ pub async fn restore_database(
             restored_table_list
         };
 
-        fs::remove_file(&temp_path).ok();
-
         Ok(RestoreResult {
             success: true,
             message: format!(
@@ -2027,19 +3025,80 @@ pub async fn restore_database(
                     e
                 );
             }
+            let restore_status_done = format!(
+                "completed|started_at={}|finished_at={}",
+                restore_started_at,
+                Utc::now().to_rfc3339()
+            );
+            if let Err(e) = set_app_metadata_string(
+                &db_state,
+                APP_METADATA_RESTORE_STATUS,
+                &restore_status_done,
+            ) {
+                log::warn!(
+                    target: "import_manager::restore",
+                    "Could not set {}: {}",
+                    APP_METADATA_RESTORE_STATUS,
+                    e
+                );
+            }
             log::info!(
                 target: "import_manager::restore",
-                "Restore completed in {:.2} seconds",
-                restore_start.elapsed().as_secs_f64()
+                "event=workflow.restore.success stage=completion elapsed_ms={}",
+                restore_start.elapsed().as_millis()
+            );
+            record_performance_observation(
+                "restore_operation",
+                restore_start.elapsed().as_millis(),
+                RESTORE_TABLES.len(),
+                0,
             );
             log::info!(
                 target: "import_manager::restore",
                 "[{}] Restore completed successfully",
                 restore_log_ts()
             );
+            invalidate_database_stats_cache();
             Ok(result)
         }
-        Err(e) => Err(e),
+        Err(e) => {
+            log_failure_pattern(
+                &HEAVY_WORKFLOW_FAILURE_COUNT,
+                "restore_failure",
+                "restore_database",
+            );
+            let restore_status_failed = format!(
+                "failed|started_at={}|finished_at={}|error={}",
+                restore_started_at,
+                Utc::now().to_rfc3339(),
+                e.replace('\n', " ").replace('|', "/")
+            );
+            if let Err(meta_err) = set_app_metadata_string(
+                &db_state,
+                APP_METADATA_RESTORE_STATUS,
+                &restore_status_failed,
+            ) {
+                log::warn!(
+                    target: "import_manager::restore",
+                    "Could not set {}: {}",
+                    APP_METADATA_RESTORE_STATUS,
+                    meta_err
+                );
+            }
+            log::warn!(
+                target: "import_manager::restore",
+                "event=workflow.restore.failure stage=completion elapsed_ms={} error={}",
+                restore_start.elapsed().as_millis(),
+                e
+            );
+            record_performance_observation(
+                "restore_operation",
+                restore_start.elapsed().as_millis(),
+                RESTORE_TABLES.len(),
+                1,
+            );
+            Err(e)
+        }
     }
 }
 
@@ -2079,33 +3138,9 @@ pub async fn bulk_search_records(
     let pageSize = pageSize.unwrap_or(50);
     let includeDeleted = includeDeleted.unwrap_or(false);
 
-    // Build WHERE clause from filters
-    let mut where_clause = String::new();
-    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
-
-    // Start with a base condition to avoid syntax errors
-    let mut has_condition = false;
-
-    if !includeDeleted {
-        where_clause.push_str(" WHERE deleted_at IS NULL");
-        has_condition = true;
-    }
-
-    for (column, value) in &filters {
-        if !value.is_null() {
-            let connector = if has_condition { " AND" } else { " WHERE" };
-            where_clause.push_str(&format!("{} {} LIKE ?", connector, column));
-            has_condition = true;
-
-            let search_value = match value {
-                serde_json::Value::String(s) => format!("%{}%", s),
-                serde_json::Value::Number(n) => n.to_string(),
-                serde_json::Value::Bool(b) => b.to_string(),
-                _ => value.to_string(),
-            };
-            params.push(Box::new(search_value));
-        }
-    }
+    // Build WHERE clause from validated filters.
+    let (where_clause, mut params) =
+        build_bulk_search_where_clause(&db, &tableName, &filters, includeDeleted);
 
     // Get total count
     let totalCount: i64 = db
@@ -2171,146 +3206,982 @@ pub async fn bulk_search_records(
     })
 }
 
+fn build_bulk_search_where_clause(
+    db: &Connection,
+    table_name: &str,
+    filters: &HashMap<String, serde_json::Value>,
+    include_deleted: bool,
+) -> (String, Vec<Box<dyn rusqlite::ToSql>>) {
+    let mut where_clause = String::new();
+    let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+    let mut has_condition = false;
+    let allowed_columns: HashSet<String> = get_table_columns(db, table_name)
+        .unwrap_or_default()
+        .into_iter()
+        .collect();
+
+    if !include_deleted {
+        where_clause.push_str(" WHERE deleted_at IS NULL");
+        has_condition = true;
+    }
+
+    for (column, value) in filters {
+        if !allowed_columns.contains(column) {
+            continue;
+        }
+        if !value.is_null() {
+            let connector = if has_condition { " AND" } else { " WHERE" };
+            let quoted_col = sqlite_double_quote_ident(column);
+            if matches!(value, serde_json::Value::String(_)) {
+                where_clause.push_str(&format!("{} {} LIKE ?", connector, quoted_col));
+            } else {
+                where_clause.push_str(&format!("{} {} = ?", connector, quoted_col));
+            }
+            has_condition = true;
+
+            let search_value = match value {
+                serde_json::Value::String(s) => format!("{}%", s.trim()),
+                serde_json::Value::Number(n) => n.to_string(),
+                serde_json::Value::Bool(b) => b.to_string(),
+                _ => value.to_string(),
+            };
+            params.push(Box::new(search_value));
+        }
+    }
+
+    (where_clause, params)
+}
+
+fn is_excluded_bulk_table(name: &str) -> bool {
+    name.eq_ignore_ascii_case("refinery_schema_history")
+        || name.starts_with("sqlite_")
+        || name.starts_with("temp_")
+}
+
+fn table_has_id_column_for_bulk(conn: &Connection, table_name: &str) -> Result<bool, String> {
+    let q = format!("PRAGMA table_info(\"{}\")", table_name.replace('"', "\"\""));
+    let mut stmt = conn.prepare(&q).map_err(|e| e.to_string())?;
+    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+    while let Some(r) = rows.next().map_err(|e| e.to_string())? {
+        let col_name: String = r.get(1).map_err(|e| e.to_string())?;
+        if col_name.eq_ignore_ascii_case("id") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn get_bulk_valid_tables(conn: &Connection) -> Result<Vec<String>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |row| row.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    let mut out = Vec::new();
+    for row in rows {
+        let name = row.map_err(|e| e.to_string())?;
+        if is_excluded_bulk_table(&name) {
+            continue;
+        }
+        if table_has_id_column_for_bulk(conn, &name)? {
+            out.push(name);
+        }
+    }
+    Ok(out)
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BulkManageableTable {
+    pub name: String,
+    pub label: String,
+}
+
+#[tauri::command]
+pub async fn get_bulk_manageable_tables(
+    db_state: State<'_, DbState>,
+) -> Result<Vec<BulkManageableTable>, String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let names = get_bulk_valid_tables(&db)?;
+    Ok(names
+        .into_iter()
+        .map(|name| {
+            let label = name
+                .split('_')
+                .map(|w| {
+                    if w.is_empty() {
+                        String::new()
+                    } else if w.eq_ignore_ascii_case("boe") {
+                        "BOE".to_string()
+                    } else {
+                        let mut chars = w.chars();
+                        let first = chars.next().unwrap_or_default().to_ascii_uppercase();
+                        format!("{}{}", first, chars.as_str())
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            BulkManageableTable { name, label }
+        })
+        .collect())
+}
+
+fn collect_matching_ids_from_filters(
+    db: &Connection,
+    table_name: &str,
+    filters: &HashMap<String, serde_json::Value>,
+    include_deleted: bool,
+    excluded_record_ids: &HashSet<String>,
+) -> Result<Vec<String>, String> {
+    let excluded_count = excluded_record_ids.len();
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "[{}] Fetching matching record IDs...",
+        table_name
+    );
+    let fetch_start = Instant::now();
+
+    let (where_clause, params) =
+        build_bulk_search_where_clause(db, table_name, filters, include_deleted);
+    let query = format!("SELECT id FROM {}{} ORDER BY id", table_name, where_clause);
+    let mut stmt = db.prepare(&query).map_err(|e| e.to_string())?;
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let rows = stmt
+        .query_map(&param_refs[..], |row| {
+            let id_text = match row.get::<_, String>(0) {
+                Ok(s) => s,
+                Err(_) => row.get::<_, i64>(0)?.to_string(),
+            };
+            Ok(id_text)
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut raw_ids = Vec::new();
+    for row in rows {
+        raw_ids.push(row.map_err(|e| e.to_string())?);
+    }
+    let fetch_ms = fetch_start.elapsed().as_millis();
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "[{}] Fetched {} matching IDs in {} ms",
+        table_name,
+        raw_ids.len(),
+        fetch_ms
+    );
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "[{}] Applying exclusion list: {} excluded IDs",
+        table_name,
+        excluded_count
+    );
+
+    let exclusion_start = Instant::now();
+    let mut ids = Vec::with_capacity(raw_ids.len().saturating_sub(excluded_count));
+    for id in raw_ids {
+        if !excluded_record_ids.contains(&id) {
+            ids.push(id);
+        }
+    }
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "[{}] Final delete count after exclusions: {} (exclusion step {} ms)",
+        table_name,
+        ids.len(),
+        exclusion_start.elapsed().as_millis()
+    );
+    Ok(ids)
+}
+
+fn count_matching_records_from_filters(
+    db: &Connection,
+    table_name: &str,
+    filters: &HashMap<String, serde_json::Value>,
+    include_deleted: bool,
+) -> Result<usize, String> {
+    let (where_clause, params) =
+        build_bulk_search_where_clause(db, table_name, filters, include_deleted);
+    let query = format!("SELECT COUNT(*) FROM {}{}", table_name, where_clause);
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+    let count: i64 = db
+        .query_row(&query, &param_refs[..], |row| row.get(0))
+        .map_err(|e| e.to_string())?;
+    Ok(count.max(0) as usize)
+}
+
+#[derive(Clone)]
+struct BulkUndoContext {
+    table_name: String,
+    record_ids: Vec<String>,
+    user_id: Option<String>,
+    delete_type: String,
+    expires_at: DateTime<Utc>,
+}
+
+fn bulk_undo_registry() -> &'static Mutex<HashMap<String, BulkUndoContext>> {
+    static REGISTRY: OnceLock<Mutex<HashMap<String, BulkUndoContext>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn prune_expired_bulk_undo_tokens(registry: &mut HashMap<String, BulkUndoContext>) {
+    let now = Utc::now();
+    registry.retain(|_, ctx| ctx.expires_at > now);
+}
+
+fn emit_bulk_delete_event(app: &AppHandle, event: &str, payload: serde_json::Value) {
+    if let Some(w) = app.get_webview_window("main") {
+        let _ = w.emit(event, &payload);
+    }
+}
+
+fn create_bulk_undo_token(
+    table_name: &str,
+    record_ids: &[String],
+    user_id: &Option<String>,
+    delete_type: &str,
+) -> Result<(String, String), String> {
+    let undo_token = uuid::Uuid::new_v4().to_string();
+    let expires_at = Utc::now() + chrono::Duration::seconds(BULK_DELETE_UNDO_WINDOW_SECS);
+    let context = BulkUndoContext {
+        table_name: table_name.to_string(),
+        record_ids: record_ids.to_vec(),
+        user_id: user_id.clone(),
+        delete_type: delete_type.to_string(),
+        expires_at,
+    };
+
+    {
+        let mut registry = bulk_undo_registry().lock().map_err(|e| e.to_string())?;
+        prune_expired_bulk_undo_tokens(&mut registry);
+        registry.insert(undo_token.clone(), context);
+    }
+
+    let token_for_cleanup = undo_token.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_secs(BULK_DELETE_UNDO_WINDOW_SECS as u64));
+        if let Ok(mut registry) = bulk_undo_registry().lock() {
+            registry.remove(&token_for_cleanup);
+        }
+    });
+
+    Ok((undo_token, expires_at.to_rfc3339()))
+}
+
+fn execute_bulk_delete_for_ids(
+    app: &AppHandle,
+    db: &mut Connection,
+    table_name: &str,
+    record_ids: &[String],
+    user_id: &Option<String>,
+    delete_type: &str,
+    operation_started_at: Instant,
+    operation_timeout_ms: u64,
+) -> Result<BulkDeleteResult, String> {
+    let _hard_cmd_trace = (delete_type == "hard").then(|| {
+        super::reference_scan::HardDeleteFnLogGuard::new(
+            "execute_bulk_delete_for_ids",
+            table_name,
+            &super::reference_scan::summarize_record_ids_for_log(record_ids),
+            "n/a",
+        )
+    });
+
+    if record_ids.is_empty() {
+        return Err("No records selected for deletion".to_string());
+    }
+    log::info!(
+        target: "import_manager::resource",
+        "event=resource.batch_processing stage=bulk_init delete_type={} total_records={} approx_id_bytes={}",
+        delete_type,
+        record_ids.len(),
+        record_ids.iter().map(|id| id.len()).sum::<usize>()
+    );
+
+    let mut hard_delete_processed_ids: Option<HashSet<String>> =
+        (delete_type == "hard").then(HashSet::new);
+
+    let mut bulk_delete_batch_size: usize = 200;
+    let total_requested = record_ids.len();
+    let mut deleted_count = 0;
+    let mut failed_deletions = Vec::with_capacity(total_requested.saturating_div(10).max(8));
+    if delete_type == "hard" {
+        bulk_delete_batch_size = bulk_delete_batch_size.min(100);
+    }
+    if total_requested >= 5_000 {
+        bulk_delete_batch_size = bulk_delete_batch_size.min(100);
+    }
+    let mut processed = 0usize;
+    let total_batches = total_requested.div_ceil(bulk_delete_batch_size);
+    let mut lock_contention_streak: u32 = 0;
+
+    emit_bulk_delete_event(
+        app,
+        "bulk_delete_started",
+        serde_json::json!({
+            "totalCount": total_requested,
+            "totalBatches": total_batches,
+        }),
+    );
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "event=workflow.bulk_delete.progress stage=initialization total_batches={} total_count={}",
+        total_batches,
+        total_requested
+    );
+
+    for (batch_idx, chunk) in record_ids.chunks(bulk_delete_batch_size).enumerate() {
+        let batch_number = batch_idx + 1;
+        let batch_started_at = Instant::now();
+        log::info!(
+            target: "import_manager::bulk_delete",
+            "event=workflow.bulk_delete.progress stage=execution batch_start={}/{}",
+            batch_number,
+            total_batches
+        );
+        let mut completed_batch = false;
+        for attempt in 1..=BULK_DELETE_BATCH_RETRY_ATTEMPTS {
+            if operation_started_at.elapsed().as_millis() as u64 > operation_timeout_ms {
+                log::warn!(
+                    target: "import_manager::bulk_delete",
+                    "event=workflow.bulk_delete.failure stage=execution reason=timeout elapsed_ms={} timeout_ms={}",
+                    operation_started_at.elapsed().as_millis(),
+                    operation_timeout_ms
+                );
+                return Err("Bulk operation timed out. Please retry.".to_string());
+            }
+
+            let batch_result = (|| -> Result<(usize, Vec<String>), String> {
+                if delete_type == "hard" {
+                    log::info!(
+                        target: "import_manager::hard_delete",
+                        "[HARD_DELETE] Begin transaction"
+                    );
+                }
+                let tx = db
+                    .transaction()
+                    .map_err(|e| format!("Failed to begin bulk delete transaction: {}", e))?;
+                let mut batch_deleted = 0usize;
+                let mut batch_failed = Vec::with_capacity(chunk.len().saturating_div(10).max(4));
+                let soft_delete_query = format!(
+                    "UPDATE {} SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ? WHERE id = ? AND deleted_at IS NULL",
+                    table_name
+                );
+                let hard_delete_query = format!("DELETE FROM {} WHERE id = ?", table_name);
+                let soft_delete_meta =
+                    format!("{{\"type\": \"bulk_soft_delete\", \"batch_size\": {}}}", total_requested);
+                let hard_delete_meta =
+                    format!("{{\"type\": \"bulk_hard_delete\", \"batch_size\": {}}}", total_requested);
+
+                for record_id in chunk {
+                    if let Some(set) = hard_delete_processed_ids.as_mut() {
+                        if !set.insert(record_id.clone()) {
+                            log::error!(
+                                target: "import_manager::hard_delete",
+                                "[HARD_DELETE ERROR] Recursive delete detected id={}",
+                                record_id
+                            );
+                            continue;
+                        }
+                    }
+                    let _per_rec_trace = (delete_type == "hard").then(|| {
+                        super::reference_scan::HardDeleteFnLogGuard::new(
+                            "execute_bulk_delete_for_ids_per_record",
+                            table_name,
+                            record_id.as_str(),
+                            &batch_number.to_string(),
+                        )
+                    });
+                    match delete_type {
+                        "soft" => {
+                            let changes = tx
+                                .execute(&soft_delete_query, params![user_id, record_id])
+                                .map_err(|e| e.to_string())?;
+
+                            if changes > 0 {
+                                batch_deleted += 1;
+                                let tn = table_name;
+                                let _ = tx.execute(
+                                    r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
+                                    params![
+                                        tn,
+                                        tn,
+                                        record_id,
+                                        "bulk_soft_delete",
+                                        user_id,
+                                        &soft_delete_meta
+                                    ],
+                                );
+                            } else {
+                                batch_failed.push(format!(
+                                    "Record {} not found or already deleted",
+                                    record_id
+                                ));
+                            }
+                        }
+                        "hard" => {
+                            super::reference_scan::delete_fk_dependent_children(
+                                &tx,
+                                table_name,
+                                std::slice::from_ref(record_id),
+                            )?;
+                            let exec_started = Instant::now();
+                            let changes = match tx.execute(&hard_delete_query, params![record_id.as_str()]) {
+                                Ok(changes) => changes,
+                                Err(e) => {
+                                    let raw = e.to_string();
+                                    if is_sqlite_lock_err(&raw) {
+                                        return Err(raw);
+                                    }
+                                    return Err(super::reference_scan::map_hard_delete_error_rusqlite(e));
+                                }
+                            };
+                            let exec_ms = exec_started.elapsed().as_millis();
+                            if exec_ms > 500 {
+                                log::warn!(
+                                    target: "import_manager::hard_delete",
+                                    "[HARD_DELETE WARNING] Slow DELETE for ID={} took {} ms",
+                                    record_id,
+                                    exec_ms
+                                );
+                            }
+
+                            if changes > 0 {
+                                batch_deleted += 1;
+                                let tn = table_name;
+                                let _ = tx.execute(
+                                    r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
+                                    params![
+                                        tn,
+                                        tn,
+                                        record_id.as_str(),
+                                        "bulk_hard_delete",
+                                        user_id,
+                                        &hard_delete_meta
+                                    ],
+                                );
+                            } else {
+                                batch_failed.push(format!("Record {} not found", record_id));
+                            }
+                        }
+                        _ => return Err(format!("Invalid delete type: {}", delete_type)),
+                    }
+                }
+
+                tx.commit()
+                    .map_err(|e| format!("Failed to commit bulk delete transaction: {}", e))?;
+                if delete_type == "hard" {
+                    log::info!(
+                        target: "import_manager::hard_delete",
+                        "[HARD_DELETE] Commit transaction"
+                    );
+                }
+                Ok((batch_deleted, batch_failed))
+            })();
+
+            match batch_result {
+                Ok((batch_deleted, batch_failed)) => {
+                    lock_contention_streak = 0;
+                    deleted_count += batch_deleted;
+                    failed_deletions.extend(batch_failed);
+                    processed += chunk.len();
+                    log::info!(
+                        target: "import_manager::bulk_delete",
+                        "Processed {} / {}",
+                        processed,
+                        total_requested
+                    );
+                    log::info!(
+                        target: "import_manager::bulk_delete",
+                        "event=workflow.bulk_delete.progress stage=execution batch_complete={}/{} batch_elapsed_ms={}",
+                        batch_number,
+                        total_batches,
+                        batch_started_at.elapsed().as_millis()
+                    );
+                    emit_bulk_delete_event(
+                        app,
+                        "bulk_delete_progress",
+                        serde_json::json!({
+                            "processedCount": processed,
+                            "totalCount": total_requested,
+                            "currentBatch": batch_number,
+                            "totalBatches": total_batches,
+                            "elapsedMs": operation_started_at.elapsed().as_millis() as u64,
+                        }),
+                    );
+                    completed_batch = true;
+                    break;
+                }
+                Err(e) if is_sqlite_lock_err(&e) && attempt < BULK_DELETE_BATCH_RETRY_ATTEMPTS => {
+                    lock_contention_streak = lock_contention_streak.saturating_add(1);
+                    log::warn!(
+                        target: "import_manager::bulk_delete",
+                        "event=workflow.bulk_delete.progress stage=retry batch={} next_attempt={}",
+                        batch_number,
+                        attempt + 1
+                    );
+                    emit_bulk_delete_event(
+                        app,
+                        "bulk_delete_retry",
+                        serde_json::json!({
+                            "batchNumber": batch_number,
+                            "retryAttempt": attempt + 1,
+                        }),
+                    );
+                    let retry_delay_ms =
+                        sqlite_retry_delay_ms(BULK_DELETE_BATCH_RETRY_DELAY_MS, attempt);
+                    std::thread::sleep(Duration::from_millis(retry_delay_ms));
+                    if lock_contention_streak >= BULK_DELETE_LOCK_STORM_LIMIT {
+                        log_failure_pattern(
+                            &LOCK_CONFLICT_EVENT_COUNT,
+                            "bulk_lock_storm",
+                            &format!("table={} streak={}", table_name, lock_contention_streak),
+                        );
+                        return Err(
+                            "Database lock contention is too high. Please retry when other heavy operations complete."
+                                .to_string(),
+                        );
+                    }
+                }
+                Err(e) if is_sqlite_lock_err(&e) => {
+                    log_failure_pattern(
+                        &LOCK_CONFLICT_EVENT_COUNT,
+                        "bulk_lock_conflict",
+                        &format!("table={} batch={}", table_name, batch_number),
+                    );
+                    return Err("Database is busy. Please retry operation.".to_string());
+                }
+                Err(e) => {
+                    log_failure_pattern(
+                        &HEAVY_WORKFLOW_FAILURE_COUNT,
+                        "bulk_delete_failure",
+                        &format!("table={} batch={}", table_name, batch_number),
+                    );
+                    return Err(e);
+                }
+            }
+        }
+
+        if !completed_batch {
+            return Err("Database is busy. Please retry operation.".to_string());
+        }
+    }
+
+    let mut result = BulkDeleteResult {
+        success: deleted_count > 0,
+        deleted_count,
+        total_requested,
+        failed_deletions,
+        message: format!(
+            "Successfully deleted {} out of {} records",
+            deleted_count, total_requested
+        ),
+        undo_token: None,
+        expiration_timestamp: None,
+    };
+
+    if delete_type == "soft" && deleted_count > 0 {
+        let (undo_token, expiration_timestamp) =
+            create_bulk_undo_token(table_name, record_ids, user_id, delete_type)?;
+        result.undo_token = Some(undo_token);
+        result.expiration_timestamp = Some(expiration_timestamp);
+    }
+
+    emit_bulk_delete_event(
+        app,
+        "bulk_delete_completed",
+        serde_json::json!({
+            "totalDeleted": deleted_count,
+            "totalBatches": total_batches,
+            "elapsedMs": operation_started_at.elapsed().as_millis() as u64,
+        }),
+    );
+
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn bulk_get_matching_record_ids(
+    db_state: State<'_, DbState>,
+    tableName: String,
+    filters: HashMap<String, serde_json::Value>,
+    includeDeleted: Option<bool>,
+) -> Result<Vec<String>, String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+
+    let valid_tables = get_bulk_valid_tables(&db)?;
+
+    if !valid_tables.iter().any(|t| t == &tableName) {
+        return Err("Invalid table name".to_string());
+    }
+
+    let include_deleted = includeDeleted.unwrap_or(false);
+    let (where_clause, params) =
+        build_bulk_search_where_clause(&db, &tableName, &filters, include_deleted);
+    let query = format!("SELECT id FROM {}{} ORDER BY id", tableName, where_clause);
+    let mut stmt = db.prepare(&query).map_err(|e| e.to_string())?;
+    let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
+
+    let rows = stmt
+        .query_map(&param_refs[..], |row| {
+            let id_text = match row.get::<_, String>(0) {
+                Ok(s) => s,
+                Err(_) => row.get::<_, i64>(0)?.to_string(),
+            };
+            Ok(id_text)
+        })
+        .map_err(|e| e.to_string())?;
+
+    let mut ids = Vec::new();
+    for row in rows {
+        ids.push(row.map_err(|e| e.to_string())?);
+    }
+    Ok(ids)
+}
+
 // Bulk delete records
 #[tauri::command]
 pub async fn bulk_delete_records(
+    app: AppHandle,
     db_state: State<'_, DbState>,
     tableName: String,
     record_ids: Vec<String>,
     userId: Option<String>,
     delete_type: String, // "soft" or "hard"
 ) -> Result<BulkDeleteResult, String> {
+    log_upgrade_readiness("bulk_delete_records");
+    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    let _bulk_admission_guard = BulkDeleteAdmissionGuard::try_enter()?;
+    log::info!(
+        target: "import_manager::workload",
+        "event=workload.classification category=heavy operation=bulk_delete mode=id_list"
+    );
     let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
 
-    // Validate table name
-    let valid_tables = vec![
-        "suppliers",
-        "shipments",
-        "items",
-        "invoices",
-        "invoice_line_items",
-        "boe_details",
-        "boe_calculations",
-        "service_providers",
-        "expense_types",
-        "expense_invoices",
-        "expenses",
-        "notifications",
-        "audit_logs",
-        "backups",
-    ];
+    let valid_tables = get_bulk_valid_tables(&db)?;
 
-    if !valid_tables.contains(&tableName.as_str()) {
+    if !valid_tables.iter().any(|t| t == &tableName) {
         return Err("Invalid table name".to_string());
     }
 
-    if record_ids.is_empty() {
-        return Err("No records selected for deletion".to_string());
-    }
-
-    // Limit bulk operations to prevent accidental mass deletion
-    if record_ids.len() > 100 {
-        return Err(format!("Cannot delete more than 100 records at once. You selected {} records. Please select fewer records or use multiple smaller batches.", record_ids.len()));
-    }
+    let _hard_top_trace = (delete_type == "hard").then(|| {
+        super::reference_scan::HardDeleteFnLogGuard::new(
+            "bulk_delete_records",
+            &tableName,
+            &super::reference_scan::summarize_record_ids_for_log(&record_ids),
+            "n/a",
+        )
+    });
 
     if delete_type == "hard" {
-        {
-            let db = db_state.db.lock().map_err(|e| e.to_string())?;
-            super::reference_scan::ensure_can_hard_delete(&db, &tableName, &record_ids)?;
-        }
+        super::reference_scan::ensure_can_hard_delete(&db, &tableName, &record_ids)?;
+    }
+    if record_ids.len() >= SCALE_WARNING_BULK_RECORDS {
+        log::info!(
+            target: "import_manager::bulk_delete",
+            "event=workflow.bulk_delete.scale_readiness stage=entry mode=id_list record_count={}",
+            record_ids.len()
+        );
+        log_scale_escalation(&LARGE_BULK_OPERATION_COUNT, "bulk_delete_id_list", record_ids.len());
     }
 
-    let mut deleted_count = 0;
-    let mut failed_deletions = Vec::new();
+    let operation_started_at = Instant::now();
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "event=workflow.bulk_delete.start stage=entry sequence={} table={} delete_type={} record_count={} user_id={}",
+        heavy_seq,
+        tableName,
+        delete_type,
+        record_ids.len(),
+        userId.as_deref().unwrap_or("unknown")
+    );
+    let result = execute_bulk_delete_for_ids(
+        &app,
+        &mut db,
+        &tableName,
+        &record_ids,
+        &userId,
+        &delete_type,
+        operation_started_at,
+        BULK_DELETE_OPERATION_TIMEOUT_MS,
+    );
+    let result = match result {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!(
+                target: "import_manager::bulk_delete",
+                "event=workflow.bulk_delete.failure stage=completion table={} delete_type={} elapsed_ms={} error={}",
+                tableName,
+                delete_type,
+                operation_started_at.elapsed().as_millis(),
+                e
+            );
+            record_performance_observation(
+                "bulk_delete_id_list",
+                operation_started_at.elapsed().as_millis(),
+                record_ids.len(),
+                1,
+            );
+            return Err(e);
+        }
+    };
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "event=workflow.bulk_delete.success stage=completion table={} delete_type={} elapsed_ms={} deleted_count={}",
+        tableName,
+        delete_type,
+        operation_started_at.elapsed().as_millis(),
+        result.deleted_count
+    );
+    record_performance_observation(
+        "bulk_delete_id_list",
+        operation_started_at.elapsed().as_millis(),
+        record_ids.len(),
+        0,
+    );
+    invalidate_database_stats_cache();
+    Ok(result)
+}
 
-    let _ = db.execute("ROLLBACK", []);
+#[tauri::command]
+pub async fn bulk_delete_records_by_filter(
+    app: AppHandle,
+    db_state: State<'_, DbState>,
+    tableName: String,
+    filters: HashMap<String, serde_json::Value>,
+    includeDeleted: Option<bool>,
+    excludedRecordIds: Vec<String>,
+    expectedSelectedCount: usize,
+    operationTimeoutMs: Option<u64>,
+    userId: Option<String>,
+    deleteType: String,
+) -> Result<BulkDeleteResult, String> {
+    log_upgrade_readiness("bulk_delete_records_by_filter");
+    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    let _bulk_admission_guard = BulkDeleteAdmissionGuard::try_enter()?;
+    log::info!(
+        target: "import_manager::workload",
+        "event=workload.classification category=heavy operation=bulk_delete mode=filter"
+    );
+    let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
 
+    let valid_tables = get_bulk_valid_tables(&db)?;
+    if !valid_tables.iter().any(|t| t == &tableName) {
+        return Err("Invalid table name".to_string());
+    }
+
+    let include_deleted = includeDeleted.unwrap_or(false);
+    let requested_timeout_ms = operationTimeoutMs.unwrap_or(BULK_DELETE_OPERATION_TIMEOUT_MS);
+    let operation_timeout_ms = requested_timeout_ms.clamp(
+        BULK_DELETE_OPERATION_TIMEOUT_MIN_MS,
+        BULK_DELETE_OPERATION_TIMEOUT_MAX_MS,
+    );
+    if requested_timeout_ms != operation_timeout_ms {
+        log::warn!(
+            target: "import_manager::bulk_delete",
+            "Adjusted operationTimeoutMs from {} to {} for stability bounds",
+            requested_timeout_ms,
+            operation_timeout_ms
+        );
+    }
+    let filter_snapshot = serde_json::to_string(&filters).unwrap_or_else(|_| "{}".to_string());
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "[{}] Counting matching records (validation)...",
+        tableName
+    );
+    let count_validation_start = Instant::now();
+    let total_matching_before_exclusion =
+        count_matching_records_from_filters(&db, &tableName, &filters, include_deleted)?;
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "[{}] Validation count: {} matching rows in {} ms",
+        tableName,
+        total_matching_before_exclusion,
+        count_validation_start.elapsed().as_millis()
+    );
+    let excluded_count = excludedRecordIds.len();
+    let expected_from_query = total_matching_before_exclusion.saturating_sub(excluded_count);
+    if expected_from_query != expectedSelectedCount {
+        return Err("Selection mismatch detected. Please reselect records.".to_string());
+    }
+
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "event=workflow.bulk_delete.start stage=entry sequence={} table={} delete_type={} mode=filter user_id={} total_matching={} excluded_count={} expected_selected={} filter_snapshot={}",
+        heavy_seq,
+        tableName,
+        deleteType,
+        userId.clone().unwrap_or_else(|| "unknown".to_string()),
+        total_matching_before_exclusion,
+        excluded_count,
+        expectedSelectedCount,
+        filter_snapshot
+    );
+
+    let excluded_set: HashSet<String> = excludedRecordIds.into_iter().collect();
+    let matching_ids = collect_matching_ids_from_filters(
+        &db,
+        &tableName,
+        &filters,
+        include_deleted,
+        &excluded_set,
+    )?;
+    if matching_ids.len() >= SCALE_WARNING_BULK_RECORDS {
+        log::info!(
+            target: "import_manager::bulk_delete",
+            "event=workflow.bulk_delete.scale_readiness stage=entry mode=filter record_count={}",
+            matching_ids.len()
+        );
+        log_scale_escalation(&LARGE_BULK_OPERATION_COUNT, "bulk_delete_filter", matching_ids.len());
+    }
+
+    let _hard_top_trace = (deleteType == "hard").then(|| {
+        super::reference_scan::HardDeleteFnLogGuard::new(
+            "bulk_delete_records_by_filter",
+            &tableName,
+            &super::reference_scan::summarize_record_ids_for_log(&matching_ids),
+            "n/a",
+        )
+    });
+
+    if deleteType == "hard" {
+        super::reference_scan::ensure_can_hard_delete(&db, &tableName, &matching_ids)?;
+    }
+
+    let operation_started_at = Instant::now();
+    let result = execute_bulk_delete_for_ids(
+        &app,
+        &mut db,
+        &tableName,
+        &matching_ids,
+        &userId,
+        &deleteType,
+        operation_started_at,
+        operation_timeout_ms,
+    );
+    let result = match result {
+        Ok(v) => v,
+        Err(e) => {
+            log::warn!(
+                target: "import_manager::bulk_delete",
+                "event=workflow.bulk_delete.failure stage=completion table={} delete_type={} mode=filter elapsed_ms={} error={}",
+                tableName,
+                deleteType,
+                operation_started_at.elapsed().as_millis(),
+                e
+            );
+            record_performance_observation(
+                "bulk_delete_filter",
+                operation_started_at.elapsed().as_millis(),
+                matching_ids.len(),
+                1,
+            );
+            return Err(e);
+        }
+    };
+    log::info!(
+        target: "import_manager::bulk_delete",
+        "event=workflow.bulk_delete.success stage=completion table={} delete_type={} mode=filter user_id={} excluded_count={} total_deleted={} requested={} elapsed_ms={} filter_snapshot={}",
+        tableName,
+        deleteType,
+        userId.unwrap_or_else(|| "unknown".to_string()),
+        excluded_count,
+        result.deleted_count,
+        result.total_requested,
+        operation_started_at.elapsed().as_millis(),
+        filter_snapshot
+    );
+    record_performance_observation(
+        "bulk_delete_filter",
+        operation_started_at.elapsed().as_millis(),
+        matching_ids.len(),
+        0,
+    );
+    invalidate_database_stats_cache();
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn restore_deleted_records_using_token(
+    db_state: State<'_, DbState>,
+    undoToken: String,
+) -> Result<BulkDeleteResult, String> {
+    let context = {
+        let mut registry = bulk_undo_registry().lock().map_err(|e| e.to_string())?;
+        prune_expired_bulk_undo_tokens(&mut registry);
+        let ctx = registry
+            .get(&undoToken)
+            .cloned()
+            .ok_or_else(|| "Undo token is invalid or expired.".to_string())?;
+        if ctx.expires_at <= Utc::now() {
+            registry.remove(&undoToken);
+            return Err("Undo window expired.".to_string());
+        }
+        if ctx.delete_type != "soft" {
+            return Err("Undo is only available for soft delete.".to_string());
+        }
+        ctx
+    };
+
+    let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
     let tx = db
         .transaction()
-        .map_err(|e| format!("Failed to begin bulk delete transaction: {}", e))?;
+        .map_err(|e| format!("Failed to begin undo transaction: {}", e))?;
 
-    for record_id in &record_ids {
-        match delete_type.as_str() {
-            "soft" => {
-                // Soft delete
-                let query = format!("UPDATE {} SET deleted_at = CURRENT_TIMESTAMP, deleted_by = ? WHERE id = ? AND deleted_at IS NULL", tableName);
-                let changes = tx
-                    .execute(&query, params![userId, record_id])
-                    .map_err(|e| e.to_string())?;
+    let query = format!(
+        "UPDATE {} SET deleted_at = NULL, deleted_by = NULL WHERE id = ? AND deleted_at IS NOT NULL",
+        context.table_name
+    );
 
-                if changes > 0 {
-                    deleted_count += 1;
-
-                    // Create audit log entry
-                    let tn = tableName.as_str();
-                    let _ = tx.execute(
-                        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
-                        params![
-                            tn,
-                            tn,
-                            record_id,
-                            "bulk_soft_delete",
-                            userId,
-                            format!(
-                                "{{\"type\": \"bulk_soft_delete\", \"batch_size\": {}}}",
-                                record_ids.len()
-                            )
-                        ],
-                    );
-                } else {
-                    failed_deletions
-                        .push(format!("Record {} not found or already deleted", record_id));
-                }
+    let mut restored_count = 0usize;
+    let mut failed = Vec::new();
+    for record_id in &context.record_ids {
+        match tx.execute(&query, params![record_id]) {
+            Ok(changes) if changes > 0 => {
+                restored_count += 1;
+                let tn = context.table_name.as_str();
+                let _ = tx.execute(
+                    r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
+                    params![
+                        tn,
+                        tn,
+                        record_id,
+                        "bulk_restore_undo",
+                        context.user_id,
+                        "{\"type\": \"bulk_undo_restore\"}"
+                    ],
+                );
             }
-            "hard" => {
-                // Hard delete
-                let query = format!("DELETE FROM {} WHERE id = ?", tableName);
-                let changes = tx
-                    .execute(&query, params![record_id])
-                    .map_err(super::reference_scan::map_hard_delete_error_rusqlite)?;
-
-                if changes > 0 {
-                    deleted_count += 1;
-
-                    // Create audit log entry
-                    let tn = tableName.as_str();
-                    let _ = tx.execute(
-                        r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, metadata) VALUES (?, ?, ?, ?, ?, ?)"#,
-                        params![
-                            tn,
-                            tn,
-                            record_id,
-                            "bulk_hard_delete",
-                            userId,
-                            format!(
-                                "{{\"type\": \"bulk_hard_delete\", \"batch_size\": {}}}",
-                                record_ids.len()
-                            )
-                        ],
-                    );
-                } else {
-                    failed_deletions.push(format!("Record {} not found", record_id));
-                }
-            }
-            _ => {
-                failed_deletions.push(format!("Invalid delete type: {}", delete_type));
-            }
+            Ok(_) => failed.push(format!("Record {} not restorable", record_id)),
+            Err(e) => failed.push(format!("Record {} restore failed: {}", record_id, e)),
         }
     }
 
     tx.commit()
-        .map_err(|e| format!("Failed to commit bulk delete transaction: {}", e))?;
+        .map_err(|e| format!("Failed to commit undo transaction: {}", e))?;
 
+    {
+        let mut registry = bulk_undo_registry().lock().map_err(|e| e.to_string())?;
+        registry.remove(&undoToken);
+    }
+
+    invalidate_database_stats_cache();
     Ok(BulkDeleteResult {
-        success: deleted_count > 0,
-        deleted_count,
-        total_requested: record_ids.len(),
-        failed_deletions,
+        success: restored_count > 0,
+        deleted_count: restored_count,
+        total_requested: context.record_ids.len(),
+        failed_deletions: failed,
         message: format!(
-            "Successfully deleted {} out of {} records",
-            deleted_count,
-            record_ids.len()
+            "Undo restored {} out of {} records",
+            restored_count,
+            context.record_ids.len()
         ),
+        undo_token: None,
+        expiration_timestamp: None,
     })
 }
 
@@ -2321,6 +4192,8 @@ pub struct BulkDeleteResult {
     pub total_requested: usize,
     pub failed_deletions: Vec<String>,
     pub message: String,
+    pub undo_token: Option<String>,
+    pub expiration_timestamp: Option<String>,
 }
 
 // Backup Schedule Management
@@ -2339,6 +4212,7 @@ pub async fn create_backup_schedule(
     userId: Option<String>,
 ) -> Result<i64, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_SCHEDULE)?;
 
     let retention_count = retention_count.unwrap_or(5);
     let retention_days = retention_days.unwrap_or(30);
@@ -2383,6 +4257,7 @@ pub async fn create_backup_schedule(
     )
     .map_err(|e| e.to_string())?;
 
+    invalidate_database_stats_cache();
     Ok(id)
 }
 
@@ -2439,6 +4314,7 @@ pub async fn update_backup_schedule(
     userId: Option<String>,
 ) -> Result<(), String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_SCHEDULE)?;
 
     // Build dynamic UPDATE query
     let mut set_clauses = Vec::new();
@@ -2534,6 +4410,7 @@ pub async fn update_backup_schedule(
     )
     .map_err(|e| e.to_string())?;
 
+    invalidate_database_stats_cache();
     Ok(())
 }
 
@@ -2544,6 +4421,7 @@ pub async fn delete_backup_schedule(
     userId: Option<String>,
 ) -> Result<(), String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_SCHEDULE)?;
 
     // Get schedule info for audit log
     let schedule_name: String = db
@@ -2583,6 +4461,7 @@ pub async fn delete_backup_schedule(
     )
     .map_err(|e| e.to_string())?;
 
+    invalidate_database_stats_cache();
     Ok(())
 }
 
@@ -2592,6 +4471,10 @@ pub async fn run_scheduled_backup(
     schedule_id: i64,
     userId: Option<String>,
 ) -> Result<BackupInfo, String> {
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_CREATE)?;
+    }
     // Get schedule details first
     let schedule = {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
@@ -2692,6 +4575,7 @@ pub async fn create_user_role(
     created_by: Option<String>,
 ) -> Result<i64, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, created_by.as_deref(), PERM_USER_MANAGE)?;
 
     // Validate role
     let valid_roles = ["admin", "db_manager", "user", "viewer"];
@@ -2767,6 +4651,7 @@ pub async fn update_user_role(
     updated_by: Option<String>,
 ) -> Result<(), String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, updated_by.as_deref(), PERM_USER_MANAGE)?;
 
     // Build dynamic UPDATE query
     let mut set_clauses = Vec::new();
@@ -2838,6 +4723,7 @@ pub async fn delete_user_role(
     deleted_by: Option<String>,
 ) -> Result<(), String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, deleted_by.as_deref(), PERM_USER_MANAGE)?;
 
     // Get role info for audit log
     let (user_id, role): (String, String) = db
@@ -3165,6 +5051,7 @@ pub async fn update_record(
     request: RecordUpdate,
 ) -> Result<UpdateResult, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, request.userId.as_deref(), PERM_DATA_EDIT)?;
 
     // Validate table name
     let valid_tables = vec![

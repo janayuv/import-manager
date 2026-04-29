@@ -19,6 +19,8 @@ export interface Invoice {
   status: 'Draft' | 'Finalized' | 'Mismatch';
   calculatedTotal: number;
   shipmentTotal: number;
+  lineTotalDecimals?: 0 | 2;
+  invoiceTotalDecimals?: 0 | 2;
   lineItems?: InvoiceLineItem[];
 }
 
@@ -40,6 +42,7 @@ export interface FlattenedInvoiceLine {
   sws: number;
   igst: number;
   invoiceTotal: number;
+  invoiceTotalDecimals?: 0 | 2;
   shipmentTotal: number;
   status: 'Draft' | 'Finalized' | 'Mismatch';
 }

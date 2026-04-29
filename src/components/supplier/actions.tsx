@@ -18,12 +18,14 @@ interface SupplierActionsProps {
   supplier: Supplier;
   onView: () => void;
   onEdit: () => void;
+  onDelete: () => void;
 }
 
 export const SupplierActions = ({
   supplier,
   onView,
   onEdit,
+  onDelete,
 }: SupplierActionsProps) => {
   return (
     <DropdownMenu>
@@ -56,6 +58,18 @@ export const SupplierActions = ({
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={onView}>View details</DropdownMenuItem>
         <DropdownMenuItem onClick={onEdit}>Edit supplier</DropdownMenuItem>
+        <DropdownMenuItem
+          className="text-destructive focus:text-destructive"
+          onClick={() => {
+            const confirmed = window.confirm(
+              `Delete supplier "${supplier.supplierName}"? This will soft delete the record.`
+            );
+            if (!confirmed) return;
+            onDelete();
+          }}
+        >
+          Delete supplier
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

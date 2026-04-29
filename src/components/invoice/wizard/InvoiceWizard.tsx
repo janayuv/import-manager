@@ -61,6 +61,7 @@ export interface InvoiceWizardDraft {
   header: InvoiceWizardDraftHeader;
   lines: InvoiceWizardDraftLineItem[];
   updatedAt: number;
+  savedAt: number;
 }
 
 export interface InvoiceWizardProps {
@@ -72,27 +73,90 @@ export interface InvoiceWizardProps {
 }
 
 const DRAFT_STORAGE_KEY = 'invoice_wizard_drafts';
+const MAX_DRAFTS = 20;
+const DRAFT_TTL_DAYS = 30;
+const DRAFT_TTL_MS = DRAFT_TTL_DAYS * 24 * 60 * 60 * 1000;
+
+function isValidDraft(value: unknown): value is InvoiceWizardDraft {
+  if (!value || typeof value !== 'object') return false;
+  const draft = value as Partial<InvoiceWizardDraft>;
+  return (
+    typeof draft.id === 'string' &&
+    typeof draft.header === 'object' &&
+    Array.isArray(draft.lines)
+  );
+}
+
+function normalizeAndCleanupDrafts(rawDrafts: unknown): InvoiceWizardDraft[] {
+  if (!Array.isArray(rawDrafts)) return [];
+
+  const now = Date.now();
+  const expiryTime = now - DRAFT_TTL_MS;
+
+  const normalized = rawDrafts
+    .filter(isValidDraft)
+    .map(draft => {
+      const fallbackTimestamp =
+        typeof draft.updatedAt === 'number' && Number.isFinite(draft.updatedAt)
+          ? draft.updatedAt
+          : now;
+      const savedAt =
+        typeof draft.savedAt === 'number' && Number.isFinite(draft.savedAt)
+          ? draft.savedAt
+          : fallbackTimestamp;
+      const updatedAt =
+        typeof draft.updatedAt === 'number' && Number.isFinite(draft.updatedAt)
+          ? draft.updatedAt
+          : savedAt;
+
+      return {
+        ...draft,
+        updatedAt,
+        savedAt,
+      };
+    })
+    .filter(draft => draft.savedAt >= expiryTime)
+    .sort((a, b) => b.savedAt - a.savedAt)
+    .slice(0, MAX_DRAFTS);
+
+  return normalized;
+}
 
 function readDrafts(): InvoiceWizardDraft[] {
+  console.time('draftLoad');
   try {
     const raw = localStorage.getItem(DRAFT_STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      console.timeEnd('draftLoad');
+      return [];
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    const cleaned = normalizeAndCleanupDrafts(parsed);
+    localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(cleaned));
+    console.timeEnd('draftLoad');
+    return cleaned;
   } catch {
+    console.timeEnd('draftLoad');
     return [];
   }
 }
 
 function writeDrafts(drafts: InvoiceWizardDraft[]) {
-  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(drafts));
+  const cleaned = normalizeAndCleanupDrafts(drafts);
+  localStorage.setItem(DRAFT_STORAGE_KEY, JSON.stringify(cleaned));
 }
 
 function upsertDraft(draft: InvoiceWizardDraft) {
   const drafts = readDrafts();
+  const now = Date.now();
+  const normalizedDraft: InvoiceWizardDraft = {
+    ...draft,
+    updatedAt: now,
+    savedAt: now,
+  };
   const idx = drafts.findIndex(d => d.id === draft.id);
-  if (idx >= 0) drafts[idx] = draft;
-  else drafts.push(draft);
+  if (idx >= 0) drafts[idx] = normalizedDraft;
+  else drafts.push(normalizedDraft);
   writeDrafts(drafts);
 }
 
@@ -132,7 +196,8 @@ export function InvoiceWizard({
 
   // Filter out finalized shipments and shipments with existing invoices
   const availableShipments = React.useMemo(() => {
-    // Get shipment IDs that already have invoices (any status)
+    // Backend already filters for unfinalized and uninvoiced shipments,
+    // but we keep the logic here as a defensive double-check.
     const shipmentIdsWithInvoices = new Set(
       invoices.map(inv => inv.shipmentId)
     );
@@ -140,21 +205,34 @@ export function InvoiceWizard({
     const filtered = shipments.filter(s => {
       // Filter out shipments with status "Finalized", "Closed", or similar
       const status = s.status?.toLowerCase() || '';
-      const isFinalized =
+      const isTerminal =
         status.includes('finalized') ||
         status.includes('closed') ||
-        status.includes('completed');
+        status.includes('completed') ||
+        status.includes('delivered') ||
+        status.includes('cancelled');
 
       // Filter out shipments that already have invoices
       const hasInvoices = shipmentIdsWithInvoices.has(s.id);
 
-      return !isFinalized && !hasInvoices;
+      return !isTerminal && !hasInvoices;
     });
 
     console.debug(
-      'Available shipments:',
-      filtered.map(s => ({ id: s.id, invoiceNumber: s.invoiceNumber }))
+      'Available shipments (frontend filtered):',
+      filtered.map(s => ({
+        id: s.id,
+        invoiceNumber: s.invoiceNumber,
+        status: s.status,
+      }))
     );
+
+    if (shipments.length > 0 && filtered.length === 0) {
+      console.warn(
+        'Shipments exist but all were filtered out by frontend logic.'
+      );
+    }
+
     return filtered;
   }, [shipments, invoices]);
 
@@ -162,6 +240,11 @@ export function InvoiceWizard({
     value: s.id,
     label: `${s.invoiceNumber} (${s.invoiceCurrency})`,
   }));
+
+  if (shipments.length > 0 && availableShipments.length === 0) {
+    // Safety fallback UI message
+    console.log('No available shipments after filtering.');
+  }
 
   const [header, setHeader] = React.useState<InvoiceWizardDraftHeader>(() => ({
     invoiceNumber: '',
@@ -475,6 +558,7 @@ export function InvoiceWizard({
       header,
       lines,
       updatedAt: Date.now(),
+      savedAt: Date.now(),
     };
     upsertDraft(draft);
     setTimeout(() => {
@@ -677,9 +761,9 @@ export function InvoiceWizard({
                 }
                 disabled={availableShipments.length === 0}
                 emptyText={
-                  availableShipments.length === 0
-                    ? 'No available shipments'
-                    : 'No shipments found'
+                  shipments.length === 0
+                    ? 'No unfinalized shipments found in database.'
+                    : 'No available shipments (already invoiced or terminal status).'
                 }
               />
               <p className="text-muted-foreground mt-1 text-xs">

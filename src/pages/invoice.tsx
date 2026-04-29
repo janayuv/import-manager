@@ -121,11 +121,6 @@ const InvoicePage = () => {
     }
   }, [invoiceIdParam]);
 
-  const selectedInvoiceFromUrl = React.useMemo(() => {
-    if (!decodedInvoiceId) return null;
-    return invoices.find(inv => inv.id === decodedInvoiceId) ?? null;
-  }, [invoices, decodedInvoiceId]);
-
   const closeInvoicePanel = React.useCallback(() => {
     navigate('/invoice');
   }, [navigate]);
@@ -135,6 +130,35 @@ const InvoicePage = () => {
   } | null>(null);
 
   const [statusFilter, setStatusFilter] = React.useState('All');
+  const itemMap = React.useMemo(
+    () => new Map(items.map(i => [i.id, i])),
+    [items]
+  );
+  const shipmentMap = React.useMemo(
+    () => new Map(shipments.map(s => [s.id, s])),
+    [shipments]
+  );
+  const supplierMap = React.useMemo(
+    () => new Map(suppliers.map(s => [s.id, s])),
+    [suppliers]
+  );
+  const invoiceMap = React.useMemo(
+    () => new Map(invoices.map(inv => [inv.id, inv])),
+    [invoices]
+  );
+
+  const selectedInvoiceFromUrl = React.useMemo(() => {
+    if (!decodedInvoiceId) return null;
+    return invoiceMap.get(decodedInvoiceId) ?? null;
+  }, [invoiceMap, decodedInvoiceId]);
+
+  const roundToPrecision = React.useCallback(
+    (value: number, decimals: 0 | 2) => {
+      const factor = 10 ** decimals;
+      return Math.round(value * factor) / factor;
+    },
+    []
+  );
 
   const fetchData = React.useCallback(async () => {
     setLoading(true);
@@ -168,8 +192,8 @@ const InvoicePage = () => {
 
   const availableShipmentsForForm = React.useMemo(() => {
     if (editingInvoiceForShipments) {
-      const currentShipment = shipments.find(
-        s => s.id === editingInvoiceForShipments.shipmentId
+      const currentShipment = shipmentMap.get(
+        editingInvoiceForShipments.shipmentId
       );
       if (
         currentShipment &&
@@ -179,7 +203,7 @@ const InvoicePage = () => {
       }
     }
     return unfinalizedShipments;
-  }, [unfinalizedShipments, shipments, editingInvoiceForShipments]);
+  }, [unfinalizedShipments, shipmentMap, editingInvoiceForShipments]);
 
   // Helper function to format currency
   const formatCurrency = (amount: number, currency: string) => {
@@ -194,6 +218,7 @@ const InvoicePage = () => {
   };
 
   const flattenedData = React.useMemo(() => {
+    console.time('flattenedData');
     const data: FlattenedInvoiceLine[] = [];
     const filteredInvoices =
       statusFilter === 'All'
@@ -201,12 +226,14 @@ const InvoicePage = () => {
         : invoices.filter(invoice => invoice.status === statusFilter);
 
     filteredInvoices.forEach(invoice => {
-      const shipment = shipments.find(s => s.id === invoice.shipmentId);
-      const supplier = suppliers.find(sup => sup.id === shipment?.supplierId);
+      const shipment = shipmentMap.get(invoice.shipmentId);
+      const supplier = shipment
+        ? supplierMap.get(shipment.supplierId)
+        : undefined;
 
       if (invoice.lineItems && invoice.lineItems.length > 0) {
         invoice.lineItems.forEach(lineItem => {
-          const item = items.find(i => i.id === lineItem.itemId);
+          const item = itemMap.get(lineItem.itemId);
           if (shipment && supplier && item) {
             data.push({
               invoiceId: invoice.id,
@@ -220,11 +247,15 @@ const InvoicePage = () => {
               unit: item.unit,
               quantity: lineItem.quantity,
               unitPrice: lineItem.unitPrice,
-              lineTotal: lineItem.quantity * lineItem.unitPrice,
+              lineTotal: roundToPrecision(
+                lineItem.quantity * lineItem.unitPrice,
+                invoice.lineTotalDecimals === 0 ? 0 : 2
+              ),
               bcd: lineItem.dutyPercent ?? parsePercentage(item.bcd),
               sws: lineItem.swsPercent ?? parsePercentage(item.sws),
               igst: lineItem.igstPercent ?? parsePercentage(item.igst),
               invoiceTotal: invoice.calculatedTotal,
+              invoiceTotalDecimals: invoice.invoiceTotalDecimals === 0 ? 0 : 2,
               shipmentTotal: invoice.shipmentTotal,
               status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
             });
@@ -249,14 +280,23 @@ const InvoicePage = () => {
             sws: 0,
             igst: 0,
             invoiceTotal: invoice.calculatedTotal,
+            invoiceTotalDecimals: invoice.invoiceTotalDecimals === 0 ? 0 : 2,
             shipmentTotal: invoice.shipmentTotal,
             status: invoice.status as 'Draft' | 'Finalized' | 'Mismatch',
           });
         }
       }
     });
+    console.timeEnd('flattenedData');
     return data;
-  }, [invoices, shipments, items, suppliers, statusFilter]);
+  }, [
+    invoices,
+    shipmentMap,
+    supplierMap,
+    itemMap,
+    statusFilter,
+    roundToPrecision,
+  ]);
 
   const handleOpenFormForAdd = () => {
     setInvoiceToEdit(null);
@@ -297,7 +337,7 @@ const InvoicePage = () => {
     async (invoiceId: string, invoiceNumber: string) => {
       try {
         // Find the invoice to get its current data
-        const invoice = invoices.find(inv => inv.id === invoiceId);
+        const invoice = invoiceMap.get(invoiceId);
         if (!invoice) {
           notifications.error(
             'Invoice Not Found',
@@ -332,6 +372,8 @@ const InvoicePage = () => {
           const payload = {
             shipmentId: invoice.shipmentId,
             status: 'Finalized',
+            lineTotalDecimals: invoice.lineTotalDecimals ?? 2,
+            invoiceTotalDecimals: invoice.invoiceTotalDecimals ?? 2,
             lineItems:
               invoice.lineItems?.map(li => ({
                 itemId: li.itemId,
@@ -352,7 +394,7 @@ const InvoicePage = () => {
         notifications.invoice.error('finalize', String(error));
       }
     },
-    [invoices, fetchData, notifications]
+    [invoiceMap, fetchData, notifications]
   );
 
   const handleBulkAutoFinalize = React.useCallback(async () => {
@@ -453,6 +495,8 @@ const InvoicePage = () => {
     const payload = {
       shipmentId: invoiceData.shipmentId,
       status: invoiceData.status,
+      lineTotalDecimals: invoiceData.lineTotalDecimals ?? 2,
+      invoiceTotalDecimals: invoiceData.invoiceTotalDecimals ?? 2,
       lineItems:
         invoiceData.lineItems?.map(li => ({
           itemId: li.itemId,
@@ -557,6 +601,7 @@ const InvoicePage = () => {
         freshShipments.map(s => [s.invoiceNumber, s.id])
       );
       const itemMap = new Map(freshItems.map(i => [i.partNumber, i.id]));
+      const freshItemMapById = new Map(freshItems.map(i => [i.id, i]));
 
       const invoicesToCreate = new Map<
         string,
@@ -583,7 +628,7 @@ const InvoicePage = () => {
         }
 
         const lineItems = invoicesToCreate.get(shipmentId) || [];
-        const masterItem = freshItems.find(i => i.id === itemId);
+        const masterItem = freshItemMapById.get(itemId);
         lineItems.push({
           itemId,
           quantity: parseFloat(row.quantity) || 0,

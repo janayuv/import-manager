@@ -111,14 +111,16 @@ async function assertNoErrorOrWarningToasts(page: Page) {
   ).toHaveCount(0);
 }
 
-/** Sonner toasts overlay the viewport; wait until they dismiss before the next click. */
-async function waitForSonnerToClear(page: Page) {
-  await page.waitForFunction(
-    () =>
-      document.querySelectorAll('[data-sonner-toast][data-visible="true"]')
-        .length === 0,
-    { timeout: 20_000 }
-  );
+async function waitForSuccessToastLifecycle(page: Page, text: string | RegExp) {
+  const toast = sonnerSuccess(page, text).last();
+  await expect(toast).toBeVisible({ timeout: 30_000 });
+
+  const closeButton = toast.getByRole('button', { name: /close toast/i });
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  }
+
+  await expect(toast).toBeHidden({ timeout: 20_000 });
 }
 
 async function assertUniqueShipmentIds(page: Page): Promise<void> {
@@ -172,9 +174,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         mimeType: 'text/csv',
         buffer: buf,
       });
-      await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-        timeout: 30_000,
-      });
+      await waitForSuccessToastLifecycle(page, 'Import Complete');
       const t1 = await page.evaluate(() => performance.now());
       timings.push(t1 - t0);
       appendPerformanceMetric({
@@ -184,8 +184,6 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         ),
         durationMs: t1 - t0,
       });
-      await waitForSonnerToClear(page);
-
       const expected = 1 + i;
       await expect(
         content.getByText(`Showing ${expected} of ${expected} shipments`)
@@ -218,9 +216,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const t0 = await page.evaluate(() => performance.now());
       await content.getByRole('button', { name: 'Import Bulk' }).click();
       await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
-      await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-        timeout: 30_000,
-      });
+      await waitForSuccessToastLifecycle(page, 'Import Complete');
       const t1 = await page.evaluate(() => performance.now());
       timings.push(t1 - t0);
       appendPerformanceMetric({
@@ -230,8 +226,6 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         ),
         durationMs: t1 - t0,
       });
-      await waitForSonnerToClear(page);
-
       await assertNoErrorOrWarningToasts(page);
 
       const expectedLines = round * 2;
@@ -259,10 +253,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
 
     await content.getByRole('button', { name: 'Import' }).click();
     await setFilesOnBridgeFileInput(page, shipmentValidCsv);
-    await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-      timeout: 25_000,
-    });
-    await waitForSonnerToClear(page);
+    await waitForSuccessToastLifecycle(page, 'Import Complete');
     await expect(content.getByText(/Showing 2 of 2 shipments/)).toBeVisible({
       timeout: 20_000,
     });
@@ -274,6 +265,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const t0 = await page.evaluate(() => performance.now());
       const dl = page.waitForEvent('download');
       await content.getByRole('button', { name: 'Export CSV' }).click();
+      await waitForSuccessToastLifecycle(page, 'Export Complete');
       const file = await dl;
       expect(file.suggestedFilename()).toMatch(/shipment/i);
       const fp = await file.path();
@@ -288,8 +280,6 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         ),
         durationMs: t1 - t0,
       });
-      await waitForSonnerToClear(page);
-
       const rows = Papa.parse<Record<string, string>>(text, {
         header: true,
         skipEmptyLines: true,
@@ -333,10 +323,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         mimeType: 'text/csv',
         buffer: Buffer.from(shipCsv, 'utf-8'),
       });
-      await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-        timeout: 25_000,
-      });
-      await waitForSonnerToClear(page);
+      await waitForSuccessToastLifecycle(page, 'Import Complete');
       await assertNoErrorOrWarningToasts(page);
 
       const invCsv = [
@@ -355,10 +342,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         mimeType: 'text/csv',
         buffer: Buffer.from(invCsv, 'utf-8'),
       });
-      await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-        timeout: 25_000,
-      });
-      await waitForSonnerToClear(page);
+      await waitForSuccessToastLifecycle(page, 'Import Complete');
       await assertNoErrorOrWarningToasts(page);
 
       const boeCsv = [
@@ -376,10 +360,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         mimeType: 'text/csv',
         buffer: Buffer.from(boeCsv, 'utf-8'),
       });
-      await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-        timeout: 25_000,
-      });
-      await waitForSonnerToClear(page);
+      await waitForSuccessToastLifecycle(page, 'Import Complete');
       await assertNoErrorOrWarningToasts(page);
 
       const expCsv = [
@@ -413,10 +394,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       await importSection
         .getByRole('button', { name: /Import \d+ Expenses/i })
         .click();
-      await expect(sonnerSuccess(page, 'Import Complete').first()).toBeVisible({
-        timeout: 25_000,
-      });
-      await waitForSonnerToClear(page);
+      await waitForSuccessToastLifecycle(page, 'Import Complete');
       await assertNoErrorOrWarningToasts(page);
 
       const cycleEnd = await page.evaluate(() => performance.now());

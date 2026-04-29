@@ -1,6 +1,6 @@
 // Re-export all command modules to maintain the same public API
-pub mod ai_extraction;
 pub mod app_info;
+pub mod app_settings;
 pub mod app_metadata;
 pub mod backup_key;
 pub mod boe;
@@ -34,8 +34,8 @@ pub mod test_reset;
 pub mod utils;
 
 // Re-export all public functions from submodules
-pub use ai_extraction::*;
 pub use app_info::*;
+pub use app_settings::*;
 pub use app_metadata::*;
 pub use backup_key::*;
 pub use boe::*;

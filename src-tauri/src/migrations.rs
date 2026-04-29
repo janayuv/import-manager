@@ -39,28 +39,25 @@ const SOFT_DELETE_INDEXES: &[(&str, &str, &str)] = &[
     ),
 ];
 
-/// `ai_extraction_log` required columns (V46); nullable columns are still part of the contract.
-const AI_EXTRACTION_LOG_TABLE: &str = "ai_extraction_log";
+/// Partial indexes: active rows by `id` for `WHERE deleted_at IS NULL` + `ORDER BY id` ID scans.
+const ACTIVE_ROW_ID_PARTIAL_INDEXES: &[(&str, &str)] = &[
+    ("idx_suppliers_active_row_id", "suppliers"),
+    ("idx_shipments_active_row_id", "shipments"),
+    ("idx_items_active_row_id", "items"),
+    ("idx_invoices_active_row_id", "invoices"),
+    ("idx_boe_details_active_row_id", "boe_details"),
+    ("idx_boe_calculations_active_row_id", "boe_calculations"),
+    ("idx_service_providers_active_row_id", "service_providers"),
+    ("idx_expense_types_active_row_id", "expense_types"),
+    ("idx_expense_invoices_active_row_id", "expense_invoices"),
+    ("idx_expenses_active_row_id", "expenses"),
+];
+
 /// V48 performance indexes (IF NOT EXISTS in SQL); verified in [verify_schema_integrity].
 const V48_PERFORMANCE_INDEXES: &[&str] = &[
     "idx_shipments_supplier_invoice",
     "idx_suppliers_name",
     "idx_items_part_number",
-    "idx_ai_extraction_log_created",
-];
-const AI_EXTRACTION_LOG_REQUIRED_COLUMNS: &[&str] = &[
-    "id",
-    "file_hash",
-    "file_name",
-    "supplier_hint",
-    "provider_used",
-    "prompt_version",
-    "raw_ai_response",
-    "extracted_json",
-    "confidence_score",
-    "status",
-    "created_at",
-    "created_by",
 ];
 
 pub struct DatabaseMigrations;
@@ -198,6 +195,52 @@ fn ensure_soft_delete_indexes(conn: &Connection) -> Result<(), String> {
     Ok(())
 }
 
+/// `id` is indexed for active rows only — speeds bulk `SELECT id ... WHERE deleted_at IS NULL ORDER BY id`.
+fn ensure_active_row_id_partial_indexes(conn: &Connection) -> Result<(), String> {
+    for (idx_name, table) in ACTIVE_ROW_ID_PARTIAL_INDEXES {
+        if !table_exists(conn, table)? {
+            continue;
+        }
+        if !column_exists(conn, table, "id")? {
+            continue;
+        }
+        if !column_exists(conn, table, "deleted_at")? {
+            continue;
+        }
+        let sql = format!(
+            "CREATE INDEX IF NOT EXISTS {} ON \"{}\"(id) WHERE deleted_at IS NULL",
+            idx_name,
+            table.replace('"', "")
+        );
+        conn.execute(&sql, []).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+/// WAL reduces writer lock contention vs DELETE journal; safe for desktop single-file DB.
+fn ensure_wal_journal_mode(conn: &Connection) -> Result<(), String> {
+    let mode: String = conn
+        .query_row("PRAGMA journal_mode", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    if mode.to_lowercase() == "wal" {
+        log::info!(
+            target: "import_manager::migrations",
+            "SQLite journal_mode is already WAL"
+        );
+        return Ok(());
+    }
+    let new_mode: String = conn
+        .query_row("PRAGMA journal_mode=WAL", [], |r| r.get(0))
+        .map_err(|e| e.to_string())?;
+    log::info!(
+        target: "import_manager::migrations",
+        "SQLite journal_mode set to {} (previous: {})",
+        new_mode,
+        mode
+    );
+    Ok(())
+}
+
 fn reconcile_embedded_migration_checksum(
     conn: &Connection,
     version: i32,
@@ -221,24 +264,34 @@ fn reconcile_embedded_migration_checksum(
 }
 
 fn reconcile_checksums_before_refinery(conn: &Connection) -> Result<()> {
-    reconcile_embedded_migration_checksum(
-        conn,
-        4,
-        "V4__db_management",
-        include_str!("../migrations/V4__db_management.sql"),
+    if !migration_table_exists(conn)? {
+        return Ok(());
+    }
+
+    // Reconcile checksums for all embedded migrations that are already marked as applied.
+    // This allows local/dev databases to proceed when historical migration SQL files were edited.
+    let max_applied_version: i32 = conn.query_row(
+        "SELECT COALESCE(MAX(version), 0) FROM refinery_schema_history",
+        [],
+        |r| r.get(0),
     )?;
-    reconcile_embedded_migration_checksum(
-        conn,
-        5,
-        "V5__invoice_line_item_tax_rates",
-        include_str!("../migrations/V5__invoice_line_item_tax_rates.sql"),
-    )?;
-    reconcile_embedded_migration_checksum(
-        conn,
-        6,
-        "V6__audit_logs_tableName",
-        include_str!("../migrations/V6__audit_logs_tableName.sql"),
-    )?;
+
+    if max_applied_version <= 0 {
+        return Ok(());
+    }
+
+    let runner = migrations::runner();
+    for mig in runner
+        .get_migrations()
+        .iter()
+        .filter(|m| (m.version() as i32) <= max_applied_version)
+    {
+        let version = mig.version() as i32;
+        let stem = mig.to_string();
+        if let Some(sql) = mig.sql() {
+            reconcile_embedded_migration_checksum(conn, version, &stem, sql)?;
+        }
+    }
     Ok(())
 }
 
@@ -344,6 +397,11 @@ fn run_refinery_migrations_with_duplicate_drift(conn: &mut Connection) -> Result
 fn post_refinery_migrations(conn: &Connection) -> Result<(), String> {
     log::info!(
         target: "import_manager::migrations",
+        "Ensuring SQLite WAL journal mode"
+    );
+    ensure_wal_journal_mode(conn)?;
+    log::info!(
+        target: "import_manager::migrations",
         "Ensuring soft-delete columns"
     );
     ensure_soft_delete_columns(conn)?;
@@ -357,6 +415,11 @@ fn post_refinery_migrations(conn: &Connection) -> Result<(), String> {
         "Ensuring soft-delete indexes"
     );
     ensure_soft_delete_indexes(conn)?;
+    log::info!(
+        target: "import_manager::migrations",
+        "Ensuring active-row id partial indexes (bulk ID fetch)"
+    );
+    ensure_active_row_id_partial_indexes(conn)?;
     log::info!(
         target: "import_manager::migrations",
         "Ensuring audit_logs.tableName column"
@@ -442,18 +505,6 @@ pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
     }
     if !column_exists(conn, "workflow_incidents", "deleted_by").map_err(|e| e.to_string())? {
         problems.push("workflow_incidents.deleted_by".to_string());
-    }
-
-    if !table_exists(conn, AI_EXTRACTION_LOG_TABLE).map_err(|e| e.to_string())? {
-        problems.push("ai_extraction_log".to_string());
-    } else {
-        for col in AI_EXTRACTION_LOG_REQUIRED_COLUMNS {
-            if !column_exists(conn, AI_EXTRACTION_LOG_TABLE, col)
-                .map_err(|e| e.to_string())?
-            {
-                problems.push(format!("{AI_EXTRACTION_LOG_TABLE}.{col}"));
-            }
-        }
     }
 
     if !migration_table_exists(conn).map_err(|e| e.to_string())? {
@@ -660,27 +711,14 @@ mod tests {
             "soft-delete columns must exist after migrations"
         );
 
-        assert!(
-            table_exists(&conn, AI_EXTRACTION_LOG_TABLE)
-                .map_err(|e| format!("table_exists: {}", e))?,
-            "ai_extraction_log must exist after migrations"
-        );
-        for col in AI_EXTRACTION_LOG_REQUIRED_COLUMNS {
-            assert!(
-                column_exists(&conn, AI_EXTRACTION_LOG_TABLE, col)
-                    .map_err(|e| format!("column_exists {col}: {e}"))?,
-                "ai_extraction_log.{col} must exist"
-            );
-        }
-
         let max_v: i32 = conn.query_row(
             "SELECT MAX(version) FROM refinery_schema_history",
             [],
             |r| r.get(0),
         )?;
         assert!(
-            max_v >= 48,
-            "expected migration head at least V48 (performance indexes), got {max_v}"
+            max_v >= 49,
+            "expected migration head at least V49 (AI removal), got {max_v}"
         );
 
         assert!(
@@ -693,7 +731,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ai_extraction_log_migration_idempotent_rerun() -> Result<(), Box<dyn std::error::Error>> {
+    fn test_migrations_idempotent_rerun() -> Result<(), Box<dyn std::error::Error>> {
         let mut conn = Connection::open_in_memory()?;
 
         DatabaseMigrations::run_migrations_test(&mut conn)

@@ -1,7 +1,7 @@
 {
   "name": "Import Manager",
   "private": true,
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "Windows-only desktop application for managing import/export operations",
   "os": [
     "win32"
@@ -36,7 +36,11 @@
     "test:e2e:debug": "playwright test --debug",
     "test:e2e:report": "playwright show-report",
     "generate:drift-report": "tsx scripts/generate-drift-report.ts",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "release:local": "powershell -ExecutionPolicy Bypass -File scripts/local-release-check.ps1",
+    "prebuild:verify": "powershell -ExecutionPolicy Bypass -File scripts/prebuild-check.ps1",
+    "build:release": "powershell -ExecutionPolicy Bypass -File scripts/build-with-check.ps1",
+    "deps:cleanup": "powershell -ExecutionPolicy Bypass -File scripts/dependency-cleanup.ps1"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

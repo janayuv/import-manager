@@ -2,27 +2,176 @@
 #![allow(non_snake_case)]
 
 use crate::db::DbState;
-use rusqlite::{params, Connection, OptionalExtension};
+use rusqlite::{params, Connection, OptionalExtension, Transaction};
 use serde::{Deserialize, Serialize};
+use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash, Hasher};
 use std::sync::{Mutex, OnceLock};
 use std::time::{Duration, Instant};
 use tauri::State;
 
+// --- Hard delete tracing (shared across reference scan + delete commands) ---
+
+pub(crate) fn summarize_record_ids_for_log(ids: &[String]) -> String {
+    match ids.len() {
+        0 => "(none)".to_string(),
+        1 => ids[0].clone(),
+        n => format!("(count={n} first_id={})", ids[0]),
+    }
+}
+
+/// Logs FK edges that reference `parent_table` and their SQLite `ON DELETE` action.
+pub fn log_hard_delete_fk_cascade_impact(conn: &Connection, parent_table: &str) -> Result<(), String> {
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Checking FK cascade impact parent_table={}",
+        parent_table
+    );
+    if !is_safe_ident(parent_table) || !table_exists(conn, parent_table)? {
+        return Ok(());
+    }
+    let all_tables = list_application_tables(conn)?;
+    for child in all_tables {
+        if !is_safe_ident(&child) {
+            continue;
+        }
+        let mut stmt = conn
+            .prepare("SELECT * FROM pragma_foreign_key_list(?)")
+            .map_err(|e| e.to_string())?;
+        let mut rows = stmt
+            .query(rusqlite::params![&child])
+            .map_err(|e| e.to_string())?;
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            let parent_ref: String = row.get(2).map_err(|e| e.to_string())?;
+            if parent_ref != parent_table {
+                continue;
+            }
+            let from_c: String = row.get(3).map_err(|e| e.to_string())?;
+            let on_delete: String = row
+                .get::<_, Option<String>>(6)
+                .map_err(|e| e.to_string())?
+                .unwrap_or_else(|| "NO ACTION".to_string());
+            log::info!(
+                target: "import_manager::hard_delete",
+                "[HARD_DELETE] FK cascade edge child={} column={} on_delete={} -> parent={}",
+                child,
+                from_c,
+                on_delete,
+                parent_table
+            );
+        }
+    }
+    Ok(())
+}
+
+pub(crate) struct HardDeleteFnLogGuard {
+    name: &'static str,
+}
+
+impl HardDeleteFnLogGuard {
+    pub(crate) fn new(name: &'static str, table: &str, record_id_summary: &str, batch_number: &str) -> Self {
+        log::info!(
+            target: "import_manager::hard_delete",
+            "[HARD_DELETE] Enter function: {} table={} record_id={} batch_number={}",
+            name,
+            table,
+            record_id_summary,
+            batch_number
+        );
+        Self { name }
+    }
+}
+
+impl Drop for HardDeleteFnLogGuard {
+    fn drop(&mut self) {
+        log::info!(
+            target: "import_manager::hard_delete",
+            "[HARD_DELETE] Exit function: {}",
+            self.name
+        );
+    }
+}
+
+fn hard_delete_log_child_table_scan(child_table: &str) {
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Deleting related records from {}",
+        child_table
+    );
+}
+
+thread_local! {
+    static HARD_DELETE_ENSURE_KEYS: RefCell<HashSet<(String, String)>> =
+        RefCell::new(HashSet::new());
+}
+
+struct HardDeleteEnsureRecursionGuard {
+    keys: Vec<(String, String)>,
+}
+
+impl HardDeleteEnsureRecursionGuard {
+    fn try_enter(table: &str, record_ids: &[String]) -> Result<Self, String> {
+        let mut keys = Vec::new();
+        HARD_DELETE_ENSURE_KEYS.with(|cell| {
+            let mut set = cell.borrow_mut();
+            for id in record_ids {
+                let k = (table.to_string(), id.clone());
+                if set.contains(&k) {
+                    log::error!(
+                        target: "import_manager::hard_delete",
+                        "[HARD_DELETE ERROR] Recursive delete detected table={} id={}",
+                        table,
+                        id
+                    );
+                    return Err(
+                        "Recursive delete detected during reference safety check".to_string(),
+                    );
+                }
+                set.insert(k.clone());
+                keys.push(k);
+            }
+            Ok(())
+        })?;
+        Ok(Self { keys })
+    }
+}
+
+impl Drop for HardDeleteEnsureRecursionGuard {
+    fn drop(&mut self) {
+        HARD_DELETE_ENSURE_KEYS.with(|cell| {
+            let mut set = cell.borrow_mut();
+            for k in &self.keys {
+                set.remove(k);
+            }
+        });
+    }
+}
+
 const IN_CLAUSE_BATCH: usize = 100;
 const SCAN_BUDGET: Duration = Duration::from_secs(5);
 const PREVIEW_CACHE_TTL: Duration = Duration::from_secs(5);
+const MAX_REFERENCE_SCAN_ROWS: i64 = 50_000;
 
-// --- Startup diagnostics: FK index coverage, cycle presence (safety, no automatic fixes) ---
+// --- Startup diagnostics: FK index coverage, cycle presence ---
 
-/// Run once after DB is opened: log missing FK column indexes and schema cycles. Never fails the app.
+/// Run once after DB is opened: ensure FK child-column indexes exist, and log schema cycles.
+/// Never fails the app startup.
 pub fn run_startup_fk_diagnostics(conn: &Connection) {
     run_fk_index_diagnostics(conn);
     run_fk_cycle_diagnostics(conn);
 }
 
-/// For each (child, fk_column) in `PRAGMA foreign_key_list`, warn if no user/automatic index leads with that column.
+fn fk_child_index_name(child_table: &str, fk_col: &str) -> String {
+    let sanitize = |s: &str| -> String {
+        s.chars()
+            .map(|c| if c.is_ascii_alphanumeric() { c } else { '_' })
+            .collect::<String>()
+    };
+    format!("idx_{}_{}", sanitize(child_table), sanitize(fk_col))
+}
+
+/// For each (child, fk_column) in `PRAGMA foreign_key_list`, ensure a leading index exists.
 fn run_fk_index_diagnostics(conn: &Connection) {
     let tables = match list_application_tables(conn) {
         Ok(t) => t,
@@ -81,12 +230,32 @@ fn run_fk_index_diagnostics(conn: &Connection) {
             match has_leading_index_on_fk_column(conn, child, &from_c) {
                 Ok(true) => {}
                 Ok(false) => {
-                    log::warn!(
-                        target: "import_manager::schema",
-                        "Foreign key column missing index: {}.{}",
-                        child,
-                        from_c
+                    let idx_name = fk_child_index_name(child, &from_c);
+                    let create_idx_sql = format!(
+                        "CREATE INDEX IF NOT EXISTS {} ON {}({})",
+                        quote_ident(&idx_name),
+                        quote_ident(child),
+                        quote_ident(&from_c)
                     );
+                    match conn.execute(&create_idx_sql, []) {
+                        Ok(_) => {
+                            log::info!(
+                                target: "import_manager::schema",
+                                "[FK INDEX] Created index on {}.{}",
+                                child,
+                                from_c
+                            );
+                        }
+                        Err(e) => {
+                            log::warn!(
+                                target: "import_manager::schema",
+                                "Failed to create FK index for {}.{}: {}",
+                                child,
+                                from_c,
+                                e
+                            );
+                        }
+                    }
                 }
                 Err(e) => {
                     log::debug!(
@@ -284,6 +453,280 @@ struct ReferencingFk {
     from_col: String,
 }
 
+fn table_has_id_column(conn: &Connection, table_name: &str) -> Result<bool, String> {
+    let q = format!("PRAGMA table_info({})", quote_ident(table_name));
+    let mut stmt = conn.prepare(&q).map_err(|e| e.to_string())?;
+    let mut rows = stmt.query([]).map_err(|e| e.to_string())?;
+    while let Some(r) = rows.next().map_err(|e| e.to_string())? {
+        let name: String = r.get(1).map_err(|e| e.to_string())?;
+        if name.eq_ignore_ascii_case("id") {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
+fn collect_child_ids_for_fk(
+    conn: &Connection,
+    fk: &ReferencingFk,
+    parent_ids: &[String],
+) -> Result<Vec<String>, String> {
+    if parent_ids.is_empty() || !table_has_id_column(conn, &fk.child_table)? {
+        return Ok(Vec::new());
+    }
+    let mut out = Vec::new();
+    for chunk in batch_ids(parent_ids) {
+        if chunk.is_empty() {
+            continue;
+        }
+        let placeholders = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
+        let where_ = fk_in_clause_with_null_guard(&fk.from_col, &placeholders);
+        let q = format!(
+            "SELECT id FROM {} WHERE {}",
+            quote_ident(&fk.child_table),
+            where_
+        );
+        let mut stmt = conn.prepare(&q).map_err(|e| e.to_string())?;
+        let mut rows = stmt
+            .query(rusqlite::params_from_iter(chunk.iter().map(String::as_str)))
+            .map_err(|e| e.to_string())?;
+        while let Some(r) = rows.next().map_err(|e| e.to_string())? {
+            let id_text = match r.get::<_, String>(0) {
+                Ok(s) => s,
+                Err(_) => r.get::<_, i64>(0).map(|n| n.to_string()).map_err(|e| e.to_string())?,
+            };
+            out.push(id_text);
+        }
+    }
+    out.sort();
+    out.dedup();
+    Ok(out)
+}
+
+fn delete_child_rows_for_fk(
+    tx: &Transaction<'_>,
+    fk: &ReferencingFk,
+    parent_ids: &[String],
+) -> Result<i64, String> {
+    let mut deleted: i64 = 0;
+    for chunk in batch_ids(parent_ids) {
+        if chunk.is_empty() {
+            continue;
+        }
+        let placeholders = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
+        let where_ = fk_in_clause_with_null_guard(&fk.from_col, &placeholders);
+        let q = format!("DELETE FROM {} WHERE {}", quote_ident(&fk.child_table), where_);
+        let n = tx
+            .execute(&q, rusqlite::params_from_iter(chunk.iter().map(String::as_str)))
+            .map_err(map_hard_delete_error_rusqlite)?;
+        deleted += n as i64;
+    }
+    Ok(deleted)
+}
+
+fn count_child_rows_for_fk(
+    conn: &Connection,
+    fk: &ReferencingFk,
+    parent_ids: &[String],
+) -> Result<i64, String> {
+    let mut total = 0_i64;
+    for chunk in batch_ids(parent_ids) {
+        if chunk.is_empty() {
+            continue;
+        }
+        let placeholders = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
+        let where_ = fk_in_clause_with_null_guard(&fk.from_col, &placeholders);
+        let q = format!("SELECT COUNT(*) FROM {} WHERE {}", quote_ident(&fk.child_table), where_);
+        let c: i64 = conn
+            .query_row(
+                &q,
+                rusqlite::params_from_iter(chunk.iter().map(String::as_str)),
+                |row| row.get(0),
+            )
+            .map_err(|e| e.to_string())?;
+        total += c;
+    }
+    Ok(total)
+}
+
+fn resolve_delete_order_dfs(
+    conn: &Connection,
+    table: &str,
+    visiting: &mut HashSet<String>,
+    done: &mut HashSet<String>,
+    out: &mut Vec<String>,
+) -> Result<(), String> {
+    if done.contains(table) {
+        return Ok(());
+    }
+    if !visiting.insert(table.to_string()) {
+        log::error!(
+            target: "import_manager::hard_delete",
+            "[HARD_DELETE ERROR] Recursive delete detected table={}",
+            table
+        );
+        return Ok(());
+    }
+    let fks = discover_referencing_fks(conn, table)?;
+    for fk in &fks {
+        resolve_delete_order_dfs(conn, &fk.child_table, visiting, done, out)?;
+        if !out.contains(&fk.child_table) {
+            out.push(fk.child_table.clone());
+        }
+    }
+    visiting.remove(table);
+    done.insert(table.to_string());
+    Ok(())
+}
+
+/// Resolve FK-based hard-delete order: deepest child tables first, parent last.
+pub fn log_resolved_hard_delete_order(conn: &Connection, parent_table: &str) -> Result<(), String> {
+    let mut visiting = HashSet::new();
+    let mut done = HashSet::new();
+    let mut out = Vec::new();
+    resolve_delete_order_dfs(conn, parent_table, &mut visiting, &mut done, &mut out)?;
+    out.push(parent_table.to_string());
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Delete order resolved: {}",
+        out.join(" -> ")
+    );
+    Ok(())
+}
+
+fn delete_children_recursive(
+    tx: &Transaction<'_>,
+    parent_table: &str,
+    parent_ids: &[String],
+    seen: &mut HashSet<(String, String)>,
+) -> Result<(), String> {
+    if parent_ids.is_empty() {
+        return Ok(());
+    }
+    let fks = discover_referencing_fks(tx, parent_table)?;
+    for fk in &fks {
+        log::info!(
+            target: "import_manager::hard_delete",
+            "[HARD_DELETE] Deleting child records from {}",
+            fk.child_table
+        );
+
+        let child_ids = collect_child_ids_for_fk(tx, fk, parent_ids)?;
+        for cid in &child_ids {
+            let k = (fk.child_table.clone(), cid.clone());
+            if !seen.insert(k) {
+                log::error!(
+                    target: "import_manager::hard_delete",
+                    "[HARD_DELETE ERROR] Recursive delete detected table={} id={}",
+                    fk.child_table,
+                    cid
+                );
+                return Err("Recursive delete detected while resolving child dependencies".to_string());
+            }
+        }
+        delete_children_recursive(tx, &fk.child_table, &child_ids, seen)?;
+
+        let expected = count_child_rows_for_fk(tx, fk, parent_ids)?;
+        let deleted = delete_child_rows_for_fk(tx, fk, parent_ids)?;
+        if expected != deleted {
+            return Err(format!(
+                "Child delete verification failed for {}: expected {} rows, deleted {}",
+                fk.child_table, expected, deleted
+            ));
+        }
+    }
+    Ok(())
+}
+
+/// Deletes all FK-dependent child rows for the given parent IDs (child-first, metadata-driven).
+pub fn delete_fk_dependent_children(
+    tx: &Transaction<'_>,
+    parent_table: &str,
+    parent_ids: &[String],
+) -> Result<(), String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "delete_fk_dependent_children",
+        parent_table,
+        &summarize_record_ids_for_log(parent_ids),
+        "n/a",
+    );
+    log_resolved_hard_delete_order(tx, parent_table)?;
+    let mut seen = HashSet::new();
+    delete_children_recursive(tx, parent_table, parent_ids, &mut seen)
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct HardDeleteImpactTableCount {
+    pub table: String,
+    pub records: usize,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+pub struct HardDeleteImpactPreview {
+    pub root_table: String,
+    pub root_records: usize,
+    pub total_with_dependencies: usize,
+    pub by_table: Vec<HardDeleteImpactTableCount>,
+}
+
+fn collect_hard_delete_impact_recursive(
+    conn: &Connection,
+    table: &str,
+    ids: &[String],
+    seen: &mut HashSet<(String, String)>,
+    by_table: &mut HashMap<String, HashSet<String>>,
+) -> Result<(), String> {
+    if ids.is_empty() {
+        return Ok(());
+    }
+    let entry = by_table.entry(table.to_string()).or_default();
+    for id in ids {
+        entry.insert(id.clone());
+        if !seen.insert((table.to_string(), id.clone())) {
+            log::error!(
+                target: "import_manager::hard_delete",
+                "[HARD_DELETE ERROR] Recursive delete detected table={} id={}",
+                table,
+                id
+            );
+            return Err("Recursive delete detected while computing hard-delete impact".to_string());
+        }
+    }
+    let fks = discover_referencing_fks(conn, table)?;
+    for fk in fks {
+        let child_ids = collect_child_ids_for_fk(conn, &fk, ids)?;
+        collect_hard_delete_impact_recursive(conn, &fk.child_table, &child_ids, seen, by_table)?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn preview_hard_delete_impact(
+    db_state: State<'_, DbState>,
+    tableName: String,
+    recordIds: Vec<String>,
+) -> Result<HardDeleteImpactPreview, String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let mut seen = HashSet::new();
+    let mut by_table: HashMap<String, HashSet<String>> = HashMap::new();
+    collect_hard_delete_impact_recursive(&db, &tableName, &recordIds, &mut seen, &mut by_table)?;
+    let mut by_table_vec: Vec<HardDeleteImpactTableCount> = by_table
+        .into_iter()
+        .map(|(table, ids)| HardDeleteImpactTableCount {
+            table,
+            records: ids.len(),
+        })
+        .collect();
+    by_table_vec.sort_by(|a, b| a.table.cmp(&b.table));
+    let total_with_dependencies = by_table_vec.iter().map(|x| x.records).sum();
+    Ok(HardDeleteImpactPreview {
+        root_table: tableName,
+        root_records: recordIds.len(),
+        total_with_dependencies,
+        by_table: by_table_vec,
+    })
+}
+
 /// Discover (child, fk column) pairs that point to `parent_table`.
 /// Deduplicate `(child, from_col)` so self-referencing and duplicate pragma rows are not double-counted.
 fn discover_referencing_fks(
@@ -296,6 +739,7 @@ fn discover_referencing_fks(
     if !table_exists(conn, parent_table)? {
         return Err("Table not found".to_string());
     }
+    let _trace = HardDeleteFnLogGuard::new("discover_referencing_fks", parent_table, "-", "-");
 
     let all_tables = list_application_tables(conn)?;
     let mut seen: HashSet<(String, String)> = HashSet::new();
@@ -373,6 +817,13 @@ fn count_references(
     if ids.is_empty() {
         return Ok(CountOutcome::Total(0));
     }
+    let _trace = HardDeleteFnLogGuard::new(
+        "count_references",
+        &fk.child_table,
+        &summarize_record_ids_for_log(ids),
+        "n/a",
+    );
+    hard_delete_log_child_table_scan(&fk.child_table);
     if check_deadline(deadline) {
         return Ok(CountOutcome::TimedOut);
     }
@@ -381,6 +832,7 @@ fn count_references(
         quote_ident(&fk.child_table)
     );
     let mut total: i64 = 0;
+    let mut processed_rows: i64 = 0;
     for chunk in batch_ids(ids) {
         if chunk.is_empty() {
             continue;
@@ -399,6 +851,14 @@ fn count_references(
             )
             .map_err(|e| e.to_string())?;
         total = total.saturating_add(c);
+        processed_rows = processed_rows.saturating_add(c);
+        if processed_rows > MAX_REFERENCE_SCAN_ROWS {
+            log::warn!(
+                target: "import_manager::delete::scan",
+                "[REFERENCE_SCAN] Budget exceeded, stopping scan."
+            );
+            return Ok(CountOutcome::Total(total));
+        }
     }
     Ok(CountOutcome::Total(total))
 }
@@ -432,6 +892,13 @@ fn matched_parent_ids_in_fk(
     if ids.is_empty() {
         return Ok(MatchedOutcome::Values(Vec::new()));
     }
+    let _trace = HardDeleteFnLogGuard::new(
+        "matched_parent_ids_in_fk",
+        &fk.child_table,
+        &summarize_record_ids_for_log(ids),
+        "n/a",
+    );
+    hard_delete_log_child_table_scan(&fk.child_table);
     if check_deadline(deadline) {
         return Ok(MatchedOutcome::TimedOut);
     }
@@ -441,6 +908,7 @@ fn matched_parent_ids_in_fk(
         ct = quote_ident(&fk.child_table)
     );
     let mut out = Vec::new();
+    let mut processed_rows: i64 = 0;
     for chunk in batch_ids(ids) {
         if check_deadline(deadline) {
             return Ok(MatchedOutcome::TimedOut);
@@ -461,6 +929,14 @@ fn matched_parent_ids_in_fk(
             }
             let v: String = r.get(0).map_err(|e| e.to_string())?;
             out.push(v);
+            processed_rows = processed_rows.saturating_add(1);
+            if processed_rows > MAX_REFERENCE_SCAN_ROWS {
+                log::warn!(
+                    target: "import_manager::delete::scan",
+                    "[REFERENCE_SCAN] Budget exceeded, stopping scan."
+                );
+                return Ok(MatchedOutcome::Values(out));
+            }
         }
     }
     Ok(MatchedOutcome::Values(out))
@@ -525,6 +1001,12 @@ pub fn get_reference_counts_conn(
     table_name: &str,
     record_ids: &[String],
 ) -> Result<Vec<RecordReferenceCounts>, String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "get_reference_counts_conn",
+        table_name,
+        &summarize_record_ids_for_log(record_ids),
+        "n/a",
+    );
     let start = Instant::now();
     let mut deadline = Some(start + SCAN_BUDGET);
     if !is_safe_ident(table_name) {
@@ -572,6 +1054,7 @@ pub fn get_reference_counts_conn(
             if chunk.is_empty() {
                 continue;
             }
+            hard_delete_log_child_table_scan(&fk.child_table);
             let placeholders = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
             let where_in = fk_in_clause_with_null_guard(&fk.from_col, &placeholders);
             let q = format!(
@@ -638,6 +1121,12 @@ pub(crate) fn preview_delete_dependencies_conn_with_budget(
     record_ids: &[String],
     budget: Duration,
 ) -> Result<PreviewDeleteDependenciesResult, String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "preview_delete_dependencies_conn_with_budget",
+        table_name,
+        &summarize_record_ids_for_log(record_ids),
+        "n/a",
+    );
     let start = Instant::now();
     let mut deadline = Some(start + budget);
     if !is_safe_ident(table_name) {
@@ -756,6 +1245,14 @@ pub fn ensure_can_hard_delete(
     table_name: &str,
     record_ids: &[String],
 ) -> Result<(), String> {
+    let _rec_guard = HardDeleteEnsureRecursionGuard::try_enter(table_name, record_ids)?;
+    let _trace = HardDeleteFnLogGuard::new(
+        "ensure_can_hard_delete",
+        table_name,
+        &summarize_record_ids_for_log(record_ids),
+        "n/a",
+    );
+    log_hard_delete_fk_cascade_impact(conn, table_name)?;
     let p = preview_delete_dependencies_conn(conn, table_name, record_ids)?;
     if p.scan_timed_out {
         return Err(
@@ -828,6 +1325,12 @@ pub async fn get_reference_counts(
     tableName: String,
     recordIds: Vec<String>,
 ) -> Result<Vec<RecordReferenceCounts>, String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "get_reference_counts",
+        &tableName,
+        &summarize_record_ids_for_log(&recordIds),
+        "n/a",
+    );
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
     get_reference_counts_conn(&db, &tableName, &recordIds)
 }
@@ -838,6 +1341,12 @@ pub async fn preview_delete_dependencies(
     tableName: String,
     recordIds: Vec<String>,
 ) -> Result<PreviewDeleteDependenciesResult, String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "preview_delete_dependencies",
+        &tableName,
+        &summarize_record_ids_for_log(&recordIds),
+        "n/a",
+    );
     let scan_start = Instant::now();
     let log_table = tableName.clone();
     let key = PreviewCacheKey {

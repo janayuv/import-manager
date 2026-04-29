@@ -20,6 +20,7 @@ import type { Supplier } from '@/types/supplier';
 
 interface AddSupplierFormProps {
   onAdd: (newSupplier: Omit<Supplier, 'id'>) => void;
+  disabled?: boolean;
 }
 
 const initialState: Omit<Supplier, 'id'> = {
@@ -38,7 +39,10 @@ const initialState: Omit<Supplier, 'id'> = {
   isActive: true,
 };
 
-export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
+export function AddSupplierForm({
+  onAdd,
+  disabled = false,
+}: AddSupplierFormProps) {
   const [isOpen, setOpen] = useState(false);
   const [formData, setFormData] = useState(initialState);
 
@@ -64,7 +68,7 @@ export function AddSupplierForm({ onAdd }: AddSupplierFormProps) {
   return (
     <Dialog open={isOpen} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="default" useAccentColor>
+        <Button variant="default" useAccentColor disabled={disabled}>
           + Supplier
         </Button>
       </DialogTrigger>

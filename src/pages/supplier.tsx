@@ -8,6 +8,7 @@ import {
   ArrowUp,
   ArrowUpDown,
   Download,
+  Loader2,
   Upload,
   Settings,
 } from 'lucide-react';
@@ -40,10 +41,55 @@ import {
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type { Supplier } from '@/types/supplier';
+import { Input } from '@/components/ui/input';
 
 /** URL path for supplier view or edit (bookmarkable, browser back/forward). */
 export function supplierDetailPath(supplierId: string, mode: 'view' | 'edit') {
   return `/supplier/${encodeURIComponent(supplierId)}/${mode}`;
+}
+
+const PAGE_SIZE = 50;
+const SUPPLIER_IMPORT_HEADER =
+  'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive';
+
+function parseIsActiveValue(value: string): boolean | null {
+  const normalized = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  if (normalized === '') return true;
+  if (['true', 'yes', '1', 'active'].includes(normalized)) return true;
+  if (['false', 'no', '0', 'inactive'].includes(normalized)) return false;
+  return null;
+}
+
+/** Normalize a row for Excel export (handles snake_case if IPC ever differs). */
+function supplierToExportRow(s: Supplier & Record<string, unknown>): string[] {
+  const pick = (camel: keyof Supplier, snake: string) => {
+    const v = s[camel] ?? s[snake];
+    return v != null && v !== '' ? String(v) : '';
+  };
+  const activeRaw: unknown = s.isActive ?? s.is_active;
+  const isActive =
+    activeRaw === true ||
+    activeRaw === 'true' ||
+    activeRaw === 1 ||
+    activeRaw === '1';
+  return [
+    pick('id', 'id'),
+    pick('supplierName', 'supplier_name'),
+    pick('shortName', 'short_name'),
+    pick('country', 'country'),
+    pick('email', 'email'),
+    pick('phone', 'phone'),
+    pick('beneficiaryName', 'beneficiary_name'),
+    pick('bankName', 'bank_name'),
+    pick('branch', 'branch'),
+    pick('bankAddress', 'bank_address'),
+    pick('accountNo', 'account_no'),
+    pick('iban', 'iban'),
+    pick('swiftCode', 'swift_code'),
+    isActive ? 'Yes' : 'No',
+  ];
 }
 
 const SupplierPage = () => {
@@ -54,8 +100,37 @@ const SupplierPage = () => {
   const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
+  const [deletedSuppliers, setDeletedSuppliers] = React.useState<Supplier[]>(
+    []
+  );
   const [isLoadingSuppliers, setIsLoadingSuppliers] = React.useState(true);
+  const [isLoadingDeletedSuppliers, setIsLoadingDeletedSuppliers] =
+    React.useState(false);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
+  const [isDeletedSuppliersOpen, setDeletedSuppliersOpen] =
+    React.useState(false);
+  const [currentPage, setCurrentPage] = React.useState(0);
+  const [isImportingSuppliers, setIsImportingSuppliers] = React.useState(false);
+  const [totalSuppliersCount, setTotalSuppliersCount] = React.useState(0);
+  const [searchText, setSearchText] = React.useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = React.useState('');
+  const [isSearching, setIsSearching] = React.useState(false);
+
+  const isSearchDebouncing =
+    searchText.trim() !== debouncedSearchText.trim() &&
+    searchText.trim().length > 0;
+  const totalPages = Math.max(1, Math.ceil(totalSuppliersCount / PAGE_SIZE));
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      setDebouncedSearchText(searchText);
+    }, 300);
+    return () => window.clearTimeout(timeoutId);
+  }, [searchText]);
+
+  React.useEffect(() => {
+    setCurrentPage(0);
+  }, [debouncedSearchText]);
 
   const supplierPanel = React.useMemo((): 'none' | 'view' | 'edit' => {
     if (!supplierIdParam) return 'none';
@@ -97,34 +172,85 @@ const SupplierPage = () => {
   );
 
   const fetchSuppliers = React.useCallback(async () => {
+    const fetchStarted = performance.now();
     setIsLoadingSuppliers(true);
+    const searchingActive = debouncedSearchText.trim().length > 0;
+    const paginatingActive = currentPage > 0;
+    if (searchingActive) {
+      setIsSearching(true);
+    }
     try {
-      const fetchedSuppliers: Supplier[] = await invoke('get_suppliers');
+      const trimmedSearchText = debouncedSearchText.trim();
+      const [fetchedSuppliers, fetchedCount] = await Promise.all([
+        invoke<Supplier[]>('get_suppliers', {
+          limit: PAGE_SIZE,
+          offset: currentPage * PAGE_SIZE,
+          searchText: trimmedSearchText || null,
+        }),
+        invoke<number>('get_suppliers_count', {
+          searchText: trimmedSearchText || null,
+        }),
+      ]);
       setSuppliers(fetchedSuppliers);
+      setTotalSuppliersCount(fetchedCount);
     } catch (error) {
       console.error('Failed to fetch suppliers:', error);
       notifications.supplier.error('fetch', String(error));
     } finally {
       setIsLoadingSuppliers(false);
+      if (searchingActive) {
+        setIsSearching(false);
+      }
+      const elapsedMs = (performance.now() - fetchStarted).toFixed(2);
+      if (searchingActive) {
+        console.log(`supplier_search execution time: ${elapsedMs} ms`);
+      } else if (paginatingActive) {
+        console.log(`supplier_pagination execution time: ${elapsedMs} ms`);
+      } else {
+        console.log(`get_suppliers execution time: ${elapsedMs} ms`);
+      }
     }
     // Context `notifications` changes identity each render; listing it recreated this callback
-    // every render and retriggered the mount effect (refetch loop), so imports never showed in UI.
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- stable callback; see comment above
-  }, []);
+    // every render and retriggered effects.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPage, debouncedSearchText]);
+
+  React.useEffect(() => {
+    console.time('supplier_render');
+    return () => {
+      console.timeEnd('supplier_render');
+    };
+  }, [suppliers, isLoadingSuppliers, currentPage, debouncedSearchText]);
 
   React.useEffect(() => {
     fetchSuppliers();
-  }, [fetchSuppliers]);
+  }, [fetchSuppliers, currentPage, debouncedSearchText]);
+
+  const fetchDeletedSuppliers = React.useCallback(async () => {
+    setIsLoadingDeletedSuppliers(true);
+    try {
+      const fetchedDeletedSuppliers: Supplier[] = await invoke(
+        'get_deleted_suppliers'
+      );
+      setDeletedSuppliers(fetchedDeletedSuppliers);
+    } catch (error) {
+      console.error('Failed to fetch deleted suppliers:', error);
+      notifications.supplier.error('fetch', String(error));
+    } finally {
+      setIsLoadingDeletedSuppliers(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleOpenDeletedSuppliers = async () => {
+    setDeletedSuppliersOpen(true);
+    await fetchDeletedSuppliers();
+  };
 
   const handleAdd = async (newSupplierData: Omit<Supplier, 'id'>) => {
-    const maxId = suppliers.reduce((max, s) => {
-      const num = parseInt(s.id.split('-')[1]);
-      return num > max ? num : max;
-    }, 0);
-    const newId = `Sup-${(maxId + 1).toString().padStart(3, '0')}`;
-    const newSupplier: Supplier = { id: newId, ...newSupplierData };
-
     try {
+      const newId: string = await invoke('generate_supplier_id');
+      const newSupplier: Supplier = { id: newId, ...newSupplierData };
       await invoke('add_supplier', { supplier: newSupplier });
       notifications.supplier.created(newSupplier.supplierName);
       fetchSuppliers();
@@ -145,8 +271,59 @@ const SupplierPage = () => {
     }
   };
 
+  const handleDelete = React.useCallback(
+    async (supplier: Supplier) => {
+      try {
+        await invoke('delete_supplier', { supplierId: supplier.id });
+        notifications.success(
+          'Supplier Deleted',
+          `"${supplier.supplierName}" has been removed from the list.`
+        );
+        fetchSuppliers();
+      } catch (error) {
+        const message = String(error);
+        if (message.includes('Supplier used in shipments — cannot delete')) {
+          notifications.warning(
+            'Cannot Delete Supplier',
+            'Supplier used in shipments — cannot delete'
+          );
+          return;
+        }
+        console.error('Failed to delete supplier:', error);
+        notifications.supplier.error('delete', message);
+      }
+    },
+    [fetchSuppliers, notifications]
+  );
+
+  const handleRestoreSupplier = async (supplier: Supplier) => {
+    const confirmed = window.confirm('Restore this supplier?');
+    if (!confirmed) return;
+
+    try {
+      await invoke('restore_supplier', { supplierId: supplier.id });
+      notifications.success(
+        'Supplier Restored',
+        `"${supplier.supplierName}" has been restored successfully.`
+      );
+      await Promise.all([fetchSuppliers(), fetchDeletedSuppliers()]);
+    } catch (error) {
+      console.error('Failed to restore supplier:', error);
+      notifications.supplier.error('update', String(error));
+    }
+  };
+
   const handleExportExcel = async () => {
     try {
+      const allSuppliers: Supplier[] = await invoke('get_suppliers');
+      if (allSuppliers.length === 0) {
+        notifications.info(
+          'No Records Found',
+          'No suppliers available to export.'
+        );
+        return;
+      }
+
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet('Suppliers');
 
@@ -171,32 +348,22 @@ const SupplierPage = () => {
       const headerRow = worksheet.getRow(1);
       headerRow.font = { bold: true };
 
-      suppliers.forEach(s => {
-        worksheet.addRow([
-          s.id,
-          s.supplierName ?? '',
-          s.shortName ?? '',
-          s.country ?? '',
-          s.email ?? '',
-          s.phone ?? '',
-          s.beneficiaryName ?? '',
-          s.bankName ?? '',
-          s.branch ?? '',
-          s.bankAddress ?? '',
-          s.accountNo ?? '',
-          s.iban ?? '',
-          s.swiftCode ?? '',
-          s.isActive ? 'Yes' : 'No',
-        ]);
+      const colMax = headers.map(h => String(h).length);
+      allSuppliers.forEach(s => {
+        const row = supplierToExportRow(s);
+        row.forEach((cell, i) => {
+          const len = cell ? String(cell).length : 0;
+          if (len > colMax[i]) colMax[i] = len;
+        });
+        worksheet.addRow(row);
       });
 
-      worksheet.columns.forEach(column => {
-        if (!column.values) return;
-        const maxLength = Math.max(
-          ...column.values.map(v => (v ? String(v).length : 0))
-        );
-        column.width = Math.min(Math.max(12, maxLength + 2), 40);
-      });
+      // Only size columns we use. `worksheet.columns.forEach` can touch the whole
+      // grid in ExcelJS and makes the sheet look "empty" after scrolling right.
+      for (let c = 1; c <= headers.length; c++) {
+        const width = Math.min(Math.max(12, colMax[c - 1] + 2), 40);
+        worksheet.getColumn(c).width = width;
+      }
 
       const buffer = await workbook.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
@@ -210,7 +377,7 @@ const SupplierPage = () => {
       URL.revokeObjectURL(url);
       notifications.success(
         'Exported',
-        'Suppliers Excel downloaded successfully.'
+        `Suppliers Excel downloaded successfully (${allSuppliers.length} records).`
       );
     } catch (err) {
       console.error('Failed to export suppliers:', err);
@@ -222,9 +389,12 @@ const SupplierPage = () => {
   };
 
   const handleDownloadTemplate = () => {
-    const headers =
-      'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive';
-    const blob = new Blob([headers], { type: 'text/csv;charset=utf-8;' });
+    const sampleRow =
+      'Demo Supplier,DS,India,demo@supplier.com,+91-9000000000,Demo Beneficiary,Demo Bank,Main Branch,Demo Address,1234567890,IN00DEMO123456,DEMOIN00,true';
+    const templateContent = `${SUPPLIER_IMPORT_HEADER}\n${sampleRow}`;
+    const blob = new Blob([templateContent], {
+      type: 'text/csv;charset=utf-8;',
+    });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
@@ -233,11 +403,12 @@ const SupplierPage = () => {
     URL.revokeObjectURL(url);
     notifications.success(
       'Template Downloaded',
-      'Supplier import template downloaded successfully!'
+      'Supplier template downloaded. For isActive use true/false, yes/no, 1/0, or active/inactive.'
     );
   };
 
   const handleImport = async () => {
+    setIsImportingSuppliers(true);
     try {
       const selectedFile = await openTextFile({
         multiple: false,
@@ -250,8 +421,6 @@ const SupplierPage = () => {
       }
 
       const content = selectedFile.contents;
-      const expectedHeader =
-        'supplierName,shortName,country,email,phone,beneficiaryName,bankName,branch,bankAddress,accountNo,iban,swiftCode,isActive';
       const rawLines = content.split(/\r?\n/);
       const headerIdx = rawLines.findIndex(
         l => l.replace(/^\uFEFF/, '').trim() !== ''
@@ -264,7 +433,7 @@ const SupplierPage = () => {
         return;
       }
       const headerLine = rawLines[headerIdx].replace(/^\uFEFF/, '').trim();
-      if (headerLine !== expectedHeader) {
+      if (headerLine !== SUPPLIER_IMPORT_HEADER) {
         notifications.supplier.error(
           'import',
           'This file does not match the supplier import template (wrong column headers). Download the template and try again.'
@@ -273,10 +442,15 @@ const SupplierPage = () => {
       }
       const lines = rawLines.slice(headerIdx + 1);
       const newSuppliers: Supplier[] = [];
-      let maxId = suppliers.reduce(
-        (max, s) => Math.max(max, parseInt(s.id.split('-')[1])),
-        0
-      );
+      const firstId: string = await invoke('generate_supplier_id');
+      let nextIdValue = Number.parseInt(firstId.split('-')[1] ?? '0', 10);
+      if (Number.isNaN(nextIdValue) || nextIdValue < 1) {
+        notifications.supplier.error(
+          'import',
+          'Could not generate supplier IDs for import.'
+        );
+        return;
+      }
 
       for (const line of lines) {
         if (line.trim() === '') continue;
@@ -312,8 +486,17 @@ const SupplierPage = () => {
           return;
         }
 
-        maxId++;
-        const newId = `Sup-${maxId.toString().padStart(3, '0')}`;
+        const newId = `Sup-${nextIdValue.toString().padStart(3, '0')}`;
+        nextIdValue += 1;
+
+        const parsedIsActive = parseIsActiveValue(isActiveStr);
+        if (parsedIsActive === null) {
+          notifications.supplier.error(
+            'import',
+            `Invalid isActive value "${isActiveStr}" for supplier "${supplierName}". Use true/false, yes/no, 1/0, or active/inactive.`
+          );
+          return;
+        }
 
         newSuppliers.push({
           id: newId,
@@ -329,16 +512,15 @@ const SupplierPage = () => {
           accountNo,
           iban,
           swiftCode,
-          isActive:
-            String(isActiveStr ?? '')
-              .trim()
-              .toLowerCase() === 'true',
+          isActive: parsedIsActive,
         });
       }
 
       if (newSuppliers.length > 0) {
-        await invoke('add_suppliers_bulk', { suppliers: newSuppliers });
-        notifications.supplier.imported(newSuppliers.length);
+        const insertedCount: number = await invoke('add_suppliers_bulk', {
+          suppliers: newSuppliers,
+        });
+        notifications.supplier.imported(insertedCount);
         fetchSuppliers();
       } else {
         notifications.warning(
@@ -349,6 +531,8 @@ const SupplierPage = () => {
     } catch (error) {
       console.error('Failed to import suppliers:', error);
       notifications.supplier.error('import', 'Please check the file format.');
+    } finally {
+      setIsImportingSuppliers(false);
     }
   };
 
@@ -529,6 +713,7 @@ const SupplierPage = () => {
             supplier={row.original}
             onView={() => handleView(row.original)}
             onEdit={() => handleEdit(row.original)}
+            onDelete={() => handleDelete(row.original)}
           />
         ),
         meta: {
@@ -551,7 +736,13 @@ const SupplierPage = () => {
 
       return aOrder - bOrder;
     });
-  }, [settings.modules.supplier, settings.textFormat, handleView, handleEdit]);
+  }, [
+    settings.modules.supplier,
+    settings.textFormat,
+    handleView,
+    handleEdit,
+    handleDelete,
+  ]);
 
   const settingsDialog = (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
@@ -687,11 +878,12 @@ const SupplierPage = () => {
                   <div className="text-muted-foreground mt-2 flex items-center gap-4 text-sm">
                     <span className="flex items-center gap-1">
                       <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                      {suppliers.length} Active Suppliers
+                      {totalSuppliersCount} Active Suppliers
                     </span>
                     <span className="flex items-center gap-1">
                       <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                      {suppliers.filter(s => s.isActive).length} Enabled
+                      Page {Math.min(currentPage + 1, totalPages)} of{' '}
+                      {totalPages}
                     </span>
                   </div>
                 </div>
@@ -723,6 +915,7 @@ const SupplierPage = () => {
                   onClick={handleExportExcel}
                   className="h-10 px-4"
                   useAccentColor
+                  disabled={isImportingSuppliers}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Export
@@ -733,6 +926,7 @@ const SupplierPage = () => {
                   onClick={handleDownloadTemplate}
                   className="h-10 px-4"
                   useAccentColor
+                  disabled={isImportingSuppliers}
                 >
                   <Download className="mr-2 h-4 w-4" />
                   Template
@@ -740,25 +934,58 @@ const SupplierPage = () => {
 
                 <Button
                   variant="default"
+                  onClick={handleOpenDeletedSuppliers}
+                  className="h-10 px-4"
+                  useAccentColor
+                  disabled={isImportingSuppliers}
+                >
+                  Deleted Suppliers
+                </Button>
+
+                <Button
+                  variant="default"
                   onClick={handleImport}
                   className="h-10 px-4"
                   useAccentColor
+                  disabled={isImportingSuppliers}
                 >
                   <Upload className="mr-2 h-4 w-4" />
-                  Import
+                  {isImportingSuppliers ? 'Importing suppliers...' : 'Import'}
                 </Button>
 
-                <AddSupplierForm onAdd={handleAdd} />
+                <AddSupplierForm
+                  onAdd={handleAdd}
+                  disabled={isImportingSuppliers}
+                />
               </div>
             </div>
           </div>
         </div>
 
         <div className="bg-card min-h-[280px] min-w-0 overflow-hidden rounded-xl border shadow-sm">
+          <div className="border-b p-4">
+            <div className="max-w-md space-y-2">
+              <div className="relative">
+                <Input
+                  value={searchText}
+                  onChange={e => setSearchText(e.target.value)}
+                  placeholder="Search suppliers by name..."
+                  disabled={isLoadingSuppliers}
+                  className="pr-10"
+                />
+                {isSearching || isSearchDebouncing ? (
+                  <Loader2 className="text-muted-foreground absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin" />
+                ) : null}
+              </div>
+              {isSearching || isSearchDebouncing ? (
+                <p className="text-muted-foreground text-xs">Searching...</p>
+              ) : null}
+            </div>
+          </div>
           <ResponsiveDataTable
             columns={columns}
             data={suppliers}
-            searchPlaceholder="Search suppliers by name, country, email..."
+            showSearch={false}
             hideColumnsOnSmall={[
               'phone',
               'bankName',
@@ -778,7 +1005,100 @@ const SupplierPage = () => {
             className="border-0"
             moduleName="supplier"
           />
+          {!isLoadingSuppliers && suppliers.length === 0 ? (
+            <div className="text-muted-foreground border-t p-4 text-sm">
+              {debouncedSearchText.trim().length > 0
+                ? 'No suppliers found matching search'
+                : 'No suppliers found.'}
+            </div>
+          ) : null}
         </div>
+
+        <div className="mt-4 flex items-center justify-end gap-2">
+          <span className="text-muted-foreground mr-2 text-sm">
+            Page {Math.min(currentPage + 1, totalPages)} of {totalPages}
+          </span>
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            disabled={currentPage === 0}
+            onClick={() => setCurrentPage(p => p - 1)}
+          >
+            Previous Page
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            disabled={currentPage >= totalPages - 1}
+            onClick={() => setCurrentPage(p => p + 1)}
+          >
+            Next Page
+          </Button>
+        </div>
+
+        <Dialog
+          open={isDeletedSuppliersOpen}
+          onOpenChange={setDeletedSuppliersOpen}
+        >
+          <DialogContent className="max-h-[85vh] w-[95vw] max-w-5xl overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>Deleted Suppliers</DialogTitle>
+            </DialogHeader>
+            <div className="mt-2 overflow-auto">
+              {isLoadingDeletedSuppliers ? (
+                <div className="text-muted-foreground py-8 text-center text-sm">
+                  Loading deleted suppliers...
+                </div>
+              ) : deletedSuppliers.length === 0 ? (
+                <div className="text-muted-foreground py-8 text-center text-sm">
+                  No deleted suppliers found.
+                </div>
+              ) : (
+                <table className="w-full border-collapse text-sm">
+                  <thead className="bg-muted">
+                    <tr>
+                      <th className="border px-3 py-2 text-left">ID</th>
+                      <th className="border px-3 py-2 text-left">
+                        Supplier Name
+                      </th>
+                      <th className="border px-3 py-2 text-left">Country</th>
+                      <th className="border px-3 py-2 text-left">Email</th>
+                      <th className="border px-3 py-2 text-left">Phone</th>
+                      <th className="border px-3 py-2 text-left">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {deletedSuppliers.map(supplier => (
+                      <tr key={supplier.id}>
+                        <td className="border px-3 py-2">{supplier.id}</td>
+                        <td className="border px-3 py-2">
+                          {supplier.supplierName}
+                        </td>
+                        <td className="border px-3 py-2">{supplier.country}</td>
+                        <td className="border px-3 py-2">{supplier.email}</td>
+                        <td className="border px-3 py-2">
+                          {supplier.phone || '-'}
+                        </td>
+                        <td className="border px-3 py-2">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            useAccentColor
+                            onClick={() => handleRestoreSupplier(supplier)}
+                          >
+                            Restore
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          </DialogContent>
+        </Dialog>
 
         {settingsDialog}
       </div>

@@ -59,6 +59,11 @@ pub fn end_restore() {
     );
 }
 
+/// True while a restore session lock is active.
+pub fn restore_in_progress() -> bool {
+    RESTORE_IN_PROGRESS.load(Ordering::SeqCst)
+}
+
 /// On drop: [`resume_background_jobs`] + [`end_restore`]. Use for `?`/panic-safe cleanup.
 pub struct RestoreSessionGuard;
 

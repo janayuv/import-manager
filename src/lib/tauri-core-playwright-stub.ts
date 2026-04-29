@@ -35,6 +35,46 @@ const stubBoes: Record<string, unknown>[] = [];
 
 /** Persists stub live DB across `page.reload()` in Playwright (in-memory module resets on reload). */
 const PW_LIVE_DB_SESSION_KEY = '__import_manager_pw_live_snapshot__';
+const PW_INVOICE_CALC_SETTINGS_KEY =
+  '__import_manager_pw_invoice_calc_settings__';
+
+function loadStubInvoiceCalculationSettings(): {
+  lineTotalDecimals: 0 | 2;
+  invoiceTotalDecimals: 0 | 2;
+} {
+  if (typeof window === 'undefined') {
+    return { lineTotalDecimals: 2, invoiceTotalDecimals: 2 };
+  }
+  try {
+    const raw = localStorage.getItem(PW_INVOICE_CALC_SETTINGS_KEY);
+    if (!raw) return { lineTotalDecimals: 2, invoiceTotalDecimals: 2 };
+    const parsed = JSON.parse(raw) as {
+      lineTotalDecimals?: number;
+      invoiceTotalDecimals?: number;
+    };
+    return {
+      lineTotalDecimals: parsed.lineTotalDecimals === 0 ? 0 : 2,
+      invoiceTotalDecimals: parsed.invoiceTotalDecimals === 0 ? 0 : 2,
+    };
+  } catch {
+    return { lineTotalDecimals: 2, invoiceTotalDecimals: 2 };
+  }
+}
+
+function saveStubInvoiceCalculationSettings(settings: {
+  lineTotalDecimals: 0 | 2;
+  invoiceTotalDecimals: 0 | 2;
+}): void {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(
+      PW_INVOICE_CALC_SETTINGS_KEY,
+      JSON.stringify(settings)
+    );
+  } catch {
+    /* ignore storage failures in test shim */
+  }
+}
 
 function persistLiveDbToSession(): void {
   if (
@@ -337,12 +377,99 @@ export async function invoke<T = unknown>(
     if (routed !== null) return routed as T;
   }
   switch (cmd) {
-    case 'get_suppliers':
-      return stubSuppliers.map(s => ({ ...s })) as T;
+    case 'get_invoice_calculation_settings':
+      return loadStubInvoiceCalculationSettings() as T;
+    case 'set_invoice_calculation_settings': {
+      const lineTotalDecimals =
+        Number(args?.lineTotalDecimals) === 0 ? 0 : (2 as 0 | 2);
+      const invoiceTotalDecimals =
+        Number(args?.invoiceTotalDecimals) === 0 ? 0 : (2 as 0 | 2);
+      const updated = { lineTotalDecimals, invoiceTotalDecimals };
+      saveStubInvoiceCalculationSettings(updated);
+      return updated as T;
+    }
+    case 'get_suppliers': {
+      const limit =
+        typeof args?.limit === 'number' ? (args.limit as number) : undefined;
+      const offset =
+        typeof args?.offset === 'number' ? (args.offset as number) : 0;
+      const rawSearch =
+        typeof args?.searchText === 'string' ? args.searchText.trim() : '';
+
+      const filtered = stubSuppliers
+        .filter(s => !s.deletedAt)
+        .filter(s =>
+          rawSearch
+            ? String(s.supplierName ?? '')
+                .toLowerCase()
+                .startsWith(rawSearch.toLowerCase())
+            : true
+        )
+        .sort((a, b) =>
+          String(a.supplierName ?? '').localeCompare(
+            String(b.supplierName ?? ''),
+            undefined,
+            { sensitivity: 'base' }
+          )
+        )
+        .map(s => ({ ...s }));
+
+      if (typeof limit === 'number') {
+        return filtered.slice(offset, offset + limit) as T;
+      }
+      return filtered as T;
+    }
+    case 'get_suppliers_count': {
+      const rawSearch =
+        typeof args?.searchText === 'string' ? args.searchText.trim() : '';
+      const count = stubSuppliers
+        .filter(s => !s.deletedAt)
+        .filter(s =>
+          rawSearch
+            ? String(s.supplierName ?? '')
+                .toLowerCase()
+                .startsWith(rawSearch.toLowerCase())
+            : true
+        ).length;
+      return count as T;
+    }
+    case 'generate_supplier_id': {
+      const max = stubSuppliers.reduce((acc, supplier) => {
+        const currentId = String(supplier.id ?? '');
+        const parsed = Number.parseInt(currentId.split('-')[1] ?? '0', 10);
+        return Number.isNaN(parsed) ? acc : Math.max(acc, parsed);
+      }, 0);
+      return `Sup-${String(max + 1).padStart(3, '0')}` as T;
+    }
     case 'add_suppliers_bulk': {
       const incoming =
         (args?.suppliers as Record<string, unknown>[] | undefined) ?? [];
-      stubSuppliers.push(...incoming.map(s => ({ ...s })));
+      stubSuppliers.push(...incoming.map(s => ({ ...s, deletedAt: null })));
+      persistLiveDbToSession();
+      return incoming.length as T;
+    }
+    case 'delete_supplier': {
+      const supplierId = String(args?.supplierId ?? '');
+      const idx = stubSuppliers.findIndex(s => String(s.id) === supplierId);
+      if (idx >= 0) {
+        stubSuppliers[idx] = {
+          ...stubSuppliers[idx],
+          deletedAt: new Date().toISOString(),
+        };
+      }
+      persistLiveDbToSession();
+      return undefined as T;
+    }
+    case 'get_deleted_suppliers':
+      return stubSuppliers
+        .filter(s => Boolean(s.deletedAt))
+        .map(s => ({ ...s })) as T;
+    case 'restore_supplier': {
+      const supplierId = String(args?.supplierId ?? '');
+      const idx = stubSuppliers.findIndex(s => String(s.id) === supplierId);
+      if (idx >= 0) {
+        stubSuppliers[idx] = { ...stubSuppliers[idx], deletedAt: null };
+      }
       persistLiveDbToSession();
       return undefined as T;
     }
@@ -1401,6 +1528,41 @@ export async function invoke<T = unknown>(
     }
     case 'bulk_search_records':
       return emptyBrowseTable('bulk') as T;
+    case 'get_bulk_manageable_tables':
+      return [
+        { name: 'suppliers', label: 'Suppliers' },
+        { name: 'shipments', label: 'Shipments' },
+        { name: 'items', label: 'Items' },
+        { name: 'invoices', label: 'Invoices' },
+        { name: 'invoice_line_items', label: 'Invoice Line Items' },
+        { name: 'boe_details', label: 'BOE Details' },
+        { name: 'boe_calculations', label: 'BOE Calculations' },
+        { name: 'expenses', label: 'Expenses' },
+        { name: 'audit_logs', label: 'Audit Logs' },
+      ] as T;
+    case 'get_hard_delete_pin_settings':
+      return {
+        enabled: false,
+        threshold: 10,
+        hasPin: false,
+        failedAttempts: 0,
+        lockUntil: null,
+        lockActive: false,
+      } as T;
+    case 'set_hard_delete_pin_enabled':
+    case 'set_hard_delete_pin_threshold':
+    case 'set_hard_delete_pin':
+    case 'change_hard_delete_pin':
+      return undefined as T;
+    case 'verify_hard_delete_pin':
+      return {
+        ok: true,
+        failedAttempts: 0,
+        lockUntil: null,
+        message: 'PIN verified',
+      } as T;
+    case 'bulk_get_matching_record_ids':
+      return [] as T;
     case 'preview_delete_dependencies': {
       const recordIds = Array.isArray(
         (args as { recordIds?: unknown })?.recordIds
@@ -1413,6 +1575,26 @@ export async function invoke<T = unknown>(
         dependency_summary: [] as { table: string; total_references: number }[],
         can_hard_delete: true,
         scan_timed_out: false,
+      } as T;
+    }
+    case 'preview_hard_delete_impact': {
+      const ids = Array.isArray((args as { recordIds?: unknown })?.recordIds)
+        ? ((args as { recordIds: unknown[] }).recordIds as unknown[]).length
+        : 0;
+      return {
+        root_table: String(
+          (args as { tableName?: unknown })?.tableName ?? 'suppliers'
+        ),
+        root_records: ids,
+        total_with_dependencies: ids,
+        by_table: [
+          {
+            table: String(
+              (args as { tableName?: unknown })?.tableName ?? 'suppliers'
+            ),
+            records: ids,
+          },
+        ],
       } as T;
     }
     case 'get_reference_counts':
@@ -1458,8 +1640,35 @@ export async function invoke<T = unknown>(
         total_requested: ids.length,
         failed_deletions: [] as string[],
         message: `Deleted ${ids.length} record(s).`,
+        undo_token: 'stub-undo-token',
+        expiration_timestamp: new Date(
+          Date.now() + 5 * 60 * 1000
+        ).toISOString(),
       } as T;
     }
+    case 'bulk_delete_records_by_filter': {
+      persistLiveDbToSession();
+      return {
+        success: true,
+        deleted_count: 0,
+        total_requested: 0,
+        failed_deletions: [] as string[],
+        message: 'Deleted records by filter.',
+        undo_token: 'stub-undo-token',
+        expiration_timestamp: new Date(
+          Date.now() + 5 * 60 * 1000
+        ).toISOString(),
+      } as T;
+    }
+    case 'restore_deleted_records_using_token':
+      persistLiveDbToSession();
+      return {
+        success: true,
+        deleted_count: 0,
+        total_requested: 0,
+        failed_deletions: [] as string[],
+        message: 'Undo restore completed.',
+      } as T;
     case 'reset_test_database': {
       seedPlaywrightDefaults();
       console.info('Test database reset completed');
@@ -1528,106 +1737,6 @@ export async function invoke<T = unknown>(
     case 'export_backup_key_to_path':
     case 'import_backup_key_from_path':
       return undefined as T;
-    case 'extract_invoice_with_ai':
-      return {
-        supplier: { supplierName: 'Demo Supplier Pvt Ltd' },
-        shipment: {
-          invoiceNumber: 'INV-DEMO-001',
-          invoiceDate: '2025-01-01',
-          invoiceValue: 1250.0,
-          invoiceCurrency: 'USD',
-        },
-        invoice: {
-          shipmentTotal: 1250.0,
-          lineItems: [
-            {
-              partNumber: 'P-1001',
-              itemName: 'Demo Bolt',
-              quantity: 100,
-              unitPrice: 12.5,
-            },
-          ],
-        },
-        confidenceScore: 0.85,
-        logId: 1,
-      } as T;
-    case 'get_ai_extraction_summary':
-      return {
-        total: 0,
-        successCount: 0,
-        failureCount: 0,
-        ocrCount: 0,
-        avgConfidence: null,
-      } as T;
-    case 'get_provider_usage_summary':
-      return [] as T;
-    case 'get_ai_provider_settings':
-      return {
-        aiProvider: 'mock',
-        deepseekApiKey: '',
-        ollamaEndpoint: 'http://localhost:11434/api/chat',
-        ollamaModel: 'llama3',
-      } as T;
-    case 'set_ai_provider_settings':
-      return undefined as T;
-    case 'get_ai_extraction_config_hint':
-      return {
-        defaultProvider: 'mock',
-        deepseekConfigured: false,
-        ollamaEndpointResolved: true,
-      } as T;
-    case 'process_invoice_batch': {
-      const files = (args as { files?: { fileName?: string }[] } | undefined)
-        ?.files;
-      if (!files?.length) {
-        return {
-          results: [],
-          total: 0,
-          successCount: 0,
-          errorCount: 0,
-        } as T;
-      }
-      return {
-        results: files.map((f, i) => ({
-          fileName: f.fileName ?? `file-${i}`,
-          status: 'success' as const,
-          error: null,
-          confidenceScore: 0.85,
-          logId: i + 1,
-          extraction: {
-            supplier: { supplierName: 'Demo Supplier Pvt Ltd' },
-            shipment: {
-              invoiceNumber: 'INV-DEMO-001',
-              invoiceDate: '2025-01-01',
-              invoiceValue: 1250.0,
-              invoiceCurrency: 'USD',
-            },
-            invoice: {
-              shipmentTotal: 1250.0,
-              lineItems: [
-                {
-                  partNumber: 'P-1001',
-                  itemName: 'Demo Bolt',
-                  quantity: 100,
-                  unitPrice: 12.5,
-                },
-              ],
-            },
-            confidenceScore: 0.85,
-            logId: i + 1,
-          },
-        })),
-        total: files.length,
-        successCount: files.length,
-        errorCount: 0,
-      } as T;
-    }
-    case 'save_ai_extracted_invoice':
-      return {
-        shipmentId: 'SHP-stub-001',
-        invoiceId: 'INV-stub-001',
-        warnings: [] as string[],
-      } as T;
     default:
       if (cmd.startsWith('get_') || cmd.startsWith('browse_')) {
         return [] as unknown as T;

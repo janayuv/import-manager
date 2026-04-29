@@ -52,15 +52,16 @@ function sonnerSuccess(page: Page, text: string | RegExp) {
     .filter({ hasText: text });
 }
 
-async function waitForSonnerToClear(page: Page) {
-  // Sonner can keep dismissed toasts in the DOM during exit; only toasts with
-  // `data-visible="true"` are actually on screen (WebKit especially).
-  await page.waitForFunction(
-    () =>
-      document.querySelectorAll('[data-sonner-toast][data-visible="true"]')
-        .length === 0,
-    { timeout: 20_000 }
-  );
+async function waitForSuccessToastLifecycle(page: Page, text: string | RegExp) {
+  const toast = sonnerSuccess(page, text).last();
+  await expect(toast).toBeVisible({ timeout: 30_000 });
+
+  const closeButton = toast.getByRole('button', { name: /close toast/i });
+  if (await closeButton.isVisible().catch(() => false)) {
+    await closeButton.click();
+  }
+
+  await expect(toast).toBeHidden({ timeout: 20_000 });
 }
 
 async function assertNoErrorToasts(page: Page) {
@@ -102,10 +103,7 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
 
     await test.step('Create backup and assert success notification', async () => {
       await page.getByRole('button', { name: 'Create Backup Now' }).click();
-      await expect(
-        sonnerSuccess(page, /Backup created successfully/i)
-      ).toBeVisible({ timeout: 30_000 });
-      await waitForSonnerToClear(page);
+      await waitForSuccessToastLifecycle(page, /Backup created successfully/i);
     });
 
     const savedBackupPath =
@@ -197,10 +195,10 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
         void dialog.accept();
       });
       await page.getByTestId('restore-database-confirm-button').click();
-      await expect(
-        sonnerSuccess(page, /Database restored successfully/i)
-      ).toBeVisible({ timeout: 45_000 });
-      await waitForSonnerToClear(page);
+      await waitForSuccessToastLifecycle(
+        page,
+        /Database restored successfully/i
+      );
     });
 
     await test.step('Full application reload; session persists, stub DB rehydrates from sessionStorage', async () => {

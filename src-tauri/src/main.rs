@@ -1,27 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(clippy::uninlined_format_args)]
 
-mod crypto_utils;
-mod app_settings;
-mod ai_provider;
-mod ai_prompt_builder;
 mod commands;
-mod deepseek_client;
-mod excel_parser;
-mod ollama_client;
-mod ocr_engine;
-mod confidence_engine;
-mod duplicate_detector;
-mod retry_engine;
-mod batch_processor;
-mod ai_analytics;
 mod db;
 mod encryption;
 mod expense;
 mod migrations;
 mod playwright_db;
 mod restore_control;
-mod supplier_matcher;
 mod utils;
 
 // Re-export commonly used types
@@ -32,6 +18,16 @@ pub use db::{
 use crate::db::DbState;
 use rusqlite::Connection;
 use std::sync::Mutex;
+
+fn configure_sqlite_runtime(conn: &Connection) {
+    if let Err(e) = conn.execute("PRAGMA journal_mode=WAL", []) {
+        log::warn!("[DB] Failed to enable WAL mode: {}", e);
+    }
+    if let Err(e) = conn.execute("PRAGMA synchronous=NORMAL", []) {
+        log::warn!("[DB] Failed to set synchronous=NORMAL: {}", e);
+    }
+    log::info!("[DB] WAL mode enabled.");
+}
 use tauri::Manager;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
 
@@ -123,6 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 db::create_new_database(&db_path)
                     .map_err(|e| -> Box<dyn std::error::Error> { e.into() })?
             };
+            configure_sqlite_runtime(&db_connection);
 
             // Run migrations (pre-migration snapshot beside the DB file for instant rollback)
             let pre_migration_backup = data_dir.join("import-manager.db.backup");
@@ -135,7 +132,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             if let Err(e) = commands::recycle_bin::cleanup_expired_recycle_records(
-                &db_connection,
+                &mut db_connection,
             ) {
                 log::error!(
                     target: "import_manager::recycle_bin",
@@ -170,6 +167,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     app_handle.clone(),
                 ));
                 crate::commands::dashboard_cache::tick_dashboard_maintenance(&app_handle);
+                crate::commands::db_management::governance_tick();
             });
 
             Ok(())
@@ -179,11 +177,18 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::log_client_event,
             commands::get_app_metadata_value,
             commands::set_app_metadata_value,
+            commands::get_invoice_calculation_settings,
+            commands::set_invoice_calculation_settings,
             // Supplier commands
             commands::get_suppliers,
+            commands::get_suppliers_count,
+            commands::get_deleted_suppliers,
+            commands::generate_supplier_id,
             commands::add_supplier,
             commands::update_supplier,
-                        commands::add_suppliers_bulk,
+            commands::add_suppliers_bulk,
+            commands::delete_supplier,
+            commands::restore_supplier,
             // Shipment commands
             commands::get_shipments,
             commands::get_active_shipments,
@@ -205,15 +210,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::bulk_finalize_invoices,
             commands::delete_invoice,
             commands::get_unfinalized_shipments,
-            commands::extract_invoice_with_ai,
-            batch_processor::process_invoice_batch,
-            commands::save_ai_extracted_invoice,
-            ai_analytics::get_ai_extraction_summary,
-            ai_analytics::get_provider_usage_summary,
-            app_settings::get_ai_provider_settings,
-            app_settings::set_ai_provider_settings,
-            app_settings::get_ai_extraction_config_hint,
-
             // BOE Details commands
             commands::get_boes,
             commands::add_boe,
@@ -498,8 +494,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::restore_database,
             commands::browse_table_data,
             commands::update_record,
-        commands::bulk_search_records,
-        commands::bulk_delete_records,
+            commands::bulk_search_records,
+            commands::get_bulk_manageable_tables,
+            commands::bulk_get_matching_record_ids,
+            commands::bulk_delete_records,
+            commands::bulk_delete_records_by_filter,
+            commands::preview_hard_delete_impact,
+            commands::get_hard_delete_pin_settings,
+            commands::set_hard_delete_pin_enabled,
+            commands::set_hard_delete_pin_threshold,
+            commands::set_hard_delete_pin,
+            commands::change_hard_delete_pin,
+            commands::verify_hard_delete_pin,
+            commands::restore_deleted_records_using_token,
         commands::create_backup_schedule,
         commands::get_backup_schedules,
         commands::update_backup_schedule,

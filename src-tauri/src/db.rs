@@ -104,6 +104,8 @@ pub struct Invoice {
     pub status: String,
     pub calculated_total: f64,
     pub shipment_total: f64,
+    pub line_total_decimals: u8,
+    pub invoice_total_decimals: u8,
     pub line_items: Vec<InvoiceLineItem>,
 }
 
@@ -113,7 +115,15 @@ pub struct Invoice {
 pub struct NewInvoicePayload {
     pub shipment_id: String,
     pub status: String,
+    #[serde(default = "default_invoice_decimals")]
+    pub line_total_decimals: u8,
+    #[serde(default = "default_invoice_decimals")]
+    pub invoice_total_decimals: u8,
     pub line_items: Vec<NewInvoiceLineItemPayload>,
+}
+
+fn default_invoice_decimals() -> u8 {
+    2
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -501,6 +511,7 @@ pub fn create_new_database(db_path: &Path) -> Result<Connection, String> {
     let conn =
         Connection::open(db_path).map_err(|e| format!("Failed to create database file: {e}"))?;
     init_schema(&conn).map_err(|e| format!("Failed to initialize database schema: {e}"))?;
+    println!("Index verification completed successfully");
     Ok(conn)
 }
 
@@ -575,6 +586,8 @@ pub fn init_schema(conn: &Connection) -> Result<()> {
             id TEXT PRIMARY KEY NOT NULL,
             shipment_id TEXT NOT NULL,
             status TEXT NOT NULL,
+            line_total_decimals INTEGER NOT NULL DEFAULT 2,
+            invoice_total_decimals INTEGER NOT NULL DEFAULT 2,
             FOREIGN KEY (shipment_id) REFERENCES shipments(id) ON DELETE CASCADE
         )",
         [],

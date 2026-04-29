@@ -31,9 +31,46 @@ const OAUTH_SCOPE: &str =
 const META_GDRIVE_ACCESS: &str = "gdrive_access_token";
 const META_GDRIVE_REFRESH: &str = "gdrive_refresh_token";
 const META_GDRIVE_EXPIRY: &str = "gdrive_token_expiry";
+const PERM_BACKUP_SETTINGS: &str = "backup.settings";
 
 static OPERATION_CANCEL: AtomicBool = AtomicBool::new(false);
 static GDRIVE_TOKEN_DB_PATH: OnceLock<PathBuf> = OnceLock::new();
+
+fn role_allows_permission(role: &str, permission: &str) -> bool {
+    match role {
+        "admin" => true,
+        "db_manager" => matches!(permission, "backup.settings" | "backup.create"),
+        _ => false,
+    }
+}
+
+fn ensure_command_permission(
+    db: &Connection,
+    actor_user_id: Option<&str>,
+    permission: &str,
+) -> Result<(), String> {
+    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Err("Permission denied: missing user context.".to_string());
+    };
+    if actor.eq_ignore_ascii_case("system") || actor.eq_ignore_ascii_case("scheduler") {
+        return Ok(());
+    }
+    let role: String = db
+        .query_row(
+            "SELECT role FROM user_roles WHERE user_id = ?",
+            params![actor],
+            |row| row.get(0),
+        )
+        .map_err(|_| "Permission denied: user role not configured.".to_string())?;
+    if role_allows_permission(&role, permission) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Permission denied: '{}' requires '{}'.",
+            actor, permission
+        ))
+    }
+}
 
 /// Remember DB path so token read fallbacks can open the same file without `State`.
 fn record_gdrive_token_db_path(conn: &Connection) {
@@ -289,9 +326,11 @@ pub async fn google_drive_status(
 #[tauri::command]
 pub async fn google_drive_refresh_profile(
     db_state: State<'_, DbState>,
+    user_id: Option<String>,
 ) -> Result<Option<String>, String> {
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
         if !has_gdrive_session(&db) {
             return Ok(None);
         }
@@ -306,7 +345,14 @@ pub async fn google_drive_refresh_profile(
 }
 
 #[tauri::command]
-pub async fn google_drive_disconnect(db_state: State<'_, DbState>) -> Result<(), String> {
+pub async fn google_drive_disconnect(
+    db_state: State<'_, DbState>,
+    user_id: Option<String>,
+) -> Result<(), String> {
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+    }
     let e = keyring_entry_refresh()?;
     let _ = e.delete_credential();
     if let Ok(em) = keyring_entry_email() {
@@ -321,7 +367,14 @@ pub async fn google_drive_disconnect(db_state: State<'_, DbState>) -> Result<(),
 }
 
 #[tauri::command]
-pub async fn google_drive_connect(db_state: State<'_, DbState>) -> Result<(), String> {
+pub async fn google_drive_connect(
+    db_state: State<'_, DbState>,
+    user_id: Option<String>,
+) -> Result<(), String> {
+    {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_command_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+    }
     let id = client_id()
         .filter(|s| !s.is_empty())
         .ok_or_else(|| {

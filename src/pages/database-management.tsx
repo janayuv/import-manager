@@ -1,4 +1,10 @@
-import { useState, useEffect, useCallback, type ChangeEvent } from 'react';
+import {
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+  type ChangeEvent,
+} from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import {
   Card,
@@ -48,7 +54,6 @@ import {
   Cloud,
   Download,
   Upload,
-  Settings,
   CheckCircle,
   XCircle,
   RefreshCw,
@@ -340,6 +345,32 @@ interface BulkDeleteResult {
   total_requested: number;
   failed_deletions: string[];
   message: string;
+  undo_token?: string | null;
+  expiration_timestamp?: string | null;
+}
+
+interface BulkDeleteStartedPayload {
+  totalCount: number;
+  totalBatches: number;
+}
+
+interface BulkDeleteProgressPayload {
+  processedCount: number;
+  totalCount: number;
+  currentBatch: number;
+  totalBatches: number;
+  elapsedMs: number;
+}
+
+interface BulkDeleteCompletedPayload {
+  totalDeleted: number;
+  totalBatches: number;
+  elapsedMs: number;
+}
+
+interface BulkDeleteRetryPayload {
+  batchNumber: number;
+  retryAttempt: number;
 }
 
 interface DeleteDependencySummary {
@@ -356,7 +387,43 @@ interface PreviewDeleteDependencies {
   scan_timed_out?: boolean;
 }
 
+interface BulkManageableTable {
+  name: string;
+  label: string;
+}
+
+interface HardDeleteImpactTableCount {
+  table: string;
+  records: number;
+}
+
+interface HardDeleteImpactPreview {
+  root_table: string;
+  root_records: number;
+  total_with_dependencies: number;
+  by_table: HardDeleteImpactTableCount[];
+}
+
+interface HardDeletePinSettings {
+  enabled: boolean;
+  threshold: number;
+  hasPin: boolean;
+  failedAttempts: number;
+  lockUntil: string | null;
+  lockActive: boolean;
+}
+
+interface HardDeletePinVerifyResult {
+  ok: boolean;
+  failedAttempts: number;
+  lockUntil: string | null;
+  message: string;
+}
+
 const PREVIEW_DELETE_CHUNK_SIZE = 500;
+const LARGE_SELECTION_WARNING_THRESHOLD = 50000;
+const AUTO_SELECT_ALL_MODE_THRESHOLD = 100000;
+const BULK_DELETE_OPERATION_TIMEOUT_MS = 10 * 60 * 1000;
 
 /** Merges chunked server previews into one result; on any sub-scan timeout, returns a safe indeterminate summary. */
 function mergeDeletePreviewChunks(
@@ -413,6 +480,19 @@ function formatTableLabel(table: string): string {
     .map(w => (w.length ? w[0]!.toUpperCase() + w.slice(1) : w))
     .join(' ');
 }
+
+const DEFAULT_BULK_TABLE_OPTIONS: BulkManageableTable[] = [
+  { name: 'suppliers', label: 'Suppliers' },
+  { name: 'shipments', label: 'Shipments' },
+  { name: 'items', label: 'Items' },
+  { name: 'invoices', label: 'Invoices' },
+  { name: 'invoice_line_items', label: 'Invoice Line Items' },
+  { name: 'boe_details', label: 'BOE Details' },
+  { name: 'boe_calculations', label: 'BOE Calculations' },
+  { name: 'expenses', label: 'Expenses' },
+  { name: 'audit_logs', label: 'Audit Logs' },
+];
+const LAST_SELECTED_BULK_TABLE_KEY = 'lastSelectedBulkTable';
 
 interface BulkSearchFilters {
   [key: string]: unknown;
@@ -491,7 +571,13 @@ function auditLogKey(log: AuditLog, index: number): string {
 }
 
 function DatabaseManagementContent() {
+  useEffect(() => {
+    console.log('[Bulk] Component mounted');
+  }, []);
+
   const userId = useCurrentUserId();
+
+  // === Feature Boundary: Overview / Dashboard ownership ===
   const [stats, setStats] = useState<DatabaseStats | null>(null);
   const [backupHistory, setBackupHistory] = useState<BackupInfo[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLog[]>([]);
@@ -504,8 +590,20 @@ function DatabaseManagementContent() {
   const [restoreInProgress, setRestoreInProgress] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
 
-  // Browse/Edit state
-  const [selectedTable, setSelectedTable] = useState<string>('suppliers');
+  // === Feature Boundary: Browse/Edit ownership ===
+  const [activeTab, setActiveTab] = useState('browse');
+  const [selectedTable, setSelectedTable] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = window.localStorage.getItem(LAST_SELECTED_BULK_TABLE_KEY);
+      if (saved && saved.trim().length > 0) {
+        return saved;
+      }
+    }
+    return 'suppliers';
+  });
+  const [bulkTableOptions, setBulkTableOptions] = useState<
+    BulkManageableTable[]
+  >(DEFAULT_BULK_TABLE_OPTIONS);
   const [tableData, setTableData] = useState<TableData | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(50);
@@ -516,7 +614,7 @@ function DatabaseManagementContent() {
   } | null>(null);
   const [editForm, setEditForm] = useState<Record<string, unknown>>({});
 
-  // Bulk operations state
+  // === Feature Boundary: Bulk operation ownership ===
   const [bulkFilters, setBulkFilters] = useState<BulkSearchFilters>({});
   const [bulkSearchResults, setBulkSearchResults] = useState<TableData | null>(
     null
@@ -524,20 +622,133 @@ function DatabaseManagementContent() {
   const [selectedRecords, setSelectedRecords] = useState<Set<string>>(
     new Set()
   );
+  const [selectAllActive, setSelectAllActive] = useState(false);
+  const [excludedRecordIds, setExcludedRecordIds] = useState<Set<string>>(
+    new Set()
+  );
+  const [selectionFilterSnapshot, setSelectionFilterSnapshot] =
+    useState<BulkSearchFilters | null>(null);
+  const [selectionIncludeDeletedSnapshot, setSelectionIncludeDeletedSnapshot] =
+    useState<boolean | null>(null);
+  const [selectionTableSnapshot, setSelectionTableSnapshot] = useState<
+    string | null
+  >(null);
+  const [selectAllInProgress, setSelectAllInProgress] = useState(false);
+  const totalSelectedRecords =
+    selectAllActive && bulkSearchResults
+      ? Math.max(bulkSearchResults.totalCount - excludedRecordIds.size, 0)
+      : selectedRecords.size;
+
   const [bulkDeleteType, setBulkDeleteType] = useState<'soft' | 'hard'>('soft');
   const [bulkOperationInProgress, setBulkOperationInProgress] = useState(false);
   const [deletePreviewOpen, setDeletePreviewOpen] = useState(false);
   const [deletePreviewLoading, setDeletePreviewLoading] = useState(false);
   const [deletePreview, setDeletePreview] =
     useState<PreviewDeleteDependencies | null>(null);
+  const [deleteImpactPreview, setDeleteImpactPreview] =
+    useState<HardDeleteImpactPreview | null>(null);
+  const [hardDeleteConfirmInput, setHardDeleteConfirmInput] = useState('');
+  const [pinSettings, setPinSettings] = useState<HardDeletePinSettings | null>(
+    null
+  );
+  const [pinDialogOpen, setPinDialogOpen] = useState(false);
+  const [pinDialogValue, setPinDialogValue] = useState('');
+  const [pinDialogError, setPinDialogError] = useState<string | null>(null);
+  const [setPinDialogVisible, setSetPinDialogVisible] = useState(false);
+  const [setPinValue, setSetPinValue] = useState('');
+  const [setPinConfirmValue, setSetPinConfirmValue] = useState('');
+  const [changePinDialogOpen, setChangePinDialogOpen] = useState(false);
+  const [changePinCurrent, setChangePinCurrent] = useState('');
+  const [changePinNew, setChangePinNew] = useState('');
+  const [changePinConfirm, setChangePinConfirm] = useState('');
+  const [pinLockRemainingSeconds, setPinLockRemainingSeconds] = useState<
+    number | null
+  >(null);
+  const [pinLockActive, setPinLockActive] = useState(false);
+  const [pinThresholdInput, setPinThresholdInput] = useState<number>(10);
+  const [pinVerifiedForCurrentPreview, setPinVerifiedForCurrentPreview] =
+    useState(false);
+  const undoToastIntervalRef = useRef<ReturnType<typeof setInterval> | null>(
+    null
+  );
 
-  // Backup schedule state
+  const [bulkDeleteInProgress, setBulkDeleteInProgress] = useState(false);
+  const [bulkDeleteProcessedCount, setBulkDeleteProcessedCount] = useState(0);
+  const [bulkDeleteTotalCount, setBulkDeleteTotalCount] = useState(0);
+  const [bulkDeleteCurrentBatch, setBulkDeleteCurrentBatch] = useState(0);
+  const [bulkDeleteTotalBatches, setBulkDeleteTotalBatches] = useState(0);
+  const [bulkDeleteRetryHint, setBulkDeleteRetryHint] = useState<string | null>(
+    null
+  );
+  const bulkDeleteCompletionFromEventRef = useRef(false);
+  const bulkDeleteLastDeletedCountRef = useRef(0);
+  const bulkDeleteRetryClearTimeoutRef = useRef<ReturnType<
+    typeof setTimeout
+  > | null>(null);
+
+  const clearBulkDeleteProgressUi = useCallback(() => {
+    setBulkDeleteInProgress(false);
+    setBulkDeleteProcessedCount(0);
+    setBulkDeleteTotalCount(0);
+    setBulkDeleteCurrentBatch(0);
+    setBulkDeleteTotalBatches(0);
+    setBulkDeleteRetryHint(null);
+    if (bulkDeleteRetryClearTimeoutRef.current) {
+      clearTimeout(bulkDeleteRetryClearTimeoutRef.current);
+      bulkDeleteRetryClearTimeoutRef.current = null;
+    }
+  }, []);
+
+  const clearBulkSelectionState = useCallback(() => {
+    setSelectedRecords(new Set());
+    setSelectAllActive(false);
+    setExcludedRecordIds(new Set());
+    setSelectionFilterSnapshot(null);
+    setSelectionIncludeDeletedSnapshot(null);
+    setSelectionTableSnapshot(null);
+  }, []);
+
+  const clearUndoToastTimer = useCallback(() => {
+    if (undoToastIntervalRef.current) {
+      clearInterval(undoToastIntervalRef.current);
+      undoToastIntervalRef.current = null;
+    }
+  }, []);
+
+  const handleBrowseTableChange = useCallback(
+    (newTable: string) => {
+      console.log('[Bulk] Table changed:', newTable);
+      setSelectedTable(newTable);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(LAST_SELECTED_BULK_TABLE_KEY, newTable);
+      }
+      setSelectedRecords(new Set());
+      clearBulkSelectionState();
+    },
+    [clearBulkSelectionState]
+  );
+
+  const handleBulkTableChange = useCallback(
+    (newTable: string) => {
+      console.log('[Bulk] Table changed:', newTable);
+      setSelectedTable(newTable);
+      if (typeof window !== 'undefined') {
+        window.localStorage.setItem(LAST_SELECTED_BULK_TABLE_KEY, newTable);
+      }
+      setBulkSearchResults(null);
+      clearBulkSelectionState();
+      setBulkFilters({});
+    },
+    [clearBulkSelectionState]
+  );
+
+  // === Feature Boundary: Backup schedule ownership ===
   const [backupSchedules, setBackupSchedules] = useState<BackupSchedule[]>([]);
 
-  // User roles state
+  // === Feature Boundary: Role ownership ===
   const [userRoles, setUserRoles] = useState<UserRole[]>([]);
 
-  // Backup form state
+  // === Feature Boundary: Backup/Restore form ownership ===
   const [backupForm, setBackupForm] = useState({
     destination: 'local',
     filename: '',
@@ -560,6 +771,23 @@ function DatabaseManagementContent() {
   const [scheduleForm, setScheduleForm] =
     useState<ScheduleFormState>(defaultScheduleForm);
 
+  // === State Ownership Zones (pre-modular split marker) ===
+  // - Overview Zone: stats, backupHistory, auditLogs, loading
+  // - Browse/Edit Zone: selectedTable, tableData, editingRecord, editForm, pagination
+  // - Bulk Zone: bulkFilters, bulkSearchResults, selectedRecords, selection snapshots, delete preview
+  // - Backup/Restore Zone: backupForm, backup progress, restore preview/progress, gdrive transfer
+  // - Roles/Schedules Zone: userRoles, backupSchedules, schedule dialog/form
+
+  const bulkBulkControlsDisabled =
+    bulkOperationInProgress ||
+    bulkDeleteInProgress ||
+    selectAllInProgress ||
+    pinDialogOpen ||
+    setPinDialogVisible ||
+    changePinDialogOpen ||
+    pinLockActive;
+
+  // === Data Loading Boundary ===
   /** Refreshes stats, recent backups slice, and audit logs. Never toggles full-page `loading` (avoids unmounting the UI). */
   const loadDashboardData = useCallback(async () => {
     try {
@@ -586,6 +814,153 @@ function DatabaseManagementContent() {
     }
   }, []);
 
+  const loadBulkManageableTables = useCallback(async () => {
+    try {
+      const tables = await invoke<BulkManageableTable[]>(
+        'get_bulk_manageable_tables'
+      );
+      const nextOptions =
+        Array.isArray(tables) && tables.length > 0
+          ? tables
+          : DEFAULT_BULK_TABLE_OPTIONS;
+      setBulkTableOptions(nextOptions);
+      const available = new Set(nextOptions.map(t => t.name));
+      setSelectedTable(prevSelected => {
+        const currentSelectedTable = (prevSelected ?? '').trim();
+        const saved =
+          typeof window !== 'undefined'
+            ? (
+                window.localStorage.getItem(LAST_SELECTED_BULK_TABLE_KEY) ?? ''
+              ).trim()
+            : '';
+        const desired =
+          currentSelectedTable.length > 0 ? currentSelectedTable : saved;
+        const resolved = available.has(desired)
+          ? desired
+          : (nextOptions[0]?.name ?? 'suppliers');
+        if (typeof window !== 'undefined') {
+          window.localStorage.setItem(LAST_SELECTED_BULK_TABLE_KEY, resolved);
+        }
+        return resolved;
+      });
+    } catch (error) {
+      console.error('Failed to load bulk-manageable tables:', error);
+      setBulkTableOptions(DEFAULT_BULK_TABLE_OPTIONS);
+    }
+  }, []);
+
+  // === User Action Boundary ===
+
+  const loadHardDeletePinSettings = useCallback(async () => {
+    try {
+      const settings = await invoke<HardDeletePinSettings>(
+        'get_hard_delete_pin_settings'
+      );
+      setPinSettings(settings);
+    } catch (error) {
+      console.error('Failed to load hard delete PIN settings:', error);
+    }
+  }, []);
+
+  const isValidPin = (pin: string): boolean =>
+    /^[0-9]{4,}$/.test((pin ?? '').trim());
+
+  const handleToggleHardDeletePinEnabled = async (enabled: boolean) => {
+    try {
+      await invoke('set_hard_delete_pin_enabled', { enabled });
+      await loadHardDeletePinSettings();
+      toast.success(
+        enabled
+          ? 'Hard delete PIN protection enabled.'
+          : 'Hard delete PIN protection disabled.'
+      );
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
+
+  const handleSetHardDeletePin = async () => {
+    if (!isValidPin(setPinValue)) {
+      toast.error('PIN must be numeric and at least 4 digits.');
+      return;
+    }
+    if (setPinValue !== setPinConfirmValue) {
+      toast.error('PIN and confirmation do not match.');
+      return;
+    }
+    try {
+      await invoke('set_hard_delete_pin', { pin: setPinValue });
+      await loadHardDeletePinSettings();
+      setSetPinDialogVisible(false);
+      setSetPinValue('');
+      setSetPinConfirmValue('');
+      toast.success('Hard delete PIN set successfully.');
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
+
+  const handleChangeHardDeletePin = async () => {
+    if (!isValidPin(changePinNew)) {
+      toast.error('New PIN must be numeric and at least 4 digits.');
+      return;
+    }
+    if (changePinNew !== changePinConfirm) {
+      toast.error('New PIN and confirmation do not match.');
+      return;
+    }
+    try {
+      await invoke('change_hard_delete_pin', {
+        currentPin: changePinCurrent,
+        newPin: changePinNew,
+      });
+      await loadHardDeletePinSettings();
+      setChangePinDialogOpen(false);
+      setChangePinCurrent('');
+      setChangePinNew('');
+      setChangePinConfirm('');
+      toast.success('PIN updated successfully.');
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
+
+  const handleSaveHardDeletePinThreshold = async (threshold: number) => {
+    const next = Math.max(1, Math.floor(threshold || 1));
+    try {
+      await invoke('set_hard_delete_pin_threshold', { threshold: next });
+      await loadHardDeletePinSettings();
+      toast.success('Hard delete PIN threshold updated.');
+    } catch (error) {
+      toast.error(String(error));
+    }
+  };
+
+  const handleVerifyPinForDelete = async () => {
+    setPinDialogError(null);
+    try {
+      const result = await invoke<HardDeletePinVerifyResult>(
+        'verify_hard_delete_pin',
+        {
+          pin: pinDialogValue,
+        }
+      );
+      await loadHardDeletePinSettings();
+      if (result.ok) {
+        setPinVerifiedForCurrentPreview(true);
+        setPinDialogOpen(false);
+        setPinDialogValue('');
+        toast.success('PIN verified.');
+        return;
+      }
+      setPinDialogError(result.message || 'Invalid PIN');
+      toast.error(result.message || 'Invalid PIN');
+    } catch (error) {
+      setPinDialogError(String(error));
+      toast.error(String(error));
+    }
+  };
+
   useEffect(() => {
     if (!isTauriEnvironment) return;
     let unlisten: (() => void) | undefined;
@@ -609,6 +984,93 @@ function DatabaseManagementContent() {
   }, []);
 
   useEffect(() => {
+    if (!isTauriEnvironment) return;
+    let active = true;
+    const unlistenFns: Array<() => void> = [];
+    void (async () => {
+      try {
+        const { listen } = await import('@tauri-apps/api/event');
+        const reg = (unlisten: () => void) => {
+          if (!active) {
+            try {
+              unlisten();
+            } catch {
+              /* ignore */
+            }
+            return false;
+          }
+          unlistenFns.push(unlisten);
+          return true;
+        };
+
+        let u = await listen<BulkDeleteStartedPayload>(
+          'bulk_delete_started',
+          event => {
+            bulkDeleteCompletionFromEventRef.current = false;
+            setBulkDeleteInProgress(true);
+            setBulkDeleteTotalCount(event.payload.totalCount);
+            setBulkDeleteTotalBatches(event.payload.totalBatches);
+            setBulkDeleteProcessedCount(0);
+            setBulkDeleteCurrentBatch(0);
+          }
+        );
+        if (!reg(u)) return;
+
+        u = await listen<BulkDeleteProgressPayload>(
+          'bulk_delete_progress',
+          event => {
+            const p = event.payload;
+            setBulkDeleteProcessedCount(p.processedCount);
+            setBulkDeleteTotalCount(p.totalCount);
+            setBulkDeleteCurrentBatch(p.currentBatch);
+            setBulkDeleteTotalBatches(p.totalBatches);
+          }
+        );
+        if (!reg(u)) return;
+
+        u = await listen<BulkDeleteCompletedPayload>(
+          'bulk_delete_completed',
+          event => {
+            bulkDeleteCompletionFromEventRef.current = true;
+            toast.success(
+              `${event.payload.totalDeleted.toLocaleString()} records deleted successfully.`,
+              { id: 'bulk-delete-complete' }
+            );
+            clearBulkDeleteProgressUi();
+          }
+        );
+        if (!reg(u)) return;
+
+        u = await listen<BulkDeleteRetryPayload>('bulk_delete_retry', event => {
+          setBulkDeleteRetryHint(
+            `Retrying batch ${event.payload.batchNumber}...`
+          );
+          if (bulkDeleteRetryClearTimeoutRef.current) {
+            clearTimeout(bulkDeleteRetryClearTimeoutRef.current);
+          }
+          bulkDeleteRetryClearTimeoutRef.current = setTimeout(() => {
+            setBulkDeleteRetryHint(null);
+            bulkDeleteRetryClearTimeoutRef.current = null;
+          }, 4000);
+        });
+        if (!reg(u)) return;
+      } catch (e) {
+        console.warn('bulk delete progress listeners failed:', e);
+      }
+    })();
+    return () => {
+      active = false;
+      for (const u of unlistenFns) {
+        try {
+          u();
+        } catch {
+          /* ignore */
+        }
+      }
+    };
+  }, [clearBulkDeleteProgressUi]);
+
+  useEffect(() => {
     let cancelled = false;
     const boot = async () => {
       setLoading(true);
@@ -622,10 +1084,12 @@ function DatabaseManagementContent() {
     void loadBackupHistory();
     void loadBackupSchedules();
     void loadUserRoles();
+    void loadBulkManageableTables();
+    void loadHardDeletePinSettings();
     return () => {
       cancelled = true;
     };
-  }, [loadDashboardData]);
+  }, [loadDashboardData, loadBulkManageableTables, loadHardDeletePinSettings]);
 
   const loadTableData = useCallback(
     async (opts?: { page?: number }) => {
@@ -653,6 +1117,97 @@ function DatabaseManagementContent() {
   );
 
   useEffect(() => {
+    if (!selectAllActive) {
+      return;
+    }
+
+    if (
+      !selectionFilterSnapshot ||
+      selectionIncludeDeletedSnapshot === null ||
+      !selectionTableSnapshot
+    ) {
+      clearBulkSelectionState();
+      toast.error(
+        'Selection context is missing. Please re-run search and select records again.'
+      );
+      return;
+    }
+
+    const snapshotFilters = JSON.stringify(selectionFilterSnapshot);
+    const currentFilters = JSON.stringify(bulkFilters);
+    const contextChanged =
+      snapshotFilters !== currentFilters ||
+      selectionIncludeDeletedSnapshot !== includeDeleted ||
+      selectionTableSnapshot !== selectedTable;
+
+    if (contextChanged) {
+      clearBulkSelectionState();
+      toast.info(
+        'Selection was reset because table or filter criteria changed.'
+      );
+    }
+  }, [
+    bulkFilters,
+    clearBulkSelectionState,
+    includeDeleted,
+    selectAllActive,
+    selectedTable,
+    selectionFilterSnapshot,
+    selectionIncludeDeletedSnapshot,
+    selectionTableSnapshot,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      clearUndoToastTimer();
+    };
+  }, [clearUndoToastTimer]);
+
+  useEffect(() => {
+    if (pinSettings?.threshold != null) {
+      setPinThresholdInput(pinSettings.threshold);
+    }
+  }, [pinSettings?.threshold]);
+
+  useEffect(() => {
+    const lockUntilIso = pinSettings?.lockUntil;
+    if (!lockUntilIso) {
+      setPinLockActive(false);
+      setPinLockRemainingSeconds(null);
+      return;
+    }
+    const lockUntilMs = Date.parse(lockUntilIso);
+    if (!Number.isFinite(lockUntilMs)) {
+      setPinLockActive(false);
+      setPinLockRemainingSeconds(null);
+      return;
+    }
+    const computeRemaining = () =>
+      Math.max(0, Math.ceil((lockUntilMs - Date.now()) / 1000));
+    const initialRemaining = computeRemaining();
+    if (initialRemaining <= 0) {
+      setPinLockActive(false);
+      setPinLockRemainingSeconds(null);
+      return;
+    }
+    setPinLockActive(true);
+    setPinLockRemainingSeconds(initialRemaining);
+    const intervalId = window.setInterval(() => {
+      const remaining = computeRemaining();
+      if (remaining <= 0) {
+        setPinLockActive(false);
+        setPinLockRemainingSeconds(null);
+        window.clearInterval(intervalId);
+      } else {
+        setPinLockRemainingSeconds(remaining);
+      }
+    }, 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [pinSettings?.lockUntil]);
+
+  useEffect(() => {
     loadTableData();
   }, [loadTableData]);
 
@@ -676,7 +1231,7 @@ function DatabaseManagementContent() {
   const handleConnectGoogleDrive = async () => {
     try {
       toast.info('Complete sign-in in your browser…');
-      await invoke('google_drive_connect');
+      await invoke('google_drive_connect', { userId });
       try {
         const s = await invoke<GoogleDriveStatus>('google_drive_status');
         setGoogleDriveStatus(normalizeGoogleDriveStatus(s));
@@ -684,7 +1239,7 @@ function DatabaseManagementContent() {
         /* status refresh best-effort */
       }
       try {
-        await invoke('google_drive_refresh_profile');
+        await invoke('google_drive_refresh_profile', { userId });
       } catch {
         /* profile optional */
       }
@@ -708,7 +1263,7 @@ function DatabaseManagementContent() {
     );
     if (!ok) return;
     try {
-      await invoke('google_drive_disconnect');
+      await invoke('google_drive_disconnect', { userId });
       toast.success('Disconnected from Google Drive');
       await loadDashboardData();
     } catch (error) {
@@ -719,7 +1274,7 @@ function DatabaseManagementContent() {
 
   const handleRefreshGoogleProfile = async () => {
     try {
-      await invoke('google_drive_refresh_profile');
+      await invoke('google_drive_refresh_profile', { userId });
       await loadDashboardData();
       toast.success('Google account updated');
     } catch (error) {
@@ -735,6 +1290,7 @@ function DatabaseManagementContent() {
     }
   };
 
+  // === Progress Workflow Boundary: Backup execution ===
   const handleBackupNow = async () => {
     if (
       backupForm.destination === 'google_drive' &&
@@ -838,6 +1394,7 @@ function DatabaseManagementContent() {
     }
   };
 
+  // === Progress Workflow Boundary: Restore preview + execution ===
   const handleRestorePreview = async (backupPath: string) => {
     const gdrive = isGdriveBackupPath(backupPath);
     try {
@@ -889,7 +1446,7 @@ function DatabaseManagementContent() {
       return;
     }
     try {
-      await invoke('export_backup_key');
+      await invoke('export_backup_key', { userId });
       toast.success('Backup key saved. Store the file in a safe place.');
       logInfo('Backup encryption key export completed', 'security');
     } catch (e) {
@@ -926,6 +1483,7 @@ function DatabaseManagementContent() {
       await invoke('import_backup_key_from_path', {
         path: filePath,
         replaceConfirmed,
+        userId,
       });
       toast.success(
         'Backup key imported. You can decrypt backups from your other device.'
@@ -1017,6 +1575,8 @@ function DatabaseManagementContent() {
       }
     }
   };
+
+  // === Modal Workflow Boundary: key import/export + schedule + delete confirmation dialogs ===
 
   const isPlaywrightBuild = import.meta.env.VITE_PLAYWRIGHT === '1';
 
@@ -1143,7 +1703,7 @@ function DatabaseManagementContent() {
 
       const normalized = normalizeTableData(result, selectedTable);
       setBulkSearchResults(normalized);
-      setSelectedRecords(new Set()); // Clear selections
+      clearBulkSelectionState();
 
       if (!options?.suppressSuccessToast) {
         toast.success(
@@ -1161,14 +1721,50 @@ function DatabaseManagementContent() {
   };
 
   const executeBulkDelete = async (deleteType: 'soft' | 'hard') => {
+    let deleteInvokeSucceeded = false;
+    bulkDeleteCompletionFromEventRef.current = false;
     try {
       setBulkOperationInProgress(true);
-      const result = await invoke<BulkDeleteResult>('bulk_delete_records', {
-        tableName: selectedTable,
-        recordIds: Array.from(selectedRecords),
-        userId,
-        deleteType,
-      });
+      if (selectAllActive) {
+        if (
+          !selectionFilterSnapshot ||
+          selectionIncludeDeletedSnapshot === null ||
+          !selectionTableSnapshot
+        ) {
+          toast.error(
+            'Selection snapshot is missing. Please re-run search and select records again.'
+          );
+          return;
+        }
+      }
+
+      const effectiveTableName = selectAllActive
+        ? selectionTableSnapshot!
+        : selectedTable;
+      const effectiveFilters = selectAllActive
+        ? selectionFilterSnapshot!
+        : bulkFilters;
+      const effectiveIncludeDeleted = selectAllActive
+        ? selectionIncludeDeletedSnapshot!
+        : includeDeleted;
+
+      const result = selectAllActive
+        ? await invoke<BulkDeleteResult>('bulk_delete_records_by_filter', {
+            tableName: effectiveTableName,
+            filters: effectiveFilters,
+            includeDeleted: effectiveIncludeDeleted,
+            excludedRecordIds: Array.from(excludedRecordIds),
+            expectedSelectedCount: totalSelectedRecords,
+            operationTimeoutMs: BULK_DELETE_OPERATION_TIMEOUT_MS,
+            userId,
+            deleteType,
+          })
+        : await invoke<BulkDeleteResult>('bulk_delete_records', {
+            tableName: selectedTable,
+            recordIds: Array.from(selectedRecords),
+            userId,
+            deleteType,
+          });
 
       if (
         result &&
@@ -1176,13 +1772,75 @@ function DatabaseManagementContent() {
         'success' in result &&
         result.success
       ) {
-        toast.success(result.message);
+        deleteInvokeSucceeded = true;
+        bulkDeleteLastDeletedCountRef.current = result.deleted_count;
         if (deleteType === 'soft') {
           logInfo('Soft delete completed after dependency review', 'delete');
+          if (result.undo_token && result.expiration_timestamp) {
+            const undoToken = result.undo_token;
+            const expiresAtMs = Date.parse(result.expiration_timestamp);
+            if (Number.isFinite(expiresAtMs)) {
+              const toastId = `undo-delete-${undoToken}`;
+              const renderUndoToast = () => {
+                const remainingMs = Math.max(expiresAtMs - Date.now(), 0);
+                const remainingSec = Math.floor(remainingMs / 1000);
+                const mm = Math.floor(remainingSec / 60)
+                  .toString()
+                  .padStart(1, '0');
+                const ss = (remainingSec % 60).toString().padStart(2, '0');
+                const label = `Undo (${mm}:${ss})`;
+                toast.message(
+                  `${result.deleted_count.toLocaleString()} records deleted.`,
+                  {
+                    id: toastId,
+                    duration: remainingMs > 0 ? remainingMs : 1000,
+                    action:
+                      remainingMs > 0
+                        ? {
+                            label,
+                            onClick: async () => {
+                              try {
+                                const undoResult =
+                                  await invoke<BulkDeleteResult>(
+                                    'restore_deleted_records_using_token',
+                                    {
+                                      undoToken,
+                                    }
+                                  );
+                                toast.success(undoResult.message);
+                                clearUndoToastTimer();
+                                toast.dismiss(toastId);
+                                await loadTableData({ page: 1 });
+                                await handleBulkSearch({
+                                  suppressSuccessToast: true,
+                                });
+                                await loadDashboardData();
+                              } catch (undoError) {
+                                toast.error(`Undo failed: ${undoError}`);
+                              }
+                            },
+                          }
+                        : undefined,
+                  }
+                );
+              };
+
+              clearUndoToastTimer();
+              renderUndoToast();
+              undoToastIntervalRef.current = setInterval(() => {
+                if (Date.now() >= expiresAtMs) {
+                  clearUndoToastTimer();
+                  toast.dismiss(toastId);
+                  return;
+                }
+                renderUndoToast();
+              }, 1000);
+            }
+          }
         }
 
         // Immediate UI reset so we never render stale rows while refresh runs.
-        setSelectedRecords(new Set());
+        clearBulkSelectionState();
         setBulkSearchResults(
           normalizeTableData(
             { columns: [], rows: [], totalCount: 0, tableName: selectedTable },
@@ -1243,9 +1901,11 @@ function DatabaseManagementContent() {
           typeof (result as { message?: unknown }).message === 'string'
             ? (result as { message: string }).message
             : 'Bulk delete did not succeed.';
+        clearBulkDeleteProgressUi();
         toast.error(msg);
       }
     } catch (error) {
+      clearBulkDeleteProgressUi();
       const raw = String(error);
       let friendly = raw;
       if (raw.includes('Cannot hard delete')) {
@@ -1277,11 +1937,25 @@ function DatabaseManagementContent() {
       toast.error(`Failed to delete records: ${friendly}`);
     } finally {
       setBulkOperationInProgress(false);
+      if (deleteInvokeSucceeded) {
+        window.setTimeout(() => {
+          if (!bulkDeleteCompletionFromEventRef.current) {
+            toast.success(
+              `${bulkDeleteLastDeletedCountRef.current.toLocaleString()} records deleted successfully.`,
+              { id: 'bulk-delete-complete' }
+            );
+            clearBulkDeleteProgressUi();
+          }
+          bulkDeleteCompletionFromEventRef.current = false;
+        }, 150);
+      } else {
+        bulkDeleteCompletionFromEventRef.current = false;
+      }
     }
   };
 
   const handleBulkDelete = async () => {
-    if (selectedRecords.size === 0) {
+    if (totalSelectedRecords === 0) {
       toast.error('Please select records to delete.');
       return;
     }
@@ -1289,9 +1963,40 @@ function DatabaseManagementContent() {
     if (bulkDeleteType === 'hard') {
       setDeletePreviewOpen(true);
       setDeletePreview(null);
+      setDeleteImpactPreview(null);
+      setHardDeleteConfirmInput('');
+      setPinVerifiedForCurrentPreview(false);
       setDeletePreviewLoading(true);
       try {
-        const allIds = Array.from(selectedRecords);
+        let allIds: string[] = [];
+        if (selectAllActive) {
+          if (
+            !selectionFilterSnapshot ||
+            selectionIncludeDeletedSnapshot === null ||
+            !selectionTableSnapshot
+          ) {
+            toast.error(
+              'Selection snapshot is missing. Please re-run search and select records again.'
+            );
+            setDeletePreviewOpen(false);
+            return;
+          }
+          const matchedIds = await invoke<string[]>(
+            'bulk_get_matching_record_ids',
+            {
+              tableName: selectionTableSnapshot,
+              filters: selectionFilterSnapshot,
+              includeDeleted: selectionIncludeDeletedSnapshot,
+            }
+          );
+          const excluded = excludedRecordIds;
+          allIds = (Array.isArray(matchedIds) ? matchedIds : []).filter(
+            id => !excluded.has(id)
+          );
+        } else {
+          allIds = Array.from(selectedRecords);
+        }
+
         let p: PreviewDeleteDependencies;
         if (allIds.length > PREVIEW_DELETE_CHUNK_SIZE) {
           const parts: PreviewDeleteDependencies[] = [];
@@ -1320,6 +2025,14 @@ function DatabaseManagementContent() {
           );
         }
         setDeletePreview(p);
+        const impact = await invoke<HardDeleteImpactPreview>(
+          'preview_hard_delete_impact',
+          {
+            tableName: selectedTable,
+            recordIds: allIds,
+          }
+        );
+        setDeleteImpactPreview(impact);
         logInfo(
           `Delete preview: table=${selectedTable} total_records=${p.total_records} can_hard_delete=${p.can_hard_delete}`,
           'delete'
@@ -1343,34 +2056,65 @@ function DatabaseManagementContent() {
       return;
     }
 
-    const confirmMessage = `Are you sure you want to soft delete ${selectedRecords.size} records?`;
+    const confirmMessage = selectAllActive
+      ? `Are you sure you want to soft delete ${totalSelectedRecords} records?\n\nDeleting records matching the original filter selection.`
+      : `Are you sure you want to soft delete ${totalSelectedRecords} records?`;
     if (!(await confirmDestructive(confirmMessage))) {
       return;
     }
     await executeBulkDelete('soft');
   };
 
-  const handleSelectAll = () => {
+  const handleSelectAll = async () => {
     if (!bulkSearchResults) return;
 
-    const rows = Array.isArray(bulkSearchResults.rows)
-      ? bulkSearchResults.rows
-      : [];
-
-    if (selectedRecords.size === rows.length) {
+    if (selectAllActive || selectedRecords.size > 0) {
       // Deselect all
-      setSelectedRecords(new Set());
+      clearBulkSelectionState();
     } else {
-      // Select all, but limit to 100 records
-      const allIds = rows
-        .map(row => (Array.isArray(row) ? row[0]?.toString() || '' : ''))
-        .slice(0, 100); // Limit to first 100 records
-      setSelectedRecords(new Set(allIds));
+      try {
+        setSelectAllInProgress(true);
+        if (bulkSearchResults.totalCount > AUTO_SELECT_ALL_MODE_THRESHOLD) {
+          setSelectAllActive(true);
+          setExcludedRecordIds(new Set());
+          setSelectedRecords(new Set());
+          setSelectionFilterSnapshot({ ...bulkFilters });
+          setSelectionIncludeDeletedSnapshot(includeDeleted);
+          setSelectionTableSnapshot(selectedTable);
+          toast.warning(
+            `Large dataset detected (${bulkSearchResults.totalCount.toLocaleString()} records). Select All Mode enabled with exclusions for better performance.`
+          );
+          return;
+        }
 
-      if (rows.length > 100) {
-        toast.warning(
-          'Only the first 100 records were selected due to bulk operation limits.'
-        );
+        const allIds = await invoke<string[]>('bulk_get_matching_record_ids', {
+          tableName: selectedTable,
+          filters: bulkFilters,
+          includeDeleted,
+        });
+        setSelectAllActive(false);
+        setExcludedRecordIds(new Set());
+        setSelectionFilterSnapshot(null);
+        setSelectionIncludeDeletedSnapshot(null);
+        setSelectionTableSnapshot(null);
+        setSelectedRecords(new Set(Array.isArray(allIds) ? allIds : []));
+
+        if (Array.isArray(allIds)) {
+          if (allIds.length > LARGE_SELECTION_WARNING_THRESHOLD) {
+            toast.warning(
+              `Selected ${allIds.length.toLocaleString()} records. Large operations are processed in batches and may take longer.`
+            );
+          } else {
+            toast.success(
+              `Selected all ${allIds.length.toLocaleString()} matching records.`
+            );
+          }
+        }
+      } catch (error) {
+        console.error('Select all failed:', error);
+        toast.error(`Failed to select all records: ${error}`);
+      } finally {
+        setSelectAllInProgress(false);
       }
     }
   };
@@ -1548,17 +2292,21 @@ function DatabaseManagementContent() {
   };
 
   const handleSelectRecord = (recordId: string) => {
+    if (selectAllActive) {
+      const updated = new Set(excludedRecordIds);
+      if (updated.has(recordId)) {
+        updated.delete(recordId);
+      } else {
+        updated.add(recordId);
+      }
+      setExcludedRecordIds(updated);
+      return;
+    }
+
     const newSelection = new Set(selectedRecords);
     if (newSelection.has(recordId)) {
       newSelection.delete(recordId);
     } else {
-      // Check if we're already at the limit
-      if (newSelection.size >= 100) {
-        toast.warning(
-          'Cannot select more than 100 records at once. Please deselect some records first.'
-        );
-        return;
-      }
       newSelection.add(recordId);
     }
     setSelectedRecords(newSelection);
@@ -1742,7 +2490,11 @@ function DatabaseManagementContent() {
       </div>
 
       {/* Main Content Tabs */}
-      <Tabs defaultValue="overview" className="space-y-4">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-4"
+      >
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="browse">Browse & Edit</TabsTrigger>
@@ -1837,20 +2589,18 @@ function DatabaseManagementContent() {
                     <Label htmlFor="table-select">Table:</Label>
                     <Select
                       value={selectedTable}
-                      onValueChange={setSelectedTable}
+                      disabled={pinDialogOpen}
+                      onValueChange={handleBrowseTableChange}
                     >
                       <SelectTrigger className="w-48">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="suppliers">Suppliers</SelectItem>
-                        <SelectItem value="shipments">Shipments</SelectItem>
-                        <SelectItem value="items">Items</SelectItem>
-                        <SelectItem value="invoices">Invoices</SelectItem>
-                        <SelectItem value="expenses">Expenses</SelectItem>
-                        <SelectItem value="notifications">
-                          Notifications
-                        </SelectItem>
+                        {bulkTableOptions.map(option => (
+                          <SelectItem key={option.name} value={option.name}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -1877,6 +2627,7 @@ function DatabaseManagementContent() {
                       type="checkbox"
                       id="include-deleted"
                       checked={includeDeleted}
+                      disabled={pinDialogOpen}
                       onChange={e => setIncludeDeleted(e.target.checked)}
                     />
                     <Label htmlFor="include-deleted">Include Deleted</Label>
@@ -1886,6 +2637,7 @@ function DatabaseManagementContent() {
                     onClick={() => void loadTableData()}
                     variant="outline"
                     size="sm"
+                    disabled={pinDialogOpen}
                   >
                     <RefreshCw className="mr-2 h-4 w-4" />
                     Refresh
@@ -2043,24 +2795,18 @@ function DatabaseManagementContent() {
                     <Label htmlFor="bulk-table-select">Table:</Label>
                     <Select
                       value={selectedTable}
-                      onValueChange={value => {
-                        setSelectedTable(value);
-                        setBulkSearchResults(null);
-                        setSelectedRecords(new Set());
-                        setBulkFilters({});
-                      }}
+                      disabled={bulkBulkControlsDisabled}
+                      onValueChange={handleBulkTableChange}
                     >
                       <SelectTrigger id="bulk-table-select" className="w-48">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="suppliers">Suppliers</SelectItem>
-                        <SelectItem value="shipments">Shipments</SelectItem>
-                        <SelectItem value="items">Items</SelectItem>
-                        <SelectItem value="invoices">Invoices</SelectItem>
-                        <SelectItem value="boe_details">BOE Details</SelectItem>
-                        <SelectItem value="expenses">Expenses</SelectItem>
-                        <SelectItem value="audit_logs">Audit Logs</SelectItem>
+                        {bulkTableOptions.map(option => (
+                          <SelectItem key={option.name} value={option.name}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -2069,6 +2815,7 @@ function DatabaseManagementContent() {
                     <Checkbox
                       id="bulk-include-deleted"
                       checked={includeDeleted}
+                      disabled={bulkBulkControlsDisabled}
                       onCheckedChange={(checked: boolean) => {
                         setIncludeDeleted(checked as boolean);
                       }}
@@ -2080,7 +2827,7 @@ function DatabaseManagementContent() {
 
                   <Button
                     onClick={() => void handleBulkSearch()}
-                    disabled={bulkOperationInProgress}
+                    disabled={bulkBulkControlsDisabled}
                     className="bg-blue-600 hover:bg-blue-700"
                   >
                     <RefreshCw
@@ -2098,6 +2845,7 @@ function DatabaseManagementContent() {
                       id="filter-name"
                       placeholder="Search by name..."
                       value={String(bulkFilters.name ?? '')}
+                      disabled={bulkBulkControlsDisabled}
                       onChange={e => {
                         setBulkFilters(prev => ({
                           ...prev,
@@ -2112,6 +2860,7 @@ function DatabaseManagementContent() {
                       id="filter-status"
                       placeholder="Search by status..."
                       value={String(bulkFilters.status ?? '')}
+                      disabled={bulkBulkControlsDisabled}
                       onChange={e => {
                         setBulkFilters(prev => ({
                           ...prev,
@@ -2128,6 +2877,7 @@ function DatabaseManagementContent() {
                       id="filter-description"
                       placeholder="Search by description..."
                       value={String(bulkFilters.description ?? '')}
+                      disabled={bulkBulkControlsDisabled}
                       onChange={e => {
                         setBulkFilters(prev => ({
                           ...prev,
@@ -2149,20 +2899,18 @@ function DatabaseManagementContent() {
                       <CardTitle>Search Results</CardTitle>
                       <CardDescription>
                         Found {bulkSearchResults.totalCount} records
-                        {selectedRecords.size > 0 &&
-                          ` • ${selectedRecords.size} selected`}
+                        {totalSelectedRecords > 0 &&
+                          ` • ${totalSelectedRecords} selected`}
                       </CardDescription>
                     </div>
                     <div className="flex items-center space-x-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={handleSelectAll}
+                        onClick={() => void handleSelectAll()}
+                        disabled={bulkBulkControlsDisabled}
                       >
-                        {selectedRecords.size ===
-                        (Array.isArray(bulkSearchResults.rows)
-                          ? bulkSearchResults.rows.length
-                          : 0)
+                        {selectAllActive || totalSelectedRecords > 0
                           ? 'Deselect All'
                           : 'Select All'}
                       </Button>
@@ -2170,6 +2918,7 @@ function DatabaseManagementContent() {
                         <Label htmlFor="delete-type">Delete Type:</Label>
                         <Select
                           value={bulkDeleteType}
+                          disabled={bulkBulkControlsDisabled}
                           onValueChange={(value: 'soft' | 'hard') =>
                             setBulkDeleteType(value)
                           }
@@ -2188,11 +2937,11 @@ function DatabaseManagementContent() {
                         size="sm"
                         onClick={handleBulkDelete}
                         disabled={
-                          selectedRecords.size === 0 || bulkOperationInProgress
+                          totalSelectedRecords === 0 || bulkBulkControlsDisabled
                         }
                       >
                         <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Selected ({selectedRecords.size})
+                        Delete Selected ({totalSelectedRecords})
                       </Button>
                     </div>
                   </div>
@@ -2205,15 +2954,12 @@ function DatabaseManagementContent() {
                           <th className="border border-gray-300 px-3 py-2 text-left">
                             <Checkbox
                               checked={
-                                selectedRecords.size ===
-                                  (Array.isArray(bulkSearchResults.rows)
-                                    ? bulkSearchResults.rows.length
-                                    : 0) &&
-                                (Array.isArray(bulkSearchResults.rows)
-                                  ? bulkSearchResults.rows.length
-                                  : 0) > 0
+                                bulkSearchResults.totalCount > 0 &&
+                                totalSelectedRecords ===
+                                  bulkSearchResults.totalCount
                               }
-                              onCheckedChange={handleSelectAll}
+                              disabled={bulkBulkControlsDisabled}
+                              onCheckedChange={() => void handleSelectAll()}
                             />
                           </th>
                           {(Array.isArray(bulkSearchResults.columns)
@@ -2240,7 +2986,12 @@ function DatabaseManagementContent() {
                             <tr key={rowIndex} className="hover:bg-gray-50">
                               <td className="border border-gray-300 px-3 py-2">
                                 <Checkbox
-                                  checked={selectedRecords.has(recordId)}
+                                  checked={
+                                    selectAllActive
+                                      ? !excludedRecordIds.has(recordId)
+                                      : selectedRecords.has(recordId)
+                                  }
+                                  disabled={bulkBulkControlsDisabled}
                                   onCheckedChange={() =>
                                     handleSelectRecord(recordId)
                                   }
@@ -2759,14 +3510,86 @@ function DatabaseManagementContent() {
                 Configure backup schedules and security settings
               </CardDescription>
             </CardHeader>
-            <CardContent>
-              <Alert>
-                <Settings className="h-4 w-4" />
-                <AlertDescription>
-                  Advanced settings and backup scheduling will be available in
-                  the next update.
-                </AlertDescription>
-              </Alert>
+            <CardContent className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Hard Delete Protection
+                  </CardTitle>
+                  <CardDescription>
+                    Protect hard delete operations with a numeric PIN.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <p className="text-sm font-medium">
+                        Enable Hard Delete PIN
+                      </p>
+                      <p className="text-muted-foreground text-xs">
+                        Require PIN when affected records exceed threshold.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={!!pinSettings?.enabled}
+                      onCheckedChange={checked =>
+                        void handleToggleHardDeletePinEnabled(checked)
+                      }
+                      disabled={!pinSettings?.hasPin}
+                    />
+                  </div>
+                  {!pinSettings?.hasPin && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        PIN is not set. Set a PIN to enable protection.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {pinLockActive && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Too many incorrect attempts. Try again in{' '}
+                        {pinLockRemainingSeconds ?? 0} seconds.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="pin-threshold">
+                        Require PIN when deleting more than:
+                      </Label>
+                      <Input
+                        id="pin-threshold"
+                        type="number"
+                        min={1}
+                        value={pinThresholdInput}
+                        onChange={e =>
+                          setPinThresholdInput(Number(e.target.value))
+                        }
+                        onBlur={() =>
+                          void handleSaveHardDeletePinThreshold(
+                            pinThresholdInput
+                          )
+                        }
+                      />
+                    </div>
+                    <div className="flex items-end gap-2">
+                      <Button onClick={() => setSetPinDialogVisible(true)}>
+                        Set PIN
+                      </Button>
+                      <Button
+                        variant="outline"
+                        onClick={() => setChangePinDialogOpen(true)}
+                        disabled={!pinSettings?.hasPin}
+                      >
+                        Change PIN
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </CardContent>
           </Card>
         </TabsContent>
@@ -3462,11 +4285,181 @@ function DatabaseManagementContent() {
       )}
 
       <Dialog
+        open={setPinDialogVisible}
+        onOpenChange={open => {
+          setSetPinDialogVisible(open);
+          if (!open) {
+            setSetPinValue('');
+            setSetPinConfirmValue('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Set Hard Delete PIN</DialogTitle>
+            <DialogDescription>
+              PIN must be numeric and at least 4 digits.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="set-pin-new">New PIN</Label>
+              <Input
+                id="set-pin-new"
+                type="password"
+                inputMode="numeric"
+                value={setPinValue}
+                onChange={e => setSetPinValue(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="set-pin-confirm">Confirm PIN</Label>
+              <Input
+                id="set-pin-confirm"
+                type="password"
+                inputMode="numeric"
+                value={setPinConfirmValue}
+                onChange={e => setSetPinConfirmValue(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setSetPinDialogVisible(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleSetHardDeletePin()}>
+              Save PIN
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={changePinDialogOpen}
+        onOpenChange={open => {
+          setChangePinDialogOpen(open);
+          if (!open) {
+            setChangePinCurrent('');
+            setChangePinNew('');
+            setChangePinConfirm('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Change Hard Delete PIN</DialogTitle>
+            <DialogDescription>
+              Verify current PIN and set a new one.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="change-pin-current">Current PIN</Label>
+              <Input
+                id="change-pin-current"
+                type="password"
+                inputMode="numeric"
+                value={changePinCurrent}
+                onChange={e => setChangePinCurrent(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="change-pin-new">New PIN</Label>
+              <Input
+                id="change-pin-new"
+                type="password"
+                inputMode="numeric"
+                value={changePinNew}
+                onChange={e => setChangePinNew(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="change-pin-confirm">Confirm New PIN</Label>
+              <Input
+                id="change-pin-confirm"
+                type="password"
+                inputMode="numeric"
+                value={changePinConfirm}
+                onChange={e => setChangePinConfirm(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setChangePinDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button onClick={() => void handleChangeHardDeletePin()}>
+              Update PIN
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pinDialogOpen}
+        onOpenChange={open => {
+          setPinDialogOpen(open);
+          if (!open) {
+            setPinDialogValue('');
+            setPinDialogError(null);
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Enter PIN to confirm hard delete</DialogTitle>
+            <DialogDescription>
+              This operation requires PIN verification.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label htmlFor="hard-delete-pin-input">PIN</Label>
+            <Input
+              id="hard-delete-pin-input"
+              type="password"
+              inputMode="numeric"
+              value={pinDialogValue}
+              onChange={e => setPinDialogValue(e.target.value)}
+            />
+            {pinDialogError && (
+              <p className="text-sm text-red-600">{pinDialogError}</p>
+            )}
+            {pinLockActive && (
+              <p className="text-muted-foreground text-xs">
+                Too many incorrect attempts. Try again in{' '}
+                {pinLockRemainingSeconds ?? 0} seconds.
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPinDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              disabled={pinLockActive}
+              onClick={() => void handleVerifyPinForDelete()}
+            >
+              Confirm
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={deletePreviewOpen}
         onOpenChange={open => {
           setDeletePreviewOpen(open);
           if (!open) {
             setDeletePreview(null);
+            setDeleteImpactPreview(null);
+            setHardDeleteConfirmInput('');
+            setPinVerifiedForCurrentPreview(false);
           }
         }}
       >
@@ -3476,7 +4469,7 @@ function DatabaseManagementContent() {
             <DialogDescription>
               {deletePreviewLoading
                 ? 'Checking references…'
-                : `Number of records selected: ${selectedRecords.size}`}
+                : `Number of records selected: ${totalSelectedRecords}`}
             </DialogDescription>
           </DialogHeader>
           {deletePreviewLoading ? (
@@ -3527,6 +4520,48 @@ function DatabaseManagementContent() {
                     the selected rows.
                   </p>
                 ) : null}
+                {deleteImpactPreview && (
+                  <div className="rounded-md border p-3 text-sm">
+                    <p className="font-medium">
+                      Total records affected (including dependencies):{' '}
+                      {deleteImpactPreview.total_with_dependencies.toLocaleString()}
+                    </p>
+                    <ul className="text-muted-foreground mt-2 list-inside list-disc">
+                      {deleteImpactPreview.by_table.slice(0, 6).map(row => (
+                        <li key={row.table}>
+                          {formatTableLabel(row.table)}:{' '}
+                          {row.records.toLocaleString()}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                {deleteImpactPreview &&
+                  deleteImpactPreview.total_with_dependencies > 5000 && (
+                    <div className="space-y-2">
+                      <Alert>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>
+                          This operation will delete{' '}
+                          {deleteImpactPreview.total_with_dependencies.toLocaleString()}{' '}
+                          records including dependencies.
+                        </AlertDescription>
+                      </Alert>
+                      <div className="space-y-1">
+                        <Label htmlFor="hard-delete-confirm">
+                          Type DELETE to confirm
+                        </Label>
+                        <Input
+                          id="hard-delete-confirm"
+                          value={hardDeleteConfirmInput}
+                          onChange={e =>
+                            setHardDeleteConfirmInput(e.target.value)
+                          }
+                          placeholder="DELETE"
+                        />
+                      </div>
+                    </div>
+                  )}
               </div>
             )
           )}
@@ -3536,6 +4571,8 @@ function DatabaseManagementContent() {
               onClick={() => {
                 setDeletePreviewOpen(false);
                 setDeletePreview(null);
+                setDeleteImpactPreview(null);
+                setHardDeleteConfirmInput('');
               }}
             >
               Cancel
@@ -3548,7 +4585,7 @@ function DatabaseManagementContent() {
                   setDeletePreview(null);
                   setBulkDeleteType('soft');
                   const ok = await confirmDestructive(
-                    `Soft delete ${selectedRecords.size} record(s)?`
+                    `Soft delete ${totalSelectedRecords} record(s)?`
                   );
                   if (ok) {
                     void executeBulkDelete('soft');
@@ -3558,18 +4595,57 @@ function DatabaseManagementContent() {
                 Soft Delete Instead
               </Button>
             )}
-            {deletePreview?.can_hard_delete && (
+            {deletePreview && (
               <Button
                 variant="destructive"
+                disabled={pinLockActive}
                 onClick={async () => {
+                  const totalAffected =
+                    deleteImpactPreview?.total_with_dependencies ??
+                    totalSelectedRecords;
+                  const requiresPin =
+                    !!pinSettings?.enabled &&
+                    !!pinSettings?.hasPin &&
+                    totalAffected >= (pinSettings?.threshold ?? 10);
+                  if (pinLockActive) {
+                    toast.error(
+                      'Too many incorrect attempts. Try again later.'
+                    );
+                    setPinDialogOpen(true);
+                    return;
+                  }
+                  if (requiresPin && !pinVerifiedForCurrentPreview) {
+                    setPinDialogOpen(true);
+                    return;
+                  }
+                  if (
+                    deleteImpactPreview &&
+                    deleteImpactPreview.total_with_dependencies > 5000 &&
+                    hardDeleteConfirmInput !== 'DELETE'
+                  ) {
+                    toast.error(
+                      'Type DELETE exactly to confirm this large hard delete operation.'
+                    );
+                    return;
+                  }
                   const ok = await confirmDestructive(
-                    `Permanently delete ${selectedRecords.size} record(s)? This cannot be undone.`
+                    deleteImpactPreview &&
+                      deleteImpactPreview.total_with_dependencies > 5000
+                      ? `This operation will delete ${deleteImpactPreview.total_with_dependencies.toLocaleString()} records including dependencies. Continue?`
+                      : `Permanently delete ${totalSelectedRecords} record(s)? This cannot be undone.`
                   );
                   if (!ok) {
                     return;
                   }
+                  logInfo(
+                    `Hard delete confirmation accepted for table=${selectedTable} affected=${deleteImpactPreview?.total_with_dependencies ?? totalSelectedRecords}`,
+                    'delete'
+                  );
                   setDeletePreviewOpen(false);
                   setDeletePreview(null);
+                  setDeleteImpactPreview(null);
+                  setHardDeleteConfirmInput('');
+                  setPinVerifiedForCurrentPreview(false);
                   void executeBulkDelete('hard');
                 }}
               >
@@ -3579,6 +4655,39 @@ function DatabaseManagementContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {(bulkDeleteInProgress || bulkDeleteTotalCount > 0) && (
+        <div
+          className="bg-background/95 supports-backdrop-filter:bg-background/80 z-100 fixed inset-x-0 bottom-0 border-t p-3 shadow-lg backdrop-blur"
+          role="status"
+          aria-live="polite"
+        >
+          <div className="container mx-auto space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+              <span>
+                {bulkDeleteProcessedCount === 0
+                  ? 'Deleting records...'
+                  : `Deleting records: ${bulkDeleteProcessedCount.toLocaleString()} / ${bulkDeleteTotalCount.toLocaleString()} (Batch ${bulkDeleteCurrentBatch} of ${bulkDeleteTotalBatches})`}
+              </span>
+              {bulkDeleteRetryHint ? (
+                <span className="text-amber-600 dark:text-amber-500">
+                  {bulkDeleteRetryHint}
+                </span>
+              ) : null}
+            </div>
+            <Progress
+              value={
+                bulkDeleteTotalCount > 0
+                  ? Math.min(
+                      100,
+                      (bulkDeleteProcessedCount / bulkDeleteTotalCount) * 100
+                    )
+                  : 0
+              }
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

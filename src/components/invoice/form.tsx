@@ -31,6 +31,13 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
   Table,
   TableBody,
   TableCell,
@@ -93,6 +100,10 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   const [lineItems, setLineItems] = React.useState<FormInvoiceLineItem[]>([]);
   const [calculatedTotal, setCalculatedTotal] = React.useState(0);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [lineTotalDecimals, setLineTotalDecimals] = React.useState<0 | 2>(2);
+  const [invoiceTotalDecimals, setInvoiceTotalDecimals] = React.useState<0 | 2>(
+    2
+  );
 
   const shipmentOptions = shipments.map(s => ({
     value: s.id,
@@ -100,10 +111,29 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   }));
   const currency = selectedShipment?.invoiceCurrency || 'USD';
 
-  const formatCurrency = (amount: number) => {
+  const roundToPrecision = React.useCallback(
+    (value: number, decimals: 0 | 2) => {
+      const factor = 10 ** decimals;
+      return Math.round(value * factor) / factor;
+    },
+    []
+  );
+
+  const getRoundedLineTotal = React.useCallback(
+    (lineItem: Pick<FormInvoiceLineItem, 'quantity' | 'unitPrice'>) =>
+      roundToPrecision(
+        lineItem.quantity * lineItem.unitPrice,
+        lineTotalDecimals
+      ),
+    [lineTotalDecimals, roundToPrecision]
+  );
+
+  const formatCurrency = (amount: number, decimals: 0 | 2 = 2) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
       currency: normalizeCurrencyCode(currency),
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     }).format(amount);
   };
 
@@ -130,20 +160,24 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
       const shipment = shipments.find(s => s.id === invoiceToEdit.shipmentId);
       setSelectedShipment(shipment || null);
       setLineItems(invoiceToEdit.lineItems || []);
+      setLineTotalDecimals(invoiceToEdit.lineTotalDecimals === 0 ? 0 : 2);
+      setInvoiceTotalDecimals(invoiceToEdit.invoiceTotalDecimals === 0 ? 0 : 2);
     } else {
       setSelectedShipment(null);
       setLineItems([]);
+      setLineTotalDecimals(2);
+      setInvoiceTotalDecimals(2);
     }
   }, [invoiceToEdit, isOpen, shipments, presentation]);
 
   React.useEffect(() => {
     // Round to 2 decimal places to avoid floating-point precision issues
-    const total = lineItems.reduce(
-      (sum, item) => sum + item.quantity * item.unitPrice,
+    const lineTotalsSum = lineItems.reduce(
+      (sum, item) => sum + getRoundedLineTotal(item),
       0
     );
-    setCalculatedTotal(Math.round(total * 100) / 100);
-  }, [lineItems]);
+    setCalculatedTotal(roundToPrecision(lineTotalsSum, invoiceTotalDecimals));
+  }, [lineItems, invoiceTotalDecimals, getRoundedLineTotal, roundToPrecision]);
 
   const handleShipmentSelect = (shipmentId: string) => {
     const shipment = shipments.find((s: Shipment) => s.id === shipmentId);
@@ -301,9 +335,13 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         return toast.error('Please select a shipment first.');
       }
       // Use tolerance-based comparison for floating-point numbers
-      const tolerance = 0.01; // Allow 1 cent difference
+      const tolerance = invoiceTotalDecimals === 0 ? 0.5 : 0.01;
+      const roundedShipmentTotal = roundToPrecision(
+        selectedShipment.invoiceValue,
+        invoiceTotalDecimals
+      );
       const isMatched =
-        Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance;
+        Math.abs(roundedShipmentTotal - calculatedTotal) < tolerance;
       if (status === 'Finalized' && !isMatched) {
         setIsSubmitting(false);
         return toast.error(
@@ -318,6 +356,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         status: status === 'Finalized' ? 'Finalized' : 'Draft',
         calculatedTotal,
         shipmentTotal: selectedShipment.invoiceValue,
+        lineTotalDecimals,
+        invoiceTotalDecimals,
         lineItems,
       };
       onSubmit(invoiceData, invoiceToEdit?.id);
@@ -334,9 +374,13 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
     }
 
     // Use tolerance-based comparison for floating-point numbers
-    const tolerance = 0.01; // Allow 1 cent difference
+    const tolerance = invoiceTotalDecimals === 0 ? 0.5 : 0.01;
+    const roundedShipmentTotal = roundToPrecision(
+      selectedShipment.invoiceValue,
+      invoiceTotalDecimals
+    );
     const isMatched =
-      Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance;
+      Math.abs(roundedShipmentTotal - calculatedTotal) < tolerance;
 
     if (!isMatched) {
       return toast.error(
@@ -349,12 +393,15 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
   };
 
   // Use tolerance-based comparison for floating-point numbers
-  const tolerance = 0.01; // Allow 1 cent difference
+  const tolerance = invoiceTotalDecimals === 0 ? 0.5 : 0.01;
+  const roundedShipmentTotal = selectedShipment
+    ? roundToPrecision(selectedShipment.invoiceValue, invoiceTotalDecimals)
+    : 0;
   const isMatch = selectedShipment
-    ? Math.abs(selectedShipment.invoiceValue - calculatedTotal) < tolerance
+    ? Math.abs(roundedShipmentTotal - calculatedTotal) < tolerance
     : false;
   const matchDifference = selectedShipment
-    ? calculatedTotal - selectedShipment.invoiceValue
+    ? calculatedTotal - roundedShipmentTotal
     : 0;
   const formTitle = invoiceToEdit
     ? `Edit Invoice: ${invoiceToEdit.invoiceNumber}`
@@ -393,7 +440,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
 
   const formFields = (
     <>
-      <div className="grid grid-cols-1 gap-4 border-b pb-4 md:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 border-b pb-4 md:grid-cols-5">
         <div>
           <Label htmlFor="shipmentId">Shipment (Invoice No)</Label>
           <Combobox
@@ -411,6 +458,38 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
         <div>
           <Label>Invoice Date</Label>
           <Input value={selectedShipment?.invoiceDate || ''} readOnly />
+        </div>
+        <div>
+          <Label>Line Total Precision</Label>
+          <Select
+            value={lineTotalDecimals.toString()}
+            onValueChange={value => setLineTotalDecimals(value === '0' ? 0 : 2)}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2">2 decimals</SelectItem>
+              <SelectItem value="0">0 decimals</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label>Invoice Total Precision</Label>
+          <Select
+            value={invoiceTotalDecimals.toString()}
+            onValueChange={value =>
+              setInvoiceTotalDecimals(value === '0' ? 0 : 2)
+            }
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="2">2 decimals</SelectItem>
+              <SelectItem value="0">0 decimals</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
       </div>
 
@@ -578,7 +657,8 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                         <TableCell className="px-2 align-top">
                           <Input
                             value={formatCurrency(
-                              lineItem.quantity * lineItem.unitPrice
+                              getRoundedLineTotal(lineItem),
+                              lineTotalDecimals
                             )}
                             readOnly
                             className="bg-muted h-9 min-w-[7rem] font-mono text-sm tabular-nums"
@@ -649,7 +729,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
                   Calculated Total
                 </p>
                 <p className="text-lg font-bold">
-                  {formatCurrency(calculatedTotal)}
+                  {formatCurrency(calculatedTotal, invoiceTotalDecimals)}
                 </p>
               </div>
               <div
@@ -657,7 +737,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               >
                 {isMatch
                   ? '✅ Match'
-                  : `⚠️ Mismatch (by ${formatCurrency(matchDifference)})`}
+                  : `⚠️ Mismatch (by ${formatCurrency(matchDifference, invoiceTotalDecimals)})`}
               </div>
             </div>
             {isMatch && (
@@ -743,7 +823,7 @@ export const InvoiceForm: React.FC<InvoiceFormProps> = ({
               <div className="flex justify-between">
                 <span>Calculated Total:</span>
                 <span className="font-semibold">
-                  {formatCurrency(calculatedTotal)}
+                  {formatCurrency(calculatedTotal, invoiceTotalDecimals)}
                 </span>
               </div>
               <div className="text-success flex justify-between">

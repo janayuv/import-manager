@@ -230,12 +230,17 @@ export const getInvoiceColumns = ({
       accessorKey: 'matchStatus',
       header: 'Match Status',
       cell: ({ row }) => {
+        const invoiceTotalDecimals =
+          row.original.invoiceTotalDecimals === 0 ? 0 : 2;
+        const tolerance = invoiceTotalDecimals === 0 ? 0.5 : 0.01;
+        const roundedShipmentTotal =
+          Math.round(row.original.shipmentTotal * 10 ** invoiceTotalDecimals) /
+          10 ** invoiceTotalDecimals;
         const isMatched =
-          Math.abs(row.original.shipmentTotal - row.original.invoiceTotal) <
-          0.01;
+          Math.abs(roundedShipmentTotal - row.original.invoiceTotal) <
+          tolerance;
         const isDraft = row.original.status === 'Draft';
-        const difference =
-          row.original.shipmentTotal - row.original.invoiceTotal;
+        const difference = roundedShipmentTotal - row.original.invoiceTotal;
 
         if (!isDraft) {
           return <span className="text-muted-foreground text-xs">-</span>;

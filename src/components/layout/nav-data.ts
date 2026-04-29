@@ -51,8 +51,6 @@ export const navItems: AppNavItem[] = [
     items: [
       { title: 'Invoices', url: '/invoice' },
       { title: 'Invoice Wizard', url: '/invoice-wizard' },
-      { title: 'AI Invoice Extraction', url: '/ai-invoice' },
-      { title: 'AI Analytics', url: '/ai-analytics' },
     ],
   },
   {
@@ -122,6 +120,6 @@ export const navItems: AppNavItem[] = [
     title: 'Settings',
     url: '/settings',
     icon: Settings,
-    items: [{ title: 'AI Provider Settings', url: '/settings/ai-provider' }],
+    items: [],
   },
 ];

@@ -1,8 +1,27 @@
 use crate::commands::dashboard_cache;
 use crate::commands::utils::generate_id;
-use crate::db::{DbState, Invoice, InvoiceLineItem, NewInvoiceLineItemPayload, NewInvoicePayload};
-use rusqlite::{params, Connection, Transaction};
+use crate::db::{DbState, Invoice, InvoiceLineItem, NewInvoicePayload};
+use rusqlite::{params, params_from_iter, Connection, Transaction};
+use std::collections::HashMap;
+use std::time::Instant;
 use tauri::State;
+
+fn sanitize_invoice_decimals(value: u8) -> u8 {
+    match value {
+        0 => 0,
+        2 => 2,
+        _ => 2,
+    }
+}
+
+fn round_with_decimals(value: f64, decimals: u8) -> f64 {
+    let factor = 10_f64.powi(decimals as i32);
+    (value * factor).round() / factor
+}
+
+fn invoice_match_tolerance(decimals: u8) -> f64 {
+    if decimals == 0 { 0.5 } else { 0.01 }
+}
 
 fn parse_pct_from_item_str(s: &Option<String>) -> f64 {
     s.as_ref()
@@ -45,14 +64,33 @@ fn fetch_invoices(db: &Connection) -> Result<Vec<Invoice>, String> {
     let mut stmt = db
         .prepare(
             "SELECT 
-                i.id, i.shipment_id, i.status,
-                s.invoice_number, s.invoice_date, s.invoice_value
+                i.id AS invoice_id,
+                i.shipment_id,
+                i.status,
+                s.invoice_number,
+                s.invoice_date,
+                s.invoice_value,
+                COALESCE(i.line_total_decimals, 2) AS line_total_decimals,
+                COALESCE(i.invoice_total_decimals, 2) AS invoice_total_decimals,
+                li.id AS line_id,
+                li.item_id,
+                li.quantity,
+                li.unit_price,
+                COALESCE(li.duty_percent, CAST(REPLACE(it.bcd, '%', '') AS REAL), 0.0) AS duty_percent,
+                COALESCE(li.sws_percent, CAST(REPLACE(it.sws, '%', '') AS REAL), 0.0) AS sws_percent,
+                COALESCE(li.igst_percent, CAST(REPLACE(it.igst, '%', '') AS REAL), 0.0) AS igst_percent
              FROM invoices i
-             JOIN shipments s ON i.shipment_id = s.id",
+             JOIN shipments s
+                ON i.shipment_id = s.id
+             LEFT JOIN invoice_line_items li
+                ON li.invoice_id = i.id
+             LEFT JOIN items it
+                ON li.item_id = it.id
+             ORDER BY i.id",
         )
         .map_err(|e| e.to_string())?;
 
-    let invoice_iter = stmt
+    let row_iter = stmt
         .query_map([], |row| {
             Ok((
                 row.get::<_, String>(0)?,
@@ -61,89 +99,102 @@ fn fetch_invoices(db: &Connection) -> Result<Vec<Invoice>, String> {
                 row.get::<_, String>(3)?,
                 row.get::<_, String>(4)?,
                 row.get::<_, f64>(5)?,
+                row.get::<_, u8>(6)?,
+                row.get::<_, u8>(7)?,
+                row.get::<_, Option<String>>(8)?,
+                row.get::<_, Option<String>>(9)?,
+                row.get::<_, Option<f64>>(10)?,
+                row.get::<_, Option<f64>>(11)?,
+                row.get::<_, Option<f64>>(12)?,
+                row.get::<_, Option<f64>>(13)?,
+                row.get::<_, Option<f64>>(14)?,
             ))
         })
         .map_err(|e| e.to_string())?;
 
     let mut invoices = Vec::new();
-    for invoice_result in invoice_iter {
-        let (id, shipment_id, status, invoice_number, invoice_date, shipment_total) =
-            invoice_result.map_err(|e| e.to_string())?;
+    let mut invoice_index_by_id: HashMap<String, usize> = HashMap::new();
 
-        let mut line_item_stmt = db
-            .prepare(
-                "SELECT id, item_id, quantity, unit_price, duty_percent, sws_percent, igst_percent \
-                 FROM invoice_line_items WHERE invoice_id = ?1",
-            )
-            .map_err(|e| e.to_string())?;
-
-        let line_item_iter = line_item_stmt
-            .query_map(params![&id], |row| {
-                Ok((
-                    row.get::<_, String>(0)?,
-                    row.get::<_, String>(1)?,
-                    row.get::<_, f64>(2)?,
-                    row.get::<_, f64>(3)?,
-                    row.get::<_, Option<f64>>(4)?,
-                    row.get::<_, Option<f64>>(5)?,
-                    row.get::<_, Option<f64>>(6)?,
-                ))
-            })
-            .map_err(|e| e.to_string())?;
-
-        let raw_rows: Vec<_> = line_item_iter
-            .collect::<Result<_, _>>()
-            .map_err(|e| e.to_string())?;
-
-        let mut line_items: Vec<InvoiceLineItem> = Vec::with_capacity(raw_rows.len());
-
-        for (line_id, item_id, quantity, unit_price, duty_db, sws_db, igst_db) in raw_rows {
-            let (bcd_s, sws_s, igst_s) = item_master_tax_strings(db, &item_id);
-            let (d, s, ig) = merge_tax_rates(duty_db, sws_db, igst_db, &bcd_s, &sws_s, &igst_s);
-
-            if duty_db.is_none() || sws_db.is_none() || igst_db.is_none() {
-                db.execute(
-                    "UPDATE invoice_line_items SET duty_percent = ?2, sws_percent = ?3, igst_percent = ?4 WHERE id = ?1",
-                    params![&line_id, d, s, ig],
-                )
-                .map_err(|e| e.to_string())?;
-            }
-
-            line_items.push(InvoiceLineItem {
-                id: line_id,
-                item_id,
-                quantity,
-                unit_price,
-                duty_percent: d,
-                sws_percent: s,
-                igst_percent: ig,
-            });
-        }
-
-        let calculated_total = line_items
-            .iter()
-            .map(|li| li.quantity * li.unit_price)
-            .sum();
-
-        invoices.push(Invoice {
-            id,
+    for row_result in row_iter {
+        let (
+            invoice_id,
             shipment_id,
             status,
             invoice_number,
             invoice_date,
             shipment_total,
-            calculated_total,
-            line_items,
-        });
+            line_total_decimals,
+            invoice_total_decimals,
+            line_id,
+            item_id,
+            quantity,
+            unit_price,
+            duty_percent,
+            sws_percent,
+            igst_percent,
+        ) = row_result.map_err(|e| e.to_string())?;
+
+        let idx = if let Some(existing_idx) = invoice_index_by_id.get(&invoice_id).copied() {
+            existing_idx
+        } else {
+            let new_idx = invoices.len();
+            invoice_index_by_id.insert(invoice_id.clone(), new_idx);
+            invoices.push(Invoice {
+                id: invoice_id.clone(),
+                shipment_id,
+                status,
+                invoice_number,
+                invoice_date,
+                shipment_total,
+                line_total_decimals: sanitize_invoice_decimals(line_total_decimals),
+                invoice_total_decimals: sanitize_invoice_decimals(invoice_total_decimals),
+                calculated_total: 0.0,
+                line_items: Vec::new(),
+            });
+            new_idx
+        };
+
+        if let (Some(line_id), Some(item_id), Some(quantity), Some(unit_price)) =
+            (line_id, item_id, quantity, unit_price)
+        {
+            invoices[idx].line_items.push(InvoiceLineItem {
+                id: line_id,
+                item_id,
+                quantity,
+                unit_price,
+                duty_percent: duty_percent.unwrap_or(0.0),
+                sws_percent: sws_percent.unwrap_or(0.0),
+                igst_percent: igst_percent.unwrap_or(0.0),
+            });
+        }
     }
+
+    for invoice in &mut invoices {
+        let line_decimals = sanitize_invoice_decimals(invoice.line_total_decimals);
+        let invoice_decimals = sanitize_invoice_decimals(invoice.invoice_total_decimals);
+        let sum_of_line_totals: f64 = invoice
+            .line_items
+            .iter()
+            .map(|li| round_with_decimals(li.quantity * li.unit_price, line_decimals))
+            .sum();
+        invoice.calculated_total = round_with_decimals(sum_of_line_totals, invoice_decimals);
+    }
+
+    println!(
+        "Loaded {} invoices using optimized JOIN",
+        invoices.len()
+    );
 
     Ok(invoices)
 }
 
 #[tauri::command]
 pub fn get_invoices(state: State<DbState>) -> Result<Vec<Invoice>, String> {
+    let start = Instant::now();
     let db = state.db.lock().unwrap();
-    fetch_invoices(&db)
+    let result = fetch_invoices(&db);
+    println!("get_invoices execution time: {:?}", start.elapsed());
+    result
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -165,16 +216,19 @@ pub fn bulk_finalize_invoices(
     input: BulkFinalizeInvoicesInput,
     state: State<DbState>,
 ) -> Result<BulkFinalizeInvoicesResult, String> {
+    let start = Instant::now();
     let mut db = state.db.lock().unwrap();
     let invoices = fetch_invoices(&db)?;
-    const TOLERANCE: f64 = 0.01;
 
-    let mut finalized = 0u32;
+    let invoice_by_id: HashMap<&str, &Invoice> =
+        invoices.iter().map(|inv| (inv.id.as_str(), inv)).collect();
+
+    let mut valid_invoice_ids: Vec<String> = Vec::new();
     let mut failed = 0u32;
     let mut error_messages = Vec::new();
 
     for id in &input.invoice_ids {
-        let Some(inv) = invoices.iter().find(|i| &i.id == id) else {
+        let Some(inv) = invoice_by_id.get(id.as_str()).copied() else {
             failed += 1;
             error_messages.push(format!("Invoice not found: {id}"));
             continue;
@@ -186,7 +240,9 @@ pub fn bulk_finalize_invoices(
             continue;
         }
 
-        if (inv.shipment_total - inv.calculated_total).abs() >= TOLERANCE {
+        let inv_decimals = sanitize_invoice_decimals(inv.invoice_total_decimals);
+        let rounded_shipment_total = round_with_decimals(inv.shipment_total, inv_decimals);
+        if (rounded_shipment_total - inv.calculated_total).abs() >= invoice_match_tolerance(inv_decimals) {
             failed += 1;
             error_messages.push(format!(
                 "{}: shipment total does not match calculated total",
@@ -195,50 +251,53 @@ pub fn bulk_finalize_invoices(
             continue;
         }
 
-        let payload = NewInvoicePayload {
-            shipment_id: inv.shipment_id.clone(),
-            status: "Finalized".to_string(),
-            line_items: inv
-                .line_items
-                .iter()
-                .map(|li| NewInvoiceLineItemPayload {
-                    item_id: li.item_id.clone(),
-                    quantity: li.quantity,
-                    unit_price: li.unit_price,
-                    duty_percent: Some(li.duty_percent),
-                    sws_percent: Some(li.sws_percent),
-                    igst_percent: Some(li.igst_percent),
-                })
-                .collect(),
-        };
+        valid_invoice_ids.push(inv.id.clone());
+    }
 
-        let tx = match db.transaction() {
-            Ok(t) => t,
-            Err(e) => {
-                failed += 1;
-                error_messages.push(e.to_string());
-                continue;
-            }
-        };
+    let mut finalized = 0u32;
 
-        match execute_update_invoice(&tx, &inv.id, &payload) {
-            Ok(()) => {
-                if let Err(e) = tx.commit() {
-                    failed += 1;
-                    error_messages.push(format!("{}: {e}", inv.invoice_number));
-                    continue;
+    if !valid_invoice_ids.is_empty() {
+        let tx = db.transaction().map_err(|e| e.to_string())?;
+
+        let placeholders = std::iter::repeat("?")
+            .take(valid_invoice_ids.len())
+            .collect::<Vec<_>>()
+            .join(", ");
+        let sql = format!(
+            "UPDATE invoices SET status = 'Finalized' WHERE status = 'Draft' AND id IN ({})",
+            placeholders
+        );
+
+        match tx.execute(
+            &sql,
+            params_from_iter(valid_invoice_ids.iter().map(|id| id.as_str())),
+        ) {
+            Ok(changed_rows) => {
+                tx.commit().map_err(|e| e.to_string())?;
+                finalized = changed_rows as u32;
+                if changed_rows < valid_invoice_ids.len() {
+                    let delta = (valid_invoice_ids.len() - changed_rows) as u32;
+                    failed += delta;
+                    error_messages.push(format!(
+                        "{delta} invoice(s) could not be finalized due to concurrent status changes"
+                    ));
                 }
-                finalized += 1;
             }
             Err(e) => {
                 let _ = tx.rollback();
-                failed += 1;
-                error_messages.push(format!("{}: {e}", inv.invoice_number));
+                failed += valid_invoice_ids.len() as u32;
+                error_messages.push(e.to_string());
             }
         }
     }
 
+    println!(
+        "Bulk finalized {} invoices in one transaction",
+        finalized
+    );
+
     let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
+    println!("bulk_finalize_invoices time: {:?}", start.elapsed());
 
     Ok(BulkFinalizeInvoicesResult {
         finalized,
@@ -254,8 +313,14 @@ pub(crate) fn execute_add_invoice(
     let invoice_id = generate_id(Some("INV".to_string()));
 
     tx.execute(
-        "INSERT INTO invoices (id, shipment_id, status) VALUES (?1, ?2, ?3)",
-        params![&invoice_id, &payload.shipment_id, &payload.status],
+        "INSERT INTO invoices (id, shipment_id, status, line_total_decimals, invoice_total_decimals) VALUES (?1, ?2, ?3, ?4, ?5)",
+        params![
+            &invoice_id,
+            &payload.shipment_id,
+            &payload.status,
+            sanitize_invoice_decimals(payload.line_total_decimals),
+            sanitize_invoice_decimals(payload.invoice_total_decimals)
+        ],
     )?;
 
     for line_item in &payload.line_items {
@@ -343,8 +408,14 @@ fn execute_update_invoice(
     payload: &NewInvoicePayload,
 ) -> Result<(), rusqlite::Error> {
     tx.execute(
-        "UPDATE invoices SET shipment_id = ?1, status = ?2 WHERE id = ?3",
-        params![&payload.shipment_id, &payload.status, &id],
+        "UPDATE invoices SET shipment_id = ?1, status = ?2, line_total_decimals = ?3, invoice_total_decimals = ?4 WHERE id = ?5",
+        params![
+            &payload.shipment_id,
+            &payload.status,
+            sanitize_invoice_decimals(payload.line_total_decimals),
+            sanitize_invoice_decimals(payload.invoice_total_decimals),
+            &id
+        ],
     )?;
 
     tx.execute(

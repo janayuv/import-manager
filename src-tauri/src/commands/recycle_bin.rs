@@ -3,6 +3,7 @@
 
 use crate::commands::reference_scan::{
     ensure_can_hard_delete, list_application_tables, map_hard_delete_error_rusqlite,
+    HardDeleteFnLogGuard,
 };
 use crate::db::DbState;
 use rusqlite::OptionalExtension;
@@ -10,6 +11,7 @@ use rusqlite::{params, Connection, Row};
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
 use std::collections::HashSet;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
 use uuid::Uuid;
 
@@ -17,6 +19,10 @@ const DEFAULT_PAGE_SIZE: u32 = 50;
 const IN_BATCH: usize = 90;
 const RECYCLE_RETENTION_DAYS_KEY: &str = "recycle_retention_days";
 const DEFAULT_RECYCLE_RETENTION_DAYS: u32 = 30;
+const PERM_DATA_EDIT: &str = "data.edit";
+const PERM_DATA_DELETE: &str = "data.delete";
+const SCALE_WARNING_RECYCLE_TOTAL: i64 = 10_000;
+static RECYCLE_QUERY_RUN_COUNT: AtomicU64 = AtomicU64::new(0);
 
 fn is_safe_table_ident(name: &str) -> bool {
     !name.is_empty() && name.chars().all(|c| c.is_alphanumeric() || c == '_')
@@ -24,6 +30,44 @@ fn is_safe_table_ident(name: &str) -> bool {
 
 fn quote_ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
+}
+
+fn role_allows_permission(role: &str, permission: &str) -> bool {
+    match role {
+        "admin" => true,
+        "db_manager" => matches!(permission, "data.browse" | "data.edit" | "data.delete"),
+        "user" => matches!(permission, "data.browse" | "data.edit"),
+        "viewer" => matches!(permission, "data.browse"),
+        _ => false,
+    }
+}
+
+fn ensure_command_permission(
+    db: &Connection,
+    actor_user_id: Option<&str>,
+    permission: &str,
+) -> Result<(), String> {
+    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
+        return Err("Permission denied: missing user context.".to_string());
+    };
+    if actor.eq_ignore_ascii_case("scheduler") || actor.eq_ignore_ascii_case("system") {
+        return Ok(());
+    }
+    let role: String = db
+        .query_row(
+            "SELECT role FROM user_roles WHERE user_id = ?",
+            params![actor],
+            |row| row.get(0),
+        )
+        .map_err(|_| "Permission denied: user role not configured.".to_string())?;
+    if role_allows_permission(&role, permission) {
+        Ok(())
+    } else {
+        Err(format!(
+            "Permission denied: '{}' requires '{}'.",
+            actor, permission
+        ))
+    }
 }
 
 fn table_column_names(conn: &Connection, table: &str) -> Result<Vec<String>, String> {
@@ -147,12 +191,19 @@ fn get_recycle_retention_days(conn: &Connection) -> Result<u32, String> {
 
 /// Permanently removes soft-deleted rows older than the configured retention, skipping rows
 /// that are still blocked by [ensure_can_hard_delete] (e.g. FK references).
-pub fn cleanup_expired_recycle_records(conn: &Connection) -> Result<i64, String> {
+pub fn cleanup_expired_recycle_records(conn: &mut Connection) -> Result<i64, String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "cleanup_expired_recycle_records",
+        "(all_soft_delete_tables)",
+        "n/a",
+        "n/a",
+    );
     let retention_days = get_recycle_retention_days(conn)?;
     let time_mod = format!("-{} days", retention_days);
     let tables = list_soft_delete_tables_internal(conn)?;
     let mut total_deleted: i64 = 0;
     for table in tables {
+        let mut seen_ids: HashSet<String> = HashSet::new();
         let columns = table_column_names(conn, &table)?;
         let Some(d_col) = columns
             .iter()
@@ -193,6 +244,15 @@ pub fn cleanup_expired_recycle_records(conn: &Connection) -> Result<i64, String>
         }
         let mut to_delete: Vec<String> = Vec::new();
         for id in id_rows {
+            if !seen_ids.insert(id.clone()) {
+                log::error!(
+                    target: "import_manager::hard_delete",
+                    "[HARD_DELETE ERROR] Recursive delete detected table={} id={}",
+                    table,
+                    id
+                );
+                continue;
+            }
             if ensure_can_hard_delete(conn, &table, std::slice::from_ref(&id)).is_ok() {
                 to_delete.push(id);
             } else {
@@ -207,19 +267,51 @@ pub fn cleanup_expired_recycle_records(conn: &Connection) -> Result<i64, String>
         if to_delete.is_empty() {
             continue;
         }
-        for chunk in to_delete.chunks(IN_BATCH) {
+        for (batch_idx, chunk) in to_delete.chunks(IN_BATCH).enumerate() {
             if chunk.is_empty() {
                 continue;
             }
-            let ph: String = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
-            let del_sql = format!("DELETE FROM {} WHERE id IN ({})", quote_ident(&table), ph);
-            let n = conn
-                .execute(
-                    &del_sql,
-                    rusqlite::params_from_iter(chunk.iter().map(String::as_str)),
-                )
-                .map_err(map_hard_delete_error_rusqlite)?;
-            total_deleted += n as i64;
+            let batch_number = batch_idx + 1;
+            log::info!(
+                target: "import_manager::hard_delete",
+                "[HARD_DELETE] Begin transaction"
+            );
+            let tx = conn.transaction().map_err(|e| e.to_string())?;
+            let mut deleted_in_batch = 0_i64;
+            for id in chunk {
+                let _row_trace = HardDeleteFnLogGuard::new(
+                    "cleanup_expired_recycle_records_per_id",
+                    &table,
+                    id.as_str(),
+                    &batch_number.to_string(),
+                );
+                crate::commands::reference_scan::delete_fk_dependent_children(
+                    &tx,
+                    &table,
+                    std::slice::from_ref(id),
+                )?;
+                let del_sql = format!("DELETE FROM {} WHERE id = ?1", quote_ident(&table));
+                let exec_started = Instant::now();
+                let n = tx
+                    .execute(&del_sql, rusqlite::params![id.as_str()])
+                    .map_err(map_hard_delete_error_rusqlite)?;
+                let exec_ms = exec_started.elapsed().as_millis();
+                if exec_ms > 500 {
+                    log::warn!(
+                        target: "import_manager::hard_delete",
+                        "[HARD_DELETE WARNING] Slow DELETE for ID={} took {} ms",
+                        id,
+                        exec_ms
+                    );
+                }
+                deleted_in_batch += n as i64;
+            }
+            tx.commit().map_err(|e| e.to_string())?;
+            log::info!(
+                target: "import_manager::hard_delete",
+                "[HARD_DELETE] Commit transaction"
+            );
+            total_deleted += deleted_in_batch;
         }
     }
     log::info!(
@@ -579,6 +671,108 @@ fn get_deleted_paged_single_table(
     })
 }
 
+fn get_deleted_paged_all_tables_no_search(
+    conn: &Connection,
+    page: u32,
+    page_size: u32,
+) -> Result<GetDeletedRecordsResponse, String> {
+    let started = Instant::now();
+    let tables = get_soft_delete_tables_internal(conn)?;
+    let table_count = tables.len();
+    let offset = ((page - 1) * page_size) as usize;
+    let needed = offset.saturating_add(page_size as usize);
+    if needed == 0 {
+        return Ok(GetDeletedRecordsResponse {
+            total: 0,
+            page,
+            page_size,
+            items: Vec::new(),
+        });
+    }
+
+    let mut total: i64 = 0;
+    let mut merged: Vec<DeletedRecordItem> = Vec::with_capacity(table_count.saturating_mul(needed));
+    for table in tables {
+        let columns = table_column_names(conn, &table)?;
+        let Some(d_col) = columns
+            .iter()
+            .find(|c| c.eq_ignore_ascii_case("deleted_at"))
+        else {
+            continue;
+        };
+        let d_q = quote_ident(d_col);
+        let col_list: String = columns
+            .iter()
+            .map(|c| quote_ident(c))
+            .collect::<Vec<_>>()
+            .join(", ");
+        let count_sql = format!(
+            "SELECT COUNT(*) FROM {} WHERE {} IS NOT NULL",
+            quote_ident(&table),
+            d_q
+        );
+        let count: i64 = conn
+            .query_row(&count_sql, [], |r| r.get(0))
+            .map_err(|e| e.to_string())?;
+        total += count;
+        if count == 0 {
+            continue;
+        }
+
+        let q = format!(
+            "SELECT {} FROM {} WHERE {} IS NOT NULL ORDER BY {} DESC LIMIT ?",
+            col_list,
+            quote_ident(&table),
+            d_q,
+            d_q
+        );
+        let mut stmt = conn.prepare(&q).map_err(|e| e.to_string())?;
+        let mut rows = stmt.query(params![needed as i64]).map_err(|e| e.to_string())?;
+        while let Some(row) = rows.next().map_err(|e| e.to_string())? {
+            merged.push(DeletedRecordItem {
+                table: table.clone(),
+                record: row_to_object(row, &columns)?,
+            });
+        }
+    }
+    if total >= SCALE_WARNING_RECYCLE_TOTAL {
+        log::warn!(
+            target: "import_manager::recycle_bin",
+            "event=workflow.recycle_bin.scale_readiness stage=entry total_deleted={} page={} page_size={}",
+            total,
+            page,
+            page_size
+        );
+    }
+    log::info!(
+        target: "import_manager::resource",
+        "event=resource.recycle_merge stage=execution merged_items={} total_deleted={} elapsed_ms={}",
+        merged.len(),
+        total,
+        started.elapsed().as_millis()
+    );
+
+    merged.sort_by(|a, b| {
+        let da = record_deleted_at_key_for_sort(&a.record);
+        let db_ = record_deleted_at_key_for_sort(&b.record);
+        db_.cmp(&da)
+            .then_with(|| a.table.cmp(&b.table))
+            .then_with(|| record_id_key_for_sort(&a.record).cmp(&record_id_key_for_sort(&b.record)))
+    });
+    let items = if offset >= merged.len() {
+        Vec::new()
+    } else {
+        let end = (offset + page_size as usize).min(merged.len());
+        merged[offset..end].to_vec()
+    };
+    Ok(GetDeletedRecordsResponse {
+        total,
+        page,
+        page_size,
+        items,
+    })
+}
+
 #[tauri::command]
 pub async fn get_deleted_records(
     db_state: tauri::State<'_, DbState>,
@@ -587,6 +781,15 @@ pub async fn get_deleted_records(
     page: Option<u32>,
     pageSize: Option<u32>,
 ) -> Result<GetDeletedRecordsResponse, String> {
+    let run_started = Instant::now();
+    let run_id = RECYCLE_QUERY_RUN_COUNT
+        .fetch_add(1, Ordering::SeqCst)
+        .saturating_add(1);
+    log::info!(
+        target: "import_manager::recycle_bin",
+        "event=workflow.recycle_bin.progress stage=initialization run_id={}",
+        run_id
+    );
     let page = page.unwrap_or(1).max(1);
     let page_size = pageSize.unwrap_or(DEFAULT_PAGE_SIZE).clamp(1, 200);
     // Treat empty / whitespace-only search as None so filters never hide all rows accidentally.
@@ -604,6 +807,12 @@ pub async fn get_deleted_records(
             if !allowed.contains(t) {
                 return Err("Table does not support soft delete".to_string());
             }
+            log::info!(
+                target: "import_manager::recycle_bin",
+                "event=workflow.recycle_bin.progress stage=execution run_id={} mode=single_table table={}",
+                run_id,
+                t
+            );
             return get_deleted_paged_single_table(&db, t, search, page, page_size);
         }
     }
@@ -615,42 +824,50 @@ pub async fn get_deleted_records(
         page_size,
         search
     );
-    // list_all_soft_deleted_for_recycle_bin merges all soft-delete tables, sorts globally, then we paginate in memory.
+    if search.is_none() {
+        log::info!(
+            target: "import_manager::recycle_bin",
+            "event=workflow.recycle_bin.progress stage=execution run_id={} mode=all_tables_no_search",
+            run_id
+        );
+        return get_deleted_paged_all_tables_no_search(&db, page, page_size);
+    }
+
+    // Search path keeps full matching semantics across table + label + id + deleted_at text.
     let all = list_all_soft_deleted_for_recycle_bin(&db, search)?;
     let total = all.len() as i64;
-    let start = ((page - 1) * page_size) as usize;
-    log::info!(
-        target: "import_manager::recycle_bin",
-        "get_deleted_records all-tables: total_deleted_records_before_pagination={} (global sort already applied) slice_start={}",
-        total,
-        start
-    );
-    if start > 0 && !all.is_empty() && start >= all.len() {
+    if total >= SCALE_WARNING_RECYCLE_TOTAL {
         log::warn!(
             target: "import_manager::recycle_bin",
-            "all-tables: page offset {} is at or past end of {} records; returning empty items for this page",
-            start,
-            all.len()
+            "event=workflow.recycle_bin.scale_readiness stage=search total_deleted={} page={} page_size={}",
+            total,
+            page,
+            page_size
         );
     }
+    log::info!(
+        target: "import_manager::recycle_bin",
+        "event=workflow.recycle_bin.progress stage=completion run_id={} total={} page={} page_size={} elapsed_ms={}",
+        run_id,
+        total,
+        page,
+        page_size,
+        run_started.elapsed().as_millis()
+    );
+    crate::commands::db_management::record_performance_observation(
+        "recycle_listing",
+        run_started.elapsed().as_millis(),
+        total.max(0) as usize,
+        0,
+    );
+    let start = ((page - 1) * page_size) as usize;
     let items: Vec<DeletedRecordItem> = if start >= all.len() {
         vec![]
     } else {
         let end = (start + page_size as usize).min(all.len());
         all[start..end].to_vec()
     };
-    log::info!(
-        target: "import_manager::recycle_bin",
-        "get_deleted_records all-tables: records_after_pagination={} (end_exclusive={})",
-        items.len(),
-        (start as i64) + (items.len() as i64)
-    );
-    Ok(GetDeletedRecordsResponse {
-        total,
-        page,
-        page_size,
-        items,
-    })
+    Ok(GetDeletedRecordsResponse { total, page, page_size, items })
 }
 
 fn table_has_column(conn: &Connection, table: &str, col: &str) -> Result<bool, String> {
@@ -868,6 +1085,7 @@ pub async fn restore_deleted_records(
     db_state: tauri::State<'_, DbState>,
     tableName: String,
     recordIds: Vec<String>,
+    userId: Option<String>,
 ) -> Result<String, String> {
     if recordIds.is_empty() {
         return Err("No record ids provided".to_string());
@@ -876,6 +1094,7 @@ pub async fn restore_deleted_records(
         return Err("Invalid table name".to_string());
     }
     let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_EDIT)?;
     let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)?.into_iter().collect();
     if !allowed.contains(&tableName) {
         return Err("Table does not support soft delete".to_string());
@@ -910,6 +1129,7 @@ pub async fn restore_deleted_records(
     }
     tx.commit().map_err(|e| e.to_string())?;
     let duration_s = op_started.elapsed().as_secs_f64();
+    crate::commands::db_management::invalidate_database_stats_cache();
     log::info!(
         target: "import_manager::restore",
         "Restore completed:\nrestore_attempt_id={}\nrecords={}\nduration={:.2}s",
@@ -925,7 +1145,14 @@ pub async fn permanently_delete_records(
     db_state: tauri::State<'_, DbState>,
     tableName: String,
     recordIds: Vec<String>,
+    userId: Option<String>,
 ) -> Result<String, String> {
+    let _trace = HardDeleteFnLogGuard::new(
+        "permanently_delete_records",
+        &tableName,
+        &crate::commands::reference_scan::summarize_record_ids_for_log(&recordIds),
+        "n/a",
+    );
     if recordIds.is_empty() {
         return Err("No record ids provided".to_string());
     }
@@ -933,23 +1160,61 @@ pub async fn permanently_delete_records(
         return Err("Invalid table name".to_string());
     }
     let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
     let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)?.into_iter().collect();
     if !allowed.contains(&tableName) {
         return Err("Table does not support soft delete".to_string());
     }
     ensure_can_hard_delete(&db, &tableName, &recordIds)?;
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Begin transaction"
+    );
     let tx = db.transaction().map_err(|e| e.to_string())?;
-    for chunk in recordIds.chunks(IN_BATCH) {
-        let ph: String = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
-        let q = format!(
-            "DELETE FROM {} WHERE id IN ({})",
-            quote_ident(&tableName),
-            ph
-        );
-        tx.execute(&q, rusqlite::params_from_iter(chunk))
-            .map_err(map_hard_delete_error_rusqlite)?;
+    let mut processed_ids: HashSet<String> = HashSet::new();
+    for (batch_idx, chunk) in recordIds.chunks(IN_BATCH).enumerate() {
+        let batch_number = batch_idx + 1;
+        for id in chunk {
+            if !processed_ids.insert(id.clone()) {
+                log::error!(
+                    target: "import_manager::hard_delete",
+                    "[HARD_DELETE ERROR] Recursive delete detected id={}",
+                    id
+                );
+                continue;
+            }
+            let _row_trace = HardDeleteFnLogGuard::new(
+                "permanently_delete_records_per_id",
+                &tableName,
+                id.as_str(),
+                &batch_number.to_string(),
+            );
+            crate::commands::reference_scan::delete_fk_dependent_children(
+                &tx,
+                &tableName,
+                std::slice::from_ref(id),
+            )?;
+            let q = format!("DELETE FROM {} WHERE id = ?1", quote_ident(&tableName));
+            let exec_started = Instant::now();
+            tx.execute(&q, rusqlite::params![id.as_str()])
+                .map_err(map_hard_delete_error_rusqlite)?;
+            let exec_ms = exec_started.elapsed().as_millis();
+            if exec_ms > 500 {
+                log::warn!(
+                    target: "import_manager::hard_delete",
+                    "[HARD_DELETE WARNING] Slow DELETE for ID={} took {} ms",
+                    id,
+                    exec_ms
+                );
+            }
+        }
     }
     tx.commit().map_err(|e| e.to_string())?;
+    crate::commands::db_management::invalidate_database_stats_cache();
+    log::info!(
+        target: "import_manager::hard_delete",
+        "[HARD_DELETE] Commit transaction"
+    );
     log::info!(
         target: "import_manager::delete",
         "Permanent delete from recycle: table={} count={}",

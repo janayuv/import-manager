@@ -1128,6 +1128,54 @@ export function loadSettings(): AppSettings {
         parsed as unknown as Record<string, unknown>
       ) as unknown as AppSettings;
 
+      // Guard against malformed persisted values so settings screens never crash on reload.
+      // This can happen with legacy/corrupt localStorage payloads where formatting nodes are
+      // present but incomplete or wrong-typed.
+      if (
+        typeof mergedSettings.numberFormat.decimalPlaces !== 'number' ||
+        Number.isNaN(mergedSettings.numberFormat.decimalPlaces)
+      ) {
+        mergedSettings.numberFormat.decimalPlaces =
+          defaultSettings.numberFormat.decimalPlaces;
+      }
+      if (
+        typeof mergedSettings.numberFormat.useThousandsSeparator !== 'boolean'
+      ) {
+        mergedSettings.numberFormat.useThousandsSeparator =
+          defaultSettings.numberFormat.useThousandsSeparator;
+      }
+      if (
+        typeof mergedSettings.numberFormat.currencySymbol !== 'string' ||
+        mergedSettings.numberFormat.currencySymbol.length === 0
+      ) {
+        mergedSettings.numberFormat.currencySymbol =
+          defaultSettings.numberFormat.currencySymbol;
+      }
+      if (
+        typeof mergedSettings.dateFormat.format !== 'string' ||
+        !['DD/MM/YYYY', 'MM/DD/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY'].includes(
+          mergedSettings.dateFormat.format
+        )
+      ) {
+        mergedSettings.dateFormat.format = defaultSettings.dateFormat.format;
+      }
+      if (typeof mergedSettings.dateFormat.includeTime !== 'boolean') {
+        mergedSettings.dateFormat.includeTime =
+          defaultSettings.dateFormat.includeTime;
+      }
+      if (
+        typeof mergedSettings.textFormat.case !== 'string' ||
+        !['lowercase', 'uppercase', 'titlecase', 'sentencecase'].includes(
+          mergedSettings.textFormat.case
+        )
+      ) {
+        mergedSettings.textFormat.case = defaultSettings.textFormat.case;
+      }
+      if (typeof mergedSettings.textFormat.trimWhitespace !== 'boolean') {
+        mergedSettings.textFormat.trimWhitespace =
+          defaultSettings.textFormat.trimWhitespace;
+      }
+
       // Force shipmentType to be uppercase (fix for existing settings)
       if (mergedSettings.modules?.shipment?.fields?.shipmentType) {
         mergedSettings.modules.shipment.fields.shipmentType.case = 'uppercase';

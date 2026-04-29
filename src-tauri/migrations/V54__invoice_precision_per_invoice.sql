@@ -1,0 +1,2 @@
+ALTER TABLE invoices ADD COLUMN line_total_decimals INTEGER NOT NULL DEFAULT 2;
+ALTER TABLE invoices ADD COLUMN invoice_total_decimals INTEGER NOT NULL DEFAULT 2;
