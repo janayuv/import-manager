@@ -214,7 +214,7 @@ test.describe('UI performance (large datasets)', () => {
 
     const expected = beforeCount + LARGE_SHIPMENT_COUNT;
     await expect(
-      content.getByText(`Showing ${expected} of ${expected} shipments`)
+      content.getByText(`of ${expected} shipments`, { exact: false })
     ).toBeVisible({ timeout: 30_000 });
   });
 

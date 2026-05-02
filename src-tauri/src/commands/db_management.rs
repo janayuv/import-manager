@@ -28,6 +28,8 @@ use tauri::State;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
 
+use crate::services::user_activity_audit::{log_activity_with_severity, AuditSeverity};
+
 /// How to interpret the cron wall clock (library field `time_zone`).
 enum ScheduleCronZone {
     Utc,
@@ -169,9 +171,15 @@ const DB_STATS_CACHE_TTL_MS: u128 = 5_000;
 const PERM_BACKUP_CREATE: &str = "backup.create";
 const PERM_BACKUP_RESTORE: &str = "backup.restore";
 const PERM_BACKUP_SCHEDULE: &str = "backup.schedule";
+const SETTINGS_BACKUP_SECONDARY_PATH: &str = "backup.secondary_local_path";
+const SETTINGS_BACKUP_SECONDARY_ENABLED: &str = "backup.secondary_enabled";
+const APP_METADATA_LAST_RESTORE_SIM_TICK: &str = "last_restore_simulation_scheduled_tick_at";
+const APP_METADATA_BACKUP_SIZE_ALERT: &str = "backup_size_growth_last_alert";
 const PERM_DATA_EDIT: &str = "data.edit";
 const PERM_DATA_DELETE: &str = "data.delete";
-const PERM_USER_MANAGE: &str = "user.manage";
+const PERM_USER_MANAGE: &str = "role.write";
+const PERM_ROLE_READ: &str = "role.read";
+const PERM_ROLE_BOOTSTRAP: &str = "role.bootstrap";
 const BULK_DELETE_LOCK_STORM_LIMIT: u32 = 6;
 const SCALE_WARNING_BULK_RECORDS: usize = 10_000;
 const SCALE_WARNING_RESTORE_TABLES: usize = 10;
@@ -607,22 +615,13 @@ pub fn invalidate_database_stats_cache() {
 }
 
 fn role_allows_permission(role: &str, permission: &str) -> bool {
-    match role {
-        "admin" => true,
-        "db_manager" => matches!(
-            permission,
-            "backup.create"
-                | "backup.restore"
-                | "backup.schedule"
-                | "data.browse"
-                | "data.edit"
-                | "data.delete"
-                | "audit.view"
-        ),
-        "user" => matches!(permission, "data.browse" | "data.edit"),
-        "viewer" => matches!(permission, "data.browse" | "audit.view"),
-        _ => false,
-    }
+    let Some(parsed_role) = crate::security::Role::from_db_str(role) else {
+        return false;
+    };
+    let Some(parsed_perm) = crate::security::Permission::from_str(permission) else {
+        return false;
+    };
+    crate::security::role_has(parsed_role, parsed_perm)
 }
 
 pub(crate) fn ensure_command_permission(
@@ -1103,6 +1102,302 @@ fn ensure_free_space_for_main_db_backup(
     Ok(())
 }
 
+fn primary_local_backup_dir() -> PathBuf {
+    std::env::var("APPDATA")
+        .or_else(|_| std::env::var("HOME"))
+        .map(|home| Path::new(&home).join("ImportManager").join("backups"))
+        .unwrap_or_else(|_| Path::new("./backups").to_path_buf())
+}
+
+fn prepare_local_backup_directory(dir: &Path, db_size_bytes: u64) -> Result<(), String> {
+    if !dir.exists() {
+        fs::create_dir_all(dir)
+            .map_err(|e| format!("Failed to create backup directory: {}", e))?;
+    }
+    ensure_free_space_for_main_db_backup(dir, db_size_bytes)
+}
+
+fn read_app_setting_trim(conn: &Connection, key: &str) -> Option<String> {
+    conn.query_row(
+        "SELECT value FROM app_settings WHERE key = ?1",
+        params![key],
+        |r| r.get::<_, String>(0),
+    )
+    .optional()
+    .ok()
+    .flatten()
+    .map(|s| s.trim().to_string())
+    .filter(|s| !s.is_empty())
+}
+
+fn secondary_backup_enabled_and_root(conn: &Connection) -> Option<PathBuf> {
+    let on = read_app_setting_trim(conn, SETTINGS_BACKUP_SECONDARY_ENABLED)
+        .map(|s| {
+            let t = s.to_ascii_lowercase();
+            t == "1" || t == "true" || t == "yes"
+        })
+        .unwrap_or(false);
+    if !on {
+        return None;
+    }
+    read_app_setting_trim(conn, SETTINGS_BACKUP_SECONDARY_PATH).map(PathBuf::from)
+}
+
+fn resolve_local_backup_workspace_conn(
+    conn: &Connection,
+    db_size_bytes: u64,
+) -> Result<PathBuf, String> {
+    let primary = primary_local_backup_dir();
+    match prepare_local_backup_directory(&primary, db_size_bytes) {
+        Ok(()) => Ok(primary),
+        Err(e1) => {
+            if let Some(sec) = secondary_backup_enabled_and_root(conn) {
+                match prepare_local_backup_directory(&sec, db_size_bytes) {
+                    Ok(()) => {
+                        log::warn!(
+                            target: "import_manager::backup",
+                            "Primary backup folder unusable ({}); using secondary path {:?}",
+                            e1,
+                            sec
+                        );
+                        Ok(sec)
+                    }
+                    Err(e2) => Err(format!(
+                        "Primary backup path failed: {}. Secondary {:?} failed: {}",
+                        e1, sec, e2
+                    )),
+                }
+            } else {
+                Err(e1)
+            }
+        }
+    }
+}
+
+fn mirror_local_backup_to_secondary(enc_path: &Path, conn: &Connection) -> Result<(), String> {
+    let Some(root) = secondary_backup_enabled_and_root(conn) else {
+        return Ok(());
+    };
+    if !root.exists() {
+        fs::create_dir_all(&root).map_err(|e| format!("secondary mirror mkdir: {}", e))?;
+    }
+    let name = enc_path
+        .file_name()
+        .ok_or_else(|| "backup enc path has no file name".to_string())?;
+    let dest = root.join(name);
+    fs::copy(enc_path, &dest).map_err(|e| format!("secondary mirror copy: {}", e))?;
+    let side = sidecar_sha256_path(enc_path);
+    if side.exists() {
+        let side_dest = sidecar_sha256_path(&dest);
+        let _ = fs::copy(&side, &side_dest);
+    }
+    log::info!(
+        target: "import_manager::backup",
+        "Mirrored encrypted backup to secondary folder {:?}",
+        dest
+    );
+    Ok(())
+}
+
+/// Core tables that must exist for a backup to be restorable (restore simulation / preview).
+const RESTORE_SIM_CORE_TABLES: &[&str] = &[
+    "suppliers",
+    "shipments",
+    "items",
+    "invoices",
+    "invoice_line_items",
+    "boe_details",
+    "audit_logs",
+    "backups",
+];
+
+fn list_missing_core_tables(backup_path: &Path) -> Vec<String> {
+    let Ok(conn) = Connection::open(backup_path) else {
+        return vec!["<database_open_failed>".to_string()];
+    };
+    let mut missing = Vec::new();
+    for table in RESTORE_SIM_CORE_TABLES {
+        let ok: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=?",
+                params![*table],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        if ok == 0 {
+            missing.push((*table).to_string());
+        }
+    }
+    missing
+}
+
+fn read_backup_max_migration_version(backup_path: &Path) -> Option<i64> {
+    let conn = Connection::open(backup_path).ok()?;
+    conn.query_row(
+        "SELECT MAX(version) FROM refinery_schema_history",
+        [],
+        |r| r.get(0),
+    )
+    .optional()
+    .ok()
+    .flatten()
+}
+
+fn restore_sim_scheduled_tick_due(last_val: Option<String>) -> bool {
+    let Some(s) = last_val.filter(|v| !v.trim().is_empty()) else {
+        return true;
+    };
+    let Ok(dt) = DateTime::parse_from_rfc3339(s.trim()) else {
+        return true;
+    };
+    Utc::now().signed_duration_since(dt.with_timezone(&Utc)) > chrono::Duration::hours(72)
+}
+
+/// Full restorability test: decrypt snapshot, integrity_check, required tables.
+pub(crate) fn run_restore_simulation_sync(app: &AppHandle, backup_id: i64, enc_path: &Path) {
+    let checked_at = Utc::now().to_rfc3339();
+    let fail = |msg: &str| {
+        if let Some(db) = app.try_state::<DbState>() {
+            if let Ok(conn) = db.db.lock() {
+                let _ = conn.execute(
+                    "UPDATE backups SET restore_simulation_status = 'failed', restore_simulation_checked_at = ?1, restore_simulation_message = ?2 WHERE id = ?3",
+                    params![&checked_at, msg, backup_id],
+                );
+            }
+        }
+        log::warn!(
+            target: "import_manager::backup",
+            "event=restore_simulation_failed backup_id={} err={}",
+            backup_id,
+            msg
+        );
+    };
+
+    let password = match crate::utils::backup_keyring::get_or_create_backup_encryption_password() {
+        Ok(p) => p,
+        Err(e) => {
+            fail(&format!("backup keyring: {}", e));
+            return;
+        }
+    };
+    if let Err(e) = validate_local_backup_file_for_restore(enc_path) {
+        fail(&e);
+        return;
+    }
+    let tmp = match tempfile::Builder::new()
+        .prefix("im-restore-sim-")
+        .suffix(".db")
+        .tempfile()
+    {
+        Ok(t) => t,
+        Err(e) => {
+            fail(&format!("temp file: {}", e));
+            return;
+        }
+    };
+    let tmp_path = tmp.path().to_path_buf();
+    if let Err(e) = crate::utils::encryption::decrypt_file(enc_path, &tmp_path, &password) {
+        fail(&e);
+        return;
+    }
+    let integrity = match test_database_integrity(&tmp_path.to_string_lossy()) {
+        Ok(s) => s,
+        Err(e) => {
+            fail(&e);
+            return;
+        }
+    };
+    if !integrity.to_lowercase().contains("ok") {
+        fail(&format!("integrity_check: {}", integrity));
+        return;
+    }
+    let missing = list_missing_core_tables(&tmp_path);
+    if !missing.is_empty() {
+        fail(&format!("missing tables: {}", missing.join(", ")));
+        return;
+    }
+    let msg = "restore simulation: decrypt, integrity ok, core tables present";
+    if let Some(db) = app.try_state::<DbState>() {
+        if let Ok(conn) = db.db.lock() {
+            let _ = conn.execute(
+                "UPDATE backups SET restore_simulation_status = 'ok', restore_simulation_checked_at = ?1, restore_simulation_message = ?2 WHERE id = ?3",
+                params![&checked_at, msg, backup_id],
+            );
+            let _ = conn.execute(
+                "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params!["last_restore_simulation_ok_at", &checked_at],
+            );
+        }
+    }
+    log::info!(
+        target: "import_manager::backup",
+        "event=restore_simulation_ok backup_id={}",
+        backup_id
+    );
+}
+
+pub async fn tick_restore_simulation_if_due(app: AppHandle) {
+    if crate::restore_control::background_jobs_paused() {
+        return;
+    }
+    let Some(db_state) = app.try_state::<DbState>() else {
+        return;
+    };
+    let job: Option<(i64, PathBuf)> = {
+        let Ok(conn) = db_state.db.lock() else {
+            return;
+        };
+        let last_tick: Option<String> = conn
+            .query_row(
+                "SELECT value FROM app_metadata WHERE key = ?1",
+                params![APP_METADATA_LAST_RESTORE_SIM_TICK],
+                |r| r.get(0),
+            )
+            .optional()
+            .ok()
+            .flatten();
+        if !restore_sim_scheduled_tick_due(last_tick) {
+            return;
+        }
+        let row: Option<(i64, String)> = conn
+            .query_row(
+                "SELECT id, path FROM backups WHERE destination = 'local' AND status = 'completed' \
+                 AND COALESCE(validation_status, '') = 'ok' \
+                 ORDER BY datetime(created_at) DESC LIMIT 1",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()
+            .ok()
+            .flatten();
+        let now = Utc::now().to_rfc3339();
+        let _ = conn.execute(
+            "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) \
+             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+            params![APP_METADATA_LAST_RESTORE_SIM_TICK, now],
+        );
+        row.map(|(id, p)| (id, PathBuf::from(p)))
+    };
+    let Some((backup_id, enc_pb)) = job else {
+        return;
+    };
+    if !enc_pb.exists() {
+        log::warn!(
+            target: "import_manager::backup",
+            "restore simulation tick: backup file missing {:?}",
+            enc_pb
+        );
+        return;
+    }
+    let app_c = app.clone();
+    tauri::async_runtime::spawn(async move {
+        let _ = tauri::async_runtime::spawn_blocking(move || {
+            run_restore_simulation_sync(&app_c, backup_id, &enc_pb)
+        })
+        .await;
+    });
+}
+
 fn is_sqlite_lock_err(err: &str) -> bool {
     let s = err.to_lowercase();
     s.contains("database is locked")
@@ -1262,8 +1557,155 @@ fn prune_excess_backups(conn: &Connection, max_keep: usize) -> Result<Vec<String
 
 /// Runs every minute from a background thread; executes due backup schedules.
 pub async fn tick_backup_schedules(app: AppHandle) {
-    if let Err(e) = run_due_backup_schedules(app).await {
+    if let Err(e) = run_due_backup_schedules(app.clone()).await {
         log::warn!("backup schedule tick failed: {}", e);
+    }
+    tick_restore_simulation_if_due(app).await;
+}
+
+fn ensure_default_weekly_local_backup_schedule(conn: &Connection) -> Result<(), String> {
+    let n: i64 = conn
+        .query_row("SELECT COUNT(*) FROM backup_schedules", [], |r| r.get(0))
+        .unwrap_or(0);
+    if n > 0 {
+        return Ok(());
+    }
+    let cron = "0 0 3 * * 0";
+    let tz = "Asia/Kolkata";
+    let next_run = compute_next_run_rfc3339(cron, tz)?;
+    conn.execute(
+        "INSERT INTO backup_schedules (name, cron_expr, time_zone, destination, retention_count, retention_days, enabled, next_run, notes, created_by) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, NULL)",
+        params![
+            "Weekly local (auto-seeded)",
+            cron,
+            tz,
+            "local",
+            10i32,
+            90i32,
+            next_run,
+            "Seeded when no schedules exist. Edit or disable under Database Management.",
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    log::info!(
+        target: "import_manager::backup",
+        "Seeded default weekly local backup schedule (Sun 03:00 Asia/Kolkata)"
+    );
+    Ok(())
+}
+
+/// Decrypts a local `.enc` snapshot off-thread, runs `PRAGMA integrity_check`, and records result on `backups`.
+fn run_post_backup_validation_sync(app: &AppHandle, backup_id: i64, enc_path: &Path) {
+    let checked_at = Utc::now().to_rfc3339();
+    let fail = |msg: &str| {
+        if let Some(db) = app.try_state::<DbState>() {
+            if let Ok(conn) = db.db.lock() {
+                let _ = conn.execute(
+                    "UPDATE backups SET validation_status = 'failed', validation_checked_at = ?1, validation_message = ?2 WHERE id = ?3",
+                    params![&checked_at, msg, backup_id],
+                );
+            }
+        }
+        log::warn!(
+            target: "import_manager::backup",
+            "event=backup_validation_failed backup_id={} err={}",
+            backup_id,
+            msg
+        );
+    };
+
+    let password = match crate::utils::backup_keyring::get_or_create_backup_encryption_password() {
+        Ok(p) => p,
+        Err(e) => {
+            fail(&format!("backup keyring: {}", e));
+            return;
+        }
+    };
+    if let Err(e) = validate_local_backup_file_for_restore(enc_path) {
+        fail(&e);
+        return;
+    }
+    let tmp = match tempfile::Builder::new()
+        .prefix("im-backup-val-")
+        .suffix(".db")
+        .tempfile()
+    {
+        Ok(t) => t,
+        Err(e) => {
+            fail(&format!("temp file: {}", e));
+            return;
+        }
+    };
+    let tmp_path = tmp.path().to_path_buf();
+    if let Err(e) = crate::utils::encryption::decrypt_file(enc_path, &tmp_path, &password) {
+        fail(&e);
+        return;
+    }
+    let integrity = match test_database_integrity(&tmp_path.to_string_lossy()) {
+        Ok(s) => s,
+        Err(e) => {
+            fail(&e);
+            return;
+        }
+    };
+    if !integrity.to_lowercase().contains("ok") {
+        fail(&format!("integrity_check: {}", integrity));
+        return;
+    }
+    let schema_ok = match Connection::open(&tmp_path.as_path()) {
+        Ok(c) => c
+            .query_row(
+                "SELECT COUNT(*) FROM refinery_schema_history",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .unwrap_or(0)
+            > 0,
+        Err(e) => {
+            fail(&format!("open decrypted snapshot: {}", e));
+            return;
+        }
+    };
+    let status = if schema_ok { "ok" } else { "degraded" };
+    let msg = if schema_ok {
+        "decrypt and integrity_check ok; refinery history present"
+    } else {
+        "decrypt and integrity_check ok; refinery_schema_history missing or empty"
+    };
+    if let Some(db) = app.try_state::<DbState>() {
+        if let Ok(conn) = db.db.lock() {
+            let _ = conn.execute(
+                "UPDATE backups SET validation_status = ?1, validation_checked_at = ?2, validation_message = ?3 WHERE id = ?4",
+                params![status, &checked_at, msg, backup_id],
+            );
+            let _ = conn.execute(
+                "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                params!["last_known_good_backup_validation", &checked_at],
+            );
+            if status == "ok" {
+                let _ = conn.execute(
+                    "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                    params!["last_known_good_backup_id", backup_id.to_string()],
+                );
+            }
+        }
+    }
+    log::info!(
+        target: "import_manager::backup",
+        "event=backup_validation_done backup_id={} status={}",
+        backup_id,
+        status
+    );
+    if status == "ok" {
+        let app_spawn = app.clone();
+        let bid = backup_id;
+        let path_spawn = enc_path.to_path_buf();
+        tauri::async_runtime::spawn(async move {
+            let _ = tauri::async_runtime::spawn_blocking(move || {
+                run_restore_simulation_sync(&app_spawn, bid, &path_spawn)
+            })
+            .await;
+        });
     }
 }
 
@@ -1275,6 +1717,7 @@ async fn run_due_backup_schedules(app: AppHandle) -> Result<(), String> {
     let now = Utc::now().to_rfc3339();
     let due_ids: Vec<i64> = {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        ensure_default_weekly_local_backup_schedule(&db)?;
         let mut stmt = db
             .prepare(
                 "SELECT id FROM backup_schedules WHERE enabled = 1 AND next_run IS NOT NULL AND next_run <= ?",
@@ -1288,8 +1731,13 @@ async fn run_due_backup_schedules(app: AppHandle) -> Result<(), String> {
     };
 
     for schedule_id in due_ids {
-        if let Err(e) =
-            run_scheduled_backup(db_state.clone(), schedule_id, Some("scheduler".to_string())).await
+        if let Err(e) = run_scheduled_backup(
+            app.clone(),
+            db_state.clone(),
+            schedule_id,
+            Some("scheduler".to_string()),
+        )
+        .await
         {
             log::warn!("scheduled backup id {} failed: {}", schedule_id, e);
         }
@@ -1348,6 +1796,18 @@ pub struct BackupInfo {
     pub notes: Option<String>,
     pub status: String,
     pub error_message: Option<String>,
+    #[serde(default)]
+    pub validation_status: Option<String>,
+    #[serde(default)]
+    pub validation_checked_at: Option<String>,
+    #[serde(default)]
+    pub validation_message: Option<String>,
+    #[serde(default)]
+    pub restore_simulation_status: Option<String>,
+    #[serde(default)]
+    pub restore_simulation_checked_at: Option<String>,
+    #[serde(default)]
+    pub restore_simulation_message: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1395,6 +1855,11 @@ pub struct RestorePreview {
     pub recorded_hash_match: Option<bool>,
     pub integrity_check: String,
     pub schema_compatibility: bool,
+    /// Embedded binary migration head vs backup `refinery_schema_history`.
+    pub embedded_migration_head_version: i32,
+    pub backup_migration_max_version: Option<i64>,
+    /// Core tables required for restorability (empty if all present).
+    pub missing_core_tables: Vec<String>,
     pub estimated_changes: HashMap<String, i64>,
     pub warnings: Vec<String>,
 }
@@ -1684,6 +2149,258 @@ pub async fn get_database_stats(db_state: State<'_, DbState>) -> Result<Database
     })
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupRedundancySettings {
+    pub enabled: bool,
+    pub secondary_path: String,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SetBackupRedundancyInput {
+    pub enabled: bool,
+    pub secondary_path: String,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BackupHealthMetrics {
+    pub last_backup_time: Option<String>,
+    pub latest_local_backup_id: Option<i64>,
+    pub latest_local_backup_filename: Option<String>,
+    pub latest_local_backup_created_at: Option<String>,
+    pub latest_local_backup_size_bytes: Option<i64>,
+    pub backup_age_hours: Option<f64>,
+    pub last_validation_status: Option<String>,
+    pub last_validation_at: Option<String>,
+    pub last_restore_simulation_status: Option<String>,
+    pub last_restore_simulation_at: Option<String>,
+    pub alerts: Vec<String>,
+    pub secondary_redundancy_enabled: bool,
+    pub secondary_redundancy_path: String,
+    pub size_trend_note: Option<String>,
+}
+
+#[tauri::command]
+pub async fn get_backup_redundancy_settings(
+    db_state: State<'_, DbState>,
+) -> Result<BackupRedundancySettings, String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let enabled = read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_ENABLED)
+        .map(|s| {
+            let t = s.to_ascii_lowercase();
+            t == "1" || t == "true" || t == "yes"
+        })
+        .unwrap_or(false);
+    let secondary_path =
+        read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_PATH).unwrap_or_default();
+    Ok(BackupRedundancySettings {
+        enabled,
+        secondary_path,
+    })
+}
+
+#[tauri::command]
+pub async fn set_backup_redundancy_settings(
+    db_state: State<'_, DbState>,
+    input: SetBackupRedundancyInput,
+    userId: Option<String>,
+) -> Result<(), String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_SCHEDULE)?;
+    let enabled = input.enabled;
+    let path = input.secondary_path.trim().to_string();
+    if enabled && path.is_empty() {
+        return Err("Secondary path is required when redundancy is enabled.".to_string());
+    }
+    if enabled {
+        let p = Path::new(&path);
+        fs::create_dir_all(p).map_err(|e| format!("Cannot create secondary path: {}", e))?;
+    }
+    db.execute(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?1, ?2, datetime('now')) \
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+        params![
+            SETTINGS_BACKUP_SECONDARY_ENABLED,
+            if enabled { "true" } else { "false" }
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+    db.execute(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?1, ?2, datetime('now')) \
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+        params![SETTINGS_BACKUP_SECONDARY_PATH, path],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+#[tauri::command]
+pub async fn get_backup_health_metrics(
+    db_state: State<'_, DbState>,
+) -> Result<BackupHealthMetrics, String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let last_backup_time: Option<String> = db
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = 'last_backup_time'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .filter(|s| !s.trim().is_empty());
+
+    let row = db
+        .query_row(
+            "SELECT id, filename, created_at, size_bytes, validation_status, validation_checked_at, \
+             restore_simulation_status, restore_simulation_checked_at \
+             FROM backups WHERE destination = 'local' AND status = 'completed' \
+             ORDER BY datetime(created_at) DESC LIMIT 1",
+            [],
+            |r| {
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, String>(1)?,
+                    r.get::<_, String>(2)?,
+                    r.get::<_, Option<i64>>(3)?,
+                    r.get::<_, Option<String>>(4)?,
+                    r.get::<_, Option<String>>(5)?,
+                    r.get::<_, Option<String>>(6)?,
+                    r.get::<_, Option<String>>(7)?,
+                ))
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let (
+        latest_local_backup_id,
+        latest_local_backup_filename,
+        latest_local_backup_created_at,
+        latest_local_backup_size_bytes,
+        last_validation_status,
+        last_validation_at,
+        last_restore_simulation_status,
+        last_restore_simulation_at,
+    ) = match row {
+        Some((id, fnam, ca, sz, vs, va, rs, ra)) => (
+            Some(id),
+            Some(fnam),
+            Some(ca),
+            sz,
+            vs,
+            va,
+            rs,
+            ra,
+        ),
+        None => (None, None, None, None, None, None, None, None),
+    };
+
+    let backup_age_hours = latest_local_backup_created_at
+        .as_deref()
+        .and_then(|s| DateTime::parse_from_rfc3339(s.trim()).ok())
+        .map(|dt| {
+            Utc::now()
+                .signed_duration_since(dt.with_timezone(&Utc))
+                .num_seconds() as f64
+                / 3600.0
+        });
+
+    let mut alerts: Vec<String> = Vec::new();
+    if let Some(h) = backup_age_hours {
+        if h > 192.0 {
+            alerts.push(format!(
+                "Latest local backup is {:.1} hours old — verify schedules.",
+                h
+            ));
+        }
+    }
+    if last_backup_time.is_none() && latest_local_backup_created_at.is_none() {
+        alerts.push("No completed local backups recorded.".to_string());
+    }
+    if last_validation_status.as_deref() == Some("failed") {
+        alerts.push("Latest backup failed automated validation.".to_string());
+    }
+    if last_restore_simulation_status.as_deref() == Some("failed") {
+        alerts.push("Latest backup failed restore simulation.".to_string());
+    }
+    if last_validation_status.as_deref() == Some("ok")
+        && last_restore_simulation_status.is_none()
+        && last_restore_simulation_at.is_none()
+    {
+        alerts.push(
+            "Restore simulation not recorded yet for latest backup (may still be running)."
+                .to_string(),
+        );
+    }
+
+    let mut size_trend_note: Option<String> = None;
+    if let Ok(mut stmt) = db.prepare(
+        "SELECT size_bytes FROM backups WHERE destination = 'local' AND status = 'completed' \
+         AND size_bytes IS NOT NULL ORDER BY datetime(created_at) DESC LIMIT 6",
+    ) {
+        if let Ok(sizes_r) = stmt.query_map([], |row| row.get::<_, i64>(0)) {
+            let mut sizes: Vec<i64> = Vec::new();
+            for s in sizes_r {
+                if let Ok(v) = s {
+                    sizes.push(v);
+                }
+            }
+            if sizes.len() >= 3 {
+                let latest = sizes[0];
+                let rest: Vec<i64> = sizes[1..].to_vec();
+                if !rest.is_empty() {
+                    let mut sorted = rest;
+                    sorted.sort();
+                    let mid = sorted[sorted.len() / 2].max(1);
+                    if latest > (mid * 7 / 4) {
+                        size_trend_note = Some(format!(
+                            "Latest backup size {} bytes is unusually large vs recent median {} bytes.",
+                            latest, mid
+                        ));
+                        alerts.push(size_trend_note.as_ref().unwrap().clone());
+                        let _ = db.execute(
+                            "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) \
+                             ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+                            params![
+                                APP_METADATA_BACKUP_SIZE_ALERT,
+                                size_trend_note.as_deref().unwrap_or("")
+                            ],
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    let secondary_redundancy_enabled = read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_ENABLED)
+        .map(|s| {
+            let t = s.to_ascii_lowercase();
+            t == "1" || t == "true" || t == "yes"
+        })
+        .unwrap_or(false);
+    let secondary_redundancy_path =
+        read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_PATH).unwrap_or_default();
+
+    Ok(BackupHealthMetrics {
+        last_backup_time,
+        latest_local_backup_id,
+        latest_local_backup_filename,
+        latest_local_backup_created_at,
+        latest_local_backup_size_bytes,
+        backup_age_hours,
+        last_validation_status,
+        last_validation_at,
+        last_restore_simulation_status,
+        last_restore_simulation_at,
+        alerts,
+        secondary_redundancy_enabled,
+        secondary_redundancy_path,
+        size_trend_note,
+    })
+}
+
 // Create backup
 #[tauri::command]
 pub async fn create_backup(
@@ -1697,6 +2414,7 @@ pub async fn create_backup(
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_CREATE)?;
     }
+    let app = window.app_handle();
     let backup_destination = request.destination.clone();
     let started_at = Instant::now();
     log::info!(
@@ -1705,7 +2423,15 @@ pub async fn create_backup(
         backup_destination,
         userId.as_deref().unwrap_or("unknown")
     );
-    match create_backup_impl(db_state.clone(), request, userId.clone(), Some(window)).await {
+    match create_backup_impl(
+        app.clone(),
+        db_state.clone(),
+        request,
+        userId.clone(),
+        Some(window),
+    )
+    .await
+    {
         Ok(info) => {
             log::info!(
                 target: "import_manager::backup",
@@ -1756,6 +2482,7 @@ pub async fn create_backup(
 }
 
 async fn create_backup_impl(
+    app: AppHandle,
     db_state: State<'_, DbState>,
     request: BackupRequest,
     userId: Option<String>,
@@ -1768,21 +2495,7 @@ async fn create_backup_impl(
         request.destination
     );
     warn_if_frequent_backup(&db_state);
-    let data_dir = std::env::var("APPDATA")
-        .or_else(|_| std::env::var("HOME"))
-        .map(|home| Path::new(&home).join("ImportManager").join("backups"))
-        .unwrap_or_else(|_| Path::new("./backups").to_path_buf());
-
-    if !data_dir.exists() {
-        fs::create_dir_all(&data_dir)
-            .map_err(|e| format!("Failed to create backup directory: {}", e))?;
-    }
-
-    let filename = resolve_backup_staging_filename(&data_dir, &request)?;
-
-    let staging_path = data_dir.join(&filename);
-
-    {
+    let (data_dir, staging_path, filename) = {
         log::info!(
             target: "import_manager::backup",
             "event=workflow.backup.progress stage=validation step=filesystem_prechecks"
@@ -1798,10 +2511,13 @@ async fn create_backup_impl(
                 "Large database detected — backup may take longer"
             );
         }
-        ensure_free_space_for_main_db_backup(&data_dir, db_size)?;
+        let data_dir = resolve_local_backup_workspace_conn(&db, db_size)?;
+        let filename = resolve_backup_staging_filename(&data_dir, &request)?;
+        let staging_path = data_dir.join(&filename);
         fs::copy(source_path, &staging_path)
             .map_err(|e| format!("Failed to create backup: {}", e))?;
-    }
+        (data_dir, staging_path, filename)
+    };
 
     let password = crate::utils::backup_keyring::get_or_create_backup_encryption_password()?;
     log::info!(
@@ -1987,6 +2703,38 @@ async fn create_backup_impl(
     }
     invalidate_database_stats_cache();
 
+    if dest_for_log == "local" {
+        if let Ok(db) = db_state.db.lock() {
+            if let Err(e) = mirror_local_backup_to_secondary(Path::new(&record_path), &db) {
+                log::warn!(
+                    target: "import_manager::backup",
+                    "Secondary mirror failed (primary backup still saved): {}",
+                    e
+                );
+            }
+        }
+    }
+
+    if dest_for_log == "local" {
+        let enc_pb = PathBuf::from(&record_path);
+        let app_spawn = app.clone();
+        let bid = backup_id;
+        tauri::async_runtime::spawn(async move {
+            match tauri::async_runtime::spawn_blocking(move || {
+                run_post_backup_validation_sync(&app_spawn, bid, &enc_pb)
+            })
+            .await
+            {
+                Ok(()) => {}
+                Err(e) => log::warn!(
+                    target: "import_manager::backup",
+                    "backup validation join error: {}",
+                    e
+                ),
+            }
+        });
+    }
+
     Ok(BackupInfo {
         id: Some(backup_id),
         filename: enc_filename,
@@ -2000,6 +2748,12 @@ async fn create_backup_impl(
         notes: request.notes,
         status: "completed".to_string(),
         error_message: None,
+        validation_status: None,
+        validation_checked_at: None,
+        validation_message: None,
+        restore_simulation_status: None,
+        restore_simulation_checked_at: None,
+        restore_simulation_message: None,
     })
 }
 
@@ -2089,6 +2843,12 @@ async fn backup_info_for_gdrive_preview_without_db_row(
         notes: Some("Google Drive — ImportManagerBackups".to_string()),
         status: "completed".to_string(),
         error_message: None,
+        validation_status: None,
+        validation_checked_at: None,
+        validation_message: None,
+        restore_simulation_status: None,
+        restore_simulation_checked_at: None,
+        restore_simulation_message: None,
     })
 }
 
@@ -2116,7 +2876,9 @@ pub async fn get_backup_history(
     let mut backups = {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         let query = format!(
-            "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message 
+            "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message, \
+             validation_status, validation_checked_at, validation_message, \
+             restore_simulation_status, restore_simulation_checked_at, restore_simulation_message \
              FROM backups ORDER BY created_at DESC LIMIT {}",
             LOCAL_CAP
         );
@@ -2136,6 +2898,12 @@ pub async fn get_backup_history(
                     notes: row.get(9)?,
                     status: row.get(10)?,
                     error_message: row.get(11)?,
+                    validation_status: row.get(12)?,
+                    validation_checked_at: row.get(13)?,
+                    validation_message: row.get(14)?,
+                    restore_simulation_status: row.get(15)?,
+                    restore_simulation_checked_at: row.get(16)?,
+                    restore_simulation_message: row.get(17)?,
                 })
             })
             .map_err(|e| e.to_string())?;
@@ -2181,6 +2949,12 @@ pub async fn get_backup_history(
                             notes: Some("Google Drive — ImportManagerBackups".to_string()),
                             status: "completed".to_string(),
                             error_message: None,
+                            validation_status: None,
+                            validation_checked_at: None,
+                            validation_message: None,
+                            restore_simulation_status: None,
+                            restore_simulation_checked_at: None,
+                            restore_simulation_message: None,
                         });
                     }
                 }
@@ -2348,7 +3122,9 @@ pub async fn preview_restore(
     let backup_info = match with_sqlite_retry("preview_restore_backup_row", || {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         let r = db.query_row(
-            "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message FROM backups WHERE path = ?",
+            "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message, \
+             validation_status, validation_checked_at, validation_message, \
+             restore_simulation_status, restore_simulation_checked_at, restore_simulation_message FROM backups WHERE path = ?",
             params![backupPath.as_str()],
             |row| {
                 Ok(BackupInfo {
@@ -2364,6 +3140,12 @@ pub async fn preview_restore(
                     notes: row.get(9)?,
                     status: row.get(10)?,
                     error_message: row.get(11)?,
+                    validation_status: row.get(12)?,
+                    validation_checked_at: row.get(13)?,
+                    validation_message: row.get(14)?,
+                    restore_simulation_status: row.get(15)?,
+                    restore_simulation_checked_at: row.get(16)?,
+                    restore_simulation_message: row.get(17)?,
                 })
             },
         );
@@ -2418,6 +3200,9 @@ pub async fn preview_restore(
             recorded_hash_match,
             integrity_check: "Record mismatch — cannot trust file contents".to_string(),
             schema_compatibility: false,
+            embedded_migration_head_version: crate::migrations::embedded_migration_head_version(),
+            backup_migration_max_version: None,
+            missing_core_tables: vec![],
             estimated_changes: HashMap::new(),
             warnings,
         });
@@ -2444,13 +3229,38 @@ pub async fn preview_restore(
         "WARNING: Backup file size does not match recorded size".to_string()
     };
 
-    // Check schema compatibility by opening backup database
+    let embedded_head = crate::migrations::embedded_migration_head_version();
+    let missing_core = list_missing_core_tables(&work_path);
+    let backup_mig = read_backup_max_migration_version(&work_path);
     let work_str = work_path.to_string_lossy().to_string();
-    let schema_compatibility = check_schema_compatibility(&work_str)?;
+    let legacy_schema_ok = check_schema_compatibility(&work_str)?;
+    let schema_compatibility = missing_core.is_empty() && legacy_schema_ok;
 
     // Estimate changes by comparing table counts
     let mut estimated_changes = HashMap::new();
     let mut warnings = Vec::new();
+
+    if let Some(bv) = backup_mig {
+        if bv > embedded_head as i64 {
+            warnings.push(format!(
+                "Backup reports schema version {} newer than this app ({}).",
+                bv, embedded_head
+            ));
+        }
+    }
+
+    match backup_info.validation_status.as_deref() {
+        Some("failed") => warnings.push(
+            "Automated backup validation reported failure for this file.".to_string(),
+        ),
+        _ => {}
+    }
+    match backup_info.restore_simulation_status.as_deref() {
+        Some("failed") => warnings.push(
+            "Last restore simulation failed for this backup — review before restoring.".to_string(),
+        ),
+        _ => {}
+    }
 
     // Try to get table counts from backup (simplified approach)
     if let Ok(backup_conn) = Connection::open(&work_path) {
@@ -2492,8 +3302,13 @@ pub async fn preview_restore(
     }
 
     // Add warnings based on analysis
-    if !schema_compatibility {
-        warnings.push("Schema compatibility issues detected".to_string());
+    if !missing_core.is_empty() {
+        warnings.push(format!(
+            "Missing core tables in backup: {}",
+            missing_core.join(", ")
+        ));
+    } else if !legacy_schema_ok {
+        warnings.push("Legacy schema check failed (core catalog tables).".to_string());
     }
 
     if backup_info.status != "completed" {
@@ -2521,6 +3336,9 @@ pub async fn preview_restore(
         recorded_hash_match,
         integrity_check,
         schema_compatibility,
+        embedded_migration_head_version: embedded_head,
+        backup_migration_max_version: backup_mig,
+        missing_core_tables: missing_core,
         estimated_changes,
         warnings,
     })
@@ -4858,6 +5676,7 @@ pub async fn delete_backup_schedule(
 
 #[tauri::command]
 pub async fn run_scheduled_backup(
+    app: AppHandle,
     db_state: State<'_, DbState>,
     schedule_id: i64,
     userId: Option<String>,
@@ -4904,8 +5723,13 @@ pub async fn run_scheduled_backup(
         notes: Some(format!("Scheduled backup: {}", schedule.name)),
     };
 
-    let backup_info =
-        create_backup_internal(db_state.clone(), backup_request, userId.clone()).await?;
+    let backup_info = create_backup_internal(
+        app.clone(),
+        db_state.clone(),
+        backup_request,
+        userId.clone(),
+    )
+    .await?;
 
     let cron_for_next = schedule
         .cron_expr
@@ -4957,6 +5781,17 @@ pub async fn run_scheduled_backup(
 }
 
 // Role-Based Access Control (RBAC) System
+fn canonical_role_or_err(role: &str) -> Result<String, String> {
+    crate::security::Role::from_db_str(role)
+        .map(|r| r.as_str().to_string())
+        .ok_or_else(|| {
+            format!(
+                "Invalid role: {}. Valid roles are: administrator, manager, operator, viewer",
+                role
+            )
+        })
+}
+
 #[tauri::command]
 pub async fn create_user_role(
     db_state: State<'_, DbState>,
@@ -4968,21 +5803,14 @@ pub async fn create_user_role(
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
     ensure_command_permission(&db, created_by.as_deref(), PERM_USER_MANAGE)?;
 
-    // Validate role
-    let valid_roles = ["admin", "db_manager", "user", "viewer"];
-    if !valid_roles.contains(&role.as_str()) {
-        return Err(format!(
-            "Invalid role: {}. Valid roles are: {:?}",
-            role, valid_roles
-        ));
-    }
+    let canonical_role = canonical_role_or_err(&role)?;
 
-    let id = db
-        .execute(
-            "INSERT INTO user_roles (user_id, role, permissions, created_by) VALUES (?, ?, ?, ?)",
-            params![userId, role, permissions, created_by],
-        )
-        .map_err(|e| e.to_string())?;
+    db.execute(
+        "INSERT INTO user_roles (user_id, role, permissions, created_by) VALUES (?, ?, ?, ?)",
+        params![userId, canonical_role, permissions, created_by],
+    )
+    .map_err(|e| e.to_string())?;
+    let id = db.last_insert_rowid();
 
     // Create audit log entry
     let t = "user_roles";
@@ -4996,18 +5824,39 @@ pub async fn create_user_role(
             created_by,
             format!(
                 "{{\"type\": \"user_role_created\", \"user_id\": \"{}\", \"role\": \"{}\"}}",
-                userId, role
+                userId, canonical_role
             )
         ],
     )
     .map_err(|e| e.to_string())?;
 
-    Ok(id as i64)
+    let ua_detail = serde_json::json!({
+        "userId": userId,
+        "role": canonical_role,
+        "rowId": id,
+    })
+    .to_string();
+    log_activity_with_severity(
+        &db,
+        created_by.as_deref(),
+        "security.user_role_created",
+        Some("user_roles"),
+        Some(&id.to_string()),
+        Some(&ua_detail),
+        "success",
+        AuditSeverity::Security,
+    );
+
+    Ok(id)
 }
 
 #[tauri::command]
-pub async fn get_user_roles(db_state: State<'_, DbState>) -> Result<Vec<UserRole>, String> {
+pub async fn get_user_roles(
+    db_state: State<'_, DbState>,
+    caller_user_id: Option<String>,
+) -> Result<Vec<UserRole>, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    ensure_command_permission(&db, caller_user_id.as_deref(), PERM_ROLE_READ)?;
 
     crate::security::ensure_user_roles::ensure_user_roles_table(&db).map_err(|e| e.to_string())?;
 
@@ -5046,21 +5895,22 @@ pub async fn update_user_role(
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
     ensure_command_permission(&db, updated_by.as_deref(), PERM_USER_MANAGE)?;
 
+    let prior: (String, Option<String>) = db
+        .query_row(
+            "SELECT role, permissions FROM user_roles WHERE id = ?1",
+            params![role_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| e.to_string())?;
+
     // Build dynamic UPDATE query
     let mut set_clauses = Vec::new();
     let mut params: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
 
     if let Some(role) = role {
-        // Validate role
-        let valid_roles = ["admin", "db_manager", "user", "viewer"];
-        if !valid_roles.contains(&role.as_str()) {
-            return Err(format!(
-                "Invalid role: {}. Valid roles are: {:?}",
-                role, valid_roles
-            ));
-        }
+        let canonical = canonical_role_or_err(&role)?;
         set_clauses.push("role = ?");
-        params.push(Box::new(role));
+        params.push(Box::new(canonical));
     }
     if let Some(permissions) = permissions {
         set_clauses.push("permissions = ?");
@@ -5105,6 +5955,30 @@ pub async fn update_user_role(
         ],
     )
     .map_err(|e| e.to_string())?;
+
+    let after: (String, Option<String>) = db
+        .query_row(
+            "SELECT role, permissions FROM user_roles WHERE id = ?1",
+            params![role_id],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        )
+        .map_err(|e| e.to_string())?;
+    let ua_detail = serde_json::json!({
+        "roleId": role_id,
+        "before": { "role": prior.0, "permissions": prior.1 },
+        "after": { "role": after.0, "permissions": after.1 },
+    })
+    .to_string();
+    log_activity_with_severity(
+        &db,
+        updated_by.as_deref(),
+        "security.user_role_updated",
+        Some("user_roles"),
+        Some(&role_id.to_string()),
+        Some(&ua_detail),
+        "success",
+        AuditSeverity::Security,
+    );
 
     Ok(())
 }
@@ -5153,6 +6027,23 @@ pub async fn delete_user_role(
     )
     .map_err(|e| e.to_string())?;
 
+    let ua_detail = serde_json::json!({
+        "roleId": role_id,
+        "userId": user_id,
+        "role": role,
+    })
+    .to_string();
+    log_activity_with_severity(
+        &db,
+        deleted_by.as_deref(),
+        "security.user_role_deleted",
+        Some("user_roles"),
+        Some(&role_id.to_string()),
+        Some(&ua_detail),
+        "success",
+        AuditSeverity::Security,
+    );
+
     Ok(())
 }
 
@@ -5162,8 +6053,13 @@ pub async fn delete_user_role(
 pub async fn bootstrap_first_admin_if_eligible(
     db_state: State<'_, DbState>,
     userId: String,
+    caller_user_id: Option<String>,
 ) -> Result<(), String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let admin_count = crate::security::count_admin_roles(&db)?;
+    if admin_count > 0 {
+        ensure_command_permission(&db, caller_user_id.as_deref(), PERM_ROLE_BOOTSTRAP)?;
+    }
     crate::security::bootstrap_first_admin_when_empty(&db, &userId)
 }
 
@@ -5174,28 +6070,8 @@ pub async fn check_user_permission(
     permission: String,
 ) -> Result<bool, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
-
     let role = crate::security::resolve_role_strict(&db, &userId)?;
-
-    // Check role-based permissions
-    let has_permission = match role.as_str() {
-        "admin" => true, // Admin has all permissions
-        "db_manager" => matches!(
-            permission.as_str(),
-            "backup.create"
-                | "backup.restore"
-                | "backup.schedule"
-                | "data.browse"
-                | "data.edit"
-                | "data.delete"
-                | "audit.view"
-        ),
-        "user" => matches!(permission.as_str(), "data.browse" | "data.edit"),
-        "viewer" => matches!(permission.as_str(), "data.browse" | "audit.view"),
-        _ => false,
-    };
-
-    Ok(has_permission)
+    Ok(role_allows_permission(&role, &permission))
 }
 
 #[tauri::command]
@@ -5204,36 +6080,14 @@ pub async fn get_user_permissions(
     userId: String,
 ) -> Result<Vec<String>, String> {
     let db = _db_state.db.lock().map_err(|e| e.to_string())?;
-
-    let role = crate::security::resolve_role_strict(&db, &userId)?;
-
-    // Return permissions based on role
-    let permissions = match role.as_str() {
-        "admin" => vec![
-            "backup.create".to_string(),
-            "backup.restore".to_string(),
-            "backup.schedule".to_string(),
-            "data.browse".to_string(),
-            "data.edit".to_string(),
-            "data.delete".to_string(),
-            "audit.view".to_string(),
-            "user.manage".to_string(),
-            "system.admin".to_string(),
-        ],
-        "db_manager" => vec![
-            "backup.create".to_string(),
-            "backup.restore".to_string(),
-            "backup.schedule".to_string(),
-            "data.browse".to_string(),
-            "data.edit".to_string(),
-            "data.delete".to_string(),
-            "audit.view".to_string(),
-        ],
-        "user" => vec!["data.browse".to_string(), "data.edit".to_string()],
-        "viewer" => vec!["data.browse".to_string(), "audit.view".to_string()],
-        _ => vec![],
+    let role_str = crate::security::resolve_role_strict(&db, &userId)?;
+    let permissions = match crate::security::Role::from_db_str(&role_str) {
+        Some(role) => crate::security::permissions_for(role)
+            .into_iter()
+            .map(|p| p.as_str().to_string())
+            .collect(),
+        None => Vec::new(),
     };
-
     Ok(permissions)
 }
 
@@ -5249,11 +6103,12 @@ pub struct UserRole {
 
 // Helper function to create backup (internal — used by scheduled backups)
 async fn create_backup_internal(
+    app: AppHandle,
     db_state: State<'_, DbState>,
     request: BackupRequest,
     userId: Option<String>,
 ) -> Result<BackupInfo, String> {
-    create_backup_impl(db_state, request, userId, None).await
+    create_backup_impl(app, db_state, request, userId, None).await
 }
 
 // Helper function to create pre-restore backup (sync version)
@@ -6367,5 +7222,33 @@ mod authz_ensure_command_tests {
             err_second.contains("already exists"),
             "unexpected: {err_second}"
         );
+    }
+
+    /// Canonical role names accepted post-V72 normalization grant the matrix-defined permissions.
+    #[test]
+    fn canonical_roles_match_permission_matrix() {
+        use super::PERM_DATA_DELETE;
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        for (uid, role) in [
+            ("a", "administrator"),
+            ("m", "manager"),
+            ("o", "operator"),
+            ("v", "viewer"),
+        ] {
+            conn.execute(
+                "INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?1, ?2)",
+                params![uid, role],
+            )
+            .unwrap();
+        }
+        ensure_command_permission(&conn, Some("a"), PERM_DATA_DELETE).unwrap();
+        ensure_command_permission(&conn, Some("m"), PERM_DATA_DELETE).unwrap();
+        let err =
+            ensure_command_permission(&conn, Some("o"), PERM_DATA_DELETE).unwrap_err();
+        assert!(err.contains("Permission denied"), "operator should fail: {err}");
+        let err =
+            ensure_command_permission(&conn, Some("v"), PERM_DATA_DELETE).unwrap_err();
+        assert!(err.contains("Permission denied"), "viewer should fail: {err}");
     }
 }

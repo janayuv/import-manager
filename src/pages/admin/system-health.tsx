@@ -16,7 +16,7 @@ import {
   getSystemHealthMetrics,
   type SystemHealthMetrics,
 } from '@/lib/system-health';
-import { useUser } from '@/lib/user-context';
+import { useHasPermission } from '@/lib/user-context';
 
 function formatBytes(n: number): string {
   if (n < 1024) return `${n} B`;
@@ -65,8 +65,7 @@ function schemaStateBadgeVariant(
 }
 
 export default function AdminSystemHealthPage() {
-  const { user } = useUser();
-  const isAdmin = user?.role?.toLowerCase().includes('admin') ?? false;
+  const isAdmin = useHasPermission('admin.system_health');
 
   const [data, setData] = useState<SystemHealthMetrics | null>(null);
   const [loading, setLoading] = useState(false);

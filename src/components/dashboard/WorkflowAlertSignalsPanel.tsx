@@ -217,7 +217,11 @@ export function WorkflowAlertSignalsPanel({ callerRole, refreshKey }: Props) {
                 </h4>
                 <div className="h-48 w-full min-w-0">
                   {dash && dash.severityDistribution14d.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={0}
+                    >
                       <BarChart data={dash.severityDistribution14d}>
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -244,7 +248,11 @@ export function WorkflowAlertSignalsPanel({ callerRole, refreshKey }: Props) {
                 <h4 className="mb-2 font-medium">Alert trends (14d)</h4>
                 <div className="h-48 w-full min-w-0">
                   {dash && dash.alertTrends14d.length > 0 ? (
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={0}
+                    >
                       <LineChart data={dash.alertTrends14d}>
                         <CartesianGrid
                           strokeDasharray="3 3"

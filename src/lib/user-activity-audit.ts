@@ -9,6 +9,8 @@ export interface UserActivityAuditLog {
   detailsJson: string | null;
   status: string;
   timestamp: string;
+  /** INFO | WARNING | SECURITY | CRITICAL */
+  severity?: string;
 }
 
 export async function fetchUserActivityLogs(

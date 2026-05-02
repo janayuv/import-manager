@@ -20,7 +20,10 @@ pub fn query_user_activity_logs(
     let offset_val = offset.unwrap_or(0).max(0);
 
     let mut stmt = conn
-        .prepare("SELECT id, user_id, action_name, entity_type, entity_id, details_json, status, timestamp FROM user_activity_audit_logs ORDER BY timestamp DESC LIMIT ?1 OFFSET ?2")
+        .prepare(
+            "SELECT id, user_id, action_name, entity_type, entity_id, details_json, status, timestamp, severity \
+             FROM user_activity_audit_logs ORDER BY timestamp DESC LIMIT ?1 OFFSET ?2",
+        )
         .map_err(|e| e.to_string())?;
 
     let rows = stmt
@@ -34,6 +37,7 @@ pub fn query_user_activity_logs(
                 details_json: row.get(5)?,
                 status: row.get(6)?,
                 timestamp: row.get(7)?,
+                severity: row.get(8)?,
             })
         })
         .map_err(|e| e.to_string())?;

@@ -38,8 +38,6 @@ import {
 import {
   acknowledgeAutomationStabilityAlert,
   applyAdaptiveSlaDecision,
-  canMutateAutomationRules,
-  canViewAutomationConsole,
   clearCanaryRuleDeployment,
   compareRuleVersions,
   createWorkflowRuleStaging,
@@ -156,7 +154,7 @@ import {
   type WorkflowRuleVersionRow,
   type WorkflowTenantRow,
 } from '@/lib/automation-console';
-import { useUser } from '@/lib/user-context';
+import { useUser, useHasPermission } from '@/lib/user-context';
 import {
   DeploymentActivityDrawer,
   openDeploymentActivitySearchParams,
@@ -181,12 +179,9 @@ export default function AutomationRulesAdminPage() {
   const role = user?.role ?? '';
   const callerRole = role;
   const changedBy = user?.id ?? 'unknown';
-  const viewOk = canViewAutomationConsole(role);
-  const mutateOk = canMutateAutomationRules(role);
-  const isAdminRole = useMemo(
-    () => callerRole.toLowerCase().replace(/\s/g, '').includes('admin'),
-    [callerRole]
-  );
+  const viewOk = useHasPermission('automation.view');
+  const mutateOk = useHasPermission('automation.mutate');
+  const isAdminRole = useHasPermission('role.write');
 
   const [rules, setRules] = useState<WorkflowDecisionRuleRow[]>([]);
   const [health, setHealth] = useState<AutomationHealthSnapshot | null>(null);

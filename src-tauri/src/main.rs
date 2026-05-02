@@ -11,6 +11,7 @@ mod encryption;
 mod expense;
 mod migrations;
 mod playwright_db;
+mod recovery_mode;
 mod restore_control;
 mod security;
 mod services;
@@ -80,6 +81,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 env!("IMPORT_MANAGER_BUILD_DATE"),
                 env!("IMPORT_MANAGER_GIT_HASH"),
             );
+
+            let recovery_state = recovery_mode::RecoveryModeState::from_env_and_args();
+            let recovery_mode_at_startup = recovery_state.is_active();
+            if recovery_mode_at_startup {
+                log::warn!(
+                    target: "import_manager::recovery",
+                    "RECOVERY MODE is active: sign-in bypasses lockout; recovery-only IPC is enabled. Restart without --recovery or IMPORT_MANAGER_RECOVERY for normal operation."
+                );
+            }
 
             let data_dir = app.path().app_data_dir()
                 .map_err(|e| format!("Failed to get app data dir: {}", e))?;
@@ -254,6 +264,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             app.manage(DbState { db: Mutex::new(db_connection) });
             app.manage(ConnectionManager::new(db_path.clone()));
             app.manage(desktop_session::DesktopSessionState::default());
+            app.manage(recovery_state);
+
+            if recovery_mode_at_startup {
+                if let Some(db_st) = app.try_state::<DbState>() {
+                    if let Ok(conn) = db_st.db.lock() {
+                        crate::services::user_activity_audit::log_activity_with_severity(
+                            &conn,
+                            None,
+                            "auth.recovery_mode_entered",
+                            None,
+                            None,
+                            None,
+                            "success",
+                            crate::services::user_activity_audit::AuditSeverity::Critical,
+                        );
+                    }
+                }
+            }
 
             let app_handle = app.handle().clone();
             std::thread::spawn(move || {
@@ -277,6 +305,24 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let governance_start = Instant::now();
                     crate::commands::db_management::governance_tick();
                     let governance_ms = governance_start.elapsed().as_millis();
+
+                    let wal_start = Instant::now();
+                    if let Some(db_state) = app_handle.try_state::<DbState>() {
+                        if let Ok(conn) = db_state.db.lock() {
+                            if let Err(e) =
+                                crate::commands::db_maintenance::run_passive_wal_checkpoint_if_due(
+                                    &conn,
+                                )
+                            {
+                                log::warn!(
+                                    target: "import_manager::database",
+                                    "WAL checkpoint tick failed: {}",
+                                    e
+                                );
+                            }
+                        }
+                    }
+                    let _wal_ms = wal_start.elapsed().as_millis();
 
                     log::debug!(
                         target: "import_manager::background",
@@ -372,6 +418,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             desktop_session::authenticate_desktop,
             desktop_session::get_desktop_session,
             desktop_session::clear_desktop_session,
+            desktop_session::terminate_desktop_session_for_admin,
+            commands::recovery::is_recovery_mode_active,
+            commands::recovery::get_recovery_mode_status,
+            commands::recovery::recovery_clear_lockout,
+            commands::recovery::recovery_reset_security_policy,
+            commands::recovery::recovery_set_admin_password,
+            // Security center / RBAC
+            commands::security::get_my_permissions,
+            commands::security::get_my_session,
+            commands::security::get_security_settings,
+            commands::security::update_security_settings,
+            commands::security::get_lockout_status,
+            commands::security::reset_account_lockout,
+            commands::security::change_admin_password,
+            commands::security::get_recent_auth_events,
+            commands::security::get_security_dashboard_metrics,
+            commands::security::get_security_trend_series,
+            commands::security::get_active_desktop_sessions,
+            commands::security::get_role_permissions_matrix,
             commands::get_shell_version,
             commands::get_system_health_metrics,
             commands::export_diagnostics_bundle,
@@ -706,6 +771,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::create_audit_log,
             commands::get_audit_logs,
             commands::get_database_stats,
+            commands::get_backup_health_metrics,
+            commands::get_backup_redundancy_settings,
+            commands::set_backup_redundancy_settings,
             commands::has_backup_key_in_keyring,
             commands::export_backup_key,
             commands::export_backup_key_to_path,

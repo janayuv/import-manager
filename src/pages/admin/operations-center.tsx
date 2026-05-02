@@ -45,7 +45,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Textarea } from '@/components/ui/textarea';
-import { canViewAutomationConsole } from '@/lib/automation-console';
 import {
   acknowledgeWorkflowForecastActions,
   appendWorkflowIncidentResolutionNote,
@@ -64,7 +63,7 @@ import {
   type IncidentDetail,
   type OperationsCenterDashboard,
 } from '@/lib/incident-management';
-import { useUser } from '@/lib/user-context';
+import { useUser, useHasPermission } from '@/lib/user-context';
 
 const DEBUG_MODES = [
   { id: 'api_timeout', label: 'API timeout' },
@@ -204,8 +203,8 @@ function forecastBannerBullets(dash: OperationsCenterDashboard): string[] {
 export default function OperationsCenterPage() {
   const { user } = useUser();
   const role = user?.role ?? '';
-  const viewOk = canViewAutomationConsole(role);
-  const isAdmin = role.toLowerCase().replace(/\s+/g, '').includes('admin');
+  const viewOk = useHasPermission('automation.ops_center');
+  const isAdmin = useHasPermission('admin.activity_log');
 
   const [dash, setDash] = useState<OperationsCenterDashboard | null>(null);
   const [loading, setLoading] = useState(true);

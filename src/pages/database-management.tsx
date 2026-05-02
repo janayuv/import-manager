@@ -98,6 +98,34 @@ interface BackupInfo {
   notes?: string;
   status: string;
   error_message?: string;
+  validation_status?: string | null;
+  validation_checked_at?: string | null;
+  validation_message?: string | null;
+  restore_simulation_status?: string | null;
+  restore_simulation_checked_at?: string | null;
+  restore_simulation_message?: string | null;
+}
+
+interface BackupHealthMetrics {
+  lastBackupTime?: string | null;
+  latestLocalBackupId?: number | null;
+  latestLocalBackupFilename?: string | null;
+  latestLocalBackupCreatedAt?: string | null;
+  latestLocalBackupSizeBytes?: number | null;
+  backupAgeHours?: number | null;
+  lastValidationStatus?: string | null;
+  lastValidationAt?: string | null;
+  lastRestoreSimulationStatus?: string | null;
+  lastRestoreSimulationAt?: string | null;
+  alerts: string[];
+  secondaryRedundancyEnabled: boolean;
+  secondaryRedundancyPath: string;
+  sizeTrendNote?: string | null;
+}
+
+interface BackupRedundancySettings {
+  enabled: boolean;
+  secondaryPath: string;
 }
 
 interface AuditLog {
@@ -125,6 +153,9 @@ interface RestorePreview {
   recorded_hash_match: boolean | null;
   integrity_check: string;
   schema_compatibility: boolean;
+  embedded_migration_head_version: number;
+  backup_migration_max_version: number | null;
+  missing_core_tables: string[];
   estimated_changes: Record<string, number>;
   warnings: string[];
 }
@@ -587,6 +618,12 @@ function DatabaseManagementContent() {
   const [restorePreview, setRestorePreview] = useState<RestorePreview | null>(
     null
   );
+  const [backupHealth, setBackupHealth] = useState<BackupHealthMetrics | null>(
+    null
+  );
+  const [redundancyForm, setRedundancyForm] =
+    useState<BackupRedundancySettings>({ enabled: false, secondaryPath: '' });
+  const [redundancySaving, setRedundancySaving] = useState(false);
   const [restoreInProgress, setRestoreInProgress] = useState(false);
   const [selectedBackup, setSelectedBackup] = useState<string | null>(null);
 
@@ -791,23 +828,36 @@ function DatabaseManagementContent() {
   /** Refreshes stats, recent backups slice, and audit logs. Never toggles full-page `loading` (avoids unmounting the UI). */
   const loadDashboardData = useCallback(async () => {
     try {
-      const [statsData, backupsData, auditData, gdrive] = await Promise.all([
-        invoke<DatabaseStats>('get_database_stats'),
-        invoke<BackupInfo[]>('get_backup_history', { limit: 10 }),
-        invoke<AuditLog[]>('get_audit_logs', { limit: 20 }),
-        invoke<GoogleDriveStatus>('google_drive_status').catch(() =>
-          normalizeGoogleDriveStatus({
-            configured: false,
-            connected: false,
-            state: 'not_configured',
-          })
-        ),
-      ]);
+      const [statsData, backupsData, auditData, gdrive, health, redundancy] =
+        await Promise.all([
+          invoke<DatabaseStats>('get_database_stats'),
+          invoke<BackupInfo[]>('get_backup_history', { limit: 10 }),
+          invoke<AuditLog[]>('get_audit_logs', { limit: 20 }),
+          invoke<GoogleDriveStatus>('google_drive_status').catch(() =>
+            normalizeGoogleDriveStatus({
+              configured: false,
+              connected: false,
+              state: 'not_configured',
+            })
+          ),
+          invoke<BackupHealthMetrics>('get_backup_health_metrics').catch(
+            () => null
+          ),
+          invoke<BackupRedundancySettings>(
+            'get_backup_redundancy_settings'
+          ).catch(() => ({ enabled: false, secondaryPath: '' })),
+        ]);
 
       setStats(statsData);
       setBackupHistory(Array.isArray(backupsData) ? backupsData : []);
       setAuditLogs(Array.isArray(auditData) ? auditData : []);
       setGoogleDriveStatus(normalizeGoogleDriveStatus(gdrive));
+      if (health) {
+        setBackupHealth(health);
+      }
+      if (redundancy) {
+        setRedundancyForm(redundancy);
+      }
     } catch (error) {
       console.error('Failed to load dashboard data:', error);
       toast.error('Failed to load database management data');
@@ -1100,6 +1150,8 @@ function DatabaseManagementContent() {
     return () => {
       cancelled = true;
     };
+    // One-shot boot: roles/schedules loaders are not stable callbacks.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
   }, [
     loadDashboardData,
     loadBulkManageableTables,
@@ -2274,7 +2326,9 @@ function DatabaseManagementContent() {
   // User Role Management Functions
   const loadUserRoles = async () => {
     try {
-      const roles = await invoke<UserRole[]>('get_user_roles');
+      const roles = await invoke<UserRole[]>('get_user_roles', {
+        callerUserId: userId,
+      });
       setUserRoles(Array.isArray(roles) ? roles : []);
     } catch (error) {
       console.error('Failed to load user roles:', error);
@@ -3045,241 +3099,424 @@ function DatabaseManagementContent() {
               />
             </div>
           )}
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Create Backup */}
+          <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Create Backup</CardTitle>
-                <CardDescription>Create a new database backup</CardDescription>
+                <CardTitle>Backup health</CardTitle>
+                <CardDescription>
+                  Last validation, restore simulation, and redundancy status
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {backupInProgress &&
-                  backupForm.destination !== 'google_drive' && (
-                    <Alert>
-                      <RefreshCw className="h-4 w-4 animate-spin" />
-                      <AlertDescription>
-                        Creating backup... {backupProgress}%
-                        <Progress value={backupProgress} className="mt-2" />
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                {googleDriveStatus?.state === 'not_configured' && (
-                  <Alert>
+                {backupHealth &&
+                backupHealth.alerts &&
+                backupHealth.alerts.length > 0 ? (
+                  <Alert variant="destructive">
                     <AlertTriangle className="h-4 w-4" />
                     <AlertDescription>
-                      Google Drive requires OAuth credentials at build time (
-                      <code className="text-xs">
-                        IMPORT_MANAGER_GOOGLE_CLIENT_ID
-                      </code>
-                      ). Local backups work without this.
+                      <ul className="list-inside list-disc text-sm">
+                        {backupHealth.alerts.map(a => (
+                          <li key={a}>{a}</li>
+                        ))}
+                      </ul>
                     </AlertDescription>
                   </Alert>
+                ) : null}
+                {backupHealth ? (
+                  <div className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
+                    <p>
+                      <span className="text-foreground font-medium">
+                        Last backup (metadata):{' '}
+                      </span>
+                      {backupHealth.lastBackupTime
+                        ? formatAppDateTime(backupHealth.lastBackupTime)
+                        : '—'}
+                    </p>
+                    <p>
+                      <span className="text-foreground font-medium">
+                        Latest local file:{' '}
+                      </span>
+                      {backupHealth.latestLocalBackupFilename ?? '—'}
+                    </p>
+                    <p>
+                      <span className="text-foreground font-medium">Age: </span>
+                      {backupHealth.backupAgeHours != null
+                        ? `${backupHealth.backupAgeHours.toFixed(1)} h`
+                        : '—'}
+                    </p>
+                    <p>
+                      <span className="text-foreground font-medium">
+                        Validation:{' '}
+                      </span>
+                      {backupHealth.lastValidationStatus ?? '—'}
+                      {backupHealth.lastValidationAt
+                        ? ` (${formatAppDateTime(backupHealth.lastValidationAt)})`
+                        : ''}
+                    </p>
+                    <p>
+                      <span className="text-foreground font-medium">
+                        Restore simulation:{' '}
+                      </span>
+                      {backupHealth.lastRestoreSimulationStatus ?? '—'}
+                      {backupHealth.lastRestoreSimulationAt
+                        ? ` (${formatAppDateTime(
+                            backupHealth.lastRestoreSimulationAt
+                          )})`
+                        : ''}
+                    </p>
+                    <p>
+                      <span className="text-foreground font-medium">
+                        Secondary folder:{' '}
+                      </span>
+                      {backupHealth.secondaryRedundancyEnabled
+                        ? backupHealth.secondaryRedundancyPath || '(path empty)'
+                        : 'off'}
+                    </p>
+                    {backupHealth.sizeTrendNote ? (
+                      <p className="text-amber-700 sm:col-span-2 dark:text-amber-400">
+                        <span className="font-medium">Size trend: </span>
+                        {backupHealth.sizeTrendNote}
+                      </p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="text-muted-foreground text-sm">
+                    Loading health metrics…
+                  </p>
                 )}
-
-                <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
-                    <span className="text-sm font-medium">
-                      <Cloud className="mr-1 inline h-4 w-4" />
-                      Google Drive
-                    </span>
-                    <div className="flex flex-wrap items-center gap-2">
-                      {googleDriveStatus?.state === 'connected' && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          title="Refresh account email"
-                          onClick={() => void handleRefreshGoogleProfile()}
-                        >
-                          <RefreshCw className="h-4 w-4" />
-                        </Button>
-                      )}
-                      {googleDriveStatus?.configured ? (
-                        googleDriveStatus.state === 'connected' ? (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => void handleDisconnectGoogleDrive()}
-                          >
-                            Disconnect
-                          </Button>
-                        ) : (
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => void handleConnectGoogleDrive()}
-                          >
-                            Connect
-                          </Button>
-                        )
-                      ) : null}
-                    </div>
-                  </div>
-                  <p className="text-sm font-medium">
-                    {gdriveStatusIndicator(googleDriveStatus)}
-                  </p>
+                <div className="space-y-3 border-t pt-4">
+                  <h4 className="text-sm font-medium">
+                    Secondary backup folder
+                  </h4>
                   <p className="text-muted-foreground text-xs">
-                    {googleDriveStatus?.state === 'not_configured'
-                      ? 'Not available in this build.'
-                      : googleDriveStatus?.state === 'connected'
-                        ? 'You can back up to Google Drive or restore from cloud backups below. Retry and cancel are shown during upload or download.'
-                        : 'Connect once to upload encrypted backups to your own Drive (app-created files only).'}
+                    When enabled, each local backup is copied here and the
+                    folder is used if the primary AppData path cannot be
+                    prepared (disk full or permission).
                   </p>
-                </div>
-
-                <div className="space-y-3">
-                  <div>
-                    <Label htmlFor="destination">Destination</Label>
-                    <Select
-                      value={backupForm.destination}
-                      onValueChange={value =>
-                        setBackupForm(prev => ({ ...prev, destination: value }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="local">Local Storage</SelectItem>
-                        <SelectItem value="google_drive">
-                          Google Drive
-                        </SelectItem>
-                        <SelectItem value="s3" disabled>
-                          AWS S3 (Coming Soon)
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="filename">Filename (optional)</Label>
-                    <Input
-                      id="filename"
-                      placeholder="Auto-generated if empty"
-                      value={backupForm.filename}
-                      onChange={e =>
-                        setBackupForm(prev => ({
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="secondary-enabled"
+                      checked={redundancyForm.enabled}
+                      onCheckedChange={v =>
+                        setRedundancyForm(prev => ({
                           ...prev,
-                          filename: e.target.value,
+                          enabled: v === true,
                         }))
                       }
+                      disabled={redundancySaving}
                     />
+                    <Label htmlFor="secondary-enabled" className="font-normal">
+                      Enable secondary path
+                    </Label>
                   </div>
-
-                  <div>
-                    <Label htmlFor="notes">Notes</Label>
-                    <Textarea
-                      id="notes"
-                      placeholder="Optional backup notes"
-                      value={backupForm.notes}
-                      onChange={e =>
-                        setBackupForm(prev => ({
-                          ...prev,
-                          notes: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-
-                  <Button
-                    onClick={handleBackupNow}
-                    disabled={
-                      backupInProgress ||
-                      (backupForm.destination === 'google_drive' &&
-                        gdriveCloudBlocked(googleDriveStatus))
+                  <Input
+                    placeholder="e.g. D:\ImportManagerBackup or \\server\share\im"
+                    value={redundancyForm.secondaryPath}
+                    onChange={e =>
+                      setRedundancyForm(prev => ({
+                        ...prev,
+                        secondaryPath: e.target.value,
+                      }))
                     }
-                    className="w-full"
-                    useAccentColor
+                    disabled={redundancySaving}
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={redundancySaving}
+                    onClick={() =>
+                      void (async () => {
+                        setRedundancySaving(true);
+                        try {
+                          await invoke('set_backup_redundancy_settings', {
+                            input: {
+                              enabled: redundancyForm.enabled,
+                              secondaryPath:
+                                redundancyForm.secondaryPath.trim(),
+                            },
+                            userId,
+                          });
+                          toast.success('Backup redundancy settings saved');
+                          await loadDashboardData();
+                        } catch (err) {
+                          console.error(err);
+                          toast.error('Could not save redundancy settings');
+                        } finally {
+                          setRedundancySaving(false);
+                        }
+                      })()
+                    }
                   >
-                    {backupInProgress ? (
-                      <>
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                        Creating Backup...
-                      </>
-                    ) : (
-                      <>
-                        <Download className="mr-2 h-4 w-4" />
-                        Create Backup Now
-                      </>
-                    )}
+                    {redundancySaving ? 'Saving…' : 'Save redundancy settings'}
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
-            {/* Backup History */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Backup History</CardTitle>
-                <CardDescription>Recent database backups</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {backupHistory.map(backup => (
-                    <div
-                      key={backup.id ?? backup.path}
-                      className="flex items-center justify-between rounded-lg border p-3"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {getStatusIcon(backup.status)}
-                        <div>
-                          <p className="text-sm font-medium">
-                            {backup.filename}
-                          </p>
-                          <p className="text-muted-foreground text-xs">
-                            Type: {backupTypeLabel(backup)}
-                          </p>
-                          {backupTypeLabel(backup) === 'Google Drive' && (
-                            <p className="text-muted-foreground text-xs">
-                              Google Drive file name: {backup.filename}
-                            </p>
-                          )}
-                          <p className="text-muted-foreground text-xs">
-                            {formatAppDateTime(backup.created_at)}
-                            {' • '}
-                            {backup.size_bytes != null
-                              ? formatBytes(backup.size_bytes)
-                              : 'Unknown size'}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex space-x-2">
-                        {isPlaywrightBuild && (
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+              {/* Create Backup */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Create Backup</CardTitle>
+                  <CardDescription>
+                    Create a new database backup
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  {backupInProgress &&
+                    backupForm.destination !== 'google_drive' && (
+                      <Alert>
+                        <RefreshCw className="h-4 w-4 animate-spin" />
+                        <AlertDescription>
+                          Creating backup... {backupProgress}%
+                          <Progress value={backupProgress} className="mt-2" />
+                        </AlertDescription>
+                      </Alert>
+                    )}
+
+                  {googleDriveStatus?.state === 'not_configured' && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Google Drive requires OAuth credentials at build time (
+                        <code className="text-xs">
+                          IMPORT_MANAGER_GOOGLE_CLIENT_ID
+                        </code>
+                        ). Local backups work without this.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="text-sm font-medium">
+                        <Cloud className="mr-1 inline h-4 w-4" />
+                        Google Drive
+                      </span>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {googleDriveStatus?.state === 'connected' && (
                           <Button
-                            variant="secondary"
-                            size="sm"
                             type="button"
-                            onClick={() =>
-                              void downloadPlaywrightBackupSnapshot(backup.path)
-                            }
+                            variant="ghost"
+                            size="sm"
+                            title="Refresh account email"
+                            onClick={() => void handleRefreshGoogleProfile()}
                           >
-                            <Download className="mr-1 h-4 w-4" />
-                            Download snapshot
+                            <RefreshCw className="h-4 w-4" />
                           </Button>
                         )}
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleRestorePreview(backup.path)}
-                          disabled={backup.status !== 'completed'}
-                        >
-                          <Upload className="mr-1 h-4 w-4" />
-                          Preview Restore
-                        </Button>
+                        {googleDriveStatus?.configured ? (
+                          googleDriveStatus.state === 'connected' ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => void handleDisconnectGoogleDrive()}
+                            >
+                              Disconnect
+                            </Button>
+                          ) : (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => void handleConnectGoogleDrive()}
+                            >
+                              Connect
+                            </Button>
+                          )
+                        ) : null}
                       </div>
                     </div>
-                  ))}
-                  {backupHistory.length === 0 && (
-                    <p className="text-muted-foreground text-sm">
-                      No backups found
+                    <p className="text-sm font-medium">
+                      {gdriveStatusIndicator(googleDriveStatus)}
                     </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    <p className="text-muted-foreground text-xs">
+                      {googleDriveStatus?.state === 'not_configured'
+                        ? 'Not available in this build.'
+                        : googleDriveStatus?.state === 'connected'
+                          ? 'You can back up to Google Drive or restore from cloud backups below. Retry and cancel are shown during upload or download.'
+                          : 'Connect once to upload encrypted backups to your own Drive (app-created files only).'}
+                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <Label htmlFor="destination">Destination</Label>
+                      <Select
+                        value={backupForm.destination}
+                        onValueChange={value =>
+                          setBackupForm(prev => ({
+                            ...prev,
+                            destination: value,
+                          }))
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="local">Local Storage</SelectItem>
+                          <SelectItem value="google_drive">
+                            Google Drive
+                          </SelectItem>
+                          <SelectItem value="s3" disabled>
+                            AWS S3 (Coming Soon)
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="filename">Filename (optional)</Label>
+                      <Input
+                        id="filename"
+                        placeholder="Auto-generated if empty"
+                        value={backupForm.filename}
+                        onChange={e =>
+                          setBackupForm(prev => ({
+                            ...prev,
+                            filename: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label htmlFor="notes">Notes</Label>
+                      <Textarea
+                        id="notes"
+                        placeholder="Optional backup notes"
+                        value={backupForm.notes}
+                        onChange={e =>
+                          setBackupForm(prev => ({
+                            ...prev,
+                            notes: e.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+
+                    <Button
+                      onClick={handleBackupNow}
+                      disabled={
+                        backupInProgress ||
+                        (backupForm.destination === 'google_drive' &&
+                          gdriveCloudBlocked(googleDriveStatus))
+                      }
+                      className="w-full"
+                      useAccentColor
+                    >
+                      {backupInProgress ? (
+                        <>
+                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                          Creating Backup...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="mr-2 h-4 w-4" />
+                          Create Backup Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Backup History */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Backup History</CardTitle>
+                  <CardDescription>Recent database backups</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-3">
+                    {backupHistory.map(backup => (
+                      <div
+                        key={backup.id ?? backup.path}
+                        className="flex items-center justify-between rounded-lg border p-3"
+                      >
+                        <div className="flex items-center space-x-3">
+                          {getStatusIcon(backup.status)}
+                          <div>
+                            <p className="text-sm font-medium">
+                              {backup.filename}
+                            </p>
+                            <p className="text-muted-foreground text-xs">
+                              Type: {backupTypeLabel(backup)}
+                            </p>
+                            {backupTypeLabel(backup) === 'Google Drive' && (
+                              <p className="text-muted-foreground text-xs">
+                                Google Drive file name: {backup.filename}
+                              </p>
+                            )}
+                            <p className="text-muted-foreground text-xs">
+                              {formatAppDateTime(backup.created_at)}
+                              {' • '}
+                              {backup.size_bytes != null
+                                ? formatBytes(backup.size_bytes)
+                                : 'Unknown size'}
+                            </p>
+                            {backup.destination === 'local' &&
+                            backup.validation_status != null &&
+                            backup.validation_status !== '' ? (
+                              <p className="text-muted-foreground text-xs">
+                                Validation: {backup.validation_status}
+                                {backup.validation_checked_at
+                                  ? ` • ${formatAppDateTime(backup.validation_checked_at)}`
+                                  : ''}
+                              </p>
+                            ) : null}
+                            {backup.destination === 'local' &&
+                            backup.restore_simulation_status != null &&
+                            backup.restore_simulation_status !== '' ? (
+                              <p className="text-muted-foreground text-xs">
+                                Restore test: {backup.restore_simulation_status}
+                                {backup.restore_simulation_checked_at
+                                  ? ` • ${formatAppDateTime(backup.restore_simulation_checked_at)}`
+                                  : ''}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <div className="flex space-x-2">
+                          {isPlaywrightBuild && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              type="button"
+                              onClick={() =>
+                                void downloadPlaywrightBackupSnapshot(
+                                  backup.path
+                                )
+                              }
+                            >
+                              <Download className="mr-1 h-4 w-4" />
+                              Download snapshot
+                            </Button>
+                          )}
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleRestorePreview(backup.path)}
+                            disabled={backup.status !== 'completed'}
+                          >
+                            <Upload className="mr-1 h-4 w-4" />
+                            Preview Restore
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                    {backupHistory.length === 0 && (
+                      <p className="text-muted-foreground text-sm">
+                        No backups found
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
         </TabsContent>
 
@@ -3756,6 +3993,31 @@ function DatabaseManagementContent() {
                         </p>
                       </div>
                     )}
+                    <div>
+                      <p className="text-sm font-medium">Stored validation</p>
+                      <p className="text-muted-foreground text-xs">
+                        {restorePreview.backup_info.validation_status ?? '—'}
+                        {restorePreview.backup_info.validation_checked_at
+                          ? ` • ${formatAppDateTime(
+                              restorePreview.backup_info.validation_checked_at
+                            )}`
+                          : ''}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium">Restore simulation</p>
+                      <p className="text-muted-foreground text-xs">
+                        {restorePreview.backup_info.restore_simulation_status ??
+                          '—'}
+                        {restorePreview.backup_info
+                          .restore_simulation_checked_at
+                          ? ` • ${formatAppDateTime(
+                              restorePreview.backup_info
+                                .restore_simulation_checked_at
+                            )}`
+                          : ''}
+                      </p>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -3799,6 +4061,19 @@ function DatabaseManagementContent() {
                         : 'Schema compatibility issues detected'}
                     </span>
                   </div>
+                  <p className="text-muted-foreground mt-3 text-sm">
+                    This app migration head:{' '}
+                    {restorePreview.embedded_migration_head_version}
+                    {restorePreview.backup_migration_max_version != null
+                      ? ` — backup reports max version: ${restorePreview.backup_migration_max_version}`
+                      : ''}
+                  </p>
+                  {restorePreview.missing_core_tables.length > 0 ? (
+                    <p className="text-destructive mt-2 text-sm">
+                      Missing core tables:{' '}
+                      {restorePreview.missing_core_tables.join(', ')}
+                    </p>
+                  ) : null}
                 </CardContent>
               </Card>
 

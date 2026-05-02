@@ -84,6 +84,31 @@ const V70_QUERY_PATH_INDEXES: &[&str] = &[
     "idx_shipments_supplier_id_invoice_date",
 ];
 
+/// V72 RBAC hardening tables; verified in [verify_schema_integrity].
+const V72_RBAC_TABLES: &[&str] = &["auth_failed_attempts", "auth_password_history"];
+
+/// V73 enterprise security depth; verified in [verify_schema_integrity].
+const V73_SECURITY_TABLES: &[&str] = &["auth_lockout_state", "security_policy_versions"];
+
+/// V74 backup validation columns on `backups`; verified in [verify_schema_integrity].
+const V74_BACKUPS_VALIDATION_COLS: &[&str] =
+    &["validation_status", "validation_checked_at", "validation_message"];
+
+/// V75 restore simulation columns on `backups`; verified in [verify_schema_integrity].
+const V75_BACKUPS_RESTORE_SIM_COLS: &[&str] = &[
+    "restore_simulation_status",
+    "restore_simulation_checked_at",
+    "restore_simulation_message",
+];
+
+/// Maps legacy role names to canonical ones used by `security::permissions::Role`.
+const LEGACY_ROLE_RENAMES: &[(&str, &str)] = &[
+    ("admin", "administrator"),
+    ("db_manager", "manager"),
+    ("dbmanager", "manager"),
+    ("user", "operator"),
+];
+
 pub struct DatabaseMigrations;
 
 fn migration_table_exists(conn: &Connection) -> Result<bool> {
@@ -416,6 +441,54 @@ fn run_refinery_migrations_with_duplicate_drift(conn: &mut Connection) -> Result
     ))
 }
 
+/// Defensive `ALTER TABLE ADD COLUMN` for V72 columns on `user_roles`. Older
+/// databases may have already applied the columns via the SQL migration; newer
+/// drift recovery may also need this guard.
+fn ensure_user_roles_audit_columns(conn: &Connection) -> Result<(), String> {
+    if !table_exists(conn, "user_roles")? {
+        return Ok(());
+    }
+    for col in ["created_by", "updated_by"] {
+        if !column_exists(conn, "user_roles", col)? {
+            execute_alter_ignore_duplicate(
+                conn,
+                &format!("ALTER TABLE user_roles ADD COLUMN {} TEXT", col),
+            )?;
+        }
+    }
+    Ok(())
+}
+
+/// Idempotent rename of legacy role strings (`admin`, `db_manager`, `user`) to
+/// the canonical names used by `security::permissions::Role`.
+fn normalize_user_roles_canonical(conn: &Connection) -> Result<(), String> {
+    if !table_exists(conn, "user_roles")? {
+        return Ok(());
+    }
+    for (legacy, canonical) in LEGACY_ROLE_RENAMES {
+        let updated = conn
+            .execute(
+                "UPDATE user_roles SET role = ?1, updated_at = CURRENT_TIMESTAMP \
+                 WHERE lower(trim(role)) = ?2",
+                params![canonical, legacy],
+            )
+            .map_err(|e| {
+                format!("normalize_user_roles_canonical update {legacy}->{canonical}: {e}")
+            })?;
+        if updated > 0 {
+            log::info!(
+                target: "import_manager::migrations",
+                "normalized role rows: {} -> {} ({} row{})",
+                legacy,
+                canonical,
+                updated,
+                if updated == 1 { "" } else { "s" }
+            );
+        }
+    }
+    Ok(())
+}
+
 fn post_refinery_migrations(conn: &Connection) -> Result<(), String> {
     log::info!(
         target: "import_manager::migrations",
@@ -449,8 +522,36 @@ fn post_refinery_migrations(conn: &Connection) -> Result<(), String> {
     crate::db::ensure_audit_logs_table_name_column(conn).map_err(|e| e.to_string())?;
     log::info!(
         target: "import_manager::migrations",
+        "Ensuring user_roles audit columns (created_by, updated_by)"
+    );
+    ensure_user_roles_audit_columns(conn)?;
+    log::info!(
+        target: "import_manager::migrations",
+        "Normalizing user_roles to canonical role names"
+    );
+    normalize_user_roles_canonical(conn)?;
+    log::info!(
+        target: "import_manager::migrations",
+        "Ensuring user_activity_audit_logs.severity column"
+    );
+    ensure_user_activity_audit_severity_column(conn)?;
+    log::info!(
+        target: "import_manager::migrations",
         "Soft-delete columns verified"
     );
+    Ok(())
+}
+
+fn ensure_user_activity_audit_severity_column(conn: &Connection) -> Result<(), String> {
+    if !table_exists(conn, "user_activity_audit_logs")? {
+        return Ok(());
+    }
+    if !column_exists(conn, "user_activity_audit_logs", "severity")? {
+        execute_alter_ignore_duplicate(
+            conn,
+            "ALTER TABLE user_activity_audit_logs ADD COLUMN severity TEXT NOT NULL DEFAULT 'INFO'",
+        )?;
+    }
     Ok(())
 }
 
@@ -516,6 +617,31 @@ pub fn schema_integrity_problems(conn: &Connection) -> Result<Vec<String>, Strin
     ] {
         if !table_exists(conn, table).map_err(|e| e.to_string())? {
             problems.push(table.to_string());
+        }
+    }
+
+    for table in V72_RBAC_TABLES {
+        if !table_exists(conn, table).map_err(|e| e.to_string())? {
+            problems.push((*table).to_string());
+        }
+    }
+
+    for table in V73_SECURITY_TABLES {
+        if !table_exists(conn, table).map_err(|e| e.to_string())? {
+            problems.push((*table).to_string());
+        }
+    }
+
+    if table_exists(conn, "backups").map_err(|e| e.to_string())? {
+        for col in V74_BACKUPS_VALIDATION_COLS {
+            if !column_exists(conn, "backups", col).map_err(|e| e.to_string())? {
+                problems.push(format!("backups.{col}"));
+            }
+        }
+        for col in V75_BACKUPS_RESTORE_SIM_COLS {
+            if !column_exists(conn, "backups", col).map_err(|e| e.to_string())? {
+                problems.push(format!("backups.{col}"));
+            }
         }
     }
 
@@ -871,5 +997,72 @@ mod tests {
         DatabaseMigrations::run_migrations_test(&mut conn)?;
         assert_v48_indexes(&conn)?;
         verify_schema_integrity(&conn)
+    }
+
+    #[test]
+    fn v72_rbac_tables_present_after_migrations() -> Result<(), String> {
+        let mut conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
+        DatabaseMigrations::run_migrations_test(&mut conn)?;
+        for table in V72_RBAC_TABLES {
+            assert!(
+                user_table_exists(&conn, table).map_err(|e| e.to_string())?,
+                "expected RBAC table {table} after migrations"
+            );
+        }
+        assert!(
+            column_exists(&conn, "user_roles", "created_by")?,
+            "user_roles.created_by must exist"
+        );
+        assert!(
+            column_exists(&conn, "user_roles", "updated_by")?,
+            "user_roles.updated_by must exist"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn v73_security_tables_present_after_migrations() -> Result<(), String> {
+        let mut conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
+        DatabaseMigrations::run_migrations_test(&mut conn)?;
+        for table in V73_SECURITY_TABLES {
+            assert!(
+                user_table_exists(&conn, table).map_err(|e| e.to_string())?,
+                "expected security table {table} after migrations"
+            );
+        }
+        assert!(
+            column_exists(&conn, "user_activity_audit_logs", "severity")?,
+            "user_activity_audit_logs.severity must exist"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn legacy_role_strings_normalize_to_canonical() -> Result<(), String> {
+        let mut conn = Connection::open_in_memory().map_err(|e| e.to_string())?;
+        DatabaseMigrations::run_migrations_test(&mut conn)?;
+        conn.execute_batch(
+            r#"INSERT OR REPLACE INTO user_roles (user_id, role) VALUES
+                ('legacy-admin', 'admin'),
+                ('legacy-mgr',   'db_manager'),
+                ('legacy-user',  'user'),
+                ('legacy-viewer','viewer');"#,
+        )
+        .map_err(|e| e.to_string())?;
+        normalize_user_roles_canonical(&conn)?;
+        let mut stmt = conn
+            .prepare("SELECT user_id, role FROM user_roles ORDER BY user_id")
+            .map_err(|e| e.to_string())?;
+        let rows: Vec<(String, String)> = stmt
+            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .map_err(|e| e.to_string())?
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?;
+        let by_id: std::collections::HashMap<String, String> = rows.into_iter().collect();
+        assert_eq!(by_id.get("legacy-admin").map(|s| s.as_str()), Some("administrator"));
+        assert_eq!(by_id.get("legacy-mgr").map(|s| s.as_str()), Some("manager"));
+        assert_eq!(by_id.get("legacy-user").map(|s| s.as_str()), Some("operator"));
+        assert_eq!(by_id.get("legacy-viewer").map(|s| s.as_str()), Some("viewer"));
+        Ok(())
     }
 }

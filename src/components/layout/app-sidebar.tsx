@@ -21,7 +21,7 @@ import { NavMain } from './nav-main';
 import { NavUser } from './nav-user';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { user } = useUser();
+  const { user, hasPermission } = useUser();
   const location = useLocation();
   const [recycleBinCount, setRecycleBinCount] = React.useState<number | null>(
     null
@@ -41,16 +41,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   }, [location.pathname, fetchRecycleCount]);
 
   const visibleNavItems = React.useMemo(() => {
-    const r = (user?.role ?? '').toLowerCase().replace(/\s+/g, '');
-    const admin = r.includes('admin');
-    const automationConsole =
-      admin || r.includes('automationmanager') || r.includes('viewer');
-    return (navItems as AppNavItem[]).filter(it => {
-      if (it.adminOnly && !admin) return false;
-      if (it.automationConsole && !automationConsole) return false;
-      return true;
-    });
-  }, [user?.role]);
+    const filterChildren = (items: AppNavItem['items']) => {
+      if (!items) return undefined;
+      const allowed = items.filter(child =>
+        child.requiredPermission
+          ? hasPermission(child.requiredPermission)
+          : true
+      );
+      return allowed.length > 0 ? allowed : undefined;
+    };
+    return (
+      (navItems as AppNavItem[])
+        .filter(it =>
+          it.requiredPermission ? hasPermission(it.requiredPermission) : true
+        )
+        .map(it => ({ ...it, items: filterChildren(it.items) }))
+        // Drop a top-level item if all of its sub-items were filtered out.
+        .filter(it => {
+          if (!it.requiredPermission) return true;
+          const original = (navItems as AppNavItem[]).find(
+            n => n.url === it.url
+          );
+          if (!original?.items || original.items.length === 0) return true;
+          return Boolean(it.items && it.items.length > 0);
+        })
+    );
+  }, [hasPermission]);
 
   React.useEffect(() => {
     const onBinChange = () => {

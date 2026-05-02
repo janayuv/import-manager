@@ -18,7 +18,7 @@ import {
   fetchUserActivityLogs,
   type UserActivityAuditLog,
 } from '@/lib/user-activity-audit';
-import { useUser } from '@/lib/user-context';
+import { useUser, useHasPermission } from '@/lib/user-context';
 
 function UserActivityDetailsCell({ raw }: { raw: string | null }) {
   if (!raw) return <>—</>;
@@ -44,7 +44,7 @@ function UserActivityDetailsCell({ raw }: { raw: string | null }) {
 
 export default function AdminUserActivityPage() {
   const { user } = useUser();
-  const isAdmin = user?.role?.toLowerCase().includes('admin') ?? false;
+  const isAdmin = useHasPermission('admin.user_activity');
 
   const [pageSize, setPageSize] = useState(50);
   const [pageIndex, setPageIndex] = useState(0);
@@ -166,6 +166,7 @@ export default function AdminUserActivityPage() {
                 <TableHead>Entity Type</TableHead>
                 <TableHead>Entity ID</TableHead>
                 <TableHead>Details / correlation</TableHead>
+                <TableHead>Severity</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -173,7 +174,7 @@ export default function AdminUserActivityPage() {
               {rows.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="text-muted-foreground text-center"
                   >
                     No rows. Adjust filters and apply.
@@ -199,6 +200,9 @@ export default function AdminUserActivityPage() {
                     </TableCell>
                     <TableCell className="max-w-[280px] truncate text-xs">
                       <UserActivityDetailsCell raw={r.detailsJson} />
+                    </TableCell>
+                    <TableCell className="max-w-[100px] truncate text-xs">
+                      {r.severity ?? 'INFO'}
                     </TableCell>
                     <TableCell className="max-w-[120px] truncate text-xs">
                       {r.status}

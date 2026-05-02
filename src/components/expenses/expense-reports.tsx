@@ -1130,7 +1130,11 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                       <CardTitle>Bar Chart</CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <ResponsiveContainer width="100%" height={300}>
+                      <ResponsiveContainer
+                        width="100%"
+                        height={300}
+                        minWidth={0}
+                      >
                         <BarChart
                           data={
                             chartData as {
@@ -1163,7 +1167,11 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                         <CardTitle>Pie Chart</CardTitle>
                       </CardHeader>
                       <CardContent>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer
+                          width="100%"
+                          height={300}
+                          minWidth={0}
+                        >
                           <PieChart>
                             <Pie
                               data={pieChartData}

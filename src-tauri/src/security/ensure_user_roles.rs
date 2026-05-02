@@ -1,7 +1,7 @@
 use rusqlite::{Connection, Result};
 
-/// Ensures the `user_roles` table exists with the same shape as migration `V4__db_management.sql`.
-/// Safe to call on every permission check; uses `IF NOT EXISTS`.
+/// Ensures the `user_roles` table exists with the post-V72 shape (`created_by`,
+/// `updated_by` audit columns included). Safe to call on every permission check.
 pub fn ensure_user_roles_table(conn: &Connection) -> Result<()> {
     conn.execute_batch(
         r#"
@@ -10,6 +10,8 @@ pub fn ensure_user_roles_table(conn: &Connection) -> Result<()> {
             user_id TEXT NOT NULL UNIQUE,
             role TEXT NOT NULL,
             permissions TEXT,
+            created_by TEXT,
+            updated_by TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         );

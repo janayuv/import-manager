@@ -34,7 +34,7 @@ const stubItems: Record<string, unknown>[] = [];
 const stubBoes: Record<string, unknown>[] = [];
 
 /** Mirrors Tauri `DesktopSessionState` for login / ProtectedRoute. */
-let playwrightDesktopSession: {
+type PlaywrightDesktopSessionStub = {
   userId: string;
   username: string;
   name: string;
@@ -42,7 +42,12 @@ let playwrightDesktopSession: {
   role: string;
   expiresAtRfc3339: string;
   sessionId: string;
-} | null = null;
+};
+
+let playwrightDesktopSession: PlaywrightDesktopSessionStub | null = null;
+
+/** Persists stub desktop session across full navigations (`page.goto`), which re-execute this module. */
+const PW_DESKTOP_SESSION_KEY = '__import_manager_pw_desktop_session__';
 
 /** Persists stub live DB across `page.reload()` in Playwright (in-memory module resets on reload). */
 const PW_LIVE_DB_SESSION_KEY = '__import_manager_pw_live_snapshot__';
@@ -118,6 +123,56 @@ function tryHydrateLiveDbFromSession(): void {
   }
 }
 
+function persistPlaywrightDesktopSession(): void {
+  if (
+    import.meta.env.VITE_PLAYWRIGHT !== '1' ||
+    typeof window === 'undefined'
+  ) {
+    return;
+  }
+  try {
+    if (playwrightDesktopSession) {
+      sessionStorage.setItem(
+        PW_DESKTOP_SESSION_KEY,
+        JSON.stringify(playwrightDesktopSession)
+      );
+    } else {
+      sessionStorage.removeItem(PW_DESKTOP_SESSION_KEY);
+    }
+  } catch {
+    /* ignore quota / private mode */
+  }
+}
+
+function tryHydratePlaywrightDesktopSessionFromStorage(): void {
+  if (
+    import.meta.env.VITE_PLAYWRIGHT !== '1' ||
+    typeof window === 'undefined'
+  ) {
+    return;
+  }
+  if (playwrightDesktopSession) return;
+  try {
+    const raw = sessionStorage.getItem(PW_DESKTOP_SESSION_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw) as PlaywrightDesktopSessionStub;
+    if (
+      parsed &&
+      typeof parsed.userId === 'string' &&
+      typeof parsed.expiresAtRfc3339 === 'string'
+    ) {
+      const expMs = Date.parse(parsed.expiresAtRfc3339);
+      if (Number.isFinite(expMs) && expMs > Date.now()) {
+        playwrightDesktopSession = parsed;
+      } else {
+        sessionStorage.removeItem(PW_DESKTOP_SESSION_KEY);
+      }
+    }
+  } catch {
+    sessionStorage.removeItem(PW_DESKTOP_SESSION_KEY);
+  }
+}
+
 const stubExpenseTypes: Record<string, unknown>[] = [
   {
     id: 'et-customs',
@@ -178,7 +233,14 @@ const stubBackupHistoryList: Array<{
   created_at: string;
   status: string;
   notes?: string;
+  validation_status?: string | null;
+  validation_checked_at?: string | null;
+  restore_simulation_status?: string | null;
+  restore_simulation_checked_at?: string | null;
 }> = [];
+
+let stubBackupRedundancyEnabled = false;
+let stubBackupRedundancyPath = '';
 
 function expenseLineCount(): number {
   let n = 0;
@@ -408,10 +470,24 @@ export async function invoke<T = unknown>(
         sessionId: `pw-session-${Date.now()}`,
       };
       playwrightDesktopSession = session;
+      persistPlaywrightDesktopSession();
       return session as T;
     }
     case 'get_desktop_session':
+      tryHydratePlaywrightDesktopSessionFromStorage();
       return (playwrightDesktopSession ?? null) as T;
+    case 'is_recovery_mode_active':
+      return false as T;
+    case 'get_recovery_mode_status':
+      return {
+        active: false,
+        activationHint:
+          'Launch with --recovery or IMPORT_MANAGER_RECOVERY=1 for emergency access.',
+      } as T;
+    case 'recovery_clear_lockout':
+    case 'recovery_reset_security_policy':
+    case 'recovery_set_admin_password':
+      return undefined as T;
     case 'export_diagnostics_bundle':
       return undefined as T;
     case 'rebuild_dashboard_snapshots':
@@ -425,6 +501,7 @@ export async function invoke<T = unknown>(
       } as T;
     case 'clear_desktop_session':
       playwrightDesktopSession = null;
+      persistPlaywrightDesktopSession();
       return undefined as T;
     case 'get_invoice_calculation_settings':
       return loadStubInvoiceCalculationSettings() as T;
@@ -524,6 +601,37 @@ export async function invoke<T = unknown>(
     }
     case 'get_shipments':
       return stubShipments.map(s => ({ ...s })) as T;
+    case 'get_shipments_paginated': {
+      const a = args as {
+        page?: number;
+        pageSize?: number;
+        status?: string | null;
+        supplierId?: string | null;
+        supplier_id?: string | null;
+        overdueOnly?: boolean | null;
+        boeMissingOnly?: boolean | null;
+        expenseMissingOnly?: boolean | null;
+      };
+      const page = Math.max(1, Number(a.page ?? 1));
+      const pageSize = Math.max(1, Math.min(500, Number(a.pageSize ?? 50)));
+      let rows = stubShipments.map(s => ({ ...s }));
+      const statusFilter = a.status;
+      if (statusFilter && String(statusFilter) !== 'All') {
+        rows = rows.filter(
+          s => String(s.status ?? '') === String(statusFilter)
+        );
+      }
+      const supplierId = a.supplierId ?? a.supplier_id;
+      if (supplierId && String(supplierId).trim()) {
+        rows = rows.filter(
+          s => String(s.supplierId ?? '') === String(supplierId)
+        );
+      }
+      const totalCount = rows.length;
+      const start = (page - 1) * pageSize;
+      const data = rows.slice(start, start + pageSize);
+      return { data, totalCount } as T;
+    }
     case 'get_active_shipments':
       return stubShipments.filter(s => !s.isFrozen).map(s => ({ ...s })) as T;
     case 'get_unfinalized_shipments':
@@ -687,6 +795,16 @@ export async function invoke<T = unknown>(
       return undefined as T;
     case 'get_boes':
       return stubBoes.map(b => ({ ...b })) as T;
+    case 'get_boes_paginated': {
+      const a = args as { page?: number; pageSize?: number };
+      const page = Math.max(1, Number(a.page ?? 1));
+      const pageSize = Math.max(1, Math.min(500, Number(a.pageSize ?? 50)));
+      const rows = stubBoes.map(b => ({ ...b }));
+      const totalCount = rows.length;
+      const start = (page - 1) * pageSize;
+      const data = rows.slice(start, start + pageSize);
+      return { data, totalCount } as T;
+    }
     case 'add_boe': {
       const payload = (args?.payload ?? args?.boe) as
         | Record<string, unknown>
@@ -1493,6 +1611,76 @@ export async function invoke<T = unknown>(
       const list = stubBackupHistoryList.map(b => ({ ...b }));
       return (limit !== undefined ? list.slice(0, limit) : list) as T;
     }
+    case 'get_backup_redundancy_settings':
+      return {
+        enabled: stubBackupRedundancyEnabled,
+        secondaryPath: stubBackupRedundancyPath,
+      } as T;
+    case 'set_backup_redundancy_settings': {
+      const inp = (
+        args as {
+          input?: { enabled?: boolean; secondaryPath?: string };
+        }
+      )?.input;
+      stubBackupRedundancyEnabled = Boolean(inp?.enabled);
+      stubBackupRedundancyPath = String(inp?.secondaryPath ?? '').trim();
+      return undefined as T;
+    }
+    case 'get_backup_health_metrics': {
+      const localCompleted = stubBackupHistoryList.filter(
+        b => b.destination === 'local' && b.status === 'completed'
+      );
+      const latest = localCompleted[0];
+      const now = Date.now();
+      const backupAgeHours =
+        latest?.created_at != null
+          ? (now - new Date(latest.created_at).getTime()) / 3_600_000
+          : null;
+      const alerts: string[] = [];
+      if (backupAgeHours != null && backupAgeHours > 192) {
+        alerts.push(
+          `Latest local backup is ${backupAgeHours.toFixed(
+            1
+          )} hours old — verify schedules.`
+        );
+      }
+      if (!latest) {
+        alerts.push('No completed local backups recorded.');
+      }
+      const lastVal = latest?.validation_status ?? null;
+      const lastRs = latest?.restore_simulation_status ?? null;
+      if (lastVal === 'failed') {
+        alerts.push('Latest backup failed automated validation.');
+      }
+      if (lastRs === 'failed') {
+        alerts.push('Latest backup failed restore simulation.');
+      }
+      if (
+        lastVal === 'ok' &&
+        lastRs == null &&
+        latest?.restore_simulation_checked_at == null
+      ) {
+        alerts.push(
+          'Restore simulation not recorded yet for latest backup (may still be running).'
+        );
+      }
+      return {
+        lastBackupTime: latest?.created_at ?? null,
+        latestLocalBackupId: latest?.id ?? null,
+        latestLocalBackupFilename: latest?.filename ?? null,
+        latestLocalBackupCreatedAt: latest?.created_at ?? null,
+        latestLocalBackupSizeBytes: latest?.size_bytes ?? null,
+        backupAgeHours,
+        lastValidationStatus: latest?.validation_status ?? null,
+        lastValidationAt: latest?.validation_checked_at ?? null,
+        lastRestoreSimulationStatus: latest?.restore_simulation_status ?? null,
+        lastRestoreSimulationAt: latest?.restore_simulation_checked_at ?? null,
+        alerts,
+        secondaryRedundancyEnabled: stubBackupRedundancyEnabled,
+        secondaryRedundancyPath: stubBackupRedundancyPath,
+        sizeTrendNote: null,
+      } as T;
+    }
     case 'google_drive_status':
       return {
         configured: true,
@@ -1538,15 +1726,20 @@ export async function invoke<T = unknown>(
           : `import-manager-backup-${id}.db`;
       const path = `playwright-stub://${encodeURIComponent(filename)}`;
       stubBackupSnapshots.set(path, snapshot);
+      const ts = new Date().toISOString();
       const info = {
         id,
         filename,
         path,
         destination: String(req.destination ?? 'local'),
         size_bytes: snapshot.length,
-        created_at: new Date().toISOString(),
+        created_at: ts,
         status: 'completed',
         notes: typeof req.notes === 'string' ? req.notes : undefined,
+        validation_status: 'ok' as const,
+        validation_checked_at: ts,
+        restore_simulation_status: 'ok' as const,
+        restore_simulation_checked_at: ts,
       };
       stubBackupHistoryList.unshift(info);
       return info as T;
@@ -1759,6 +1952,11 @@ export async function invoke<T = unknown>(
           created_at: meta?.created_at ?? new Date().toISOString(),
           status: 'completed',
           size_bytes: snapBytes,
+          validation_status: meta?.validation_status ?? 'ok',
+          validation_checked_at: meta?.validation_checked_at ?? null,
+          restore_simulation_status: meta?.restore_simulation_status ?? 'ok',
+          restore_simulation_checked_at:
+            meta?.restore_simulation_checked_at ?? null,
         },
         backup_file_size_bytes: snapBytes,
         estimated_restore_seconds: (snapBytes / 1_000_000) * 0.02,
@@ -1767,6 +1965,9 @@ export async function invoke<T = unknown>(
         recorded_hash_match: true,
         integrity_check: 'Backup readable; integrity OK (Playwright stub).',
         schema_compatibility: true,
+        embedded_migration_head_version: 75,
+        backup_migration_max_version: 75,
+        missing_core_tables: [] as string[],
         estimated_changes: {},
         warnings: [] as string[],
       } as T;
@@ -1779,14 +1980,19 @@ export async function invoke<T = unknown>(
       const filename = `e2e-uploaded-backup-${id}.json`;
       const path = `playwright-stub://upload-${id}`;
       stubBackupSnapshots.set(path, snapshotJson);
+      const ts = new Date().toISOString();
       stubBackupHistoryList.unshift({
         id,
         filename,
         path,
         destination: 'local',
         size_bytes: snapshotJson.length,
-        created_at: new Date().toISOString(),
+        created_at: ts,
         status: 'completed',
+        validation_status: 'ok',
+        validation_checked_at: ts,
+        restore_simulation_status: 'ok',
+        restore_simulation_checked_at: ts,
       });
       return { backupPath: path } as T;
     }
@@ -1844,6 +2050,7 @@ type InvokeFn = <T = unknown>(
 ) => Promise<T>;
 
 tryHydrateLiveDbFromSession();
+tryHydratePlaywrightDesktopSessionFromStorage();
 /** After a full page reload, repopulate job-governance stub state (not part of live DB snapshot). */
 if (import.meta.env.VITE_PLAYWRIGHT === '1') {
   initOperationalReliabilityStub();

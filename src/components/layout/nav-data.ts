@@ -4,6 +4,7 @@ import {
   CircleDollarSign,
   Database,
   FileText,
+  KeyRound,
   Landmark,
   LayoutDashboard,
   Package,
@@ -16,15 +17,18 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
+import type { Permission } from '@/lib/permissions';
+
 export type AppNavItem = {
   title: string;
   url: string;
   icon: LucideIcon;
-  items?: { title: string; url: string }[];
-  /** When true, link is shown only to users with an admin role. */
-  adminOnly?: boolean;
-  /** Automation console: admin, automation manager, or viewer. */
-  automationConsole?: boolean;
+  items?: { title: string; url: string; requiredPermission?: Permission }[];
+  /**
+   * When set, the item (and its sub-items unless they override it) is shown
+   * only to users whose effective role grants this permission.
+   */
+  requiredPermission?: Permission;
 };
 
 export const navItems: AppNavItem[] = [
@@ -91,23 +95,69 @@ export const navItems: AppNavItem[] = [
     title: 'Administration',
     url: '/admin/activity-log',
     icon: Shield,
-    adminOnly: true,
+    requiredPermission: 'admin.activity_log',
     items: [
-      { title: 'Activity log', url: '/admin/activity-log' },
-      { title: 'User activity', url: '/admin/user-activity' },
-      { title: 'System health', url: '/admin/system-health' },
-      { title: 'System tools', url: '/admin/system-tools' },
+      {
+        title: 'Activity log',
+        url: '/admin/activity-log',
+        requiredPermission: 'admin.activity_log',
+      },
+      {
+        title: 'User activity',
+        url: '/admin/user-activity',
+        requiredPermission: 'admin.user_activity',
+      },
+      {
+        title: 'System health',
+        url: '/admin/system-health',
+        requiredPermission: 'admin.system_health',
+      },
+      {
+        title: 'System tools',
+        url: '/admin/system-tools',
+        requiredPermission: 'admin.system_tools',
+      },
+    ],
+  },
+  {
+    title: 'Security',
+    url: '/admin/security-center',
+    icon: KeyRound,
+    requiredPermission: 'security.session_read',
+    items: [
+      {
+        title: 'Security center',
+        url: '/admin/security-center',
+        requiredPermission: 'security.session_read',
+      },
+      {
+        title: 'Roles & permissions',
+        url: '/admin/roles-permissions',
+        requiredPermission: 'role.read',
+      },
     ],
   },
   {
     title: 'Automation & operations',
     url: '/admin/automation-center',
     icon: Bot,
-    automationConsole: true,
+    requiredPermission: 'automation.view',
     items: [
-      { title: 'Automation center', url: '/admin/automation-center' },
-      { title: 'Rule console', url: '/admin/automation-rules' },
-      { title: 'Operations center', url: '/admin/operations-center' },
+      {
+        title: 'Automation center',
+        url: '/admin/automation-center',
+        requiredPermission: 'automation.view',
+      },
+      {
+        title: 'Rule console',
+        url: '/admin/automation-rules',
+        requiredPermission: 'automation.view',
+      },
+      {
+        title: 'Operations center',
+        url: '/admin/operations-center',
+        requiredPermission: 'automation.ops_center',
+      },
     ],
   },
   {

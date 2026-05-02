@@ -18,11 +18,10 @@ import {
   queryDashboardActivityLog,
   type DashboardActivityRow,
 } from '@/lib/dashboard-activity';
-import { useCurrentUserId, useUser } from '@/lib/user-context';
+import { useCurrentUserId, useHasPermission } from '@/lib/user-context';
 
 export default function AdminActivityLogPage() {
-  const { user } = useUser();
-  const isAdmin = user?.role?.toLowerCase().includes('admin') ?? false;
+  const isAdmin = useHasPermission('admin.activity_log');
 
   const [userId, setUserId] = useState('');
   const [actionType, setActionType] = useState('');

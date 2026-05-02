@@ -11,6 +11,7 @@ import {
 } from 'react-router-dom';
 
 import { AsyncErrorBoundary, ErrorBoundary } from '@/components/error-boundary';
+import { RequirePermission } from '@/components/auth/RequirePermission';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { ThemeProvider } from '@/components/layout/theme-provider';
 // Corrected import name
@@ -64,6 +65,10 @@ const AdminSystemHealthPage = lazy(() => import('@/pages/admin/system-health'));
 const AdminSystemToolsPage = lazy(() => import('@/pages/admin/system-tools'));
 const AdminAutomationCenterPage = lazy(
   () => import('@/pages/admin/automation-center')
+);
+const SecurityCenterPage = lazy(() => import('@/pages/admin/security-center'));
+const RolesPermissionsPage = lazy(
+  () => import('@/pages/admin/roles-permissions')
 );
 
 function RouteLoadingSpinner() {
@@ -293,33 +298,89 @@ function App() {
                               element={<DatabaseManagement />}
                             />
                             <Route
-                              path="/admin/activity-log"
-                              element={<AdminActivityLogPage />}
-                            />
+                              element={
+                                <RequirePermission permission="admin.activity_log" />
+                              }
+                            >
+                              <Route
+                                path="/admin/activity-log"
+                                element={<AdminActivityLogPage />}
+                              />
+                            </Route>
                             <Route
-                              path="/admin/user-activity"
-                              element={<AdminUserActivityPage />}
-                            />
+                              element={
+                                <RequirePermission permission="admin.user_activity" />
+                              }
+                            >
+                              <Route
+                                path="/admin/user-activity"
+                                element={<AdminUserActivityPage />}
+                              />
+                            </Route>
                             <Route
-                              path="/admin/system-health"
-                              element={<AdminSystemHealthPage />}
-                            />
+                              element={
+                                <RequirePermission permission="admin.system_health" />
+                              }
+                            >
+                              <Route
+                                path="/admin/system-health"
+                                element={<AdminSystemHealthPage />}
+                              />
+                            </Route>
                             <Route
-                              path="/admin/system-tools"
-                              element={<AdminSystemToolsPage />}
-                            />
+                              element={
+                                <RequirePermission permission="admin.system_tools" />
+                              }
+                            >
+                              <Route
+                                path="/admin/system-tools"
+                                element={<AdminSystemToolsPage />}
+                              />
+                            </Route>
                             <Route
-                              path="/admin/automation-center"
-                              element={<AdminAutomationCenterPage />}
-                            />
+                              element={
+                                <RequirePermission permission="automation.view" />
+                              }
+                            >
+                              <Route
+                                path="/admin/automation-center"
+                                element={<AdminAutomationCenterPage />}
+                              />
+                              <Route
+                                path="/admin/automation-rules"
+                                element={<AutomationRulesAdminPage />}
+                              />
+                            </Route>
                             <Route
-                              path="/admin/automation-rules"
-                              element={<AutomationRulesAdminPage />}
-                            />
+                              element={
+                                <RequirePermission permission="automation.ops_center" />
+                              }
+                            >
+                              <Route
+                                path="/admin/operations-center"
+                                element={<OperationsCenterPage />}
+                              />
+                            </Route>
                             <Route
-                              path="/admin/operations-center"
-                              element={<OperationsCenterPage />}
-                            />
+                              element={
+                                <RequirePermission permission="security.session_read" />
+                              }
+                            >
+                              <Route
+                                path="/admin/security-center"
+                                element={<SecurityCenterPage />}
+                              />
+                            </Route>
+                            <Route
+                              element={
+                                <RequirePermission permission="role.read" />
+                              }
+                            >
+                              <Route
+                                path="/admin/roles-permissions"
+                                element={<RolesPermissionsPage />}
+                              />
+                            </Route>
                             <Route
                               path="/recycle-bin"
                               element={<RecycleBin />}

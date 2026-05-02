@@ -20,10 +20,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { canViewAutomationConsole } from '@/lib/automation-console';
 import { formatAppDateTime } from '@/lib/app-timezone';
 import { getSystemHealthMetrics } from '@/lib/system-health';
-import { useUser } from '@/lib/user-context';
+import { useHasPermission } from '@/lib/user-context';
 
 function formatMs(ms: number | null | undefined): string {
   if (ms == null) return '—';
@@ -31,9 +30,7 @@ function formatMs(ms: number | null | undefined): string {
 }
 
 export default function AdminAutomationCenterPage() {
-  const { user } = useUser();
-  const role = user?.role ?? '';
-  const viewOk = canViewAutomationConsole(role);
+  const viewOk = useHasPermission('automation.view');
 
   const healthQ = useQuery({
     queryKey: ['admin-automation-center-health'] as const,

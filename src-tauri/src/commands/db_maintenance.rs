@@ -6,6 +6,9 @@ use rusqlite::{params, Connection};
 
 const LAST_MAINTENANCE_KEY: &str = "last_database_maintenance";
 const MAINTENANCE_INTERVAL: i64 = 7;
+const LAST_WAL_CHECKPOINT_KEY: &str = "last_wal_checkpoint_passive";
+/// Passive WAL checkpoint at most every 6 hours (background tick; does not block writers).
+const WAL_CHECKPOINT_INTERVAL_HOURS: i64 = 6;
 
 fn parse_last_maintenance_utc(s: &str) -> Option<DateTime<Utc>> {
     let t = s.trim();
@@ -26,7 +29,7 @@ fn parse_last_maintenance_utc(s: &str) -> Option<DateTime<Utc>> {
         .and_then(|d| d.and_hms_opt(0, 0, 0).map(|dt| dt.and_utc()))
 }
 
-fn should_run_maintenance(last_value: Option<String>) -> bool {
+fn should_run_interval_hours(last_value: Option<String>, interval_hours: i64) -> bool {
     let Some(s) = last_value else {
         return true;
     };
@@ -37,7 +40,11 @@ fn should_run_maintenance(last_value: Option<String>) -> bool {
     let Some(last) = parse_last_maintenance_utc(t) else {
         return true;
     };
-    Utc::now().signed_duration_since(last) > Duration::days(MAINTENANCE_INTERVAL)
+    Utc::now().signed_duration_since(last) > Duration::hours(interval_hours)
+}
+
+fn should_run_maintenance(last_value: Option<String>) -> bool {
+    should_run_interval_hours(last_value, MAINTENANCE_INTERVAL * 24)
 }
 
 /// Runs [ANALYZE] and [VACUUM] if [LAST_MAINTENANCE_KEY] is missing, empty, invalid, or older
@@ -71,6 +78,37 @@ pub fn run_database_maintenance(conn: &Connection) -> Result<(), String> {
         target: "import_manager::database",
         "Database maintenance completed"
     );
+    Ok(())
+}
+
+/// Runs `PRAGMA wal_checkpoint(PASSIVE)` when the last run (metadata) is older than
+/// [WAL_CHECKPOINT_INTERVAL_HOURS]. Safe to call from a background tick.
+pub fn run_passive_wal_checkpoint_if_due(conn: &Connection) -> Result<(), String> {
+    let last: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = ?1",
+            params![LAST_WAL_CHECKPOINT_KEY],
+            |r| r.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    if !should_run_interval_hours(last, WAL_CHECKPOINT_INTERVAL_HOURS) {
+        return Ok(());
+    }
+
+    conn.execute_batch("PRAGMA wal_checkpoint(PASSIVE);")
+        .map_err(|e| e.to_string())?;
+
+    let now = Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) \
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![LAST_WAL_CHECKPOINT_KEY, now],
+    )
+    .map_err(|e| e.to_string())?;
+
+    log::debug!(target: "import_manager::database", "Passive WAL checkpoint completed");
     Ok(())
 }
 

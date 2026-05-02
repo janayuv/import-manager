@@ -1,6 +1,8 @@
+import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -13,7 +15,12 @@ import {
 import { Input } from '@/components/ui/input';
 import { getCurrentUser, setAuthenticated } from '@/lib/auth';
 import type { User } from '@/lib/auth';
-import { useUser } from '@/lib/user-context';
+import { ipcErrorMessage } from '@/lib/ipc-error';
+import {
+  useCurrentUserId,
+  useHasPermission,
+  useUser,
+} from '@/lib/user-context';
 
 export const AccountDetailsPage = () => {
   const [user] = useState<User | null>(getCurrentUser());
@@ -146,24 +153,72 @@ export const AccountUpdatePage = () => {
 };
 
 export const AccountPasswordPage = () => {
+  const navigate = useNavigate();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
   const [confirm, setConfirm] = useState('');
-  const change = () => {
-    if (next.length < 6)
-      return toast.error('Password must be at least 6 characters');
-    if (next !== confirm) return toast.error('Passwords do not match');
-    // In a real app, call backend to change password
-    toast.success('Password changed');
-    setCurrent('');
-    setNext('');
-    setConfirm('');
+  const [busy, setBusy] = useState(false);
+  const callerUserId = useCurrentUserId();
+  const canChangePassword = useHasPermission('security.change_password');
+
+  const change = async () => {
+    if (next.length < 12) {
+      toast.error('Password must be at least 12 characters');
+      return;
+    }
+    if (next !== confirm) {
+      toast.error('Passwords do not match');
+      return;
+    }
+    setBusy(true);
+    try {
+      await invoke('change_admin_password', {
+        callerUserId,
+        currentPassword: current,
+        newPassword: next,
+      });
+      toast.success('Password updated. Use the new password next time.');
+      setCurrent('');
+      setNext('');
+      setConfirm('');
+    } catch (e) {
+      toast.error(ipcErrorMessage(e, 'Failed to change password.'));
+    } finally {
+      setBusy(false);
+    }
   };
+
+  if (!canChangePassword) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardHeader>
+            <CardTitle>Change Password</CardTitle>
+            <CardDescription>
+              Your role does not include `security.change_password`.
+            </CardDescription>
+          </CardHeader>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="container mx-auto p-6">
       <Card>
         <CardHeader>
           <CardTitle>Change Password</CardTitle>
+          <CardDescription>
+            Open the{' '}
+            <button
+              type="button"
+              className="text-primary underline-offset-2 hover:underline"
+              onClick={() => navigate('/admin/security-center')}
+            >
+              security center
+            </button>{' '}
+            for the full session, lockout, and audit view.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div>
@@ -172,6 +227,8 @@ export const AccountPasswordPage = () => {
               type="password"
               value={current}
               onChange={e => setCurrent(e.target.value)}
+              autoComplete="current-password"
+              disabled={busy}
             />
           </div>
           <div>
@@ -180,6 +237,8 @@ export const AccountPasswordPage = () => {
               type="password"
               value={next}
               onChange={e => setNext(e.target.value)}
+              autoComplete="new-password"
+              disabled={busy}
             />
           </div>
           <div>
@@ -188,9 +247,13 @@ export const AccountPasswordPage = () => {
               type="password"
               value={confirm}
               onChange={e => setConfirm(e.target.value)}
+              autoComplete="new-password"
+              disabled={busy}
             />
           </div>
-          <Button onClick={change}>Update Password</Button>
+          <Button onClick={() => void change()} disabled={busy}>
+            {busy ? 'Updating…' : 'Update Password'}
+          </Button>
         </CardContent>
       </Card>
     </div>

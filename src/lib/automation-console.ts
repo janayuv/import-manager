@@ -93,22 +93,22 @@ export type AutomationGuardrailsInput = {
   automationPauseDurationMinutes?: number;
 };
 
+import { roleStringHas } from './permissions';
+
 export function normalizeAutomationRole(role: string): string {
   return role.replace(/\s+/g, '').toLowerCase();
 }
 
 export function canViewAutomationConsole(role: string | undefined): boolean {
-  const n = normalizeAutomationRole(role ?? '');
-  return (
-    n.includes('admin') ||
-    n.includes('automationmanager') ||
-    n.includes('viewer')
-  );
+  return roleStringHas(role, 'automation.view');
 }
 
 export function canMutateAutomationRules(role: string | undefined): boolean {
-  const n = normalizeAutomationRole(role ?? '');
-  return n.includes('admin') || n.includes('automationmanager');
+  return roleStringHas(role, 'automation.mutate');
+}
+
+export function canAccessOpsCenter(role: string | undefined): boolean {
+  return roleStringHas(role, 'automation.ops_center');
 }
 
 export async function listWorkflowDecisionRules(

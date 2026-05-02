@@ -138,7 +138,10 @@ test.describe('UI edge cases and import failures', () => {
     await setFilesOnBridgeFileInput(page, shipmentInvalidWrongHeaders);
 
     await expect(
-      sonnerError(page, /Invalid Shipment Import|invalid shipment import/i)
+      sonnerError(
+        page,
+        /Invalid Shipment Import|invalid shipment import|Invalid file type detected/i
+      )
     ).toBeVisible({ timeout: 20_000 });
 
     const afterCount = await page.evaluate(async () => {

@@ -81,7 +81,7 @@ import {
 } from '@/components/ui/table';
 import { formatDateForDisplay } from '@/lib/date-format';
 import { ipcErrorMessage } from '@/lib/ipc-error';
-import { useUser } from '@/lib/user-context';
+import { useUser, useHasPermission } from '@/lib/user-context';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type {
   DashboardMetricsFilters,
@@ -427,6 +427,7 @@ const DashboardPage = () => {
     useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const { user } = useUser();
+  const canViewAdminPanels = useHasPermission('admin.activity_log');
 
   const [moduleFilter, setModuleFilter] = useState<ModuleFilter>('all');
   const [timeframe, setTimeframe] = useState<Timeframe>('monthly');
@@ -1150,7 +1151,7 @@ const DashboardPage = () => {
         </div>
       )}
 
-      {user?.role?.toLowerCase().includes('admin') && (
+      {canViewAdminPanels && (
         <div className="grid gap-4">
           <WorkflowObservabilityAdminCard refreshKey={metrics?.snapshotAt} />
           <WorkflowAlertSignalsPanel
@@ -1413,7 +1414,11 @@ const DashboardPage = () => {
                 <div className="flex min-h-0 flex-col space-y-2">
                   <h3 className="text-sm font-medium">Total shipments trend</h3>
                   <div className="h-[220px] min-h-0 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={0}
+                    >
                       <LineChart data={trendLinePoints}>
                         <XAxis
                           dataKey="dateLabel"
@@ -1442,7 +1447,11 @@ const DashboardPage = () => {
                 <div className="flex min-h-0 flex-col space-y-2">
                   <h3 className="text-sm font-medium">Duty trend</h3>
                   <div className="h-[220px] min-h-0 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={0}
+                    >
                       <LineChart data={trendLinePoints}>
                         <XAxis
                           dataKey="dateLabel"
@@ -1471,7 +1480,11 @@ const DashboardPage = () => {
                 <div className="flex min-h-0 flex-col space-y-2">
                   <h3 className="text-sm font-medium">Expense trend</h3>
                   <div className="h-[220px] min-h-0 w-full">
-                    <ResponsiveContainer width="100%" height="100%">
+                    <ResponsiveContainer
+                      width="100%"
+                      height="100%"
+                      minWidth={0}
+                    >
                       <LineChart data={trendLinePoints}>
                         <XAxis
                           dataKey="dateLabel"
@@ -1573,7 +1586,7 @@ const DashboardPage = () => {
             </CardHeader>
             <CardContent className="min-h-0 flex-1 p-4 pt-0">
               <div className="h-[360px] min-h-0 w-full">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={chartData}>
                     <XAxis
                       dataKey="name"
@@ -1619,7 +1632,7 @@ const DashboardPage = () => {
               </CardHeader>
               <CardContent className="min-h-0 flex-1 p-4 pt-0">
                 <div className="h-[160px] min-h-0 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <PieChart>
                       <Pie
                         data={statusDistribution}
@@ -1655,7 +1668,7 @@ const DashboardPage = () => {
               </CardHeader>
               <CardContent className="min-h-0 flex-1 p-4 pt-0">
                 <div className="h-[160px] min-h-0 w-full">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={invoiceTrend}>
                       <XAxis dataKey="date" hide />
                       <YAxis />

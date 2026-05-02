@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ipcErrorMessage, parseIpcError } from '@/lib/ipc-error';
 import { rebuildDashboardSnapshots } from '@/lib/ops-admin';
-import { useUser } from '@/lib/user-context';
+import { useUser, useHasPermission } from '@/lib/user-context';
 
 export default function AdminSystemToolsPage() {
   const { user } = useUser();
-  const isAdmin = user?.role?.toLowerCase().includes('admin') ?? false;
+  const isAdmin = useHasPermission('admin.system_tools');
   const [rebuilding, setRebuilding] = useState(false);
 
   const runRebuild = useCallback(async () => {

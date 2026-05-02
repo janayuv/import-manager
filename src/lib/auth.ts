@@ -1,5 +1,13 @@
 import bcrypt from 'bcryptjs';
 
+import {
+  isPermission,
+  normalizeRole,
+  permissionsFor,
+  type Permission,
+  type Role,
+} from './permissions';
+
 // Environment variables for authentication (Vite uses import.meta.env)
 // Safe fallback for when running outside of Vite environment
 const getEnvVar = (key: string, defaultValue: string = ''): string => {
@@ -33,15 +41,39 @@ export interface DesktopSessionInfo {
   expiresAtRfc3339: string;
   /** Rotates on each successful desktop login; opaque identifier for support correlation. */
   sessionId?: string;
+  lastActivityRfc3339?: string;
+  idleTimeoutMinutes?: number;
+  /** Established at successful desktop login (RFC3339). */
+  sessionStartedRfc3339?: string;
+  /** Permission keys supplied by the Rust session for this role. */
+  permissions?: string[];
+}
+
+/**
+ * Resolves the effective permission set for a user. Prefers the explicit list
+ * supplied by the Rust session; falls back to deriving from the role string.
+ */
+export function resolvePermissions(
+  role: string | null | undefined,
+  explicit?: readonly string[] | null
+): Permission[] {
+  if (explicit && explicit.length > 0) {
+    return explicit.filter(isPermission);
+  }
+  return permissionsFor(normalizeRole(role));
 }
 
 export function userFromDesktopSession(s: DesktopSessionInfo): User {
+  const canonicalRole: Role | null = normalizeRole(s.role);
+  const permissions = resolvePermissions(s.role, s.permissions);
   return {
     id: s.userId,
     username: s.username,
     name: s.name,
     email: s.email,
     role: s.role,
+    canonicalRole,
+    permissions,
     avatar: '/avatars/admin.jpg',
   };
 }
@@ -62,7 +94,12 @@ export interface User {
   username: string;
   name: string;
   email: string;
+  /** Raw role string from the backend (legacy aliases preserved for display). */
   role: string;
+  /** Canonical role parsed via `normalizeRole`; `null` when unrecognized. */
+  canonicalRole: Role | null;
+  /** Effective permissions for `canonicalRole`. */
+  permissions: Permission[];
   avatar?: string;
 }
 
@@ -111,13 +148,16 @@ export async function authenticateUser(
       };
     }
 
-    // Create user object
+    // Create user object (web-preview only; Tauri uses the Rust session).
+    const role = 'administrator';
     const user: User = {
       id: 'admin-001',
       username: username,
       name: 'Administrator',
       email: 'admin@importmanager.com',
-      role: 'admin',
+      role,
+      canonicalRole: normalizeRole(role),
+      permissions: permissionsFor(normalizeRole(role)),
       avatar: '/avatars/admin.jpg',
     };
 
@@ -161,7 +201,24 @@ export function getCurrentUser(): User | null {
   try {
     const userStr = localStorage.getItem('currentUser');
     if (!userStr) return null;
-    return JSON.parse(userStr) as User;
+    const parsed = JSON.parse(userStr) as Partial<User> & { role?: string };
+    // Backfill new fields when a pre-V72 cached user is loaded.
+    const canonicalRole =
+      parsed.canonicalRole ?? normalizeRole(parsed.role ?? null);
+    const permissions =
+      Array.isArray(parsed.permissions) && parsed.permissions.length > 0
+        ? (parsed.permissions.filter(isPermission) as Permission[])
+        : permissionsFor(canonicalRole);
+    return {
+      id: parsed.id ?? '',
+      username: parsed.username ?? '',
+      name: parsed.name ?? '',
+      email: parsed.email ?? '',
+      role: parsed.role ?? '',
+      canonicalRole,
+      permissions,
+      avatar: parsed.avatar,
+    };
   } catch (error) {
     console.error('Error parsing user data:', error);
     return null;

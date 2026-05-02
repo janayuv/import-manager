@@ -3,8 +3,11 @@
 use crate::commands::db_management::ensure_command_permission;
 use crate::correlation;
 use crate::db::DbState;
-use crate::desktop_session::DesktopSessionState;
+use crate::desktop_session::{DesktopSessionState, DEFAULT_ADMIN_USER_ID};
 use crate::migrations::{compute_schema_health, embedded_migration_head_version};
+use crate::recovery_mode::RecoveryModeState;
+use crate::security::credentials::read_password_history_depth;
+use crate::security::lockout::SecurityPolicy;
 use rusqlite::{params, OptionalExtension};
 use serde_json::json;
 use std::io::{Read, Write};
@@ -54,6 +57,197 @@ fn snapshot_cache_meta(conn: &rusqlite::Connection) -> Result<serde_json::Value,
         "dashboardKpiSnapshotRows": kpi_snap,
         "dashboardExceptionSnapshotRows": exc_snap,
         "dashboardWorkflowSnapshotRows": wf_snap,
+    }))
+}
+
+/// Security-focused metadata for operators (no password hashes or other secrets).
+fn security_metadata_for_export(
+    app: &tauri::AppHandle,
+    conn: &rusqlite::Connection,
+    correlation_id: &str,
+) -> Result<serde_json::Value, String> {
+    let active_policy = SecurityPolicy::load(conn);
+    let policy_version: i64 = conn
+        .query_row(
+            "SELECT value FROM app_settings WHERE key = 'security.policy_version'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .and_then(|s| s.trim().parse().ok())
+        .unwrap_or(0);
+
+    let latest_policy_version: Option<serde_json::Value> = conn
+        .query_row(
+            "SELECT version, changed_at, changed_by FROM security_policy_versions ORDER BY version DESC LIMIT 1",
+            [],
+            |row| {
+                Ok(json!({
+                    "version": row.get::<_, i64>(0)?,
+                    "changedAt": row.get::<_, String>(1)?,
+                    "changedBy": row.get::<_, Option<String>>(2)?,
+                }))
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let lockout_state: Option<serde_json::Value> = conn
+        .query_row(
+            "SELECT failure_count, window_started_at, locked_until, updated_at \
+             FROM auth_lockout_state WHERE lower(user_id) = lower(?1)",
+            params![DEFAULT_ADMIN_USER_ID],
+            |row| {
+                Ok(json!({
+                    "failureCount": row.get::<_, i64>(0)?,
+                    "windowStartedAt": row.get::<_, String>(1)?,
+                    "lockedUntil": row.get::<_, Option<String>>(2)?,
+                    "updatedAt": row.get::<_, String>(3)?,
+                }))
+            },
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+
+    let desktop_session_summary = app
+        .try_state::<DesktopSessionState>()
+        .and_then(|st| {
+            st.read_session().map(|info| {
+                json!({
+                    "active": true,
+                    "userId": info.user_id,
+                    "username": info.username,
+                    "role": info.role,
+                    "sessionId": info.session_id,
+                    "sessionStartedRfc3339": info.session_started_rfc3339,
+                    "expiresAtRfc3339": info.expires_at_rfc3339,
+                })
+            })
+        })
+        .unwrap_or(json!({ "active": false }));
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT action_name, timestamp, severity, status FROM user_activity_audit_logs \
+             WHERE severity IN ('CRITICAL','SECURITY') \
+             OR action_name LIKE 'security.%' \
+             OR action_name LIKE 'auth.lock%' \
+             OR action_name IN ('auth.session_terminated', 'auth.security_policy_updated') \
+             ORDER BY timestamp DESC LIMIT 120",
+        )
+        .map_err(|e| e.to_string())?;
+    let recent_security_audit: Vec<serde_json::Value> = stmt
+        .query_map([], |row| {
+            let sev = row
+                .get::<_, Option<String>>(2)?
+                .unwrap_or_else(|| "INFO".to_string());
+            Ok(json!({
+                "actionName": row.get::<_, String>(0)?,
+                "timestamp": row.get::<_, String>(1)?,
+                "severity": sev,
+                "status": row.get::<_, String>(3)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(json!({
+        "correlationId": correlation_id,
+        "exportedAt": chrono::Utc::now().to_rfc3339(),
+        "activeSecurityPolicy": active_policy,
+        "policyVersion": policy_version,
+        "latestPolicyVersionRow": latest_policy_version,
+        "passwordHistoryDepth": read_password_history_depth(conn),
+        "lockoutState": lockout_state,
+        "desktopSessionSummary": desktop_session_summary,
+        "recentSecurityAuditTail": recent_security_audit,
+    }))
+}
+
+fn backup_recovery_summary(
+    app: &tauri::AppHandle,
+    conn: &rusqlite::Connection,
+) -> Result<serde_json::Value, String> {
+    let recovery_mode_active = app
+        .try_state::<RecoveryModeState>()
+        .map(|s| s.is_active())
+        .unwrap_or(false);
+    let last_known_good_backup_id: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = 'last_known_good_backup_id'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .filter(|s| !s.trim().is_empty());
+    let last_known_good_validation_at: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = 'last_known_good_backup_validation'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .filter(|s| !s.trim().is_empty());
+    let last_backup_time: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = 'last_backup_time'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .filter(|s| !s.trim().is_empty());
+    let last_restore_simulation_ok_at: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = 'last_restore_simulation_ok_at'",
+            [],
+            |r| r.get::<_, String>(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?
+        .filter(|s| !s.trim().is_empty());
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id, filename, path, destination, created_at, validation_status, validation_checked_at, \
+             CASE WHEN validation_message IS NULL THEN NULL ELSE substr(validation_message, 1, 400) END AS validation_message_excerpt, \
+             restore_simulation_status, restore_simulation_checked_at, \
+             CASE WHEN restore_simulation_message IS NULL THEN NULL ELSE substr(restore_simulation_message, 1, 400) END AS restore_sim_message_excerpt \
+             FROM backups ORDER BY datetime(created_at) DESC LIMIT 40",
+        )
+        .map_err(|e| e.to_string())?;
+    let recent: Vec<serde_json::Value> = stmt
+        .query_map([], |row| {
+            Ok(json!({
+                "id": row.get::<_, i64>(0)?,
+                "filename": row.get::<_, String>(1)?,
+                "path": row.get::<_, String>(2)?,
+                "destination": row.get::<_, String>(3)?,
+                "createdAt": row.get::<_, String>(4)?,
+                "validationStatus": row.get::<_, Option<String>>(5)?,
+                "validationCheckedAt": row.get::<_, Option<String>>(6)?,
+                "validationMessageExcerpt": row.get::<_, Option<String>>(7)?,
+                "restoreSimulationStatus": row.get::<_, Option<String>>(8)?,
+                "restoreSimulationCheckedAt": row.get::<_, Option<String>>(9)?,
+                "restoreSimulationMessageExcerpt": row.get::<_, Option<String>>(10)?,
+            }))
+        })
+        .map_err(|e| e.to_string())?
+        .filter_map(|r| r.ok())
+        .collect();
+
+    Ok(json!({
+        "recoveryModeActive": recovery_mode_active,
+        "recoveryActivationHint": "Use --recovery or IMPORT_MANAGER_RECOVERY=1 only for local emergency access; restart normally afterward.",
+        "lastKnownGoodBackupId": last_known_good_backup_id,
+        "lastKnownGoodValidationAt": last_known_good_validation_at,
+        "lastBackupTimeMetadata": last_backup_time,
+        "lastRestoreSimulationOkAt": last_restore_simulation_ok_at,
+        "recentBackups": recent,
     }))
 }
 
@@ -122,7 +316,7 @@ fn export_diagnostics_bundle_sync(
     let db_state = app
         .try_state::<DbState>()
         .ok_or_else(|| correlation::annotate_err(correlation_id, "Application database not ready"))?;
-    let (schema_health, snapshot_meta, safe_meta) = {
+    let (schema_health, snapshot_meta, safe_meta, security_meta, backup_recovery) = {
         let conn = db_state
             .db
             .lock()
@@ -134,7 +328,17 @@ fn export_diagnostics_bundle_sync(
             .map_err(|e| correlation::annotate_err(correlation_id, e))?;
         let safe_meta = safe_app_metadata(&conn)
             .map_err(|e| correlation::annotate_err(correlation_id, e))?;
-        (schema_health, snapshot_meta, safe_meta)
+        let security_meta = security_metadata_for_export(app, &conn, correlation_id)
+            .map_err(|e| correlation::annotate_err(correlation_id, e))?;
+        let backup_recovery = backup_recovery_summary(app, &conn)
+            .map_err(|e| correlation::annotate_err(correlation_id, e))?;
+        (
+            schema_health,
+            snapshot_meta,
+            safe_meta,
+            security_meta,
+            backup_recovery,
+        )
     };
 
     let log_dir = app
@@ -151,6 +355,11 @@ fn export_diagnostics_bundle_sync(
         "family": std::env::consts::FAMILY,
     });
 
+    let recovery_mode_active = app
+        .try_state::<RecoveryModeState>()
+        .map(|s| s.is_active())
+        .unwrap_or(false);
+
     let manifest = json!({
         "correlationId": correlation_id,
         "appVersion": native_ver,
@@ -163,6 +372,9 @@ fn export_diagnostics_bundle_sync(
         "environment": env_summary,
         "safeAppMetadata": safe_meta,
         "snapshotAndCache": snapshot_meta,
+        "securityMetadata": "security/security_metadata.json",
+        "recoveryModeActive": recovery_mode_active,
+        "backupRecoverySummary": "recovery/backup_recovery_summary.json",
         "logNote": "app.log is tail-only when file exceeds 2 MiB",
     });
 
@@ -188,6 +400,24 @@ fn export_diagnostics_bundle_sync(
     } else {
         zip.write_all(&log_tail).map_err(|e| e.to_string())?;
     }
+
+    zip.start_file("security/security_metadata.json", opts)
+        .map_err(|e| e.to_string())?;
+    zip.write_all(
+        serde_json::to_string_pretty(&security_meta)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+    )
+    .map_err(|e| e.to_string())?;
+
+    zip.start_file("recovery/backup_recovery_summary.json", opts)
+        .map_err(|e| e.to_string())?;
+    zip.write_all(
+        serde_json::to_string_pretty(&backup_recovery)
+            .map_err(|e| e.to_string())?
+            .as_bytes(),
+    )
+    .map_err(|e| e.to_string())?;
 
     zip.finish()
         .map_err(|e| correlation::annotate_err(correlation_id, e.to_string()))?;
