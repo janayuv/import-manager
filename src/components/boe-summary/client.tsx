@@ -885,24 +885,32 @@ export function BoeSummaryClient({
   const [pendingStatus, setPendingStatus] = React.useState<string>('');
   const [isUpdatingStatus, setIsUpdatingStatus] =
     React.useState<boolean>(false);
+  const [boeOverrides, setBoeOverrides] = React.useState<
+    Record<string, Partial<SavedBoe>>
+  >({});
+
+  const mergedSavedBoes = React.useMemo(
+    () => savedBoes.map(boe => ({ ...boe, ...(boeOverrides[boe.id] ?? {}) })),
+    [savedBoes, boeOverrides]
+  );
 
   const suppliers = React.useMemo(() => {
-    const supplierSet = new Set(savedBoes.map(boe => boe.supplierName));
+    const supplierSet = new Set(mergedSavedBoes.map(boe => boe.supplierName));
     return Array.from(supplierSet);
-  }, [savedBoes]);
+  }, [mergedSavedBoes]);
 
   const availableInvoices = React.useMemo(() => {
     if (!selectedSupplier) return [];
-    return savedBoes.filter(
+    return mergedSavedBoes.filter(
       boe =>
         boe.supplierName === selectedSupplier &&
         (statusFilter === 'All' || boe.status === statusFilter)
     );
-  }, [selectedSupplier, savedBoes, statusFilter]);
+  }, [selectedSupplier, mergedSavedBoes, statusFilter]);
 
   const selectedData = React.useMemo(() => {
     if (!selectedInvoiceId) return null;
-    const savedBoe = savedBoes.find(b => b.id === selectedInvoiceId);
+    const savedBoe = mergedSavedBoes.find(b => b.id === selectedInvoiceId);
     if (!savedBoe) return null;
     // NOTE: shipments passed earlier might exclude some; fetch fresh for summary
     const shipment = shipments.find(s => s.id === savedBoe.shipmentId) || null;
@@ -928,7 +936,7 @@ export function BoeSummaryClient({
       interest,
       customsDutyTotal,
     };
-  }, [selectedInvoiceId, savedBoes, shipments, allBoes]);
+  }, [selectedInvoiceId, mergedSavedBoes, shipments, allBoes]);
 
   React.useEffect(() => {
     // Keep local pending status in sync when selection changes
@@ -940,13 +948,47 @@ export function BoeSummaryClient({
   }, [selectedData?.savedBoe?.id, selectedData?.savedBoe?.status]);
 
   React.useEffect(() => {
-    if (!initialSavedBoeId || savedBoes.length === 0) return;
-    const b = savedBoes.find(x => x.id === initialSavedBoeId);
+    if (!initialSavedBoeId || mergedSavedBoes.length === 0) return;
+    const b = mergedSavedBoes.find(x => x.id === initialSavedBoeId);
     if (b) {
       setSelectedSupplier(b.supplierName);
       setSelectedInvoiceId(b.id);
     }
-  }, [initialSavedBoeId, savedBoes]);
+  }, [initialSavedBoeId, mergedSavedBoes]);
+
+  const shipmentQuantityMap = React.useMemo(
+    () =>
+      Object.fromEntries(
+        (selectedData?.shipment?.items ?? []).map(
+          (it: { partNo: string; qty?: number }) => [it.partNo, it.qty ?? 0]
+        )
+      ),
+    [selectedData?.shipment?.items]
+  );
+  const shipmentRatesMap = React.useMemo(
+    () =>
+      Object.fromEntries(
+        (selectedData?.shipment?.items ?? []).map(it => [
+          it.partNo,
+          {
+            bcdRate: it.actualBcdRate,
+            swsRate: it.actualSwsRate,
+            igstRate: it.actualIgstRate,
+          },
+        ])
+      ),
+    [selectedData?.shipment?.items]
+  );
+  const methodByPartMap = React.useMemo(
+    () =>
+      Object.fromEntries(
+        (selectedData?.savedBoe.itemInputs ?? []).map(ii => [
+          ii.partNo,
+          ii.calculationMethod,
+        ])
+      ),
+    [selectedData?.savedBoe.itemInputs]
+  );
 
   React.useEffect(() => {
     if (initialSavedBoeId) return;
@@ -1038,30 +1080,9 @@ export function BoeSummaryClient({
           <>
             <ItemDetailsTable
               items={selectedData.savedBoe.calculationResult.calculatedItems}
-              quantities={Object.fromEntries(
-                (selectedData.shipment?.items ?? []).map(
-                  (it: { partNo: string; qty?: number }) => [
-                    it.partNo,
-                    it.qty ?? 0,
-                  ]
-                )
-              )}
-              actualRatesByPart={Object.fromEntries(
-                (selectedData.shipment?.items ?? []).map(it => [
-                  it.partNo,
-                  {
-                    bcdRate: it.actualBcdRate,
-                    swsRate: it.actualSwsRate,
-                    igstRate: it.actualIgstRate,
-                  },
-                ])
-              )}
-              methodByPart={Object.fromEntries(
-                (selectedData.savedBoe.itemInputs ?? []).map(ii => [
-                  ii.partNo,
-                  ii.calculationMethod,
-                ])
-              )}
+              quantities={shipmentQuantityMap}
+              actualRatesByPart={shipmentRatesMap}
+              methodByPart={methodByPartMap}
             />
             <BoeSummaryTable
               assessableTotal={selectedData.assessableTotal}
@@ -1114,18 +1135,19 @@ export function BoeSummaryClient({
                       pendingStatus === selectedData.savedBoe.status
                     }
                     onClick={async () => {
-                      const idx = savedBoes.findIndex(
+                      const existing = mergedSavedBoes.find(
                         b => b.id === selectedData.savedBoe!.id
                       );
-                      if (idx < 0) return;
-
-                      const old = savedBoes[idx];
+                      if (!existing) return;
                       const next = {
-                        ...old,
+                        ...existing,
                         status: pendingStatus as SavedBoe['status'],
                       } as SavedBoe;
 
-                      savedBoes[idx] = next;
+                      setBoeOverrides(prev => ({
+                        ...prev,
+                        [next.id]: { status: next.status },
+                      }));
                       setIsUpdatingStatus(true);
                       const toastId = toast.loading('Updating status...');
                       try {
@@ -1135,7 +1157,10 @@ export function BoeSummaryClient({
                         });
                         toast.success('Status updated', { id: toastId });
                       } catch {
-                        savedBoes[idx] = old; // revert
+                        setBoeOverrides(prev => ({
+                          ...prev,
+                          [next.id]: { status: existing.status },
+                        }));
                         toast.error('Failed to update status', { id: toastId });
                       } finally {
                         setIsUpdatingStatus(false);
@@ -1237,12 +1262,12 @@ export function BoeSummaryClient({
                           }
                         );
 
-                        const idx = savedBoes.findIndex(
+                        const idx = mergedSavedBoes.findIndex(
                           b => b.id === selectedData.savedBoe.id
                         );
 
                         if (idx >= 0) {
-                          const current = savedBoes[idx];
+                          const current = mergedSavedBoes[idx];
                           const fileName =
                             srcPath.split(/\\|\//).pop() ||
                             `file-${Date.now()}`;
@@ -1260,7 +1285,10 @@ export function BoeSummaryClient({
                             attachments: [...(current.attachments ?? []), att],
                           } as SavedBoe;
 
-                          savedBoes[idx] = next;
+                          setBoeOverrides(prev => ({
+                            ...prev,
+                            [next.id]: { attachments: next.attachments },
+                          }));
 
                           await invoke('add_boe_attachment', {
                             id: next.id,

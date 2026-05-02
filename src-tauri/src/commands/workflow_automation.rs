@@ -1,9 +1,17 @@
 //! Rule-driven automation: auto-resolve, assignment, adaptive SLA, self-heal, guardrails, audit log.
+#![allow(
+    clippy::manual_clamp,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::unnecessary_cast
+)]
 
 use crate::commands::dashboard_cache;
 use crate::commands::exception_workflow::{insert_lifecycle, refresh_all_open_exception_sla};
-use crate::commands::workflow_production_observability::{log_structured_event, record_performance_timing};
 use crate::commands::workflow_multienv::{active_execution_environment_id, active_tenant_id};
+use crate::commands::workflow_production_observability::{
+    log_structured_event, record_performance_timing,
+};
 use crate::commands::workflow_rule_deployment::canary_allows_case_for_rule;
 use crate::db::DbState;
 use rusqlite::types::ToSql;
@@ -275,13 +283,9 @@ pub fn auto_resolve_exception_cases(conn: &Connection) -> Result<i32, String> {
     if enabled_rules_of_type(conn, "AUTO_RESOLVE") == 0 {
         return Ok(0);
     }
-    let max_h = meta_i64(
-        conn,
-        "automation_max_auto_resolve_per_hour",
-        40,
-    )
-    .max(1)
-    .min(500);
+    let max_h = meta_i64(conn, "automation_max_auto_resolve_per_hour", 40)
+        .max(1)
+        .min(500);
     let used = hourly_action_count(conn, "AUTO_RESOLVE")?;
     if used >= max_h {
         pause_automation(conn, "max_auto_resolve_per_hour exceeded")?;
@@ -310,7 +314,15 @@ pub fn auto_resolve_exception_cases(conn: &Connection) -> Result<i32, String> {
         if budget <= 0 {
             break;
         }
-        resolve_one_case_auto(conn, &cid, &et, &eid, &now, "rule-auto-resolve-overdue-delivered", "shipment_delivered")?;
+        resolve_one_case_auto(
+            conn,
+            &cid,
+            &et,
+            &eid,
+            &now,
+            "rule-auto-resolve-overdue-delivered",
+            "shipment_delivered",
+        )?;
         budget -= 1;
         total += 1;
     }
@@ -332,7 +344,15 @@ pub fn auto_resolve_exception_cases(conn: &Connection) -> Result<i32, String> {
         if budget <= 0 {
             break;
         }
-        resolve_one_case_auto(conn, &cid, &et, &eid, &now, "rule-auto-resolve-boe-present", "has_boe")?;
+        resolve_one_case_auto(
+            conn,
+            &cid,
+            &et,
+            &eid,
+            &now,
+            "rule-auto-resolve-boe-present",
+            "has_boe",
+        )?;
         budget -= 1;
         total += 1;
     }
@@ -644,13 +664,9 @@ pub fn run_priority_adjust_rules(conn: &Connection) -> Result<i32, String> {
     if enabled_rules_of_type(conn, "PRIORITY_ADJUST") == 0 {
         return Ok(0);
     }
-    let cap = meta_i64(
-        conn,
-        "automation_max_priority_adjust_per_cycle",
-        80,
-    )
-    .max(1)
-    .min(500);
+    let cap = meta_i64(conn, "automation_max_priority_adjust_per_cycle", 80)
+        .max(1)
+        .min(500);
     let mut n = 0i32;
     let mut stmt = conn
         .prepare(
@@ -729,8 +745,16 @@ fn repair_missing_lifecycle_events(conn: &Connection) -> Result<i64, String> {
             "resolvedAt": ra,
         })
         .to_string();
-        let ev = if st == "IGNORED" { "IGNORED" } else { "RESOLVED" };
-        let uid = if rb.is_empty() { None } else { Some(rb.as_str()) };
+        let ev = if st == "IGNORED" {
+            "IGNORED"
+        } else {
+            "RESOLVED"
+        };
+        let uid = if rb.is_empty() {
+            None
+        } else {
+            Some(rb.as_str())
+        };
         insert_lifecycle(conn, &cid, ev, uid, &det)?;
         n += 1;
     }
@@ -1683,11 +1707,7 @@ pub fn refresh_rule_safety_index_for_date(
     Ok(n)
 }
 
-fn stability_alert_recent(
-    conn: &Connection,
-    alert_type: &str,
-    hours: i64,
-) -> Result<i64, String> {
+fn stability_alert_recent(conn: &Connection, alert_type: &str, hours: i64) -> Result<i64, String> {
     let off = format!("-{hours} hours");
     let cnt: i64 = conn
         .query_row(
@@ -1971,7 +1991,12 @@ pub fn compute_automation_roi_snapshot(conn: &Connection) -> Result<(), String> 
     Ok(())
 }
 
-fn dry_run_automation_counts(conn: &Connection, auto_resolve_on: bool, auto_assign_on: bool, priority_on: bool) -> serde_json::Value {
+fn dry_run_automation_counts(
+    conn: &Connection,
+    auto_resolve_on: bool,
+    auto_assign_on: bool,
+    priority_on: bool,
+) -> serde_json::Value {
     let overdue = if auto_resolve_on {
         conn.query_row(
             "SELECT COUNT(*) FROM exception_cases c JOIN shipments s ON s.id = c.entity_id
@@ -2108,7 +2133,9 @@ pub fn simulate_multiple_rule_sets(
 }
 
 /// Rule optimization and expansion suggestions from metrics and manual resolution patterns.
-pub fn generate_rule_optimization_recommendations(conn: &Connection) -> Result<serde_json::Value, String> {
+pub fn generate_rule_optimization_recommendations(
+    conn: &Connection,
+) -> Result<serde_json::Value, String> {
     let mut suggestions: Vec<serde_json::Value> = Vec::new();
     let tid = active_tenant_id(conn);
     let mut stmt = conn
@@ -2211,7 +2238,9 @@ pub fn generate_rule_optimization_recommendations(conn: &Connection) -> Result<s
 }
 
 /// Mine manual resolutions for repeated patterns (automation expansion hints).
-pub fn generate_automation_learning_suggestions(conn: &Connection) -> Result<serde_json::Value, String> {
+pub fn generate_automation_learning_suggestions(
+    conn: &Connection,
+) -> Result<serde_json::Value, String> {
     let mut ideas: Vec<serde_json::Value> = Vec::new();
     let top_manual_et: Option<(String, i64)> = conn
         .query_row(
@@ -2285,7 +2314,9 @@ pub fn analyze_workflow_efficiency(conn: &Connection) -> Result<serde_json::Valu
 
     let mut recs: Vec<String> = Vec::new();
     if slowest.unwrap_or(0.0) > 72.0 {
-        recs.push("Slowest recent resolutions exceed 72h — review bottleneck exception types.".into());
+        recs.push(
+            "Slowest recent resolutions exceed 72h — review bottleneck exception types.".into(),
+        );
     }
     if !top_esc.is_empty() {
         recs.push(format!(
@@ -2304,7 +2335,9 @@ pub fn analyze_workflow_efficiency(conn: &Connection) -> Result<serde_json::Valu
         )
         .unwrap_or(0);
     if dup > 0 {
-        recs.push(format!("{dup} duplicate open groups detected — enforce single-open policy."));
+        recs.push(format!(
+            "{dup} duplicate open groups detected — enforce single-open policy."
+        ));
     }
 
     Ok(json!({
@@ -2409,9 +2442,7 @@ fn normalize_role(role: &str) -> String {
 
 fn can_view_automation_console(role: &str) -> bool {
     let n = normalize_role(role);
-    n.contains("admin")
-        || n.contains("automationmanager")
-        || n.contains("viewer")
+    n.contains("admin") || n.contains("automationmanager") || n.contains("viewer")
 }
 
 fn can_mutate_automation_rules(role: &str) -> bool {
@@ -2561,7 +2592,8 @@ pub fn list_workflow_decision_rules(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2608,6 +2640,15 @@ pub fn set_workflow_decision_rule_enabled(
         })
         .to_string(),
     )?;
+    crate::services::user_activity_audit::log_activity(
+        &conn,
+        Some(&changed_by),
+        "set_workflow_decision_rule_enabled",
+        Some("workflow_decision_rules"),
+        Some(&rule_id),
+        Some(&format!("{{\"enabled\": {}}}", enabled)),
+        "SUCCESS",
+    );
     let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&conn);
     Ok(())
 }
@@ -2624,14 +2665,7 @@ pub fn set_workflow_automation_master_enabled(
     let prev = meta_get(&conn, "workflow_automation_master_enabled");
     let v = if enabled { "1" } else { "0" };
     meta_set(&conn, "workflow_automation_master_enabled", v)?;
-    log_workflow_rule_change(
-        &conn,
-        "",
-        &changed_by,
-        "MASTER_SWITCH",
-        &prev,
-        v,
-    )?;
+    log_workflow_rule_change(&conn, "", &changed_by, "MASTER_SWITCH", &prev, v)?;
     log_automation(
         &conn,
         "",
@@ -2677,11 +2711,7 @@ pub fn set_automation_guardrails(
     }
     if let Some(n) = input.automation_pause_duration_minutes {
         let n = n.max(5).min(24 * 60);
-        meta_set(
-            &conn,
-            "automation_pause_duration_minutes",
-            &n.to_string(),
-        )?;
+        meta_set(&conn, "automation_pause_duration_minutes", &n.to_string())?;
     }
     log_automation(
         &conn,
@@ -2705,14 +2735,7 @@ pub fn set_adaptive_sla_apply_enabled(
     let prev = meta_get(&conn, "automation_adaptive_sla_apply");
     let v = if enabled { "1" } else { "0" };
     meta_set(&conn, "automation_adaptive_sla_apply", v)?;
-    log_workflow_rule_change(
-        &conn,
-        "",
-        &changed_by,
-        "ADAPTIVE_SLA_APPLY_FLAG",
-        &prev,
-        v,
-    )?;
+    log_workflow_rule_change(&conn, "", &changed_by, "ADAPTIVE_SLA_APPLY_FLAG", &prev, v)?;
     log_automation(
         &conn,
         "",
@@ -2850,7 +2873,8 @@ pub fn query_workflow_automation_log(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2961,7 +2985,8 @@ pub fn list_adaptive_sla_adjustments(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2992,7 +3017,8 @@ pub fn list_workflow_rule_change_log(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3135,9 +3161,7 @@ pub fn rollback_automation_action(
                 )
                 .map_err(|e| e.to_string())?;
             if st != "RESOLVED" || rb != "automation" {
-                return Err(
-                    "case is not in automation-resolved state — rollback refused".into(),
-                );
+                return Err("case is not in automation-resolved state — rollback refused".into());
             }
             conn.execute(
                 "UPDATE exception_cases SET status = 'OPEN', resolved_at = NULL, resolved_by = NULL,
@@ -3263,7 +3287,8 @@ pub fn list_rule_effectiveness_metrics(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3339,7 +3364,9 @@ pub fn get_rule_performance_dashboard(
     low.truncate(8);
     let unused: Vec<serde_json::Value> = scored
         .iter()
-        .filter(|x| x["enabled"].as_i64().unwrap_or(0) == 1 && x["actions14d"].as_i64().unwrap_or(0) == 0)
+        .filter(|x| {
+            x["enabled"].as_i64().unwrap_or(0) == 1 && x["actions14d"].as_i64().unwrap_or(0) == 0
+        })
         .cloned()
         .collect();
     let high_failure: Vec<serde_json::Value> = scored
@@ -3390,7 +3417,8 @@ pub fn list_automation_decision_feedback(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3420,7 +3448,8 @@ pub fn list_rule_safety_index(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3454,7 +3483,8 @@ pub fn list_automation_stability_alerts(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3500,7 +3530,8 @@ pub fn list_automation_benchmark_history(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3531,7 +3562,8 @@ pub fn list_automation_roi_metrics(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3662,7 +3694,8 @@ pub fn list_rule_execution_cost_estimates(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[derive(Debug, Deserialize)]
@@ -3822,7 +3855,8 @@ pub fn list_rule_cost_efficiency_metrics(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3858,7 +3892,8 @@ pub fn list_automation_capacity_load(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -3888,7 +3923,8 @@ pub fn list_daily_automation_economics_index(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

@@ -1,12 +1,11 @@
 //! Tauri commands for export/import of the backup AES key (`.imkey` files).
 
+use crate::db::DbState;
 use std::fs;
 use std::path::Path;
-use rusqlite::params;
 use tauri::State;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
-use crate::db::DbState;
 
 const IMKEY_NAME: &str = "backup_key.imkey";
 const PERM_SETTINGS_MANAGE: &str = "settings.manage";
@@ -30,13 +29,7 @@ fn ensure_command_permission(
     if actor.eq_ignore_ascii_case("system") || actor.eq_ignore_ascii_case("scheduler") {
         return Ok(());
     }
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![actor],
-            |row| row.get(0),
-        )
-        .map_err(|_| "Permission denied: user role not configured.".to_string())?;
+    let role = crate::security::resolve_role_strict(db, actor)?;
     if role_allows_permission(&role, permission) {
         Ok(())
     } else {

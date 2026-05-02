@@ -64,6 +64,7 @@ const IGNORE_PATTERNS = [
   /eslint\.config\.js$/, // Ignore ESLint config patterns
   /db[\\\/]test\.ts$/, // Ignore test files
   /db[\\\/]secure-database\.ts$/, // Ignore database files that are properly handled
+  /scripts[\\/]db-stress\.js$/, // Dev-only load tool; not shipped in app bundle
 ];
 
 let hasIssues = false;

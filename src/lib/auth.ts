@@ -20,10 +20,31 @@ const getEnvVar = (key: string, defaultValue: string = ''): string => {
 const ADMIN_USERNAME = getEnvVar('VITE_ADMIN_USERNAME', 'Jana');
 const ADMIN_PASSWORD_HASH = getEnvVar('VITE_ADMIN_PASSWORD_HASH', '');
 
-// Default password hash for 'inzi@123$%' (should be replaced with environment variable)
-// This is a bcrypt hash of 'inzi@123$%' with 12 salt rounds
-const DEFAULT_PASSWORD_HASH =
+/** Bcrypt of E2E default password; web-preview / dev only — Tauri uses Rust `authenticate_desktop`. */
+const DEV_WEB_PASSWORD_HASH =
   '$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq';
+
+export interface DesktopSessionInfo {
+  userId: string;
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  expiresAtRfc3339: string;
+  /** Rotates on each successful desktop login; opaque identifier for support correlation. */
+  sessionId?: string;
+}
+
+export function userFromDesktopSession(s: DesktopSessionInfo): User {
+  return {
+    id: s.userId,
+    username: s.username,
+    name: s.name,
+    email: s.email,
+    role: s.role,
+    avatar: '/avatars/admin.jpg',
+  };
+}
 
 export interface AuthCredentials {
   username: string;
@@ -72,8 +93,15 @@ export async function authenticateUser(
       };
     }
 
-    // Verify password hash
-    const passwordHash = ADMIN_PASSWORD_HASH || DEFAULT_PASSWORD_HASH;
+    const passwordHash =
+      ADMIN_PASSWORD_HASH || (import.meta.env.DEV ? DEV_WEB_PASSWORD_HASH : '');
+    if (!passwordHash) {
+      return {
+        success: false,
+        message:
+          'Web preview requires VITE_ADMIN_PASSWORD_HASH (production builds).',
+      };
+    }
     const isValidPassword = await bcrypt.compare(password, passwordHash);
 
     if (!isValidPassword) {
@@ -161,7 +189,7 @@ export function setAuthenticated(authenticated: boolean, user?: User): void {
 }
 
 /**
- * Logout user
+ * Logout user (clears local storage; call `clear_desktop_session` in Tauri before this).
  */
 export function logout(): void {
   localStorage.removeItem('isAuthenticated');

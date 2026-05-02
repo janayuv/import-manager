@@ -31,7 +31,9 @@ import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 import {
   buildShipmentImportTemplateCsv,
-  parseShipmentImportCsv,
+  canonicalShipmentCsvHeader,
+  guessShipmentCsvDelimiter,
+  parseShipmentImportCsvStream,
 } from '@/lib/shipment-import';
 
 import * as React from 'react';
@@ -85,10 +87,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { logDashboardActivity } from '@/lib/dashboard-activity';
-import {
-  isShipmentEtaOverdue,
-  parseInvoiceDateForFilter,
-} from '@/lib/shipment-exception-helpers';
+import { isShipmentEtaOverdue } from '@/lib/shipment-exception-helpers';
 import { formatDateForInput } from '@/lib/date-format';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
@@ -103,6 +102,27 @@ export function shipmentDetailPath(shipmentId: string, mode: 'view' | 'edit') {
   return `/shipment/${encodeURIComponent(shipmentId)}/${mode}`;
 }
 
+/** ZIP local file header: PK + bytes 0x03 0x04; optional leading BOM (no control chars in RegExp sources). */
+function sampleLooksLikeZipLocalHeader(s: string): boolean {
+  let i = 0;
+  if (s.charCodeAt(0) === 0xfeff) {
+    i = 1;
+  }
+  return (
+    s.length >= i + 4 &&
+    s.charCodeAt(i) === 0x50 &&
+    s.charCodeAt(i + 1) === 0x4b &&
+    s.charCodeAt(i + 2) === 3 &&
+    s.charCodeAt(i + 3) === 4
+  );
+}
+
+/** Count chars outside tab, LF, CR, and ASCII printable (space–tilde). */
+function countNonPrintableAsciiCsvChars(s: string): number {
+  const m = s.match(/[^\t\n\r -~]/g);
+  return m?.length ?? 0;
+}
+
 type OptionType =
   | 'supplier'
   | 'category'
@@ -111,6 +131,27 @@ type OptionType =
   | 'status'
   | 'type'
   | 'currency';
+
+type PaginatedResult<T> = {
+  data: T[];
+  totalCount: number;
+};
+
+type ShipmentItemLite = {
+  id: string;
+  invoiceId: string;
+  itemId: string;
+  partNumber: string;
+  itemDescription: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+type ShipmentExceptionSummary = {
+  overdueCount: number;
+  boeMissingCount: number;
+  expenseMissingCount: number;
+};
 
 const ShipmentPage = () => {
   const navigate = useNavigate();
@@ -178,7 +219,32 @@ const ShipmentPage = () => {
   );
   const skipUrlWriteRef = React.useRef(true);
   const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('cards');
+  const [searchInput, setSearchInput] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
+  const [page, setPage] = React.useState(1);
+  const [pageSize, setPageSize] = React.useState(50);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [expandedShipmentIds, setExpandedShipmentIds] = React.useState<
+    Set<string>
+  >(() => new Set());
+  const [, setExpandedShipmentOrder] = React.useState<string[]>([]);
+  const [shipmentItemsById, setShipmentItemsById] = React.useState<
+    Record<string, ShipmentItemLite[]>
+  >({});
+  const [, setShipmentItemsCacheOrder] = React.useState<string[]>([]);
+  const [exceptionSummary, setExceptionSummary] =
+    React.useState<ShipmentExceptionSummary>({
+      overdueCount: 0,
+      boeMissingCount: 0,
+      expenseMissingCount: 0,
+    });
+  const [loadingShipmentItemsById, setLoadingShipmentItemsById] =
+    React.useState<Record<string, boolean>>({});
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => setSearchTerm(searchInput), 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   React.useEffect(() => {
     const st = searchParams.get('status');
@@ -248,18 +314,17 @@ const ShipmentPage = () => {
     [shipmentIdsWithBoe, shipmentIdsWithExpense]
   );
 
-  const exceptionSummary = React.useMemo(() => {
-    let overdue = 0;
-    let boe = 0;
-    let exp = 0;
-    for (const s of shipments) {
-      const f = getShipmentExceptionFlags(s);
-      if (f.overdue) overdue += 1;
-      if (f.boeMissing) boe += 1;
-      if (f.expenseMissing) exp += 1;
-    }
-    return { overdue, boeMissing: boe, expenseMissing: exp };
-  }, [shipments, getShipmentExceptionFlags]);
+  React.useEffect(() => {
+    setPage(1);
+  }, [
+    statusFilter,
+    supplierFilterId,
+    dateFromFilter,
+    dateToFilter,
+    urlOverdue,
+    urlBoeMissing,
+    urlExpenseMissing,
+  ]);
 
   React.useEffect(() => {
     if (!user?.id) return;
@@ -283,13 +348,42 @@ const ShipmentPage = () => {
 
   const fetchShipments = React.useCallback(async () => {
     try {
-      const fetchedShipments: Shipment[] = await invoke('get_shipments');
-      setShipments(fetchedShipments);
+      const result = await invoke<PaginatedResult<Shipment>>(
+        'get_shipments_paginated',
+        {
+          page,
+          pageSize,
+          status: statusFilter !== 'All' ? statusFilter : null,
+          supplierId: supplierFilterId || null,
+          dateFrom: dateFromFilter || null,
+          dateTo: dateToFilter || null,
+          overdueOnly: urlOverdue || null,
+          boeMissingOnly: urlBoeMissing || null,
+          expenseMissingOnly: urlExpenseMissing || null,
+        }
+      );
+      const safeData = Array.isArray(result?.data) ? result.data : [];
+      const safeTotalCount = Number.isFinite(result?.totalCount)
+        ? result.totalCount
+        : safeData.length;
+      setShipments(safeData);
+      setTotalCount(safeTotalCount);
     } catch (error) {
       console.error('Failed to fetch shipments:', error);
       notifications.shipment.error('load', String(error));
     }
-  }, [notifications.shipment]);
+  }, [
+    notifications.shipment,
+    page,
+    pageSize,
+    statusFilter,
+    supplierFilterId,
+    dateFromFilter,
+    dateToFilter,
+    urlOverdue,
+    urlBoeMissing,
+    urlExpenseMissing,
+  ]);
 
   const handleOpenFormForEdit = React.useCallback(
     (shipment: Shipment) => {
@@ -402,17 +496,9 @@ const ShipmentPage = () => {
     };
   }, [shipments]);
 
-  // Filter shipments based on status and search
+  // Filter only within current page results; status/supplier/date/exception filtering is server-side.
   const filteredShipments = React.useMemo(() => {
     let filtered = shipments;
-
-    // Status filter
-    if (statusFilter !== 'All') {
-      filtered = filtered.filter(shipment => {
-        const shipmentStatus = shipment.status || '';
-        return shipmentStatus.toLowerCase() === statusFilter.toLowerCase();
-      });
-    }
 
     // Search filter
     if (searchTerm) {
@@ -431,56 +517,19 @@ const ShipmentPage = () => {
       );
     }
 
-    if (supplierFilterId) {
-      filtered = filtered.filter(s => s.supplierId === supplierFilterId);
-    }
-
-    if (dateFromFilter) {
-      const from = parseInvoiceDateForFilter(dateFromFilter);
-      if (from) {
-        filtered = filtered.filter(s => {
-          const d = parseInvoiceDateForFilter(s.invoiceDate);
-          return d && d >= from;
-        });
-      }
-    }
-
-    if (dateToFilter) {
-      const to = parseInvoiceDateForFilter(dateToFilter);
-      if (to) {
-        const end = new Date(to);
-        end.setHours(23, 59, 59, 999);
-        filtered = filtered.filter(s => {
-          const d = parseInvoiceDateForFilter(s.invoiceDate);
-          return d && d <= end;
-        });
-      }
-    }
-
-    if (urlOverdue) {
-      filtered = filtered.filter(s => isShipmentEtaOverdue(s));
-    }
-    if (urlBoeMissing) {
-      filtered = filtered.filter(s => !shipmentIdsWithBoe.has(s.id));
-    }
-    if (urlExpenseMissing) {
-      filtered = filtered.filter(s => !shipmentIdsWithExpense.has(s.id));
-    }
-
     return filtered;
-  }, [
-    shipments,
-    statusFilter,
-    searchTerm,
-    supplierFilterId,
-    dateFromFilter,
-    dateToFilter,
-    urlOverdue,
-    urlBoeMissing,
-    urlExpenseMissing,
-    shipmentIdsWithBoe,
-    shipmentIdsWithExpense,
-  ]);
+  }, [shipments, searchTerm]);
+
+  const totalPages = React.useMemo(
+    () => Math.max(1, Math.ceil(totalCount / pageSize)),
+    [totalCount, pageSize]
+  );
+
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
   const columns = React.useMemo(
     () =>
@@ -539,7 +588,6 @@ const ShipmentPage = () => {
           label: formatText(s.supplierName, settings.textFormat),
         }));
         setSuppliers(supplierOptions);
-        await fetchShipments();
         await fetchOptions();
         try {
           const [boeIds, expIds] = await Promise.all([
@@ -560,30 +608,43 @@ const ShipmentPage = () => {
       }
     };
     fetchInitialData();
-  }, [
-    settings.textFormat,
-    fetchShipments,
-    fetchOptions,
-    notifications.shipment,
-  ]);
+  }, [settings.textFormat, fetchOptions, notifications.shipment]);
+
+  React.useEffect(() => {
+    void fetchShipments();
+  }, [fetchShipments]);
+
+  const fetchExceptionSummary = React.useCallback(async () => {
+    try {
+      const summary = await invoke<ShipmentExceptionSummary>(
+        'get_shipment_exception_summary'
+      );
+      setExceptionSummary(summary);
+    } catch (error) {
+      console.error('Failed to load shipment exception summary:', error);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    void fetchExceptionSummary();
+  }, [fetchExceptionSummary]);
 
   async function handleSubmit(shipmentData: Omit<Shipment, 'id'>) {
-    const isDuplicate = shipments.some(
-      s =>
-        s.invoiceNumber.toLowerCase() ===
-          shipmentData.invoiceNumber.toLowerCase() &&
-        s.id !== shipmentToEdit?.id
-    );
-
-    if (isDuplicate) {
-      notifications.error(
-        'Duplicate Invoice',
-        `A shipment with the invoice number "${shipmentData.invoiceNumber}" already exists.`
-      );
-      return;
-    }
-
     try {
+      const candidateId = shipmentToEdit?.id ?? null;
+      const isDuplicate = await invoke<boolean>('check_shipment_duplicate', {
+        shipmentId: candidateId,
+        invoiceNumber: shipmentData.invoiceNumber,
+        excludeId: shipmentToEdit?.id ?? null,
+      });
+      if (isDuplicate) {
+        notifications.error(
+          'Duplicate Shipment',
+          `A shipment with ID or invoice "${shipmentData.invoiceNumber}" already exists.`
+        );
+        return;
+      }
+
       if (shipmentToEdit) {
         const updatedShipment = { ...shipmentToEdit, ...shipmentData };
         await invoke('update_shipment', { shipment: updatedShipment });
@@ -635,10 +696,73 @@ const ShipmentPage = () => {
         notifications.info('Import Cancelled', 'Import cancelled.');
         return;
       }
+      const importFileName =
+        (selectedFile.name || selectedFile.path || '').trim() || 'uploaded.csv';
 
-      const { data: importRows, errors: parseErrors } = parseShipmentImportCsv(
+      const detectedMimeType = (
+        selectedFile as { mimeType?: string | null }
+      ).mimeType
+        ?.trim()
+        .toLowerCase();
+      const allowedMimeTypes = new Set(['text/csv', 'text/plain']);
+      if (detectedMimeType && !allowedMimeTypes.has(detectedMimeType)) {
+        notifications.error(
+          'Invalid file type detected',
+          'Please upload a valid CSV file.'
+        );
+        return;
+      }
+
+      const headerSample = selectedFile.contents.slice(0, 500);
+      const hasZipBinarySignature = sampleLooksLikeZipLocalHeader(headerSample);
+      const nonPrintableChars = countNonPrintableAsciiCsvChars(headerSample);
+      const hasBinaryProfile =
+        headerSample.length > 0 &&
+        nonPrintableChars / headerSample.length > 0.25;
+      const hasCsvDelimiterHint = /[,;]/.test(headerSample);
+
+      if (hasZipBinarySignature || hasBinaryProfile || !hasCsvDelimiterHint) {
+        notifications.error(
+          'Invalid file type detected',
+          'Please upload a valid CSV file.'
+        );
+        return;
+      }
+
+      const firstNonEmptyLine =
         selectedFile.contents
+          .split(/\r\n|\n|\r/)
+          .find(line => line.trim().length > 0) ?? '';
+      if (!firstNonEmptyLine) {
+        notifications.error(
+          'Invalid file type detected',
+          'Please upload a valid CSV file.'
+        );
+        return;
+      }
+
+      const delimiter = guessShipmentCsvDelimiter(headerSample);
+      const canonicalHeaders = firstNonEmptyLine.split(delimiter).map(header =>
+        canonicalShipmentCsvHeader(
+          header
+            .trim()
+            .replace(/^"+|"+$/g, '')
+            .replace(/^\uFEFF/, '')
+        )
       );
+      const hasRequiredHeaders =
+        canonicalHeaders.includes('invoiceNumber') &&
+        canonicalHeaders.includes('supplierId');
+      if (!hasRequiredHeaders) {
+        notifications.error(
+          'Invalid file type detected',
+          'Please upload a valid CSV file.'
+        );
+        return;
+      }
+
+      const { data: importRows, errors: parseErrors } =
+        await parseShipmentImportCsvStream(selectedFile.contents);
       if (parseErrors.length > 0) {
         console.error('Shipment CSV parse errors:', parseErrors);
         notifications.warning(
@@ -662,13 +786,21 @@ const ShipmentPage = () => {
       );
 
       const newShipments: Shipment[] = [];
-      for (const row of importRows) {
-        if (
-          !row.invoiceNumber ||
-          seenInvoiceNumbers.has(row.invoiceNumber.toLowerCase())
-        ) {
-          continue; // Skip duplicates or rows without an invoice number
+      const duplicateRows: number[] = [];
+      const missingInvoiceRows: number[] = [];
+      for (const [rowIndex, row] of importRows.entries()) {
+        const invoiceNumber = row.invoiceNumber?.trim();
+        if (!invoiceNumber) {
+          missingInvoiceRows.push(rowIndex + 1);
+          continue;
         }
+
+        const normalizedInvoiceNumber = invoiceNumber.toLowerCase();
+        if (seenInvoiceNumbers.has(normalizedInvoiceNumber)) {
+          duplicateRows.push(rowIndex + 1);
+          continue;
+        }
+        seenInvoiceNumbers.add(normalizedInvoiceNumber);
         maxId++;
 
         // Use supplier ID as is - validation will catch invalid values
@@ -677,7 +809,7 @@ const ShipmentPage = () => {
         newShipments.push({
           id: `SHP-${maxId.toString().padStart(3, '0')}`,
           supplierId: supplierId,
-          invoiceNumber: row.invoiceNumber,
+          invoiceNumber,
           invoiceDate: row.invoiceDate,
           goodsCategory: row.goodsCategory,
           invoiceValue: parseFloat(row.invoiceValue) || 0,
@@ -696,17 +828,62 @@ const ShipmentPage = () => {
           dateOfDelivery: row.dateOfDelivery,
           isFrozen: false,
         });
-        seenInvoiceNumbers.add(row.invoiceNumber.toLowerCase());
+      }
+
+      if (duplicateRows.length > 0 || missingInvoiceRows.length > 0) {
+        const formatRowList = (rows: number[]): string => {
+          const preview = rows.slice(0, 20);
+          const extraCount = rows.length - preview.length;
+          return extraCount > 0
+            ? `${preview.join(', ')}... (+${extraCount} more)`
+            : preview.join(', ');
+        };
+
+        const warningSections: string[] = [];
+        if (duplicateRows.length > 0) {
+          warningSections.push(
+            `Duplicate Invoice Numbers: ${duplicateRows.length} rows`,
+            `Rows: ${formatRowList(duplicateRows)}`
+          );
+        }
+        if (missingInvoiceRows.length > 0) {
+          warningSections.push(
+            `Missing Invoice Numbers: ${missingInvoiceRows.length} rows`,
+            `Rows: ${formatRowList(missingInvoiceRows)}`
+          );
+        }
+
+        notifications.warning(
+          'Import completed with warnings',
+          warningSections.join('\n\n')
+        );
       }
 
       if (newShipments.length > 0) {
         try {
+          const totalRows = importRows.length;
+          const skippedRows = duplicateRows.length + missingInvoiceRows.length;
           // First validate the shipments
           const validationErrors = (await invoke('validate_shipment_import', {
             shipments: newShipments,
           })) as string[];
 
           if (validationErrors && validationErrors.length > 0) {
+            try {
+              await invoke('log_shipment_import_result', {
+                file_name: importFileName,
+                total_rows: totalRows,
+                inserted_rows: 0,
+                skipped_rows: skippedRows,
+                error_rows: validationErrors.length,
+                status: 'FAILED',
+              });
+            } catch (logError) {
+              console.error(
+                'Failed to write shipment import audit log:',
+                logError
+              );
+            }
             // Show validation errors in a detailed notification
             const errorMessage = validationErrors.join('\n');
             notifications.error('Import Validation Failed', errorMessage, {
@@ -716,7 +893,13 @@ const ShipmentPage = () => {
           }
 
           // If validation passes, proceed with import
-          await invoke('add_shipments_bulk', { shipments: newShipments });
+          await invoke('add_shipments_bulk', {
+            shipments: newShipments,
+            file_name: importFileName,
+            total_rows: totalRows,
+            skipped_rows: skippedRows,
+            error_rows: 0,
+          });
           notifications.shipment.imported(newShipments.length);
           fetchShipments();
         } catch (error) {
@@ -928,6 +1111,97 @@ const ShipmentPage = () => {
     any: boolean;
   };
 
+  const toggleShipmentItems = React.useCallback(
+    async (shipmentId: string) => {
+      const willExpand = !expandedShipmentIds.has(shipmentId);
+      setExpandedShipmentIds(prev => {
+        const next = new Set(prev);
+        if (next.has(shipmentId)) {
+          next.delete(shipmentId);
+        } else {
+          next.add(shipmentId);
+        }
+        return next;
+      });
+      setExpandedShipmentOrder(prev => {
+        const next = prev.filter(id => id !== shipmentId);
+        if (willExpand) {
+          next.push(shipmentId);
+          const MAX_EXPANDED_ROWS = 12;
+          if (next.length > MAX_EXPANDED_ROWS) {
+            const evicted = next.shift();
+            if (evicted) {
+              setExpandedShipmentIds(current => {
+                const updated = new Set(current);
+                updated.delete(evicted);
+                return updated;
+              });
+            }
+          }
+        }
+        return next;
+      });
+
+      const touchLru = () => {
+        setShipmentItemsCacheOrder(prev => {
+          const next = prev.filter(id => id !== shipmentId);
+          next.push(shipmentId);
+          return next;
+        });
+      };
+
+      if (!willExpand) {
+        return;
+      }
+      if (shipmentItemsById[shipmentId]) {
+        touchLru();
+        return;
+      }
+      if (loadingShipmentItemsById[shipmentId]) return;
+      try {
+        setLoadingShipmentItemsById(prev => ({ ...prev, [shipmentId]: true }));
+        const rows = await invoke<ShipmentItemLite[]>(
+          'get_shipment_items_by_shipment_id',
+          { shipmentId }
+        );
+        setShipmentItemsById(prev => ({ ...prev, [shipmentId]: rows }));
+        const evicted: string[] = [];
+        setShipmentItemsCacheOrder(prev => {
+          const MAX_CACHE_ENTRIES = 40;
+          const nextOrder = prev.filter(id => id !== shipmentId);
+          nextOrder.push(shipmentId);
+          while (nextOrder.length > MAX_CACHE_ENTRIES) {
+            const candidate = nextOrder[0];
+            if (!candidate) break;
+            if (expandedShipmentIds.has(candidate)) break;
+            evicted.push(candidate);
+            nextOrder.shift();
+          }
+          return nextOrder;
+        });
+        if (evicted.length > 0) {
+          setShipmentItemsById(prev => {
+            const next = { ...prev };
+            for (const key of evicted) {
+              delete next[key];
+            }
+            return next;
+          });
+        }
+      } catch (error) {
+        notifications.shipment.error('load shipment items', String(error));
+      } finally {
+        setLoadingShipmentItemsById(prev => ({ ...prev, [shipmentId]: false }));
+      }
+    },
+    [
+      expandedShipmentIds,
+      shipmentItemsById,
+      loadingShipmentItemsById,
+      notifications.shipment,
+    ]
+  );
+
   const ShipmentCard = ({
     shipment,
     flags,
@@ -936,6 +1210,9 @@ const ShipmentPage = () => {
     flags: ShipmentExceptionFlags;
   }) => {
     const supplier = suppliers.find(s => s.value === shipment.supplierId);
+    const isExpanded = expandedShipmentIds.has(shipment.id);
+    const isItemsLoading = loadingShipmentItemsById[shipment.id] === true;
+    const items = shipmentItemsById[shipment.id] ?? [];
 
     return (
       <Card
@@ -1096,6 +1373,36 @@ const ShipmentPage = () => {
                 )}
               </div>
             )}
+            <div className="border-t border-white/20 pt-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => toggleShipmentItems(shipment.id)}
+                className="text-xs"
+              >
+                {isExpanded ? 'Hide items' : 'Show items'}
+              </Button>
+              {isExpanded && (
+                <div className="mt-2 space-y-1 text-xs text-white/80">
+                  {isItemsLoading ? (
+                    <p>Loading items...</p>
+                  ) : items.length === 0 ? (
+                    <p>No linked invoice items.</p>
+                  ) : (
+                    items.map(item => (
+                      <div
+                        key={item.id}
+                        className="rounded bg-black/10 px-2 py-1"
+                      >
+                        {item.partNumber || item.itemId} - Qty {item.quantity} @{' '}
+                        {item.unitPrice}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1370,7 +1677,7 @@ const ShipmentPage = () => {
               Exception awareness
             </CardTitle>
             <CardDescription className="text-xs">
-              Totals across all loaded shipments. Quick filters align with
+              Global totals across all shipments. Quick filters align with
               dashboard exception routes.
             </CardDescription>
           </CardHeader>
@@ -1379,19 +1686,19 @@ const ShipmentPage = () => {
               <span>
                 Overdue ETA:{' '}
                 <span className="text-foreground font-semibold">
-                  {exceptionSummary.overdue}
+                  {exceptionSummary.overdueCount}
                 </span>
               </span>
               <span>
                 Missing BOE:{' '}
                 <span className="text-foreground font-semibold">
-                  {exceptionSummary.boeMissing}
+                  {exceptionSummary.boeMissingCount}
                 </span>
               </span>
               <span>
                 Missing expenses:{' '}
                 <span className="text-foreground font-semibold">
-                  {exceptionSummary.expenseMissing}
+                  {exceptionSummary.expenseMissingCount}
                 </span>
               </span>
             </div>
@@ -1488,8 +1795,8 @@ const ShipmentPage = () => {
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
               <Input
                 placeholder="Search shipments..."
-                value={searchTerm}
-                onChange={e => setSearchTerm(e.target.value)}
+                value={searchInput}
+                onChange={e => setSearchInput(e.target.value)}
                 className="w-64 pl-10"
               />
             </div>
@@ -1568,7 +1875,8 @@ const ShipmentPage = () => {
         {/* Results Summary */}
         <div className="mb-4">
           <p className="text-sm text-gray-600">
-            Showing {filteredShipments.length} of {shipments.length} shipments
+            Showing {filteredShipments.length} of {totalCount} shipments
+            {` · page ${page} of ${totalPages}`}
             {statusFilter !== 'All' && ` (${statusFilter})`}
             {supplierFilterId && ' · supplier filter'}
             {(dateFromFilter || dateToFilter) && ' · date range'}
@@ -1577,6 +1885,42 @@ const ShipmentPage = () => {
             {urlExpenseMissing && ' · no expenses'}
             {searchTerm && ` matching "${searchTerm}"`}
           </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.max(1, p - 1))}
+              disabled={page <= 1}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+              disabled={page >= totalPages}
+            >
+              Next
+            </Button>
+            <Select
+              value={String(pageSize)}
+              onValueChange={v => {
+                setPageSize(Number(v));
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-[110px]">
+                <SelectValue placeholder="Page size" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="25">25</SelectItem>
+                <SelectItem value="50">50</SelectItem>
+                <SelectItem value="100">100</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
@@ -1595,6 +1939,38 @@ const ShipmentPage = () => {
         <ResponsiveDataTable
           columns={columns}
           data={filteredShipments}
+          showSearch={false}
+          showPagination={false}
+          virtualizeRows={true}
+          isRowExpanded={row => expandedShipmentIds.has(row.original.id)}
+          onRowExpandToggle={row => {
+            void toggleShipmentItems(row.original.id);
+          }}
+          renderExpandedRow={row => {
+            const shipmentId = row.original.id;
+            const isItemsLoading =
+              loadingShipmentItemsById[shipmentId] === true;
+            const items = shipmentItemsById[shipmentId] ?? [];
+            if (isItemsLoading) {
+              return <p className="text-sm">Loading items...</p>;
+            }
+            if (items.length === 0) {
+              return <p className="text-sm">No linked invoice items.</p>;
+            }
+            return (
+              <div className="space-y-1 text-sm">
+                {items.map(item => (
+                  <div
+                    key={item.id}
+                    className="bg-background rounded border px-2 py-1"
+                  >
+                    {item.partNumber || item.itemId} - Qty {item.quantity} @{' '}
+                    {item.unitPrice}
+                  </div>
+                ))}
+              </div>
+            );
+          }}
           rowClassName={row => {
             const f = getShipmentExceptionFlags(row.original);
             if (!f.any) return undefined;

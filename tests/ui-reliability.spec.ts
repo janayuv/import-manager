@@ -154,9 +154,22 @@ test.describe('UI reliability and stress (repeated operations)', () => {
     await clickSidebarLink(page, 'Shipment');
     await expectPageMarker(page, 'Shipment Management');
     const content = appContent(page);
-    await expect(content.getByText(/Showing 1 of 1 shipments/)).toBeVisible({
-      timeout: 20_000,
+    const beforeCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<{ id?: string }>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      const rows = await inv('get_shipments');
+      return rows.length;
     });
+    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
+      {
+        timeout: 20_000,
+      }
+    );
     await content.getByRole('button', { name: 'Table' }).click();
 
     const timings: number[] = [];
@@ -184,7 +197,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         ),
         durationMs: t1 - t0,
       });
-      const expected = 1 + i;
+      const expected = beforeCount + i;
       await expect(
         content.getByText(`Showing ${expected} of ${expected} shipments`)
       ).toBeVisible({ timeout: 25_000 });
@@ -246,15 +259,32 @@ test.describe('UI reliability and stress (repeated operations)', () => {
     await clickSidebarLink(page, 'Shipment');
     await expectPageMarker(page, 'Shipment Management');
     const content = appContent(page);
-    await expect(content.getByText(/Showing 1 of 1 shipments/)).toBeVisible({
-      timeout: 20_000,
+    const beforeCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<{ id?: string }>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      const rows = await inv('get_shipments');
+      return rows.length;
     });
+    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
+      {
+        timeout: 20_000,
+      }
+    );
     await content.getByRole('button', { name: 'Table' }).click();
 
     await content.getByRole('button', { name: 'Import' }).click();
     await setFilesOnBridgeFileInput(page, shipmentValidCsv);
     await waitForSuccessToastLifecycle(page, 'Import Complete');
-    await expect(content.getByText(/Showing 2 of 2 shipments/)).toBeVisible({
+    await expect(
+      content.getByText(
+        `Showing ${beforeCount + 1} of ${beforeCount + 1} shipments`
+      )
+    ).toBeVisible({
       timeout: 20_000,
     });
 

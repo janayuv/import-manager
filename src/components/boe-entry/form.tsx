@@ -90,9 +90,9 @@ interface RawOverrideRow {
 }
 
 export function BoeEntryForm({
-  shipments,
-  allBoes,
-  savedBoes,
+  shipments = [],
+  allBoes = [],
+  savedBoes = [],
   onSaveOrUpdate,
   initialData,
   onCancelEdit,

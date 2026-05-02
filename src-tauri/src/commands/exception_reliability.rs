@@ -161,16 +161,10 @@ pub fn peek_exception_integrity_issue_count(conn: &Connection) -> Result<i64, St
 pub fn is_valid_status_transition(from_status: Option<&str>, to_status: &str) -> bool {
     match from_status.unwrap_or("") {
         "RESOLVED" | "IGNORED" => matches!(to_status, "RESOLVED" | "IGNORED"),
-        "OPEN" => matches!(
-            to_status,
-            "OPEN" | "IN_PROGRESS" | "RESOLVED" | "IGNORED"
-        ),
+        "OPEN" => matches!(to_status, "OPEN" | "IN_PROGRESS" | "RESOLVED" | "IGNORED"),
         "IN_PROGRESS" => matches!(to_status, "IN_PROGRESS" | "RESOLVED" | "IGNORED" | "OPEN"),
         "" => true,
-        _ => matches!(
-            to_status,
-            "OPEN" | "IN_PROGRESS" | "RESOLVED" | "IGNORED"
-        ),
+        _ => matches!(to_status, "OPEN" | "IN_PROGRESS" | "RESOLVED" | "IGNORED"),
     }
 }
 
@@ -265,8 +259,7 @@ fn escalation_cooldown_hours(conn: &Connection) -> i64 {
         |r| r.get(0),
     )
     .unwrap_or(24)
-    .max(1)
-    .min(168)
+    .clamp(1, 168)
 }
 
 /// Escalate SLA-breached open cases (priority CRITICAL, log, lifecycle).
@@ -353,8 +346,7 @@ fn workflow_in_progress_timeout_days(conn: &Connection) -> i64 {
         |r| r.get(0),
     )
     .unwrap_or(7)
-    .max(1)
-    .min(90)
+    .clamp(1, 90)
 }
 
 pub fn run_workflow_timeout_scan(conn: &Connection) -> Result<i32, String> {
@@ -391,9 +383,7 @@ pub fn run_workflow_timeout_scan(conn: &Connection) -> Result<i32, String> {
             &cid,
             "WORKFLOW_TIMEOUT",
             None,
-            &format!(
-                "{{\"timeoutDays\":{days},\"notifyRoleHint\":\"{role}\"}}"
-            ),
+            &format!("{{\"timeoutDays\":{days},\"notifyRoleHint\":\"{role}\"}}"),
         )?;
         n += 1;
     }
@@ -650,7 +640,7 @@ pub fn simulate_exception_load(
     user_id: &str,
     include_rule_simulation: bool,
 ) -> Result<SimulateLoadReport, String> {
-    let n = count.max(1).min(500);
+    let n = count.clamp(1, 500);
     let ship_ids: Vec<String> = {
         let mut stmt = conn
             .prepare("SELECT id FROM shipments ORDER BY RANDOM() LIMIT ?1")
@@ -829,10 +819,7 @@ fn assert_simulate_rule_view(role: &str) -> Result<(), String> {
         .filter(|c| !c.is_whitespace())
         .collect::<String>()
         .to_lowercase();
-    if n.contains("admin")
-        || n.contains("automationmanager")
-        || n.contains("viewer")
-    {
+    if n.contains("admin") || n.contains("automationmanager") || n.contains("viewer") {
         Ok(())
     } else {
         Err("simulate_rule_execution: insufficient role".into())
@@ -866,7 +853,9 @@ pub fn simulate_exception_load_command(
 }
 
 #[tauri::command]
-pub fn get_exception_reliability_report(state: State<DbState>) -> Result<serde_json::Value, String> {
+pub fn get_exception_reliability_report(
+    state: State<DbState>,
+) -> Result<serde_json::Value, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut sla: Vec<serde_json::Value> = Vec::new();
     let mut stmt = conn

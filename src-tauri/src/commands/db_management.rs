@@ -2,20 +2,24 @@
 #![allow(non_snake_case)]
 
 use crate::db::DbState;
+use argon2::{
+    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
+    Argon2,
+};
 use chrono::{DateTime, Local, Utc};
 use cron::Schedule;
 use fs4::available_space;
 use rusqlite::OptionalExtension;
-use rusqlite::{params, Connection, OpenFlags};
+use rusqlite::{params, Connection, OpenFlags, Transaction};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
-use std::time::{Duration, Instant};
-use std::sync::{Mutex, OnceLock};
 use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
+use std::sync::{Mutex, OnceLock};
+use std::time::{Duration, Instant};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::AppHandle;
 use tauri::Emitter;
@@ -23,10 +27,6 @@ use tauri::Manager;
 use tauri::State;
 use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
-use argon2::{
-    password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString},
-    Argon2,
-};
 
 /// How to interpret the cron wall clock (library field `time_zone`).
 enum ScheduleCronZone {
@@ -152,6 +152,8 @@ const APP_METADATA_RESTORE_COUNT: &str = "restore_count";
 const APP_METADATA_LAST_BACKUP_TIME: &str = "last_backup_time";
 const APP_METADATA_LAST_RESTORE_TIME: &str = "last_restore_time";
 const APP_METADATA_RESTORE_STATUS: &str = "restore_status";
+/// RFC3339 timestamp written immediately after the restore **transaction** commits (before admin recovery).
+const APP_METADATA_RESTORE_TX_COMMITTED_AT: &str = "restore_transaction_committed_at";
 const FREQUENT_BACKUP_WARN_SECS: i64 = 10;
 /// 5 GiB — observability warning only (no blocking).
 const LARGE_DB_WARN_BYTES: u64 = 5u64 * 1024 * 1024 * 1024;
@@ -568,7 +570,10 @@ struct BulkDeleteAdmissionGuard;
 impl BulkDeleteAdmissionGuard {
     fn try_enter() -> Result<Self, String> {
         if crate::restore_control::restore_in_progress() {
-            return Err("Restore is in progress. Please retry bulk delete after restore completes.".to_string());
+            return Err(
+                "Restore is in progress. Please retry bulk delete after restore completes."
+                    .to_string(),
+            );
         }
         let current = BULK_DELETE_ACTIVE_COUNT.load(Ordering::SeqCst);
         if current > 0 {
@@ -620,7 +625,7 @@ fn role_allows_permission(role: &str, permission: &str) -> bool {
     }
 }
 
-fn ensure_command_permission(
+pub(crate) fn ensure_command_permission(
     db: &Connection,
     actor_user_id: Option<&str>,
     permission: &str,
@@ -636,21 +641,7 @@ fn ensure_command_permission(
     if actor.eq_ignore_ascii_case("scheduler") || actor.eq_ignore_ascii_case("system") {
         return Ok(());
     }
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![actor],
-            |row| row.get(0),
-        )
-        .map_err(|_| {
-            log::warn!(
-                target: "import_manager::authz",
-                "event=authz.denied stage=validation reason=missing_role actor={} permission={}",
-                actor,
-                permission
-            );
-            "Permission denied: user role not configured.".to_string()
-        })?;
+    let role = crate::security::resolve_role_strict(db, actor)?;
     if role_allows_permission(&role, permission) {
         Ok(())
     } else {
@@ -794,13 +785,20 @@ fn get_hard_delete_lock_until(db_state: &State<'_, DbState>) -> Option<DateTime<
 fn is_hard_delete_lock_active(db_state: &State<'_, DbState>) -> (bool, Option<String>, u32) {
     if let Some(lock_until) = get_hard_delete_lock_until(db_state) {
         if lock_until > Utc::now() {
-            return (true, Some(lock_until.to_rfc3339()), get_hard_delete_failed_attempts(db_state));
+            return (
+                true,
+                Some(lock_until.to_rfc3339()),
+                get_hard_delete_failed_attempts(db_state),
+            );
         }
     }
     (false, None, get_hard_delete_failed_attempts(db_state))
 }
 
-fn set_hard_delete_failed_attempts(db_state: &State<'_, DbState>, attempts: u32) -> Result<(), String> {
+fn set_hard_delete_failed_attempts(
+    db_state: &State<'_, DbState>,
+    attempts: u32,
+) -> Result<(), String> {
     set_app_metadata_string(
         db_state,
         APP_METADATA_HARD_DELETE_FAILED_ATTEMPTS,
@@ -821,7 +819,8 @@ fn hash_hard_delete_pin(pin: &str) -> Result<String, String> {
 }
 
 fn verify_hard_delete_pin_hash(stored_hash: &str, pin: &str) -> Result<bool, String> {
-    let parsed = PasswordHash::new(stored_hash).map_err(|e| format!("Invalid stored PIN hash: {e}"))?;
+    let parsed =
+        PasswordHash::new(stored_hash).map_err(|e| format!("Invalid stored PIN hash: {e}"))?;
     Ok(Argon2::default()
         .verify_password(pin.as_bytes(), &parsed)
         .is_ok())
@@ -891,10 +890,7 @@ pub async fn set_hard_delete_pin_threshold(
 }
 
 #[tauri::command]
-pub async fn set_hard_delete_pin(
-    db_state: State<'_, DbState>,
-    pin: String,
-) -> Result<(), String> {
+pub async fn set_hard_delete_pin(db_state: State<'_, DbState>, pin: String) -> Result<(), String> {
     if !is_valid_hard_delete_pin(&pin) {
         return Err("PIN must be numeric and at least 4 digits.".to_string());
     }
@@ -1196,7 +1192,7 @@ fn prepare_restorable_sqlite_path(artifact: &Path) -> Result<(PathBuf, Option<Pa
     if !crate::utils::encryption::is_encrypted_backup_artifact_path(artifact) {
         return Ok((artifact.to_path_buf(), None));
     }
-    let pw = crate::utils::backup_keyring::get_or_create_backup_encryption_password()?;
+    let pw = crate::utils::backup_keyring::get_backup_encryption_password_for_decrypt()?;
     let tmp = std::env::temp_dir().join(format!(
         "import-manager-restore-{}.db",
         uuid::Uuid::new_v4()
@@ -1403,13 +1399,27 @@ pub struct RestorePreview {
     pub warnings: Vec<String>,
 }
 
+#[allow(clippy::enum_variant_names)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "PascalCase")]
+pub enum RestoreOutcome {
+    RestoreFailed,
+    RestoreSucceededWithWarning,
+    #[default]
+    RestoreFullySucceeded,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct RestoreResult {
     pub success: bool,
+    #[serde(default)]
+    pub outcome: RestoreOutcome,
     pub message: String,
     pub backup_created: Option<String>,
     pub integrity_check: String,
     pub tables_affected: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub post_restore_warning: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1504,7 +1514,9 @@ pub async fn get_audit_logs(
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
     let lim_for_awareness = limit.unwrap_or(100);
     let off_for_awareness = offset.unwrap_or(0);
-    if lim_for_awareness >= SCALE_WARNING_AUDIT_LIMIT || off_for_awareness >= SCALE_WARNING_AUDIT_LIMIT {
+    if lim_for_awareness >= SCALE_WARNING_AUDIT_LIMIT
+        || off_for_awareness >= SCALE_WARNING_AUDIT_LIMIT
+    {
         log::warn!(
             target: "import_manager::audit",
             "event=workflow.audit.scale_readiness stage=entry limit={} offset={}",
@@ -1693,7 +1705,7 @@ pub async fn create_backup(
         backup_destination,
         userId.as_deref().unwrap_or("unknown")
     );
-    match create_backup_impl(db_state, request, userId, Some(window)).await {
+    match create_backup_impl(db_state.clone(), request, userId.clone(), Some(window)).await {
         Ok(info) => {
             log::info!(
                 target: "import_manager::backup",
@@ -1701,6 +1713,17 @@ pub async fn create_backup(
                 backup_destination,
                 started_at.elapsed().as_millis()
             );
+            if let Ok(conn) = db_state.db.lock() {
+                crate::services::user_activity_audit::log_activity(
+                    &conn,
+                    userId.as_deref(),
+                    "create_backup",
+                    Some("backup"),
+                    None,
+                    Some(&format!("{{\"destination\": \"{}\"}}", backup_destination)),
+                    "SUCCESS",
+                );
+            }
             Ok(info)
         }
         Err(e) => {
@@ -1711,6 +1734,22 @@ pub async fn create_backup(
                 started_at.elapsed().as_millis(),
                 e
             );
+            if let Ok(conn) = db_state.db.lock() {
+                let details = serde_json::json!({
+                    "destination": backup_destination,
+                    "error": e,
+                })
+                .to_string();
+                crate::services::user_activity_audit::log_activity(
+                    &conn,
+                    userId.as_deref(),
+                    "create_backup",
+                    Some("backup"),
+                    None,
+                    Some(&details),
+                    "FAILED",
+                );
+            }
             Err(e)
         }
     }
@@ -2009,49 +2048,158 @@ async fn resolve_backup_to_local_path(
     }
 }
 
-// Get backup history
+/// `get_backup_history` can list Drive `.enc` files that were never inserted into `backups`; preview still needs a [BackupInfo].
+async fn backup_info_for_gdrive_preview_without_db_row(
+    backup_path: &str,
+    local_artifact: &Path,
+    db: &Mutex<Connection>,
+) -> Result<BackupInfo, String> {
+    let file_id = backup_path
+        .strip_prefix(super::google_drive::GDRIVE_PATH_PREFIX)
+        .filter(|s| !s.is_empty())
+        .ok_or_else(|| "Invalid Google Drive backup path".to_string())?;
+    let (filename, created_at) =
+        match super::google_drive::fetch_drive_file_label_metadata(file_id, Some(db)).await {
+            Ok(v) => v,
+            Err(e) => {
+                log::warn!(
+                    target: "import_manager::restore",
+                    "Could not read Drive file metadata for preview (using placeholders): {}",
+                    e
+                );
+                (
+                    format!("backup-{file_id}.enc"),
+                    chrono::Utc::now().to_rfc3339(),
+                )
+            }
+        };
+    let size_bytes = fs::metadata(local_artifact)
+        .map(|m| m.len() as i64)
+        .ok();
+    Ok(BackupInfo {
+        id: None,
+        filename,
+        path: backup_path.to_string(),
+        destination: "google_drive".to_string(),
+        size_bytes,
+        sha256: None,
+        created_by: None,
+        created_at,
+        retention_until: None,
+        notes: Some("Google Drive — ImportManagerBackups".to_string()),
+        status: "completed".to_string(),
+        error_message: None,
+    })
+}
+
+fn backup_created_at_sort_key(s: &str) -> i64 {
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(s) {
+        return dt.timestamp();
+    }
+    if let Ok(n) = chrono::NaiveDateTime::parse_from_str(s.trim(), "%Y-%m-%d %H:%M:%S") {
+        return n.and_utc().timestamp();
+    }
+    0
+}
+
+// Get backup history (local `backups` rows plus live `.enc` files from shared Drive folder when connected).
 #[tauri::command]
 pub async fn get_backup_history(
     db_state: State<'_, DbState>,
     limit: Option<i64>,
 ) -> Result<Vec<BackupInfo>, String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    use std::collections::HashSet;
 
-    let query = "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message 
-                 FROM backups ORDER BY created_at DESC";
+    const LOCAL_CAP: i64 = 500;
+    let final_limit = limit.unwrap_or(100).clamp(1, 500) as usize;
 
-    let query = if let Some(lim) = limit {
-        format!("{} LIMIT {}", query, lim)
-    } else {
-        query.to_string()
+    let mut backups = {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let query = format!(
+            "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message 
+             FROM backups ORDER BY created_at DESC LIMIT {}",
+            LOCAL_CAP
+        );
+        let mut stmt = db.prepare(&query).map_err(|e| e.to_string())?;
+        let rows = stmt
+            .query_map([], |row| {
+                Ok(BackupInfo {
+                    id: Some(row.get(0)?),
+                    filename: row.get(1)?,
+                    path: row.get(2)?,
+                    destination: row.get(3)?,
+                    size_bytes: row.get(4)?,
+                    sha256: row.get(5)?,
+                    created_by: row.get(6)?,
+                    created_at: row.get(7)?,
+                    retention_until: row.get(8)?,
+                    notes: row.get(9)?,
+                    status: row.get(10)?,
+                    error_message: row.get(11)?,
+                })
+            })
+            .map_err(|e| e.to_string())?;
+        let mut v = Vec::new();
+        for row in rows {
+            v.push(row.map_err(|e| e.to_string())?);
+        }
+        v
     };
 
-    let mut stmt = db.prepare(&query).map_err(|e| e.to_string())?;
+    let gdrive_connected = {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        super::google_drive::has_gdrive_session(&db)
+    };
 
-    let rows = stmt
-        .query_map([], |row| {
-            Ok(BackupInfo {
-                id: Some(row.get(0)?),
-                filename: row.get(1)?,
-                path: row.get(2)?,
-                destination: row.get(3)?,
-                size_bytes: row.get(4)?,
-                sha256: row.get(5)?,
-                created_by: row.get(6)?,
-                created_at: row.get(7)?,
-                retention_until: row.get(8)?,
-                notes: row.get(9)?,
-                status: row.get(10)?,
-                error_message: row.get(11)?,
-            })
-        })
-        .map_err(|e| e.to_string())?;
-
-    let mut backups = Vec::new();
-    for row in rows {
-        backups.push(row.map_err(|e| e.to_string())?);
+    if gdrive_connected {
+        match super::google_drive::fetch_gdrive_enc_backup_rows(Some(&db_state.db)).await {
+            Ok(rows) => {
+                let mut seen: HashSet<String> = backups
+                    .iter()
+                    .filter_map(|b| {
+                        b.path
+                            .strip_prefix(super::google_drive::GDRIVE_PATH_PREFIX)
+                            .map(|s| s.to_string())
+                    })
+                    .collect();
+                for r in rows {
+                    if seen.insert(r.file_id.clone()) {
+                        backups.push(BackupInfo {
+                            id: None,
+                            filename: r.filename,
+                            path: format!(
+                                "{}{}",
+                                super::google_drive::GDRIVE_PATH_PREFIX,
+                                r.file_id
+                            ),
+                            destination: "google_drive".to_string(),
+                            size_bytes: r.size_bytes,
+                            sha256: None,
+                            created_by: None,
+                            created_at: r.modified_time,
+                            retention_until: None,
+                            notes: Some("Google Drive — ImportManagerBackups".to_string()),
+                            status: "completed".to_string(),
+                            error_message: None,
+                        });
+                    }
+                }
+            }
+            Err(e) => {
+                log::warn!(
+                    target: "import_manager::gdrive",
+                    "fetch_gdrive_enc_backup_rows failed (showing local backup list only): {}",
+                    super::google_drive::parse_friendly_error(&e)
+                );
+            }
+        }
     }
 
+    backups.sort_by(|a, b| {
+        backup_created_at_sort_key(&b.created_at)
+            .cmp(&backup_created_at_sort_key(&a.created_at))
+    });
+    backups.truncate(final_limit);
     Ok(backups)
 }
 
@@ -2082,7 +2230,7 @@ pub async fn soft_delete_record(
 
     // Create audit log entry
     let tn = tableName.as_str();
-    let _ = db.execute(
+    db.execute(
         r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         params![
             tn,
@@ -2159,7 +2307,7 @@ pub async fn hard_delete_record(
 
     // Create audit log entry
     let tn = tableName.as_str();
-    let _ = tx.execute(
+    tx.execute(
         r#"INSERT INTO audit_logs (table_name, "tableName", row_id, action, user_id, before_json, metadata) VALUES (?, ?, ?, ?, ?, ?, ?)"#,
         params![
             tn,
@@ -2196,12 +2344,12 @@ pub async fn preview_restore(
     let mut _temp_guards = TempFileGuards::new();
     _temp_guards.push_opt(temp_dl);
 
-    // Get backup info from database
-    let backup_info = with_sqlite_retry("preview_restore_backup_row", || {
+    // Prefer `backups` row; Drive-only history entries have no row (path is still `gdrive:<fileId>`).
+    let backup_info = match with_sqlite_retry("preview_restore_backup_row", || {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
-        db.query_row(
+        let r = db.query_row(
             "SELECT id, filename, path, destination, size_bytes, sha256, created_by, created_at, retention_until, notes, status, error_message FROM backups WHERE path = ?",
-            params![backupPath],
+            params![backupPath.as_str()],
             |row| {
                 Ok(BackupInfo {
                     id: Some(row.get(0)?),
@@ -2217,10 +2365,31 @@ pub async fn preview_restore(
                     status: row.get(10)?,
                     error_message: row.get(11)?,
                 })
+            },
+        );
+        match r {
+            Ok(info) => Ok(Some(info)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.to_string()),
+        }
+    })? {
+        Some(info) => info,
+        None => {
+            if backupPath.starts_with(super::google_drive::GDRIVE_PATH_PREFIX) {
+                backup_info_for_gdrive_preview_without_db_row(
+                    &backupPath,
+                    &local_path,
+                    &db_state.db,
+                )
+                .await?
+            } else {
+                return Err(
+                    "Backup not found in database: no row for this path (local backups must exist in the backups table)."
+                        .to_string(),
+                );
             }
-        )
-        .map_err(|e| format!("Backup not found in database: {}", e))
-    })?;
+        }
+    };
 
     let recorded_hash_match: Option<bool> = match &backup_info.sha256 {
         Some(s) if !s.trim().is_empty() => match sha256_hex_file(&local_path) {
@@ -2375,10 +2544,146 @@ const RESTORE_TABLES: &[&str] = &[
     "backups",
 ];
 
+/// `user_roles` is restored only when the backup file contains that table (older backups omit it).
+const USER_ROLES_TABLE: &str = "user_roles";
+/// Well-known `user_id` when post-restore safety must insert an admin (logged explicitly).
+const RESTORE_RECOVERY_ADMIN_USER_ID: &str = "restore-recovery-admin";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum UserRolesRestoreOutcome {
+    RestoredFromBackup,
+    BackupMissingTable,
+    SkippedIncompatibleSchema,
+}
+
+/// If the backup has a compatible `user_roles` table, replace main from backup. Otherwise leave
+/// main `user_roles` unchanged and log (older backups, or incompatible schema).
+fn restore_user_roles_from_attached_backup(
+    tx: &Transaction<'_>,
+    backup_db_name: &str,
+) -> Result<UserRolesRestoreOutcome, String> {
+    let table_exists: i64 = tx
+        .query_row(
+            &format!(
+                "SELECT COUNT(*) FROM {}.sqlite_master WHERE type='table' AND name=?",
+                backup_db_name
+            ),
+            params![USER_ROLES_TABLE],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    if table_exists == 0 {
+        log::warn!(
+            target: "import_manager::restore",
+            "[{}] user_roles not present in backup — existing roles retained",
+            restore_log_ts()
+        );
+        return Ok(UserRolesRestoreOutcome::BackupMissingTable);
+    }
+
+    let pragma_main = pragma_table_info_main(USER_ROLES_TABLE);
+    let pragma_backup = pragma_table_info_attached(backup_db_name, USER_ROLES_TABLE);
+
+    let current_columns: Vec<String> = tx
+        .prepare(&pragma_main)
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let backup_columns: Vec<String> = tx
+        .prepare(&pragma_backup)
+        .map_err(|e| e.to_string())?
+        .query_map([], |row| row.get::<_, String>(1))
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let common_columns: Vec<String> = current_columns
+        .iter()
+        .filter(|col| backup_columns.contains(col))
+        .cloned()
+        .collect();
+
+    if common_columns.is_empty() {
+        log::warn!(
+            target: "import_manager::restore",
+            "[{}] user_roles in backup has no column overlap with main — existing roles retained",
+            restore_log_ts()
+        );
+        return Ok(UserRolesRestoreOutcome::SkippedIncompatibleSchema);
+    }
+
+    let table_q = sqlite_double_quote_ident(USER_ROLES_TABLE);
+    tx.execute(
+        &format!("DELETE FROM {}", table_q),
+        [],
+    )
+    .map_err(|e| format!("Failed to clear user_roles for restore: {}", e))?;
+
+    let columns_str = common_columns.join(", ");
+    let copy_sql = format!(
+        "INSERT INTO {} ({}) SELECT {} FROM {}.{}",
+        table_q, columns_str, columns_str, backup_db_name, table_q
+    );
+    let rows = tx
+        .execute(&copy_sql, [])
+        .map_err(|e| format!("Failed to restore user_roles: {}", e))?;
+
+    log::info!(
+        target: "import_manager::restore",
+        "[{}] user_roles restored from backup ({} rows)",
+        restore_log_ts(),
+        rows
+    );
+    Ok(UserRolesRestoreOutcome::RestoredFromBackup)
+}
+
+/// Ensures at least one admin row exists after restore. Logs explicitly when inserting recovery admin.
+fn ensure_at_least_one_admin_after_restore(conn: &Connection) -> Result<(), String> {
+    let admin_count =
+        crate::security::count_admin_roles(conn).map_err(|e| format!("user_roles ensure after restore: {}", e))?;
+    if admin_count > 0 {
+        return Ok(());
+    }
+    log::warn!(
+        target: "import_manager::restore",
+        "[{}] No admin in user_roles after restore; inserting recovery admin (user_id={})",
+        restore_log_ts(),
+        RESTORE_RECOVERY_ADMIN_USER_ID
+    );
+    crate::security::insert_recovery_admin_when_no_admins(conn, RESTORE_RECOVERY_ADMIN_USER_ID)?;
+    log::info!(
+        target: "import_manager::restore",
+        "[{}] Recovery admin inserted (user_id={})",
+        restore_log_ts(),
+        RESTORE_RECOVERY_ADMIN_USER_ID
+    );
+    Ok(())
+}
+
 fn restore_log_ts() -> String {
     chrono::Local::now()
         .format("%Y-%m-%d %H:%M:%S%.3f")
         .to_string()
+}
+
+/// Persists a post-commit marker before any admin-recovery step so operators can tell the restore transaction succeeded.
+fn record_restore_transaction_committed_marker(conn: &Connection) -> Result<(), String> {
+    let ts = Utc::now().to_rfc3339();
+    conn.execute(
+        "INSERT INTO app_metadata (key, value) VALUES (?1, ?2) \
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![APP_METADATA_RESTORE_TX_COMMITTED_AT, ts],
+    )
+    .map_err(|e| format!("Failed to record restore transaction committed marker: {}", e))?;
+    log::info!(
+        target: "import_manager::restore",
+        "event=restore.tx_committed_marker stage=post_commit committed_at={}",
+        ts
+    );
+    Ok(())
 }
 
 /// Double-quote a SQLite identifier (escape internal `"` as `""`).
@@ -2526,7 +2831,9 @@ pub async fn restore_database(
     userId: Option<String>,
 ) -> Result<RestoreResult, String> {
     log_upgrade_readiness("restore_database");
-    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE
+        .fetch_add(1, Ordering::SeqCst)
+        .saturating_add(1);
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         ensure_command_permission(&db, userId.as_deref(), PERM_BACKUP_RESTORE)?;
@@ -2544,7 +2851,10 @@ pub async fn restore_database(
         "event=workload.classification category=heavy operation=restore"
     );
     if current_bulk_delete_active_count() > 0 {
-        return Err("Bulk delete is in progress. Please retry restore when bulk operations are complete.".to_string());
+        return Err(
+            "Bulk delete is in progress. Please retry restore when bulk operations are complete."
+                .to_string(),
+        );
     }
     if RESTORE_TABLES.len() >= SCALE_WARNING_RESTORE_TABLES {
         log::info!(
@@ -2697,7 +3007,7 @@ pub async fn restore_database(
             restore_log_ts()
         );
 
-        let restored_table_list: Vec<String> = {
+        let (restored_table_list, restore_outcome, post_restore_warning) = {
             log::info!(
                 target: "import_manager::restore",
                 "event=workflow.restore.progress stage=execution step=table_copy"
@@ -2876,8 +3186,22 @@ pub async fn restore_database(
                     }
                 }
 
+                match restore_user_roles_from_attached_backup(&tx, &backup_db_name) {
+                    Ok(UserRolesRestoreOutcome::RestoredFromBackup) => {
+                        out.push("user_roles (from backup)".to_string());
+                    }
+                    Ok(UserRolesRestoreOutcome::BackupMissingTable) => {
+                        out.push("user_roles (retained — not in backup)".to_string());
+                    }
+                    Ok(UserRolesRestoreOutcome::SkippedIncompatibleSchema) => {
+                        out.push("user_roles (retained — backup incompatible)".to_string());
+                    }
+                    Err(e) => return Err(e),
+                }
+
                 tx.commit()
                     .map_err(|e| format!("Failed to commit restore transaction: {}", e))?;
+                record_restore_transaction_committed_marker(&restore_conn)?;
                 log::info!(
                     target: "import_manager::restore",
                     "[{}] Restore committed successfully",
@@ -2963,24 +3287,65 @@ pub async fn restore_database(
             *main_guard = Connection::open(&current_db_path)
                 .map_err(|e| format!("Failed to reopen main database after restore: {}", e))?;
 
+            let admin_recovery_result = ensure_at_least_one_admin_after_restore(&main_guard);
+            let final_admin_count = crate::security::count_admin_roles(&main_guard).unwrap_or(0);
+            let admin_recovery_for_log = match &admin_recovery_result {
+                Ok(()) => "ok".to_string(),
+                Err(e) => format!(
+                    "failed: {}",
+                    e.replace('\n', " ").replace('|', "/")
+                ),
+            };
+            let (outcome, post_restore_warning) = match &admin_recovery_result {
+                Ok(()) => (RestoreOutcome::RestoreFullySucceeded, None),
+                Err(e) => (
+                    RestoreOutcome::RestoreSucceededWithWarning,
+                    Some(e.clone()),
+                ),
+            };
+            log::info!(
+                target: "import_manager::restore",
+                "event=restore.final_state restore_phase_result=committed admin_recovery_result={} final_admin_count={} outcome={:?}",
+                admin_recovery_for_log,
+                final_admin_count,
+                outcome
+            );
+            if let Err(ref e) = admin_recovery_result {
+                log::warn!(
+                    target: "import_manager::restore",
+                    "[{}] Admin recovery after restore failed (restore transaction already committed): {}",
+                    restore_log_ts(),
+                    e
+                );
+            }
+
             log::info!(
                 target: "import_manager::restore",
                 "[{}] Main application connection replaced; no stale page cache",
                 restore_log_ts()
             );
 
-            restored_table_list
+            (restored_table_list, outcome, post_restore_warning)
+        };
+
+        let tables_msg = restored_table_list.join(", ");
+        let base_msg = format!("Database restored successfully. Restored tables: {}", tables_msg);
+        let message = match &post_restore_warning {
+            Some(w) => format!(
+                "{} Warning: post-restore admin recovery did not complete: {}",
+                base_msg, w
+            ),
+            None => base_msg,
         };
 
         Ok(RestoreResult {
             success: true,
-            message: format!(
-                "Database restored successfully. Restored tables: {}",
-                restored_table_list.join(", ")
-            ),
+            outcome: restore_outcome,
+            message,
             backup_created: Some(pre_restore_backup),
             integrity_check,
             tables_affected: RESTORE_TABLES.iter().map(|s| (*s).to_string()).collect(),
+            post_restore_warning,
         })
     }
     .await;
@@ -3044,8 +3409,9 @@ pub async fn restore_database(
             }
             log::info!(
                 target: "import_manager::restore",
-                "event=workflow.restore.success stage=completion elapsed_ms={}",
-                restore_start.elapsed().as_millis()
+                "event=workflow.restore.success stage=completion elapsed_ms={} outcome={:?}",
+                restore_start.elapsed().as_millis(),
+                result.outcome
             );
             record_performance_observation(
                 "restore_operation",
@@ -3055,8 +3421,10 @@ pub async fn restore_database(
             );
             log::info!(
                 target: "import_manager::restore",
-                "[{}] Restore completed successfully",
-                restore_log_ts()
+                "[{}] Restore completed successfully outcome={:?} post_restore_warning={:?}",
+                restore_log_ts(),
+                result.outcome,
+                result.post_restore_warning.as_deref()
             );
             invalidate_database_stats_cache();
             Ok(result)
@@ -3469,6 +3837,7 @@ fn create_bulk_undo_token(
     Ok((undo_token, expires_at.to_rfc3339()))
 }
 
+#[allow(clippy::too_many_arguments)]
 fn execute_bulk_delete_for_ids(
     app: &AppHandle,
     db: &mut Connection,
@@ -3513,7 +3882,8 @@ fn execute_bulk_delete_for_ids(
         bulk_delete_batch_size = bulk_delete_batch_size.min(100);
     }
     let mut processed = 0usize;
-    let total_batches = total_requested.div_ceil(bulk_delete_batch_size);
+    let total_batches =
+        (total_requested + bulk_delete_batch_size.saturating_sub(1)) / bulk_delete_batch_size;
     let mut lock_contention_streak: u32 = 0;
 
     emit_bulk_delete_event(
@@ -3569,10 +3939,14 @@ fn execute_bulk_delete_for_ids(
                     table_name
                 );
                 let hard_delete_query = format!("DELETE FROM {} WHERE id = ?", table_name);
-                let soft_delete_meta =
-                    format!("{{\"type\": \"bulk_soft_delete\", \"batch_size\": {}}}", total_requested);
-                let hard_delete_meta =
-                    format!("{{\"type\": \"bulk_hard_delete\", \"batch_size\": {}}}", total_requested);
+                let soft_delete_meta = format!(
+                    "{{\"type\": \"bulk_soft_delete\", \"batch_size\": {}}}",
+                    total_requested
+                );
+                let hard_delete_meta = format!(
+                    "{{\"type\": \"bulk_hard_delete\", \"batch_size\": {}}}",
+                    total_requested
+                );
 
                 for record_id in chunk {
                     if let Some(set) = hard_delete_processed_ids.as_mut() {
@@ -3627,14 +4001,18 @@ fn execute_bulk_delete_for_ids(
                                 std::slice::from_ref(record_id),
                             )?;
                             let exec_started = Instant::now();
-                            let changes = match tx.execute(&hard_delete_query, params![record_id.as_str()]) {
+                            let changes = match tx
+                                .execute(&hard_delete_query, params![record_id.as_str()])
+                            {
                                 Ok(changes) => changes,
                                 Err(e) => {
                                     let raw = e.to_string();
                                     if is_sqlite_lock_err(&raw) {
                                         return Err(raw);
                                     }
-                                    return Err(super::reference_scan::map_hard_delete_error_rusqlite(e));
+                                    return Err(
+                                        super::reference_scan::map_hard_delete_error_rusqlite(e),
+                                    );
                                 }
                             };
                             let exec_ms = exec_started.elapsed().as_millis();
@@ -3851,7 +4229,9 @@ pub async fn bulk_delete_records(
     delete_type: String, // "soft" or "hard"
 ) -> Result<BulkDeleteResult, String> {
     log_upgrade_readiness("bulk_delete_records");
-    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE
+        .fetch_add(1, Ordering::SeqCst)
+        .saturating_add(1);
     let _bulk_admission_guard = BulkDeleteAdmissionGuard::try_enter()?;
     log::info!(
         target: "import_manager::workload",
@@ -3884,7 +4264,11 @@ pub async fn bulk_delete_records(
             "event=workflow.bulk_delete.scale_readiness stage=entry mode=id_list record_count={}",
             record_ids.len()
         );
-        log_scale_escalation(&LARGE_BULK_OPERATION_COUNT, "bulk_delete_id_list", record_ids.len());
+        log_scale_escalation(
+            &LARGE_BULK_OPERATION_COUNT,
+            "bulk_delete_id_list",
+            record_ids.len(),
+        );
     }
 
     let operation_started_at = Instant::now();
@@ -3946,6 +4330,7 @@ pub async fn bulk_delete_records(
 }
 
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn bulk_delete_records_by_filter(
     app: AppHandle,
     db_state: State<'_, DbState>,
@@ -3959,7 +4344,9 @@ pub async fn bulk_delete_records_by_filter(
     deleteType: String,
 ) -> Result<BulkDeleteResult, String> {
     log_upgrade_readiness("bulk_delete_records_by_filter");
-    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE.fetch_add(1, Ordering::SeqCst).saturating_add(1);
+    let heavy_seq = HEAVY_WORKFLOW_SEQUENCE
+        .fetch_add(1, Ordering::SeqCst)
+        .saturating_add(1);
     let _bulk_admission_guard = BulkDeleteAdmissionGuard::try_enter()?;
     log::info!(
         target: "import_manager::workload",
@@ -4036,7 +4423,11 @@ pub async fn bulk_delete_records_by_filter(
             "event=workflow.bulk_delete.scale_readiness stage=entry mode=filter record_count={}",
             matching_ids.len()
         );
-        log_scale_escalation(&LARGE_BULK_OPERATION_COUNT, "bulk_delete_filter", matching_ids.len());
+        log_scale_escalation(
+            &LARGE_BULK_OPERATION_COUNT,
+            "bulk_delete_filter",
+            matching_ids.len(),
+        );
     }
 
     let _hard_top_trace = (deleteType == "hard").then(|| {
@@ -4618,6 +5009,8 @@ pub async fn create_user_role(
 pub async fn get_user_roles(db_state: State<'_, DbState>) -> Result<Vec<UserRole>, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
 
+    crate::security::ensure_user_roles::ensure_user_roles_table(&db).map_err(|e| e.to_string())?;
+
     let mut stmt = db.prepare("SELECT id, user_id, role, permissions, created_at, updated_at FROM user_roles ORDER BY created_at DESC")
         .map_err(|e| e.to_string())?;
 
@@ -4763,6 +5156,17 @@ pub async fn delete_user_role(
     Ok(())
 }
 
+/// Registers the first administrator when **zero** admin rows exist and `userId` has no `user_roles` row.
+/// Explicit bootstrap entry point only — never called from permission checks.
+#[tauri::command]
+pub async fn bootstrap_first_admin_if_eligible(
+    db_state: State<'_, DbState>,
+    userId: String,
+) -> Result<(), String> {
+    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    crate::security::bootstrap_first_admin_when_empty(&db, &userId)
+}
+
 #[tauri::command]
 pub async fn check_user_permission(
     db_state: State<'_, DbState>,
@@ -4771,14 +5175,7 @@ pub async fn check_user_permission(
 ) -> Result<bool, String> {
     let db = db_state.db.lock().map_err(|e| e.to_string())?;
 
-    // Get user role
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![userId],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
+    let role = crate::security::resolve_role_strict(&db, &userId)?;
 
     // Check role-based permissions
     let has_permission = match role.as_str() {
@@ -4808,14 +5205,7 @@ pub async fn get_user_permissions(
 ) -> Result<Vec<String>, String> {
     let db = _db_state.db.lock().map_err(|e| e.to_string())?;
 
-    // Get user role
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![userId],
-            |row| row.get(0),
-        )
-        .map_err(|e| e.to_string())?;
+    let role = crate::security::resolve_role_strict(&db, &userId)?;
 
     // Return permissions based on role
     let permissions = match role.as_str() {
@@ -5368,5 +5758,614 @@ mod restore_validation_tests {
         let err = validate_backup_tables_readonly(&p, &["only_one", "missing_table"]).unwrap_err();
         assert!(err.contains("missing_table"));
         let _ = fs::remove_file(&p);
+    }
+}
+
+#[cfg(test)]
+mod restore_user_roles_tests {
+    use super::{
+        ensure_at_least_one_admin_after_restore, restore_user_roles_from_attached_backup,
+        UserRolesRestoreOutcome,
+    };
+    use rusqlite::Connection;
+    use rusqlite::params;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn unique_test_db(name: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("im_restore_ur_{}_{}.db", name, nanos))
+    }
+
+    const USER_ROLES_DDL: &str = r#"
+        CREATE TABLE user_roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL UNIQUE,
+            role TEXT NOT NULL,
+            permissions TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    "#;
+
+    #[test]
+    fn backup_with_user_roles_restores_rows_from_backup() {
+        let main_path = unique_test_db("ur_main");
+        let bak_path = unique_test_db("ur_bak");
+        {
+            let c = Connection::open(&main_path).unwrap();
+            c.execute_batch(USER_ROLES_DDL).unwrap();
+            c.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES ('live', 'viewer')",
+                [],
+            )
+            .unwrap();
+        }
+        {
+            let c = Connection::open(&bak_path).unwrap();
+            c.execute_batch(USER_ROLES_DDL).unwrap();
+            c.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES ('frombak', 'admin')",
+                [],
+            )
+            .unwrap();
+        }
+
+        let mut conn = Connection::open(&main_path).unwrap();
+        let alias = "bkp";
+        conn.execute(
+            &format!(
+                "ATTACH DATABASE '{}' AS {}",
+                bak_path.to_string_lossy(),
+                alias
+            ),
+            [],
+        )
+        .unwrap();
+        let tx = conn.transaction().unwrap();
+        let outcome = restore_user_roles_from_attached_backup(&tx, alias).unwrap();
+        assert_eq!(outcome, UserRolesRestoreOutcome::RestoredFromBackup);
+        tx.commit().unwrap();
+
+        let role: String = conn
+            .query_row(
+                "SELECT role FROM user_roles WHERE user_id = 'frombak'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(role, "admin");
+        let n: i64 = conn
+            .query_row("SELECT COUNT(*) FROM user_roles", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(n, 1);
+
+        conn.execute(&format!("DETACH DATABASE {}", alias), [])
+            .unwrap();
+        drop(conn);
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&bak_path);
+    }
+
+    #[test]
+    fn backup_without_user_roles_retains_live_roles() {
+        let main_path = unique_test_db("ur2_main");
+        let bak_path = unique_test_db("ur2_bak");
+        {
+            let c = Connection::open(&main_path).unwrap();
+            c.execute_batch(USER_ROLES_DDL).unwrap();
+            c.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES ('keep', 'admin')",
+                [],
+            )
+            .unwrap();
+        }
+        {
+            let c = Connection::open(&bak_path).unwrap();
+            c.execute("CREATE TABLE dummy_only (x INTEGER)", [])
+                .unwrap();
+        }
+
+        let mut conn = Connection::open(&main_path).unwrap();
+        let alias = "bkp2";
+        conn.execute(
+            &format!(
+                "ATTACH DATABASE '{}' AS {}",
+                bak_path.to_string_lossy(),
+                alias
+            ),
+            [],
+        )
+        .unwrap();
+        let tx = conn.transaction().unwrap();
+        let outcome = restore_user_roles_from_attached_backup(&tx, alias).unwrap();
+        assert_eq!(outcome, UserRolesRestoreOutcome::BackupMissingTable);
+        tx.commit().unwrap();
+
+        let role: String = conn
+            .query_row(
+                "SELECT role FROM user_roles WHERE user_id = 'keep'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(role, "admin");
+
+        conn.execute(&format!("DETACH DATABASE {}", alias), [])
+            .unwrap();
+        drop(conn);
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&bak_path);
+    }
+
+    #[test]
+    fn post_restore_recovery_admin_when_no_admin_rows() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES (?1, ?2)",
+            params!["onlyviewer", "viewer"],
+        )
+        .unwrap();
+        ensure_at_least_one_admin_after_restore(&conn).unwrap();
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM user_roles WHERE lower(trim(role)) = 'admin'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(n >= 1);
+        let rid: String = conn
+            .query_row(
+                "SELECT user_id FROM user_roles WHERE user_id = ?1",
+                params![super::RESTORE_RECOVERY_ADMIN_USER_ID],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(rid, super::RESTORE_RECOVERY_ADMIN_USER_ID);
+    }
+
+    #[test]
+    fn incompatible_backup_user_roles_retains_main_resolve_role_still_works() {
+        let main_path = unique_test_db("ur4_main");
+        let bak_path = unique_test_db("ur4_bak");
+        {
+            let c = Connection::open(&main_path).unwrap();
+            c.execute_batch(USER_ROLES_DDL).unwrap();
+            c.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES ('u1', 'viewer')",
+                [],
+            )
+            .unwrap();
+        }
+        {
+            let c = Connection::open(&bak_path).unwrap();
+            c.execute("CREATE TABLE user_roles (oops INTEGER)", [])
+                .unwrap();
+            c.execute("INSERT INTO user_roles (oops) VALUES (1)", [])
+                .unwrap();
+        }
+
+        let mut conn = Connection::open(&main_path).unwrap();
+        let alias = "bkp4";
+        conn.execute(
+            &format!(
+                "ATTACH DATABASE '{}' AS {}",
+                bak_path.to_string_lossy(),
+                alias
+            ),
+            [],
+        )
+        .unwrap();
+        let tx = conn.transaction().unwrap();
+        let outcome = restore_user_roles_from_attached_backup(&tx, alias).unwrap();
+        assert_eq!(outcome, UserRolesRestoreOutcome::SkippedIncompatibleSchema);
+        tx.commit().unwrap();
+
+        let role = crate::security::resolve_role_strict(&conn, "u1").unwrap();
+        assert_eq!(role, "viewer");
+
+        conn.execute(&format!("DETACH DATABASE {}", alias), [])
+            .unwrap();
+        drop(conn);
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&bak_path);
+    }
+}
+
+/// Validates transaction rollback behavior matching the restore pipeline (DELETE + INSERT / user_roles)
+/// without altering production restore code paths.
+#[cfg(test)]
+mod restore_atomicity_tests {
+    use super::{
+        ensure_at_least_one_admin_after_restore, restore_user_roles_from_attached_backup,
+    };
+    use crate::security::ensure_user_roles::ensure_user_roles_table;
+    use rusqlite::Connection;
+    use rusqlite::params;
+    use std::fs;
+    use std::path::PathBuf;
+
+    fn unique_atomic_db(name: &str) -> PathBuf {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        std::env::temp_dir().join(format!("im_atomic_{}_{}.db", name, nanos))
+    }
+
+    const USER_ROLES_DDL: &str = r#"
+        CREATE TABLE user_roles (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id TEXT NOT NULL UNIQUE,
+            role TEXT NOT NULL,
+            permissions TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+    "#;
+
+    #[test]
+    fn insert_failure_after_delete_rolls_back_no_partial_table_state() {
+        let main_path = unique_atomic_db("ins_fail_main");
+        let bak_path = unique_atomic_db("ins_fail_bak");
+        {
+            let c = Connection::open(&main_path).unwrap();
+            c.execute_batch(
+                r#"CREATE TABLE probe(id INTEGER PRIMARY KEY, v TEXT NOT NULL);
+                   INSERT INTO probe VALUES (1, 'original');"#,
+            )
+            .unwrap();
+        }
+        {
+            let c = Connection::open(&bak_path).unwrap();
+            c.execute_batch(
+                r#"CREATE TABLE probe(id INTEGER PRIMARY KEY, v TEXT NOT NULL);
+                   INSERT INTO probe VALUES (2, 'from_backup');"#,
+            )
+            .unwrap();
+        }
+
+        let mut conn = Connection::open(&main_path).unwrap();
+        conn.execute_batch(
+            r#"CREATE TRIGGER tr_sim_insert_fail BEFORE INSERT ON probe BEGIN
+                 SELECT RAISE(ABORT, 'simulated_insert_failure');
+               END;"#,
+        )
+        .unwrap();
+        conn.execute(
+            &format!(
+                "ATTACH DATABASE '{}' AS bkp_ins",
+                bak_path.to_string_lossy()
+            ),
+            [],
+        )
+        .unwrap();
+
+        {
+            let tx = conn.transaction().unwrap();
+            tx.execute("DELETE FROM probe", []).unwrap();
+            let ins = tx.execute(
+                "INSERT INTO probe (id, v) SELECT id, v FROM bkp_ins.probe",
+                [],
+            );
+            assert!(ins.is_err(), "expected INSERT to abort");
+        }
+
+        let v: String = conn
+            .query_row("SELECT v FROM probe WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(v, "original");
+
+        conn.execute("DETACH DATABASE bkp_ins", []).unwrap();
+        drop(conn);
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&bak_path);
+    }
+
+    #[test]
+    fn user_roles_restore_failure_rolls_back_prior_copy_in_same_transaction() {
+        let main_path = unique_atomic_db("ur_tx_main");
+        let bak_path = unique_atomic_db("ur_tx_bak");
+        {
+            let c = Connection::open(&main_path).unwrap();
+            c.execute_batch(
+                r#"CREATE TABLE probe(id INTEGER PRIMARY KEY, v TEXT NOT NULL);
+                   INSERT INTO probe VALUES (1, 'before');"#,
+            )
+            .unwrap();
+            c.execute_batch(USER_ROLES_DDL).unwrap();
+            c.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES ('u', 'viewer')",
+                [],
+            )
+            .unwrap();
+        }
+        {
+            let c = Connection::open(&bak_path).unwrap();
+            c.execute_batch(
+                r#"CREATE TABLE probe(id INTEGER PRIMARY KEY, v TEXT NOT NULL);
+                   INSERT INTO probe VALUES (9, 'after_backup');"#,
+            )
+            .unwrap();
+            c.execute_batch(USER_ROLES_DDL).unwrap();
+            c.execute(
+                "INSERT INTO user_roles (user_id, role) VALUES ('b', 'admin')",
+                [],
+            )
+            .unwrap();
+        }
+
+        let mut conn = Connection::open(&main_path).unwrap();
+        conn.execute_batch(
+            r#"CREATE TRIGGER tr_block_ur_insert BEFORE INSERT ON user_roles BEGIN
+                 SELECT RAISE(ABORT, 'simulated_user_roles_restore_failure');
+               END;"#,
+        )
+        .unwrap();
+        conn.execute(
+            &format!(
+                "ATTACH DATABASE '{}' AS bkp_ur",
+                bak_path.to_string_lossy()
+            ),
+            [],
+        )
+        .unwrap();
+
+        {
+            let tx = conn.transaction().unwrap();
+            tx.execute("DELETE FROM probe", []).unwrap();
+            tx.execute(
+                "INSERT INTO probe (id, v) SELECT id, v FROM bkp_ur.probe",
+                [],
+            )
+            .unwrap();
+            let ur = restore_user_roles_from_attached_backup(&tx, "bkp_ur");
+            assert!(ur.is_err(), "expected user_roles restore to abort");
+        }
+
+        let v: String = conn
+            .query_row("SELECT v FROM probe WHERE id = 1", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(v, "before");
+
+        let cnt: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM user_roles WHERE user_id = 'u'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(cnt, 1);
+
+        conn.execute("DETACH DATABASE bkp_ur", []).unwrap();
+        drop(conn);
+        let _ = fs::remove_file(&main_path);
+        let _ = fs::remove_file(&bak_path);
+    }
+
+    #[test]
+    fn admin_recovery_failure_returns_error_to_caller() {
+        let conn = Connection::open_in_memory().unwrap();
+        ensure_user_roles_table(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES (?1, ?2)",
+            params!["vonly", "viewer"],
+        )
+        .unwrap();
+        conn.execute_batch(&format!(
+            r#"CREATE TRIGGER tr_block_recovery BEFORE INSERT ON user_roles
+               WHEN NEW.user_id = '{}'
+               BEGIN SELECT RAISE(ABORT, 'recovery_blocked'); END"#,
+            super::RESTORE_RECOVERY_ADMIN_USER_ID
+        ))
+        .unwrap();
+        let err = ensure_at_least_one_admin_after_restore(&conn).unwrap_err();
+        assert!(
+            err.contains("recovery")
+                || err.contains("blocked")
+                || err.contains("Failed to insert"),
+            "unexpected: {err}"
+        );
+    }
+}
+
+/// Post-commit marker and outcome mapping (no changes to restore transaction design).
+#[cfg(test)]
+mod restore_outcome_clarity_tests {
+    use super::{
+        ensure_at_least_one_admin_after_restore, record_restore_transaction_committed_marker,
+        RestoreOutcome, APP_METADATA_RESTORE_TX_COMMITTED_AT, RESTORE_RECOVERY_ADMIN_USER_ID,
+    };
+    use crate::security::ensure_user_roles::ensure_user_roles_table;
+    use rusqlite::Connection;
+    use rusqlite::params;
+
+    #[test]
+    fn tx_commit_marker_exists_before_admin_recovery_and_survives_recovery_failure() {
+        let mut conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE app_metadata (key TEXT PRIMARY KEY NOT NULL, value TEXT NOT NULL);",
+        )
+        .unwrap();
+        ensure_user_roles_table(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES ('v1', 'viewer')",
+            [],
+        )
+        .unwrap();
+
+        let tx = conn.transaction().unwrap();
+        tx.execute(
+            "UPDATE user_roles SET updated_at = updated_at WHERE user_id = 'v1'",
+            [],
+        )
+        .unwrap();
+        tx.commit().unwrap();
+
+        record_restore_transaction_committed_marker(&conn).unwrap();
+
+        let marker: String = conn
+            .query_row(
+                "SELECT value FROM app_metadata WHERE key = ?1",
+                params![APP_METADATA_RESTORE_TX_COMMITTED_AT],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(!marker.is_empty(), "commit marker should be set before admin recovery");
+
+        conn.execute_batch(&format!(
+            r#"CREATE TRIGGER tr_block_recovery_ins BEFORE INSERT ON user_roles
+               WHEN NEW.user_id = '{RESTORE_RECOVERY_ADMIN_USER_ID}'
+               BEGIN SELECT RAISE(ABORT, 'recovery_blocked'); END"#
+        ))
+        .unwrap();
+
+        let admin_result = ensure_at_least_one_admin_after_restore(&conn);
+        let err = admin_result.as_ref().unwrap_err();
+        assert!(
+            err.contains("recovery")
+                || err.contains("blocked")
+                || err.contains("Failed to insert"),
+            "unexpected: {err}"
+        );
+
+        let outcome = match &admin_result {
+            Ok(()) => RestoreOutcome::RestoreFullySucceeded,
+            Err(_) => RestoreOutcome::RestoreSucceededWithWarning,
+        };
+        assert_eq!(outcome, RestoreOutcome::RestoreSucceededWithWarning);
+
+        let marker_after: String = conn
+            .query_row(
+                "SELECT value FROM app_metadata WHERE key = ?1",
+                params![APP_METADATA_RESTORE_TX_COMMITTED_AT],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(marker_after, marker, "marker must remain after failed recovery");
+
+        let role: String = conn
+            .query_row(
+                "SELECT role FROM user_roles WHERE user_id = 'v1'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(role, "viewer", "restored user data must remain");
+    }
+}
+
+#[cfg(test)]
+mod authz_ensure_command_tests {
+    use super::ensure_command_permission;
+    use super::PERM_BACKUP_CREATE;
+    use rusqlite::Connection;
+    use rusqlite::params;
+
+    #[test]
+    fn unknown_actor_denied_backup_create_no_silent_admin_promotion() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        let err =
+            ensure_command_permission(&conn, Some("spoofed-user"), PERM_BACKUP_CREATE).unwrap_err();
+        assert!(
+            err.contains("not configured") || err.contains("Permission denied"),
+            "unexpected: {err}"
+        );
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM user_roles WHERE user_id = ?1",
+                params!["spoofed-user"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 0, "must not insert admin row for unknown actor");
+    }
+
+    #[test]
+    fn existing_viewer_denied_backup_create() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES (?1, ?2)",
+            params!["vu", "viewer"],
+        )
+        .unwrap();
+        let err = ensure_command_permission(&conn, Some("vu"), PERM_BACKUP_CREATE).unwrap_err();
+        assert!(
+            err.contains("Permission denied") && err.contains("backup.create"),
+            "unexpected: {err}"
+        );
+    }
+
+    /// Regression: an existing admin does not allow arbitrary unknown users through privileged checks.
+    #[test]
+    fn admin_exists_unknown_user_denied_privileged_command() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        conn.execute(
+            "INSERT INTO user_roles (user_id, role) VALUES (?1, ?2)",
+            params!["existing-admin", "admin"],
+        )
+        .unwrap();
+        let err =
+            ensure_command_permission(&conn, Some("random-unknown"), PERM_BACKUP_CREATE).unwrap_err();
+        assert!(
+            err.contains("not configured") || err.contains("Permission denied"),
+            "unexpected: {err}"
+        );
+        let n: i64 = conn
+            .query_row(
+                "SELECT COUNT(*) FROM user_roles WHERE user_id = ?1",
+                params!["random-unknown"],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 0);
+    }
+
+    /// Regression: multiple distinct unknown users doing privileged checks — none get rows.
+    #[test]
+    fn multiple_unknown_users_none_promoted_via_permission_checks() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        for uid in ["u1", "u2", "u3"] {
+            let err = ensure_command_permission(&conn, Some(uid), PERM_BACKUP_CREATE).unwrap_err();
+            assert!(
+                err.contains("not configured") || err.contains("Permission denied"),
+                "unexpected for {uid}: {err}"
+            );
+        }
+        let total: i64 = conn
+            .query_row("SELECT COUNT(*) FROM user_roles", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(total, 0);
+    }
+
+    /// Zero admins: explicit bootstrap creates exactly one admin; permission checks still deny others.
+    #[test]
+    fn zero_admins_explicit_bootstrap_then_strict_auth() {
+        let conn = Connection::open_in_memory().unwrap();
+        crate::security::bootstrap_first_admin_when_empty(&conn, "owner").unwrap();
+        ensure_command_permission(&conn, Some("owner"), PERM_BACKUP_CREATE).unwrap();
+
+        let err =
+            ensure_command_permission(&conn, Some("other"), PERM_BACKUP_CREATE).unwrap_err();
+        assert!(
+            err.contains("not configured") || err.contains("Permission denied"),
+            "unexpected: {err}"
+        );
+
+        let err_second =
+            crate::security::bootstrap_first_admin_when_empty(&conn, "intruder").unwrap_err();
+        assert!(
+            err_second.contains("already exists"),
+            "unexpected: {err_second}"
+        );
     }
 }

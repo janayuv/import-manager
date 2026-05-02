@@ -231,6 +231,8 @@ jobs:
       SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
       SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
       LIBSQLITE3_SYS_BUNDLED: '0'
+      # Release `tauri build` requires a bcrypt hash (same default as E2E dev password).
+      IMPORT_MANAGER_ADMIN_PASSWORD_HASH: '$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq'
     steps:
       - uses: actions/checkout@v4
       - name: Enable long paths

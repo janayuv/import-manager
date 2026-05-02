@@ -155,7 +155,7 @@ fn compute_sla_status(deadline: Option<&str>) -> String {
         return "ON_TIME".into();
     };
     let days_left = (dead - tod).num_days();
-    if days_left >= 0 && days_left <= 1 {
+    if (0..=1).contains(&days_left) {
         "AT_RISK".into()
     } else {
         "ON_TIME".into()
@@ -218,8 +218,7 @@ fn reconcile_cases_for_ids(
         return Ok(());
     }
 
-    let current_set: std::collections::HashSet<&String> =
-        current_ids.iter().collect();
+    let current_set: std::collections::HashSet<&String> = current_ids.iter().collect();
     let mut stmt = conn
         .prepare(
             "SELECT id, entity_id FROM exception_cases WHERE exception_type = ?1 AND status IN ('OPEN', 'IN_PROGRESS')",
@@ -242,7 +241,13 @@ fn reconcile_cases_for_ids(
             params![&sid, &now],
         )
         .map_err(|e| e.to_string())?;
-        let _ = insert_lifecycle(conn, &sid, "RESOLVED", Some("system"), "Auto-resolved: condition cleared");
+        let _ = insert_lifecycle(
+            conn,
+            &sid,
+            "RESOLVED",
+            Some("system"),
+            "Auto-resolved: condition cleared",
+        );
         let rid = Uuid::new_v4().to_string();
         let (et, eid): (String, String) = conn
             .query_row(
@@ -273,11 +278,9 @@ fn reconcile_cases_for_ids(
             continue;
         }
 
-        if let Err(e) = exception_reliability::ensure_no_duplicate_open_case(
-            conn,
-            exception_type,
-            entity_id,
-        ) {
+        if let Err(e) =
+            exception_reliability::ensure_no_duplicate_open_case(conn, exception_type, entity_id)
+        {
             let _ = exception_reliability::log_integrity_issue(
                 conn,
                 "",
@@ -394,14 +397,19 @@ pub fn load_entity_exceptions_for_dashboard(
     );
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(rusqlite::params_from_iter(p_ship.iter().copied()), map_entity_exception_row)
+        .query_map(
+            rusqlite::params_from_iter(p_ship.iter().copied()),
+            map_entity_exception_row,
+        )
         .map_err(|e| e.to_string())?;
     let mut out: Vec<EntityExceptionDto> = rows.filter_map(|x| x.ok()).collect();
     out.truncate(ENTITY_EXCEPTION_CAP as usize);
     Ok(out)
 }
 
-pub fn load_exception_workflow_summary(conn: &Connection) -> Result<ExceptionWorkflowSummary, String> {
+pub fn load_exception_workflow_summary(
+    conn: &Connection,
+) -> Result<ExceptionWorkflowSummary, String> {
     let open_count: i64 = conn
         .query_row(
             "SELECT COUNT(*) FROM exception_cases WHERE status IN ('OPEN', 'IN_PROGRESS')",
@@ -512,8 +520,7 @@ pub fn run_exception_retention_cleanup(conn: &Connection) -> Result<i64, String>
             |r| r.get(0),
         )
         .unwrap_or(365)
-        .max(30)
-        .min(3650);
+        .clamp(30, 3650);
     let cutoff = format!("-{days} days");
     let old_case_ids: Vec<String> = {
         let mut stmt = conn
@@ -530,8 +537,11 @@ pub fn run_exception_retention_cleanup(conn: &Connection) -> Result<i64, String>
     };
     let mut deleted = 0i64;
     for cid in old_case_ids {
-        conn.execute("DELETE FROM exception_notes WHERE exception_case_id = ?1", params![&cid])
-            .map_err(|e| e.to_string())?;
+        conn.execute(
+            "DELETE FROM exception_notes WHERE exception_case_id = ?1",
+            params![&cid],
+        )
+        .map_err(|e| e.to_string())?;
         conn.execute(
             "DELETE FROM exception_lifecycle_events WHERE exception_case_id = ?1",
             params![&cid],
@@ -560,7 +570,7 @@ pub fn list_exception_cases(
         exception_type: None,
         limit: Some(200),
     });
-    let lim = q.limit.unwrap_or(200).max(1).min(500);
+    let lim = q.limit.unwrap_or(200).clamp(1, 500);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut sql = String::from(
         "SELECT c.id, c.exception_type, c.entity_type, c.entity_id, c.status, c.priority,
@@ -580,10 +590,7 @@ pub fn list_exception_cases(
         sql.push_str(" AND c.exception_type = ?");
         p.push(et.clone());
     }
-    sql.push_str(&format!(
-        " ORDER BY c.updated_at DESC LIMIT {}",
-        lim
-    ));
+    sql.push_str(&format!(" ORDER BY c.updated_at DESC LIMIT {}", lim));
 
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     if p.is_empty() {
@@ -595,7 +602,10 @@ pub fn list_exception_cases(
     } else {
         let params_dyn: Vec<&dyn ToSql> = p.iter().map(|s| s as &dyn ToSql).collect();
         let rows = stmt
-            .query_map(rusqlite::params_from_iter(params_dyn), map_entity_exception_row)
+            .query_map(
+                rusqlite::params_from_iter(params_dyn),
+                map_entity_exception_row,
+            )
             .map_err(|e| e.to_string())?;
         rows.collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())
@@ -694,7 +704,10 @@ pub fn update_exception_case(
 }
 
 #[tauri::command]
-pub fn add_exception_note(input: AddExceptionNoteInput, state: State<DbState>) -> Result<(), String> {
+pub fn add_exception_note(
+    input: AddExceptionNoteInput,
+    state: State<DbState>,
+) -> Result<(), String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let nid = Uuid::new_v4().to_string();
     conn.execute(
@@ -788,18 +801,15 @@ pub fn record_exception_viewed(
         params![&exception_case_id, &now],
     )
     .map_err(|e| e.to_string())?;
-    insert_lifecycle(
-        &conn,
-        &exception_case_id,
-        "VIEWED",
-        Some(&user_id),
-        "{}",
-    )?;
+    insert_lifecycle(&conn, &exception_case_id, "VIEWED", Some(&user_id), "{}")?;
     Ok(())
 }
 
 #[tauri::command]
-pub fn bulk_resolve_exception_cases(input: BulkResolveInput, state: State<DbState>) -> Result<i32, String> {
+pub fn bulk_resolve_exception_cases(
+    input: BulkResolveInput,
+    state: State<DbState>,
+) -> Result<i32, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let mut n = 0i32;
     let now = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();

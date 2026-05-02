@@ -33,6 +33,17 @@ const stubInvoices: Record<string, unknown>[] = [];
 const stubItems: Record<string, unknown>[] = [];
 const stubBoes: Record<string, unknown>[] = [];
 
+/** Mirrors Tauri `DesktopSessionState` for login / ProtectedRoute. */
+let playwrightDesktopSession: {
+  userId: string;
+  username: string;
+  name: string;
+  email: string;
+  role: string;
+  expiresAtRfc3339: string;
+  sessionId: string;
+} | null = null;
+
 /** Persists stub live DB across `page.reload()` in Playwright (in-memory module resets on reload). */
 const PW_LIVE_DB_SESSION_KEY = '__import_manager_pw_live_snapshot__';
 const PW_INVOICE_CALC_SETTINGS_KEY =
@@ -377,6 +388,44 @@ export async function invoke<T = unknown>(
     if (routed !== null) return routed as T;
   }
   switch (cmd) {
+    case 'authenticate_desktop': {
+      const u = String(args?.username ?? '').trim();
+      const p = String(args?.password ?? '');
+      const expectedPass =
+        import.meta.env.VITE_PLAYWRIGHT_E2E_PASSWORD ?? 'inzi@123$%';
+      if (u !== 'Jana' || p !== expectedPass) {
+        throw new Error('Invalid username or password');
+      }
+      const rememberMe = Boolean(args?.rememberMe);
+      const ms = rememberMe ? 30 * 86400e3 : 12 * 3600e3;
+      const session = {
+        userId: 'admin-001',
+        username: u,
+        name: 'Administrator',
+        email: 'admin@importmanager.com',
+        role: 'admin',
+        expiresAtRfc3339: new Date(Date.now() + ms).toISOString(),
+        sessionId: `pw-session-${Date.now()}`,
+      };
+      playwrightDesktopSession = session;
+      return session as T;
+    }
+    case 'get_desktop_session':
+      return (playwrightDesktopSession ?? null) as T;
+    case 'export_diagnostics_bundle':
+      return undefined as T;
+    case 'rebuild_dashboard_snapshots':
+      return {
+        clearedCacheRows: 0,
+        kpiOk: true,
+        exceptionOk: true,
+        workflowOk: true,
+        warnings: [],
+        correlationId: 'playwright-stub-cid',
+      } as T;
+    case 'clear_desktop_session':
+      playwrightDesktopSession = null;
+      return undefined as T;
     case 'get_invoice_calculation_settings':
       return loadStubInvoiceCalculationSettings() as T;
     case 'set_invoice_calculation_settings': {
@@ -926,10 +975,14 @@ export async function invoke<T = unknown>(
         typeof (args as { limit?: number })?.limit === 'number'
           ? Math.min(2000, Math.max(1, (args as { limit: number }).limit))
           : 50;
+      const caller = String(
+        (args as { callerUserId?: string })?.callerUserId ?? ''
+      );
+      const uid = caller || 'admin-001';
       const now = new Date().toISOString();
       const rows = Array.from({ length: Math.min(3, lim) }, (_, i) => ({
         id: 100 - i,
-        userId: 'stub-user',
+        userId: uid,
         timestamp: now,
         actionType: i === 0 ? 'dashboard_viewed' : 'csv_exported',
         details: '{}',
@@ -947,10 +1000,14 @@ export async function invoke<T = unknown>(
         typeof q?.limit === 'number'
           ? Math.min(2000, Math.max(1, q.limit))
           : 50;
+      const caller = String(
+        (args as { callerUserId?: string })?.callerUserId ?? ''
+      );
+      const uid = caller || 'admin-001';
       const now = new Date().toISOString();
       const rows = Array.from({ length: Math.min(3, lim) }, (_, i) => ({
         id: 200 - i,
-        userId: 'stub-user',
+        userId: uid,
         timestamp: now,
         actionType: i === 0 ? 'dashboard_viewed' : 'csv_exported',
         details: '{}',
@@ -1500,6 +1557,7 @@ export async function invoke<T = unknown>(
       if (!raw) {
         return {
           success: false,
+          outcome: 'RestoreFailed',
           message: 'Backup not found',
           integrity_check: 'n/a',
           tables_affected: [] as string[],
@@ -1508,6 +1566,7 @@ export async function invoke<T = unknown>(
       restoreDbFromSnapshot(raw);
       return {
         success: true,
+        outcome: 'RestoreFullySucceeded',
         message: 'Restored from backup',
         backup_created: `pre-restore-${Date.now()}.bak`,
         integrity_check: 'ok',
@@ -1731,6 +1790,40 @@ export async function invoke<T = unknown>(
       });
       return { backupPath: path } as T;
     }
+    case 'query_user_activity_logs':
+      return [] as T;
+    case 'get_system_health_metrics':
+      return {
+        appVersion: import.meta.env.VITE_APP_VERSION ?? '0.0.0',
+        databaseSizeBytes: 12_345_678,
+        databasePageCount: 3011,
+        databasePageSize: 4096,
+        lastBackupTime: new Date().toISOString(),
+        lastSnapshotTime: '2099-01-01 00:00:00',
+        lastDashboardSnapshotRebuildAt: null,
+        backgroundTaskDurations: {
+          lastFastTickUnixMs: Date.now(),
+          fastTickTotalMs: 42,
+          backupSchedulesMs: 10,
+          dashboardMaintenanceMs: 12,
+          governanceMs: 8,
+          lastHeavyTickUnixMs: Date.now() - 60_000,
+          heavyTickTotalMs: 500,
+          boeMaintenanceMs: 200,
+          integrityCheckMs: 280,
+          lastBoeMaintenanceError: null,
+          lastIntegrityError: null,
+        },
+        activeWorkflowCount: 0,
+        healthSummary: { overall: 'healthy', warnings: [] as string[] },
+        schemaHealth: {
+          state: 'ok',
+          expectedVersion: 1,
+          appliedVersion: 1,
+          pendingMigrationRows: 0,
+          integrityError: null,
+        },
+      } as T;
     case 'has_backup_key_in_keyring':
       return true as T;
     case 'export_backup_key':

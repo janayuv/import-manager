@@ -1,6 +1,9 @@
 use crate::commands::dashboard_cache;
 use crate::commands::utils::generate_id;
+use crate::connection_manager::ConnectionManager;
+use crate::correlation;
 use crate::db::{DbState, Invoice, InvoiceLineItem, NewInvoicePayload};
+use crate::ipc_error::IpcError;
 use rusqlite::{params, params_from_iter, Connection, Transaction};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -20,7 +23,11 @@ fn round_with_decimals(value: f64, decimals: u8) -> f64 {
 }
 
 fn invoice_match_tolerance(decimals: u8) -> f64 {
-    if decimals == 0 { 0.5 } else { 0.01 }
+    if decimals == 0 {
+        0.5
+    } else {
+        0.01
+    }
 }
 
 fn parse_pct_from_item_str(s: &Option<String>) -> f64 {
@@ -180,21 +187,24 @@ fn fetch_invoices(db: &Connection) -> Result<Vec<Invoice>, String> {
         invoice.calculated_total = round_with_decimals(sum_of_line_totals, invoice_decimals);
     }
 
-    println!(
-        "Loaded {} invoices using optimized JOIN",
-        invoices.len()
-    );
+    println!("Loaded {} invoices using optimized JOIN", invoices.len());
 
     Ok(invoices)
 }
 
 #[tauri::command]
-pub fn get_invoices(state: State<DbState>) -> Result<Vec<Invoice>, String> {
+pub fn get_invoices(
+    state: State<DbState>,
+    connection_manager: State<ConnectionManager>,
+) -> Result<Vec<Invoice>, IpcError> {
     let start = Instant::now();
-    let db = state.db.lock().unwrap();
+    let db = connection_manager.get_read_connection()?;
     let result = fetch_invoices(&db);
-    println!("get_invoices execution time: {:?}", start.elapsed());
-    result
+    if let Ok(ref rows) = result {
+        connection_manager.track_query("get_invoices", start, rows.len());
+    }
+    let _ = state;
+    Ok(result?)
 }
 
 #[derive(Debug, serde::Deserialize)]
@@ -211,14 +221,12 @@ pub struct BulkFinalizeInvoicesResult {
     pub error_messages: Vec<String>,
 }
 
-#[tauri::command]
-pub fn bulk_finalize_invoices(
+pub(crate) fn bulk_finalize_invoices_db(
+    db: &mut Connection,
     input: BulkFinalizeInvoicesInput,
-    state: State<DbState>,
 ) -> Result<BulkFinalizeInvoicesResult, String> {
     let start = Instant::now();
-    let mut db = state.db.lock().unwrap();
-    let invoices = fetch_invoices(&db)?;
+    let invoices = fetch_invoices(db)?;
 
     let invoice_by_id: HashMap<&str, &Invoice> =
         invoices.iter().map(|inv| (inv.id.as_str(), inv)).collect();
@@ -242,7 +250,9 @@ pub fn bulk_finalize_invoices(
 
         let inv_decimals = sanitize_invoice_decimals(inv.invoice_total_decimals);
         let rounded_shipment_total = round_with_decimals(inv.shipment_total, inv_decimals);
-        if (rounded_shipment_total - inv.calculated_total).abs() >= invoice_match_tolerance(inv_decimals) {
+        if (rounded_shipment_total - inv.calculated_total).abs()
+            >= invoice_match_tolerance(inv_decimals)
+        {
             failed += 1;
             error_messages.push(format!(
                 "{}: shipment total does not match calculated total",
@@ -291,12 +301,33 @@ pub fn bulk_finalize_invoices(
         }
     }
 
-    println!(
-        "Bulk finalized {} invoices in one transaction",
-        finalized
+    println!("Bulk finalized {} invoices in one transaction", finalized);
+
+    let total_count = input.invoice_ids.len() as u32;
+    let failed_count = failed;
+    let finalize_status = if failed_count > 0 {
+        "PARTIAL_SUCCESS"
+    } else {
+        "SUCCESS"
+    };
+    let details = serde_json::json!({
+        "finalized": finalized,
+        "failed": failed,
+        "total_count": total_count,
+        "failed_count": failed_count,
+    })
+    .to_string();
+    crate::services::user_activity_audit::log_activity(
+        db,
+        None,
+        "bulk_finalize_invoices",
+        Some("invoices"),
+        None,
+        Some(&details),
+        finalize_status,
     );
 
-    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(db);
     println!("bulk_finalize_invoices time: {:?}", start.elapsed());
 
     Ok(BulkFinalizeInvoicesResult {
@@ -304,6 +335,22 @@ pub fn bulk_finalize_invoices(
         failed,
         error_messages,
     })
+}
+
+#[tauri::command]
+pub fn bulk_finalize_invoices(
+    input: BulkFinalizeInvoicesInput,
+    state: State<DbState>,
+) -> Result<BulkFinalizeInvoicesResult, String> {
+    let cid = correlation::new_id();
+    log::info!(
+        target: "import_manager::invoices",
+        "event=bulk_finalize_invoices correlation_id={} invoice_count={}",
+        cid,
+        input.invoice_ids.len(),
+    );
+    let mut db = state.db.lock().unwrap();
+    bulk_finalize_invoices_db(&mut db, input).map_err(|e| correlation::annotate_err(&cid, e))
 }
 
 pub(crate) fn execute_add_invoice(
@@ -367,13 +414,44 @@ pub fn add_invoice(payload: NewInvoicePayload, state: State<DbState>) -> Result<
 
     match execute_add_invoice(&tx, &payload) {
         Ok(id) => {
-            tx.commit().map_err(|e| e.to_string())?;
+            if let Err(e) = tx.commit() {
+                let msg = e.to_string();
+                crate::services::user_activity_audit::log_activity(
+                    &db,
+                    None,
+                    "add_invoice",
+                    Some("invoices"),
+                    Some(&id),
+                    Some(&serde_json::json!({ "error": msg }).to_string()),
+                    "FAILED",
+                );
+                return Err(msg);
+            }
+            crate::services::user_activity_audit::log_activity(
+                &db,
+                None,
+                "add_invoice",
+                Some("invoices"),
+                Some(&id),
+                Some(&format!("{{\"shipment_id\": \"{}\"}}", payload.shipment_id)),
+                "SUCCESS",
+            );
             let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
             Ok(id)
         }
         Err(e) => {
             tx.rollback().map_err(|e| e.to_string())?;
-            Err(e.to_string())
+            let msg = e.to_string();
+            crate::services::user_activity_audit::log_activity(
+                &db,
+                None,
+                "add_invoice",
+                Some("invoices"),
+                None,
+                Some(&serde_json::json!({ "error": msg }).to_string()),
+                "FAILED",
+            );
+            Err(msg)
         }
     }
 }
@@ -383,21 +461,62 @@ pub fn add_invoices_bulk(
     payloads: Vec<NewInvoicePayload>,
     state: State<DbState>,
 ) -> Result<Vec<String>, String> {
+    let cid = correlation::new_id();
+    log::info!(
+        target: "import_manager::invoices",
+        "event=add_invoices_bulk correlation_id={} count={}",
+        cid,
+        payloads.len(),
+    );
     let mut db = state.db.lock().unwrap();
-    let tx = db.transaction().map_err(|e| e.to_string())?;
+    let tx = db
+        .transaction()
+        .map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
     let mut new_ids = Vec::new();
 
     for payload in &payloads {
         match execute_add_invoice(&tx, payload) {
             Ok(id) => new_ids.push(id),
             Err(e) => {
-                tx.rollback().map_err(|e| e.to_string())?;
-                return Err(e.to_string());
+                tx.rollback()
+                    .map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
+                let msg = e.to_string();
+                crate::services::user_activity_audit::log_activity(
+                    &db,
+                    None,
+                    "add_invoices_bulk",
+                    Some("invoices"),
+                    None,
+                    Some(&serde_json::json!({ "error": msg }).to_string()),
+                    "FAILED",
+                );
+                return Err(correlation::annotate_err(&cid, msg));
             }
         }
     }
 
-    tx.commit().map_err(|e| e.to_string())?;
+    if let Err(e) = tx.commit() {
+        let msg = e.to_string();
+        crate::services::user_activity_audit::log_activity(
+            &db,
+            None,
+            "add_invoices_bulk",
+            Some("invoices"),
+            None,
+            Some(&serde_json::json!({ "error": msg }).to_string()),
+            "FAILED",
+        );
+        return Err(correlation::annotate_err(&cid, msg));
+    }
+    crate::services::user_activity_audit::log_activity(
+        &db,
+        None,
+        "add_invoices_bulk",
+        Some("invoices"),
+        None,
+        Some(&format!("{{\"count\": {}}}", new_ids.len())),
+        "SUCCESS",
+    );
     let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
     Ok(new_ids)
 }
@@ -455,22 +574,67 @@ pub fn update_invoice(
 
     match execute_update_invoice(&tx, &id, &payload) {
         Ok(_) => {
-            tx.commit().map_err(|e| e.to_string())?;
+            if let Err(e) = tx.commit() {
+                let msg = e.to_string();
+                crate::services::user_activity_audit::log_activity(
+                    &db,
+                    None,
+                    "update_invoice",
+                    Some("invoices"),
+                    Some(&id),
+                    Some(&serde_json::json!({ "error": msg }).to_string()),
+                    "FAILED",
+                );
+                return Err(msg);
+            }
+            crate::services::user_activity_audit::log_activity(
+                &db,
+                None,
+                "update_invoice",
+                Some("invoices"),
+                Some(&id),
+                None,
+                "SUCCESS",
+            );
             let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
             Ok(())
         }
         Err(e) => {
             tx.rollback().map_err(|e| e.to_string())?;
-            Err(e.to_string())
+            let msg = e.to_string();
+            crate::services::user_activity_audit::log_activity(
+                &db,
+                None,
+                "update_invoice",
+                Some("invoices"),
+                Some(&id),
+                Some(&serde_json::json!({ "error": msg }).to_string()),
+                "FAILED",
+            );
+            Err(msg)
         }
     }
+}
+
+pub(crate) fn delete_invoice_db(db: &Connection, id: &str) -> Result<(), String> {
+    let id_for_log = id.to_string();
+    db.execute("DELETE FROM invoices WHERE id = ?1", params![id])
+        .map_err(|e| e.to_string())?;
+    crate::services::user_activity_audit::log_activity(
+        db,
+        None,
+        "delete_invoice",
+        Some("invoices"),
+        Some(&id_for_log),
+        None,
+        "SUCCESS",
+    );
+    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(db);
+    Ok(())
 }
 
 #[tauri::command]
 pub fn delete_invoice(id: String, state: State<DbState>) -> Result<(), String> {
     let db = state.db.lock().unwrap();
-    db.execute("DELETE FROM invoices WHERE id = ?1", params![id])
-        .map_err(|e| e.to_string())?;
-    let _ = dashboard_cache::invalidate_dashboard_metrics_cache(&db);
-    Ok(())
+    delete_invoice_db(&db, &id)
 }

@@ -4,7 +4,7 @@ use crate::db::DbState;
 use rusqlite::{params, Connection};
 use tauri::{AppHandle, Manager};
 
-const CACHE_TTL_SECS: i64 = 45;
+const CACHE_TTL_SECS: i64 = 180;
 
 /// Run at most once per calendar day (called from background tick).
 pub fn tick_dashboard_maintenance(app: &AppHandle) {
@@ -24,6 +24,17 @@ pub fn tick_dashboard_maintenance(app: &AppHandle) {
         .unwrap_or_default();
     if last == today {
         return;
+    }
+    if let Err(e) = crate::commands::dashboard_metrics::generate_dashboard_kpi_snapshot(&conn) {
+        log::warn!("dashboard KPI snapshot generation failed: {}", e);
+    }
+    if let Err(e) = crate::commands::dashboard_metrics::generate_dashboard_exception_snapshot(&conn)
+    {
+        log::warn!("dashboard exception snapshot generation failed: {}", e);
+    }
+    if let Err(e) = crate::commands::dashboard_metrics::generate_dashboard_workflow_snapshot(&conn)
+    {
+        log::warn!("dashboard workflow snapshot generation failed: {}", e);
     }
     match crate::commands::workflow_job_monitoring::run_daily_dashboard_tick_jobs(&conn) {
         Ok(()) => {
@@ -100,8 +111,7 @@ pub fn run_kpi_snapshot_retention_cleanup(conn: &Connection) -> Result<i64, Stri
             |r| r.get(0),
         )
         .unwrap_or(365)
-        .max(30)
-        .min(3650);
+        .clamp(30, 3650);
     let cutoff = format!("-{days} days");
     let n = conn
         .execute(
@@ -121,8 +131,7 @@ pub fn run_dashboard_activity_retention_cleanup(conn: &Connection) -> Result<i64
             |r| r.get(0),
         )
         .unwrap_or(90)
-        .max(7)
-        .min(3650);
+        .clamp(7, 3650);
     let cutoff = format!("-{days} days");
     let n = conn
         .execute(

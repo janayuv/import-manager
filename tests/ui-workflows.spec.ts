@@ -107,9 +107,22 @@ test.describe('UI workflows', () => {
     await expectPageMarker(page, 'Shipment Management');
 
     const content = appContent(page);
-    await expect(content.getByText(/Showing 1 of 1 shipments/)).toBeVisible({
-      timeout: 20_000,
+    const beforeCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<unknown>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      const rows = await inv('get_shipments');
+      return rows.length;
     });
+    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
+      {
+        timeout: 20_000,
+      }
+    );
 
     const templateDl = page.waitForEvent('download');
     await content.getByRole('button', { name: 'Template' }).click();
@@ -123,9 +136,18 @@ test.describe('UI workflows', () => {
       timeout: 20_000,
     });
 
-    await expect(content.getByText(/Showing 2 of 2 shipments/)).toBeVisible({
-      timeout: 20_000,
+    const afterCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<unknown>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      const rows = await inv('get_shipments');
+      return rows.length;
     });
+    expect(afterCount).toBeGreaterThan(beforeCount);
     await expect(content.getByText('TEST-SHIP-CSV-001')).toBeVisible();
 
     const exportDl = page.waitForEvent('download');

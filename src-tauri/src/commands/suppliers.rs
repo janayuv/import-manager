@@ -84,30 +84,28 @@ pub fn get_suppliers(
                 suppliers.push(supplier.map_err(|e| e.to_string())?);
             }
         }
+    } else if let Some(limit_value) = limit {
+        let offset_value = offset.unwrap_or(0);
+        let query = format!(
+            "{base_query}
+             ORDER BY supplier_name COLLATE NOCASE ASC
+             LIMIT ?1 OFFSET ?2"
+        );
+        let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
+        let supplier_iter = stmt
+            .query_map(params![limit_value, offset_value], map_row)
+            .map_err(|e| e.to_string())?;
+
+        for supplier in supplier_iter {
+            suppliers.push(supplier.map_err(|e| e.to_string())?);
+        }
     } else {
-        if let Some(limit_value) = limit {
-            let offset_value = offset.unwrap_or(0);
-            let query = format!(
-                "{base_query}
-                 ORDER BY supplier_name COLLATE NOCASE ASC
-                 LIMIT ?1 OFFSET ?2"
-            );
-            let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
-            let supplier_iter = stmt
-                .query_map(params![limit_value, offset_value], map_row)
-                .map_err(|e| e.to_string())?;
+        let query = format!("{base_query} ORDER BY supplier_name COLLATE NOCASE ASC");
+        let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
+        let supplier_iter = stmt.query_map([], map_row).map_err(|e| e.to_string())?;
 
-            for supplier in supplier_iter {
-                suppliers.push(supplier.map_err(|e| e.to_string())?);
-            }
-        } else {
-            let query = format!("{base_query} ORDER BY supplier_name COLLATE NOCASE ASC");
-            let mut stmt = conn.prepare(&query).map_err(|e| e.to_string())?;
-            let supplier_iter = stmt.query_map([], map_row).map_err(|e| e.to_string())?;
-
-            for supplier in supplier_iter {
-                suppliers.push(supplier.map_err(|e| e.to_string())?);
-            }
+        for supplier in supplier_iter {
+            suppliers.push(supplier.map_err(|e| e.to_string())?);
         }
     }
 
@@ -296,7 +294,10 @@ pub fn update_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), 
 }
 
 #[tauri::command]
-pub fn add_suppliers_bulk(state: State<DbState>, suppliers: Vec<Supplier>) -> Result<usize, String> {
+pub fn add_suppliers_bulk(
+    state: State<DbState>,
+    suppliers: Vec<Supplier>,
+) -> Result<usize, String> {
     let started = Instant::now();
     let mut conn = state.db.lock().unwrap();
     let tx = conn.transaction().map_err(|e| e.to_string())?;
@@ -324,24 +325,22 @@ pub fn add_suppliers_bulk(state: State<DbState>, suppliers: Vec<Supplier>) -> Re
             .map_err(|e| e.to_string())?;
 
         for supplier in suppliers {
-            stmt.execute(
-                params![
-                    supplier.id,
-                    supplier.supplier_name,
-                    supplier.short_name,
-                    supplier.country,
-                    supplier.email,
-                    supplier.phone,
-                    supplier.beneficiary_name,
-                    supplier.bank_name,
-                    supplier.branch,
-                    supplier.bank_address,
-                    supplier.account_no,
-                    supplier.iban,
-                    supplier.swift_code,
-                    supplier.is_active,
-                ],
-            )
+            stmt.execute(params![
+                supplier.id,
+                supplier.supplier_name,
+                supplier.short_name,
+                supplier.country,
+                supplier.email,
+                supplier.phone,
+                supplier.beneficiary_name,
+                supplier.bank_name,
+                supplier.branch,
+                supplier.bank_address,
+                supplier.account_no,
+                supplier.iban,
+                supplier.swift_code,
+                supplier.is_active,
+            ])
             .map_err(|e| e.to_string())?;
             count += 1;
         }

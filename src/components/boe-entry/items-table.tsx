@@ -38,6 +38,20 @@ export function ItemsTable({
   itemInputs,
   setItemInputs,
 }: ItemsTableProps) {
+  const [scrollTop, setScrollTop] = React.useState(0);
+  const [viewportHeight, setViewportHeight] = React.useState(360);
+  const containerRef = React.useRef<HTMLDivElement>(null);
+  const rowHeight = 60;
+  const overscan = 6;
+
+  React.useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return;
+    const update = () => setViewportHeight(node.clientHeight || 360);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
   const handleInputChange = (
     index: number,
     field: keyof BoeItemInput,
@@ -99,117 +113,181 @@ export function ItemsTable({
 
   return (
     <div className="rounded-md border">
-      <Table>
-        <TableHeader>
-          <TableRow className="bg-primary text-primary-foreground">
-            <TableHead className="w-[150px]">Part No</TableHead>
-            <TableHead>Description</TableHead>
-            <TableHead className="text-right">Qty</TableHead>
-            <TableHead className="text-right">Unit Price</TableHead>
-            <TableHead className="text-right">HS Code</TableHead>
-            <TableHead className="text-right">Actual BCD %</TableHead>
-            <TableHead className="text-right">Actual SWS %</TableHead>
-            <TableHead className="text-right">Actual IGST %</TableHead>
-            <TableHead className="w-[150px]">Calc Method</TableHead>
-            <TableHead className="w-[120px] text-right">BOE BCD %</TableHead>
-            <TableHead className="w-[120px] text-right">BOE SWS %</TableHead>
-            <TableHead className="w-[120px] text-right">BOE IGST %</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((item, index) => {
-            const actualBcd = item.actualBcdRate;
+      <div
+        ref={containerRef}
+        className="max-h-[520px] overflow-auto"
+        onScroll={e => setScrollTop(e.currentTarget.scrollTop)}
+      >
+        <Table>
+          <TableHeader>
+            <TableRow className="bg-primary text-primary-foreground">
+              <TableHead className="w-[150px]">Part No</TableHead>
+              <TableHead>Description</TableHead>
+              <TableHead className="text-right">Qty</TableHead>
+              <TableHead className="text-right">Unit Price</TableHead>
+              <TableHead className="text-right">HS Code</TableHead>
+              <TableHead className="text-right">Actual BCD %</TableHead>
+              <TableHead className="text-right">Actual SWS %</TableHead>
+              <TableHead className="text-right">Actual IGST %</TableHead>
+              <TableHead className="w-[150px]">Calc Method</TableHead>
+              <TableHead className="w-[120px] text-right">BOE BCD %</TableHead>
+              <TableHead className="w-[120px] text-right">BOE SWS %</TableHead>
+              <TableHead className="w-[120px] text-right">BOE IGST %</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {(() => {
+              const shouldVirtualize = items.length > 25;
+              const start = shouldVirtualize
+                ? Math.max(0, Math.floor(scrollTop / rowHeight) - overscan)
+                : 0;
+              const count = shouldVirtualize
+                ? Math.ceil(viewportHeight / rowHeight) + overscan * 2
+                : items.length;
+              const end = shouldVirtualize
+                ? Math.min(items.length, start + count)
+                : items.length;
+              const topSpacer = shouldVirtualize ? start * rowHeight : 0;
+              const bottomSpacer = shouldVirtualize
+                ? Math.max(0, (items.length - end) * rowHeight)
+                : 0;
+              const visible = items.slice(start, end);
+              return (
+                <>
+                  {topSpacer > 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={12}
+                        style={{
+                          height: `${topSpacer}px`,
+                          padding: 0,
+                          border: 'none',
+                        }}
+                      />
+                    </TableRow>
+                  )}
+                  {visible.map((item, visibleIndex) => {
+                    const index = start + visibleIndex;
+                    const actualBcd = item.actualBcdRate;
 
-            const boeBcd = itemInputs[index]?.boeBcdRate || 0;
-            const hasBcdDiscrepancy = boeBcd > 0 && boeBcd > actualBcd;
+                    const boeBcd = itemInputs[index]?.boeBcdRate || 0;
+                    const hasBcdDiscrepancy = boeBcd > 0 && boeBcd > actualBcd;
 
-            return (
-              <TableRow
-                key={item.partNo}
-                className={hasBcdDiscrepancy ? 'bg-destructive/10' : ''}
-              >
-                <TableCell className="font-medium">{item.partNo}</TableCell>
-                <TableCell>{item.description}</TableCell>
-                <TableCell className="text-right">{item.qty ?? '-'}</TableCell>
-                <TableCell className="text-right">
-                  {item.unitPrice != null ? item.unitPrice.toFixed(2) : '-'}
-                </TableCell>
-                <TableCell className="text-right">
-                  {item.hsCode ?? '-'}
-                </TableCell>
-                {/* --- NEW: Display actual rates from shipment --- */}
-                <TableCell className="text-right">
-                  {item.actualBcdRate.toFixed(2)}%
-                </TableCell>
-                <TableCell className="text-right">
-                  {item.actualSwsRate.toFixed(2)}%
-                </TableCell>
-                <TableCell className="text-right">
-                  {item.actualIgstRate.toFixed(2)}%
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={itemInputs[index]?.calculationMethod || 'Standard'}
-                    onValueChange={(value: CalculationMethod) =>
-                      handleInputChange(index, 'calculationMethod', value)
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select method" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Standard">Standard</SelectItem>
-                      <SelectItem value="CEPA">CEPA</SelectItem>
-                      <SelectItem value="Rodtep">Rodtep</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    className={`text-right ${hasBcdDiscrepancy ? 'border-destructive bg-destructive/10' : ''}`}
-                    value={itemInputs[index]?.boeBcdRate ?? ''}
-                    onChange={e =>
-                      handleInputChange(
-                        index,
-                        'boeBcdRate',
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                    title={
-                      hasBcdDiscrepancy
-                        ? `Actual BCD (${actualBcd}%) > BOE BCD (${boeBcd}%)`
-                        : ''
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    className="text-right"
-                    value={itemInputs[index]?.boeSwsRate ?? ''}
-                    onChange={e =>
-                      handleInputChange(
-                        index,
-                        'boeSwsRate',
-                        parseFloat(e.target.value) || 0
-                      )
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    className="bg-muted text-right"
-                    value={itemInputs[index]?.boeIgstRate ?? ''}
-                    readOnly // IGST should not be user-editable here
-                  />
-                </TableCell>
-              </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+                    return (
+                      <TableRow
+                        key={item.partNo}
+                        className={hasBcdDiscrepancy ? 'bg-destructive/10' : ''}
+                      >
+                        <TableCell className="font-medium">
+                          {item.partNo}
+                        </TableCell>
+                        <TableCell>{item.description}</TableCell>
+                        <TableCell className="text-right">
+                          {item.qty ?? '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {item.unitPrice != null
+                            ? item.unitPrice.toFixed(2)
+                            : '-'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {item.hsCode ?? '-'}
+                        </TableCell>
+                        {/* --- NEW: Display actual rates from shipment --- */}
+                        <TableCell className="text-right">
+                          {item.actualBcdRate.toFixed(2)}%
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {item.actualSwsRate.toFixed(2)}%
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {item.actualIgstRate.toFixed(2)}%
+                        </TableCell>
+                        <TableCell>
+                          <Select
+                            value={
+                              itemInputs[index]?.calculationMethod || 'Standard'
+                            }
+                            onValueChange={(value: CalculationMethod) =>
+                              handleInputChange(
+                                index,
+                                'calculationMethod',
+                                value
+                              )
+                            }
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select method" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="Standard">Standard</SelectItem>
+                              <SelectItem value="CEPA">CEPA</SelectItem>
+                              <SelectItem value="Rodtep">Rodtep</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className={`text-right ${hasBcdDiscrepancy ? 'border-destructive bg-destructive/10' : ''}`}
+                            value={itemInputs[index]?.boeBcdRate ?? ''}
+                            onChange={e =>
+                              handleInputChange(
+                                index,
+                                'boeBcdRate',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                            title={
+                              hasBcdDiscrepancy
+                                ? `Actual BCD (${actualBcd}%) > BOE BCD (${boeBcd}%)`
+                                : ''
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className="text-right"
+                            value={itemInputs[index]?.boeSwsRate ?? ''}
+                            onChange={e =>
+                              handleInputChange(
+                                index,
+                                'boeSwsRate',
+                                parseFloat(e.target.value) || 0
+                              )
+                            }
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Input
+                            type="number"
+                            className="bg-muted text-right"
+                            value={itemInputs[index]?.boeIgstRate ?? ''}
+                            readOnly // IGST should not be user-editable here
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {bottomSpacer > 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={12}
+                        style={{
+                          height: `${bottomSpacer}px`,
+                          padding: 0,
+                          border: 'none',
+                        }}
+                      />
+                    </TableRow>
+                  )}
+                </>
+              );
+            })()}
+          </TableBody>
+        </Table>
+      </div>
 
       {/* BCD Discrepancy Summary */}
       {items.some((item, index) => {

@@ -7,9 +7,7 @@ use tauri::State;
 use uuid::Uuid;
 
 fn now_ts() -> String {
-    chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 fn structured_severity_is_regression_candidate(raw: &str) -> bool {
@@ -98,7 +96,11 @@ pub enum RuntimeMetricDelta {
     RiskEvaluations,
 }
 
-pub fn bump_workflow_runtime_metric(conn: &Connection, field: RuntimeMetricDelta, delta: i64) -> Result<(), String> {
+pub fn bump_workflow_runtime_metric(
+    conn: &Connection,
+    field: RuntimeMetricDelta,
+    delta: i64,
+) -> Result<(), String> {
     let (col, d) = match field {
         RuntimeMetricDelta::JobsExecuted => ("jobs_executed", delta),
         RuntimeMetricDelta::JobsFailed => ("jobs_failed", delta),
@@ -175,16 +177,18 @@ pub fn insert_workflow_alert_signal(
                 conn, sm, signal_type, &id,
             )?;
         if !suppressed {
-            if let Some(ref iid) = crate::commands::workflow_incident_management::maybe_promote_alert_to_incident(
-                conn,
-                &id,
-                signal_type,
-                &sev,
-                entity_id,
-                message,
-                details,
-                sm,
-            )? {
+            if let Some(ref iid) =
+                crate::commands::workflow_incident_management::maybe_promote_alert_to_incident(
+                    conn,
+                    &id,
+                    signal_type,
+                    &sev,
+                    entity_id,
+                    message,
+                    details,
+                    sm,
+                )?
+            {
                 let _ =
                     crate::commands::workflow_incident_management::maybe_record_regression_after_alert_promotion(
                         conn,
@@ -206,7 +210,7 @@ fn recent_signal_count(
     entity_key: Option<&str>,
     hours: i64,
 ) -> Result<i64, String> {
-    let h = hours.max(1).min(168);
+    let h = hours.clamp(1, 168);
     let cutoff = format!("-{h} hours");
     let n: i64 = if let Some(e) = entity_key.filter(|s| !s.is_empty()) {
         conn.query_row(
@@ -281,19 +285,20 @@ pub fn scan_and_emit_threshold_alert_signals(conn: &Connection) -> Result<i64, S
             |r| r.get(0),
         )
         .unwrap_or(0);
-    if today_missed >= 3 && today_missed >= yday_missed.saturating_mul(2).max(3) {
-        if recent_signal_count(conn, "MISSED_JOB_SPIKE", None, 12)? == 0 {
-            insert_workflow_alert_signal(
-                conn,
-                "MISSED_JOB_SPIKE",
-                "WARNING",
-                None,
-                "Missed scheduled runs increased sharply vs prior day",
-                &json!({ "todayMissed": today_missed, "yesterdayMissed": yday_missed }),
-                Some("observability"),
-            )?;
-            emitted += 1;
-        }
+    if today_missed >= 3
+        && today_missed >= yday_missed.saturating_mul(2).max(3)
+        && recent_signal_count(conn, "MISSED_JOB_SPIKE", None, 12)? == 0
+    {
+        insert_workflow_alert_signal(
+            conn,
+            "MISSED_JOB_SPIKE",
+            "WARNING",
+            None,
+            "Missed scheduled runs increased sharply vs prior day",
+            &json!({ "todayMissed": today_missed, "yesterdayMissed": yday_missed }),
+            Some("observability"),
+        )?;
+        emitted += 1;
     }
 
     let pending_rec: i64 = conn
@@ -307,7 +312,11 @@ pub fn scan_and_emit_threshold_alert_signals(conn: &Connection) -> Result<i64, S
         insert_workflow_alert_signal(
             conn,
             "SYSTEM_HEALTH_DEGRADED",
-            if pending_rec >= 12 { "CRITICAL" } else { "WARNING" },
+            if pending_rec >= 12 {
+                "CRITICAL"
+            } else {
+                "WARNING"
+            },
             None,
             "Elevated pending missed-job recovery backlog",
             &json!({ "pendingMissedAlerts": pending_rec }),
@@ -324,7 +333,9 @@ pub fn scan_and_emit_threshold_alert_signals(conn: &Connection) -> Result<i64, S
             |r| r.get(0),
         )
         .unwrap_or(0);
-    if failed_jobs_24h >= 15 && recent_signal_count(conn, "GLOBAL_JOB_FAILURE_PRESSURE", None, 8)? == 0 {
+    if failed_jobs_24h >= 15
+        && recent_signal_count(conn, "GLOBAL_JOB_FAILURE_PRESSURE", None, 8)? == 0
+    {
         insert_workflow_alert_signal(
             conn,
             "GLOBAL_JOB_FAILURE_PRESSURE",
@@ -779,7 +790,9 @@ pub fn simulate_alert_event(
             );
         }
         _ => {
-            return Err("unknown scenario: use JOB_FAILURE, DEPLOYMENT_BLOCK, or RECOVERY_FAILURE".into());
+            return Err(
+                "unknown scenario: use JOB_FAILURE, DEPLOYMENT_BLOCK, or RECOVERY_FAILURE".into(),
+            );
         }
     }
     Ok(json!({ "ok": true, "scenario": scenario }))
@@ -788,14 +801,20 @@ pub fn simulate_alert_event(
 // --- Tauri ---
 
 #[tauri::command]
-pub fn get_system_metrics_command(caller_role: String, state: State<DbState>) -> Result<Value, String> {
+pub fn get_system_metrics_command(
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<Value, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     get_system_metrics(&conn)
 }
 
 #[tauri::command]
-pub fn get_system_health_command(caller_role: String, state: State<DbState>) -> Result<Value, String> {
+pub fn get_system_health_command(
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<Value, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     get_system_health(&conn)
@@ -938,7 +957,10 @@ pub fn simulate_alert_event_command(
 }
 
 #[tauri::command]
-pub fn export_metrics_snapshot_csv_command(caller_role: String, state: State<DbState>) -> Result<String, String> {
+pub fn export_metrics_snapshot_csv_command(
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<String, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     export_metrics_snapshot_csv(&conn)

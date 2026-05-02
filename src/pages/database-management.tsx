@@ -814,6 +814,17 @@ function DatabaseManagementContent() {
     }
   }, []);
 
+  /** Full backup list (including live Google Drive `.enc` files); always hits the backend — no client cache. */
+  const loadBackupHistory = useCallback(async () => {
+    try {
+      const history = await invoke<BackupInfo[]>('get_backup_history');
+      setBackupHistory(Array.isArray(history) ? history : []);
+    } catch (error) {
+      console.error('Failed to load backup history:', error);
+      toast.error('Failed to load backup history');
+    }
+  }, []);
+
   const loadBulkManageableTables = useCallback(async () => {
     try {
       const tables = await invoke<BulkManageableTable[]>(
@@ -1089,7 +1100,19 @@ function DatabaseManagementContent() {
     return () => {
       cancelled = true;
     };
-  }, [loadDashboardData, loadBulkManageableTables, loadHardDeletePinSettings]);
+  }, [
+    loadDashboardData,
+    loadBulkManageableTables,
+    loadHardDeletePinSettings,
+    loadBackupHistory,
+  ]);
+
+  useEffect(() => {
+    if (activeTab !== 'backup') {
+      return;
+    }
+    void loadBackupHistory();
+  }, [activeTab, loadBackupHistory]);
 
   const loadTableData = useCallback(
     async (opts?: { page?: number }) => {
@@ -1210,16 +1233,6 @@ function DatabaseManagementContent() {
   useEffect(() => {
     loadTableData();
   }, [loadTableData]);
-
-  const loadBackupHistory = async () => {
-    try {
-      const history = await invoke<BackupInfo[]>('get_backup_history');
-      setBackupHistory(Array.isArray(history) ? history : []);
-    } catch (error) {
-      console.error('Failed to load backup history:', error);
-      toast.error('Failed to load backup history');
-    }
-  };
 
   const formatBytes = (bytes: number): string => {
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];

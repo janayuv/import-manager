@@ -52,7 +52,9 @@ fn require_mutate(role: &str) -> Result<(), String> {
 
 /// Active tenant for rule execution and dashboards (metadata).
 pub fn active_tenant_id(conn: &Connection) -> String {
-    let s = meta_get(conn, "workflow_active_tenant_id").trim().to_string();
+    let s = meta_get(conn, "workflow_active_tenant_id")
+        .trim()
+        .to_string();
     if s.is_empty() {
         "tenant-default".into()
     } else {
@@ -112,9 +114,7 @@ pub fn log_environment_deployment(
     details: &Value,
 ) -> Result<(), String> {
     let id = uuid::Uuid::new_v4().to_string();
-    let ts = chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let ts = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     conn.execute(
         "INSERT INTO workflow_environment_deployment_log (deployment_id, tenant_id, environment_id, rule_id, version_id, status, timestamp, details_json)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -189,7 +189,8 @@ pub fn list_workflow_environments(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -214,7 +215,8 @@ pub fn list_workflow_tenants(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -287,14 +289,13 @@ pub fn list_workflow_environment_deployment_log(
 ) -> Result<Vec<WorkflowEnvironmentDeploymentLogRow>, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let lim = limit.unwrap_or(120).max(1).min(500);
-    let rows: Vec<WorkflowEnvironmentDeploymentLogRow> =
-        match (
-            environment_id.filter(|s| !s.trim().is_empty()),
-            tenant_id.filter(|s| !s.trim().is_empty()),
-        ) {
-            (Some(e), Some(t)) => {
-                let mut stmt = conn
+    let lim = limit.unwrap_or(120).clamp(1, 500);
+    let rows: Vec<WorkflowEnvironmentDeploymentLogRow> = match (
+        environment_id.filter(|s| !s.trim().is_empty()),
+        tenant_id.filter(|s| !s.trim().is_empty()),
+    ) {
+        (Some(e), Some(t)) => {
+            let mut stmt = conn
                     .prepare(&format!(
                         "SELECT deployment_id, tenant_id, environment_id, rule_id, version_id, status, timestamp, details_json
              FROM workflow_environment_deployment_log
@@ -302,102 +303,102 @@ pub fn list_workflow_environment_deployment_log(
              ORDER BY datetime(timestamp) DESC LIMIT {lim}"
                     ))
                     .map_err(|e| e.to_string())?;
-                let mapped = stmt
-                    .query_map(params![&e, &t], |row| {
-                        Ok(WorkflowEnvironmentDeploymentLogRow {
-                            deployment_id: row.get(0)?,
-                            tenant_id: row.get(1)?,
-                            environment_id: row.get(2)?,
-                            rule_id: row.get(3)?,
-                            version_id: row.get(4)?,
-                            status: row.get(5)?,
-                            timestamp: row.get(6)?,
-                            details_json: row.get(7)?,
-                        })
+            let mapped = stmt
+                .query_map(params![&e, &t], |row| {
+                    Ok(WorkflowEnvironmentDeploymentLogRow {
+                        deployment_id: row.get(0)?,
+                        tenant_id: row.get(1)?,
+                        environment_id: row.get(2)?,
+                        rule_id: row.get(3)?,
+                        version_id: row.get(4)?,
+                        status: row.get(5)?,
+                        timestamp: row.get(6)?,
+                        details_json: row.get(7)?,
                     })
-                    .map_err(|e| e.to_string())?;
-                mapped
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| e.to_string())?
-            }
-            (Some(e), None) => {
-                let mut stmt = conn
+                })
+                .map_err(|e| e.to_string())?;
+            mapped
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?
+        }
+        (Some(e), None) => {
+            let mut stmt = conn
                     .prepare(&format!(
                         "SELECT deployment_id, tenant_id, environment_id, rule_id, version_id, status, timestamp, details_json
              FROM workflow_environment_deployment_log WHERE environment_id = ?1
              ORDER BY datetime(timestamp) DESC LIMIT {lim}"
                     ))
                     .map_err(|e| e.to_string())?;
-                let mapped = stmt
-                    .query_map(params![&e], |row| {
-                        Ok(WorkflowEnvironmentDeploymentLogRow {
-                            deployment_id: row.get(0)?,
-                            tenant_id: row.get(1)?,
-                            environment_id: row.get(2)?,
-                            rule_id: row.get(3)?,
-                            version_id: row.get(4)?,
-                            status: row.get(5)?,
-                            timestamp: row.get(6)?,
-                            details_json: row.get(7)?,
-                        })
+            let mapped = stmt
+                .query_map(params![&e], |row| {
+                    Ok(WorkflowEnvironmentDeploymentLogRow {
+                        deployment_id: row.get(0)?,
+                        tenant_id: row.get(1)?,
+                        environment_id: row.get(2)?,
+                        rule_id: row.get(3)?,
+                        version_id: row.get(4)?,
+                        status: row.get(5)?,
+                        timestamp: row.get(6)?,
+                        details_json: row.get(7)?,
                     })
-                    .map_err(|e| e.to_string())?;
-                mapped
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| e.to_string())?
-            }
-            (None, Some(t)) => {
-                let mut stmt = conn
+                })
+                .map_err(|e| e.to_string())?;
+            mapped
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?
+        }
+        (None, Some(t)) => {
+            let mut stmt = conn
                     .prepare(&format!(
                         "SELECT deployment_id, tenant_id, environment_id, rule_id, version_id, status, timestamp, details_json
              FROM workflow_environment_deployment_log WHERE tenant_id = ?1
              ORDER BY datetime(timestamp) DESC LIMIT {lim}"
                     ))
                     .map_err(|e| e.to_string())?;
-                let mapped = stmt
-                    .query_map(params![&t], |row| {
-                        Ok(WorkflowEnvironmentDeploymentLogRow {
-                            deployment_id: row.get(0)?,
-                            tenant_id: row.get(1)?,
-                            environment_id: row.get(2)?,
-                            rule_id: row.get(3)?,
-                            version_id: row.get(4)?,
-                            status: row.get(5)?,
-                            timestamp: row.get(6)?,
-                            details_json: row.get(7)?,
-                        })
+            let mapped = stmt
+                .query_map(params![&t], |row| {
+                    Ok(WorkflowEnvironmentDeploymentLogRow {
+                        deployment_id: row.get(0)?,
+                        tenant_id: row.get(1)?,
+                        environment_id: row.get(2)?,
+                        rule_id: row.get(3)?,
+                        version_id: row.get(4)?,
+                        status: row.get(5)?,
+                        timestamp: row.get(6)?,
+                        details_json: row.get(7)?,
                     })
-                    .map_err(|e| e.to_string())?;
-                mapped
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| e.to_string())?
-            }
-            (None, None) => {
-                let mut stmt = conn
+                })
+                .map_err(|e| e.to_string())?;
+            mapped
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?
+        }
+        (None, None) => {
+            let mut stmt = conn
                     .prepare(&format!(
                         "SELECT deployment_id, tenant_id, environment_id, rule_id, version_id, status, timestamp, details_json
              FROM workflow_environment_deployment_log ORDER BY datetime(timestamp) DESC LIMIT {lim}"
                     ))
                     .map_err(|e| e.to_string())?;
-                let mapped = stmt
-                    .query_map([], |row| {
-                        Ok(WorkflowEnvironmentDeploymentLogRow {
-                            deployment_id: row.get(0)?,
-                            tenant_id: row.get(1)?,
-                            environment_id: row.get(2)?,
-                            rule_id: row.get(3)?,
-                            version_id: row.get(4)?,
-                            status: row.get(5)?,
-                            timestamp: row.get(6)?,
-                            details_json: row.get(7)?,
-                        })
+            let mapped = stmt
+                .query_map([], |row| {
+                    Ok(WorkflowEnvironmentDeploymentLogRow {
+                        deployment_id: row.get(0)?,
+                        tenant_id: row.get(1)?,
+                        environment_id: row.get(2)?,
+                        rule_id: row.get(3)?,
+                        version_id: row.get(4)?,
+                        status: row.get(5)?,
+                        timestamp: row.get(6)?,
+                        details_json: row.get(7)?,
                     })
-                    .map_err(|e| e.to_string())?;
-                mapped
-                    .collect::<Result<Vec<_>, _>>()
-                    .map_err(|e| e.to_string())?
-            }
-        };
+                })
+                .map_err(|e| e.to_string())?;
+            mapped
+                .collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())?
+        }
+    };
     Ok(rows)
 }
 
@@ -562,8 +563,8 @@ pub fn promote_rule_version(
     if tr != sr + 1 {
         return Err("promotion must follow DEV → TEST → PROD one step at a time".into());
     }
-    let _: Value = serde_json::from_str(&def_json)
-        .map_err(|e| format!("rule JSON incompatible: {e}"))?;
+    let _: Value =
+        serde_json::from_str(&def_json).map_err(|e| format!("rule JSON incompatible: {e}"))?;
     let next_vn: i64 = conn
         .query_row(
             "SELECT COALESCE(MAX(version_number),0) + 1 FROM workflow_rule_versions WHERE tenant_id = ?1 AND environment_id = ?2 AND rule_id = ?3",
@@ -572,9 +573,7 @@ pub fn promote_rule_version(
         )
         .map_err(|e| e.to_string())?;
     let new_vid = format!("{rule_id}:{target_environment_id}:v{next_vn}");
-    let ts = chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let ts = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let reason = format!("Promoted from {source_version_id} ({src_env})");
     conn.execute(
         "INSERT INTO workflow_rule_versions (version_id, rule_id, tenant_id, environment_id, version_number, rule_definition_json, created_by, created_at, is_active, change_reason)

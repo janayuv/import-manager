@@ -1,4 +1,5 @@
 #![allow(clippy::uninlined_format_args)]
+use crate::connection_manager::ConnectionManager;
 use crate::db::DbState;
 use crate::expense::{
     ExpenseReportFilters, ExpenseReportResponse, ExpenseService, ExpenseSummaryByMonth,
@@ -117,8 +118,13 @@ fn build_report_where(filters: &ReportFilters) -> (String, Vec<(String, String)>
 }
 
 #[tauri::command]
-pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<ReportResponse, String> {
-    let conn = state.db.lock().unwrap();
+pub fn get_report(
+    filters: ReportFilters,
+    state: State<DbState>,
+    connection_manager: State<ConnectionManager>,
+) -> Result<ReportResponse, String> {
+    let started = std::time::Instant::now();
+    let conn = connection_manager.get_read_connection()?;
 
     let (where_sql, params) = build_report_where(&filters);
 
@@ -287,13 +293,16 @@ pub fn get_report(filters: ReportFilters, state: State<DbState>) -> Result<Repor
         }
     }
 
-    Ok(ReportResponse {
+    let response = ReportResponse {
         rows,
         page,
         page_size,
         total_rows,
         totals,
-    })
+    };
+    connection_manager.track_query("get_report", started, response.rows.len());
+    let _ = state;
+    Ok(response)
 }
 
 // ============================================================================

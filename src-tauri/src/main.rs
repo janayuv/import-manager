@@ -2,22 +2,38 @@
 #![allow(clippy::uninlined_format_args)]
 
 mod commands;
+mod connection_manager;
 mod db;
+mod ipc_error;
+mod correlation;
+mod desktop_session;
 mod encryption;
 mod expense;
 mod migrations;
 mod playwright_db;
 mod restore_control;
+mod security;
+mod services;
 mod utils;
+
+#[cfg(test)]
+mod audit_log_runtime_verify;
 
 // Re-export commonly used types
 pub use db::{
     BoeDetails, Expense, ExpenseType, Invoice, Item, ServiceProvider, Shipment, Supplier,
 };
 
+use crate::connection_manager::ConnectionManager;
 use crate::db::DbState;
 use rusqlite::Connection;
 use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+/// Backup due-check, dashboard daily gate (metadata read / rare snapshot rebuild), governance metrics.
+const BACKGROUND_FAST_INTERVAL_SECS: u64 = 60;
+/// BOE ANALYZE + attachment reconcile + full system integrity (multi-table counts + BOE JSON validation).
+const BACKGROUND_HEAVY_INTERVAL_SECS: u64 = 15 * 60;
 
 fn configure_sqlite_runtime(conn: &Connection) {
     if let Err(e) = conn.execute("PRAGMA journal_mode=WAL", []) {
@@ -25,6 +41,12 @@ fn configure_sqlite_runtime(conn: &Connection) {
     }
     if let Err(e) = conn.execute("PRAGMA synchronous=NORMAL", []) {
         log::warn!("[DB] Failed to set synchronous=NORMAL: {}", e);
+    }
+    if let Err(e) = conn.execute("PRAGMA busy_timeout=5000", []) {
+        log::warn!("[DB] Failed to set busy_timeout: {}", e);
+    }
+    if let Err(e) = conn.execute("PRAGMA temp_store=MEMORY", []) {
+        log::warn!("[DB] Failed to set temp_store=MEMORY: {}", e);
     }
     log::info!("[DB] WAL mode enabled.");
 }
@@ -131,6 +153,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 return Err(std::io::Error::new(std::io::ErrorKind::Other, e).into());
             }
 
+            if let Err(e) = crate::security::ensure_startup_admin_role_when_no_admins(&db_connection)
+            {
+                log::error!(
+                    target: "import_manager::authz",
+                    "ensure_startup_admin_role_when_no_admins failed (startup continues): {}",
+                    e
+                );
+            }
+
             if let Err(e) = commands::recycle_bin::cleanup_expired_recycle_records(
                 &mut db_connection,
             ) {
@@ -157,23 +188,194 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             crate::commands::reference_scan::run_startup_fk_diagnostics(&db_connection);
+            if let Err(e) = crate::services::boe_service::reconcile_boe_attachments(&db_connection)
+            {
+                log::warn!(
+                    target: "import_manager::boe",
+                    "startup attachment reconciliation failed (app continues): {}",
+                    e
+                );
+            }
+            if let Err(e) = crate::services::boe_service::recover_interrupted_boe_writes(&db_connection) {
+                log::warn!(
+                    target: "import_manager::boe",
+                    "startup boe recovery failed (app continues): {}",
+                    e
+                );
+            }
+            if let Err(e) = crate::services::boe_service::validate_boe_integrity(&db_connection) {
+                log::warn!(
+                    target: "import_manager::boe",
+                    "startup boe integrity validation failed (app continues): {}",
+                    e
+                );
+            }
+            if let Err(e) = crate::services::boe_service::analyze_boe_query_plans(&db_connection) {
+                log::warn!(
+                    target: "import_manager::boe",
+                    "startup boe query-plan analysis failed (app continues): {}",
+                    e
+                );
+            }
+            if let Err(e) = crate::services::platform_reliability::recover_interrupted_writes(&db_connection) {
+                log::warn!(
+                    target: "import_manager::reliability",
+                    "startup global recovery failed (app continues): {}",
+                    e
+                );
+            }
+            if let Err(e) = crate::services::platform_reliability::validate_system_integrity(&db_connection) {
+                log::warn!(
+                    target: "import_manager::reliability",
+                    "startup system integrity validation failed (app continues): {}",
+                    e
+                );
+            }
+            if let Ok(invalid_rows) = crate::services::shipment_service::detect_invalid_date_rows(&db_connection) {
+                if !invalid_rows.is_empty() {
+                    log::warn!(
+                        target: "import_manager::shipment",
+                        "startup detected invalid shipment date rows count={}",
+                        invalid_rows.len()
+                    );
+                }
+            }
+            if let Err(e) = crate::services::shipment_service::check_timezone_consistency(&db_connection) {
+                log::warn!(
+                    target: "import_manager::shipment",
+                    "startup shipment timezone consistency check failed: {}",
+                    e
+                );
+            }
+            if let Ok(findings) = crate::services::shipment_service::analyze_shipment_query_plans(&db_connection) {
+                let _ = crate::services::shipment_service::log_shipment_query_plan_readiness(&findings);
+            }
 
             app.manage(DbState { db: Mutex::new(db_connection) });
+            app.manage(ConnectionManager::new(db_path.clone()));
+            app.manage(desktop_session::DesktopSessionState::default());
 
             let app_handle = app.handle().clone();
-            std::thread::spawn(move || loop {
-                std::thread::sleep(std::time::Duration::from_secs(60));
-                tauri::async_runtime::block_on(crate::commands::tick_backup_schedules(
-                    app_handle.clone(),
-                ));
-                crate::commands::dashboard_cache::tick_dashboard_maintenance(&app_handle);
-                crate::commands::db_management::governance_tick();
+            std::thread::spawn(move || {
+                let fast_interval = Duration::from_secs(BACKGROUND_FAST_INTERVAL_SECS);
+                let heavy_interval = Duration::from_secs(BACKGROUND_HEAVY_INTERVAL_SECS);
+                let mut last_heavy = Instant::now();
+                loop {
+                    std::thread::sleep(fast_interval);
+                    let tick_started = Instant::now();
+
+                    let backup_start = Instant::now();
+                    tauri::async_runtime::block_on(crate::commands::tick_backup_schedules(
+                        app_handle.clone(),
+                    ));
+                    let backup_ms = backup_start.elapsed().as_millis();
+
+                    let dashboard_start = Instant::now();
+                    crate::commands::dashboard_cache::tick_dashboard_maintenance(&app_handle);
+                    let dashboard_ms = dashboard_start.elapsed().as_millis();
+
+                    let governance_start = Instant::now();
+                    crate::commands::db_management::governance_tick();
+                    let governance_ms = governance_start.elapsed().as_millis();
+
+                    log::debug!(
+                        target: "import_manager::background",
+                        "fast_background_tick completed in {} ms (backup_schedules={} ms, dashboard_maintenance={} ms, governance={} ms)",
+                        tick_started.elapsed().as_millis(),
+                        backup_ms,
+                        dashboard_ms,
+                        governance_ms
+                    );
+                    crate::services::background_health::record_fast_tick(
+                        tick_started.elapsed().as_millis() as u64,
+                        backup_ms as u64,
+                        dashboard_ms as u64,
+                        governance_ms as u64,
+                    );
+
+                    if last_heavy.elapsed() < heavy_interval {
+                        continue;
+                    }
+                    last_heavy = Instant::now();
+                    let heavy_started = Instant::now();
+                    let mut boe_ms: u64 = 0;
+                    let mut integrity_ms: u64 = 0;
+                    let mut boe_err: Option<String> = None;
+                    let mut integrity_err: Option<String> = None;
+                    if let Some(db_state) = app_handle.try_state::<DbState>() {
+                        if let Ok(conn) = db_state.db.lock() {
+                            let boe_start = Instant::now();
+                            let boe_res = crate::services::boe_service::run_boe_maintenance(&conn);
+                            boe_ms = boe_start.elapsed().as_millis() as u64;
+                            match &boe_res {
+                                Ok(()) => log::info!(
+                                    target: "import_manager::background",
+                                    "run_boe_maintenance completed in {} ms",
+                                    boe_ms
+                                ),
+                                Err(e) => {
+                                    boe_err = Some(e.to_string());
+                                    log::warn!(
+                                        target: "import_manager::background",
+                                        "run_boe_maintenance failed after {} ms: {}",
+                                        boe_ms,
+                                        e
+                                    );
+                                }
+                            }
+                            let integrity_start = Instant::now();
+                            let integrity_res =
+                                crate::services::platform_reliability::validate_system_integrity(
+                                    &conn,
+                                );
+                            integrity_ms = integrity_start.elapsed().as_millis() as u64;
+                            match &integrity_res {
+                                Ok(report) => log::info!(
+                                    target: "import_manager::background",
+                                    "Integrity check completed in {} ms (orphan_invoices={}, orphan_invoice_lines={})",
+                                    integrity_ms,
+                                    report.orphan_invoices,
+                                    report.orphan_invoice_lines
+                                ),
+                                Err(e) => {
+                                    integrity_err = Some(e.to_string());
+                                    log::warn!(
+                                        target: "import_manager::background",
+                                        "Integrity check failed after {} ms: {}",
+                                        integrity_ms,
+                                        e
+                                    );
+                                }
+                            }
+                        }
+                    }
+                    let heavy_total_ms = heavy_started.elapsed().as_millis() as u64;
+                    crate::services::background_health::record_heavy_tick(
+                        heavy_total_ms,
+                        boe_ms,
+                        integrity_ms,
+                        boe_err,
+                        integrity_err,
+                    );
+                    log::info!(
+                        target: "import_manager::background",
+                        "heavy_background_tick finished in {} ms (interval_s={})",
+                        heavy_total_ms,
+                        BACKGROUND_HEAVY_INTERVAL_SECS
+                    );
+                }
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            desktop_session::authenticate_desktop,
+            desktop_session::get_desktop_session,
+            desktop_session::clear_desktop_session,
             commands::get_shell_version,
+            commands::get_system_health_metrics,
+            commands::export_diagnostics_bundle,
+            commands::rebuild_dashboard_snapshots,
             commands::log_client_event,
             commands::get_app_metadata_value,
             commands::set_app_metadata_value,
@@ -191,6 +393,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::restore_supplier,
             // Shipment commands
             commands::get_shipments,
+            commands::get_shipments_paginated,
+            commands::get_shipment_items_by_shipment_id,
+            commands::check_shipment_duplicate,
+            commands::get_shipment_exception_summary,
+            commands::get_shipment_totals_by_status,
+            commands::get_recent_shipments,
+            commands::analyze_shipment_query_plans_command,
+            commands::simulate_shipment_items_dual_write_command,
+            commands::detect_invalid_shipment_date_rows_command,
+            commands::check_shipment_timezone_consistency_command,
+            commands::export_invalid_shipment_dates_csv_command,
+            commands::normalize_shipment_dates_dry_run_command,
+            commands::apply_shipment_date_normalization_command,
+            commands::shipment_timezone_validation_report_command,
+            commands::snapshot_shipment_query_plan_baseline_command,
             commands::get_active_shipments,
             commands::add_shipment,
             commands::update_shipment,
@@ -212,23 +429,37 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::get_unfinalized_shipments,
             // BOE Details commands
             commands::get_boes,
+            commands::get_boes_paginated,
             commands::add_boe,
             commands::update_boe,
             commands::delete_boe,
 
             // BOE Calculation commands
             commands::get_boe_calculations,
+            commands::get_boe_calculations_paginated,
             commands::get_shipment_ids_with_boe_calculations,
             commands::add_boe_calculation,
             commands::update_boe_calculation,
             commands::delete_boe_calculation,
             commands::get_shipments_for_boe_entry,
+            commands::get_shipments_for_boe_entry_paginated,
             commands::get_shipments_for_boe_summary,
             commands::update_boe_status,
             commands::add_boe_attachment,
             commands::get_boe_reconciliation,
             commands::save_boe_attachment_file,
             commands::save_item_photo_file,
+            commands::reconcile_boe_attachments_command,
+            commands::validate_boe_integrity_command,
+            commands::get_boe_largest_json_rows,
+            commands::analyze_boe_query_plans_command,
+            commands::get_boe_health_summary_command,
+            commands::recover_interrupted_boe_writes_command,
+            commands::validate_global_integrity_command,
+            commands::recover_interrupted_writes_command,
+            commands::validate_system_integrity_command,
+            commands::get_platform_health_summary_command,
+            commands::run_memory_guard_command,
 
             // --- Generic and Specific Option Commands ---
             commands::add_option, // The new generic command for adding any option
@@ -468,6 +699,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::migrate_shipment_statuses,
             // Validation commands
             commands::validate_shipment_import,
+            commands::log_shipment_import_result,
             commands::check_supplier_exists,
 
             // Database Management commands
@@ -524,9 +756,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         commands::delete_user_role,
         commands::check_user_permission,
         commands::get_user_permissions,
+        commands::bootstrap_first_admin_if_eligible,
 
             commands::reset_test_database,
-
+            commands::query_user_activity_logs,
         ])
         .run(tauri::generate_context!())
         .map_err(|e| {

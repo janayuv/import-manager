@@ -21,6 +21,8 @@ jobs:
       SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
       LIBSQLITE3_SYS_BUNDLED: '1'
       SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
+      # Bcrypt hash for desktop admin password (`docs/OPERATOR_RUNBOOK.md`). If unset, release builds ship with login disabled until rebuilt.
+      IMPORT_MANAGER_ADMIN_PASSWORD_HASH: ${{ secrets.IMPORT_MANAGER_ADMIN_PASSWORD_HASH }}
     steps:
       - uses: actions/checkout@v4
 

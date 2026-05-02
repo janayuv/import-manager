@@ -3,12 +3,12 @@
 use crate::commands::dashboard_cache::{
     run_dashboard_activity_retention_cleanup, run_kpi_snapshot_retention_cleanup,
 };
+use crate::commands::workflow_automation::compute_daily_automation_economics_index;
 use crate::commands::workflow_production_observability::{
     bump_workflow_runtime_metric, insert_workflow_alert_signal, log_structured_event,
-    record_performance_timing, refresh_system_reliability_score, scan_and_emit_threshold_alert_signals,
-    RuntimeMetricDelta,
+    record_performance_timing, refresh_system_reliability_score,
+    scan_and_emit_threshold_alert_signals, RuntimeMetricDelta,
 };
-use crate::commands::workflow_automation::compute_daily_automation_economics_index;
 use crate::db::DbState;
 use chrono::{Duration as ChronoDuration, NaiveDateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
@@ -18,9 +18,7 @@ use tauri::State;
 use uuid::Uuid;
 
 fn now_ts() -> String {
-    chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 fn normalize_role(role: &str) -> String {
@@ -103,7 +101,11 @@ fn log_manual_override(
     Ok(())
 }
 
-pub fn start_job_execution(conn: &Connection, job_id: &str, retry_count: i64) -> Result<String, String> {
+pub fn start_job_execution(
+    conn: &Connection,
+    job_id: &str,
+    retry_count: i64,
+) -> Result<String, String> {
     let ex = Uuid::new_v4().to_string();
     let ts = now_ts();
     conn.execute(
@@ -169,7 +171,12 @@ fn log_job_alert(
     Ok(())
 }
 
-fn log_failure_alert(conn: &Connection, job_id: &str, alert_type: &str, details: &Value) -> Result<(), String> {
+fn log_failure_alert(
+    conn: &Connection,
+    job_id: &str,
+    alert_type: &str,
+    details: &Value,
+) -> Result<(), String> {
     let id = Uuid::new_v4().to_string();
     let ts = now_ts();
     conn.execute(
@@ -195,7 +202,16 @@ fn refresh_performance_and_reliability(conn: &Connection, job_id: &str) -> Resul
              WHERE job_id = ?1 AND datetime(started_at) > datetime('now', '-30 days')
                AND completed_at IS NOT NULL",
             params![job_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?, r.get(5)?)),
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
+            },
         )
         .unwrap_or((0.0, 0.0, 0, 0, 0, 0));
     let samples_f = samples.max(1) as f64;
@@ -315,18 +331,26 @@ fn bump_daily_missed_metrics(
 /// Core job body used by retry/recovery paths (no execution log wrapper).
 pub fn run_job_payload(conn: &Connection, job_id: &str) -> Result<i64, String> {
     match job_id {
-        "automation_cycle" => crate::commands::workflow_automation::run_workflow_automation_cycle(conn).map(|_| 1i64),
+        "automation_cycle" => {
+            crate::commands::workflow_automation::run_workflow_automation_cycle(conn).map(|_| 1i64)
+        }
         "cost_metrics_aggregation" => compute_daily_automation_economics_index(conn).map(|_| 1i64),
         "observability_update" => {
-            let n = crate::commands::exception_reliability::validate_exception_integrity(conn).unwrap_or(0);
-            crate::commands::workflow_observability::complete_daily_observability(conn, n).map(|_| 1i64)
+            let n = crate::commands::exception_reliability::validate_exception_integrity(conn)
+                .unwrap_or(0);
+            crate::commands::workflow_observability::complete_daily_observability(conn, n)
+                .map(|_| 1i64)
         }
         "maintenance_cleanup" => {
             let mut n = 0i64;
             n += run_kpi_snapshot_retention_cleanup(conn).unwrap_or(0);
             n += run_dashboard_activity_retention_cleanup(conn).unwrap_or(0);
-            n += crate::commands::exception_workflow::run_exception_retention_cleanup(conn).unwrap_or(0);
-            let v = crate::commands::exception_reliability::run_daily_exception_workflow_maintenance(conn)?;
+            n += crate::commands::exception_workflow::run_exception_retention_cleanup(conn)
+                .unwrap_or(0);
+            let v =
+                crate::commands::exception_reliability::run_daily_exception_workflow_maintenance(
+                    conn,
+                )?;
             Ok(n + v)
         }
         "deployment_safety_checks" => {
@@ -423,7 +447,8 @@ pub fn detect_missed_job_runs(conn: &Connection) -> Result<i64, String> {
             continue;
         }
         let anchor = parse_schedule_anchor(&anchor_str)?;
-        let grace_end = anchor + ChronoDuration::minutes(interval_min) + ChronoDuration::minutes(grace_min);
+        let grace_end =
+            anchor + ChronoDuration::minutes(interval_min) + ChronoDuration::minutes(grace_min);
         if Utc::now() <= grace_end {
             continue;
         }
@@ -842,11 +867,7 @@ pub fn detect_schedule_drift(conn: &Connection) -> Result<i64, String> {
 }
 
 /// Run `f` with execution log + performance refresh. `f` returns (records_processed, ok_summary).
-pub fn run_instrumented_job<F>(
-    conn: &Connection,
-    job_id: &str,
-    f: F,
-) -> Result<(), String>
+pub fn run_instrumented_job<F>(conn: &Connection, job_id: &str, f: F) -> Result<(), String>
 where
     F: FnOnce(&Connection) -> Result<i64, String>,
 {
@@ -879,7 +900,11 @@ where
                 "workflow_job_monitoring",
                 "job_execution_completed",
                 Some(job_id),
-                if status == "TIMEOUT" { "WARNING" } else { "INFO" },
+                if status == "TIMEOUT" {
+                    "WARNING"
+                } else {
+                    "INFO"
+                },
                 &json!({ "executionId": &ex, "status": status, "durationMs": ms, "records": records }),
             );
             if status == "TIMEOUT" {
@@ -969,7 +994,11 @@ where
                 "workflow_job_monitoring",
                 "job_execution_completed",
                 Some(job_id),
-                if status == "TIMEOUT" { "WARNING" } else { "INFO" },
+                if status == "TIMEOUT" {
+                    "WARNING"
+                } else {
+                    "INFO"
+                },
                 &json!({ "executionId": &ex, "status": status, "durationMs": ms, "records": records }),
             );
             if status == "TIMEOUT" {
@@ -1118,7 +1147,8 @@ pub fn run_daily_dashboard_tick_jobs(conn: &Connection) -> Result<(), String> {
         n += run_kpi_snapshot_retention_cleanup(c).unwrap_or(0);
         n += run_dashboard_activity_retention_cleanup(c).unwrap_or(0);
         n += crate::commands::exception_workflow::run_exception_retention_cleanup(c).unwrap_or(0);
-        let v = crate::commands::exception_reliability::run_daily_exception_workflow_maintenance(c)?;
+        let v =
+            crate::commands::exception_reliability::run_daily_exception_workflow_maintenance(c)?;
         Ok((n + v, v))
     }) {
         Ok(v) => v,
@@ -1143,8 +1173,7 @@ pub fn run_daily_dashboard_tick_jobs(conn: &Connection) -> Result<(), String> {
 
     if is_job_enabled(conn, "automation_cycle")? {
         run_instrumented_job(conn, "automation_cycle", |c| {
-            crate::commands::workflow_automation::run_workflow_automation_cycle(c)
-                .map(|_| 1i64)
+            crate::commands::workflow_automation::run_workflow_automation_cycle(c).map(|_| 1i64)
         })?;
     }
 
@@ -1189,7 +1218,7 @@ pub fn run_daily_dashboard_tick_jobs(conn: &Connection) -> Result<(), String> {
 
     let _ = detect_schedule_drift(conn)?;
     let _ = recover_missed_jobs_auto(conn)?;
-    let _ = refresh_all_job_recovery_scores(conn)?;
+    refresh_all_job_recovery_scores(conn)?;
     let _ = detect_job_failure_patterns(conn)?;
     let _ = refresh_system_reliability_score(conn);
     let _ = scan_and_emit_threshold_alert_signals(conn);
@@ -1301,18 +1330,18 @@ pub fn set_workflow_background_job_enabled(
     log_manual_override(
         conn,
         job_id,
-        if enabled {
-            "ENABLE_JOB"
-        } else {
-            "DISABLE_JOB"
-        },
+        if enabled { "ENABLE_JOB" } else { "DISABLE_JOB" },
         None,
         caller_role,
     )?;
     Ok(())
 }
 
-pub fn reset_job_schedule_anchor(conn: &Connection, job_id: &str, caller_role: &str) -> Result<(), String> {
+pub fn reset_job_schedule_anchor(
+    conn: &Connection,
+    job_id: &str,
+    caller_role: &str,
+) -> Result<(), String> {
     let ts = now_ts();
     let u = conn
         .execute(
@@ -1388,21 +1417,21 @@ pub fn update_job_schedule_expectations(
     if let Some(g) = grace_period_minutes {
         conn.execute(
             "UPDATE workflow_job_schedule_expectations SET grace_period_minutes = ?1, updated_at = ?2 WHERE job_id = ?3",
-            params![g.max(1).min(10080), &ts, job_id],
+            params![g.clamp(1, 10080), &ts, job_id],
         )
         .map_err(|e| e.to_string())?;
     }
     if let Some(d) = recovery_delay_sec {
         conn.execute(
             "UPDATE workflow_job_schedule_expectations SET recovery_delay_sec = ?1, updated_at = ?2 WHERE job_id = ?3",
-            params![d.max(10).min(86400), &ts, job_id],
+            params![d.clamp(10, 86400), &ts, job_id],
         )
         .map_err(|e| e.to_string())?;
     }
     if let Some(m) = max_recovery_attempts {
         conn.execute(
             "UPDATE workflow_job_schedule_expectations SET max_recovery_attempts = ?1, updated_at = ?2 WHERE job_id = ?3",
-            params![m.max(1).min(50), &ts, job_id],
+            params![m.clamp(1, 50), &ts, job_id],
         )
         .map_err(|e| e.to_string())?;
     }
@@ -1504,7 +1533,9 @@ pub fn export_workflow_job_recovery_log_csv(conn: &Connection) -> Result<String,
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<(String, String, String, String, String, i64, String)>, _>>()
         .map_err(|e| e.to_string())?;
-    let mut out = String::from("recovery_id,job_id,alert_id,recovery_time,result,attempt_count,error_message\n");
+    let mut out = String::from(
+        "recovery_id,job_id,alert_id,recovery_time,result,attempt_count,error_message\n",
+    );
     for (rid, jid, aid, rt, res, ac, em) in rows {
         out.push_str(&format!(
             "{},{},{},{},{},{},{}\n",
@@ -1541,7 +1572,11 @@ pub fn get_workflow_job_dependencies_tree(conn: &Connection) -> Result<Value, St
     }))
 }
 
-pub fn get_job_execution_timeline(conn: &Connection, job_id: &str, hours: i64) -> Result<Value, String> {
+pub fn get_job_execution_timeline(
+    conn: &Connection,
+    job_id: &str,
+    hours: i64,
+) -> Result<Value, String> {
     let h = hours.clamp(24, 168);
     let cutoff = format!("-{h} hours");
     let mut stmt = conn
@@ -1811,7 +1846,10 @@ pub fn simulate_background_jobs_command(
 }
 
 #[tauri::command]
-pub fn detect_job_failures_command(caller_role: String, state: State<DbState>) -> Result<i64, String> {
+pub fn detect_job_failures_command(
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<i64, String> {
     require_mutate(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     detect_job_failure_patterns(&conn)
@@ -1882,7 +1920,10 @@ pub fn list_workflow_job_failure_alerts_command(
 }
 
 #[tauri::command]
-pub fn detect_missed_job_runs_command(caller_role: String, state: State<DbState>) -> Result<i64, String> {
+pub fn detect_missed_job_runs_command(
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<i64, String> {
     require_mutate(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     detect_missed_job_runs(&conn)
@@ -2069,7 +2110,11 @@ pub fn set_workflow_background_job_enabled_command(
 }
 
 #[tauri::command]
-pub fn reset_job_schedule_anchor_command(job_id: String, caller_role: String, state: State<DbState>) -> Result<(), String> {
+pub fn reset_job_schedule_anchor_command(
+    job_id: String,
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<(), String> {
     require_mutate(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     reset_job_schedule_anchor(&conn, job_id.trim(), &caller_role)
@@ -2109,14 +2154,21 @@ pub fn update_job_schedule_expectations_command(
 }
 
 #[tauri::command]
-pub fn retry_latest_failed_job_command(job_id: String, caller_role: String, state: State<DbState>) -> Result<String, String> {
+pub fn retry_latest_failed_job_command(
+    job_id: String,
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<String, String> {
     require_mutate(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     retry_latest_failed_job(&conn, job_id.trim())
 }
 
 #[tauri::command]
-pub fn get_job_failure_insights_command(caller_role: String, state: State<DbState>) -> Result<Value, String> {
+pub fn get_job_failure_insights_command(
+    caller_role: String,
+    state: State<DbState>,
+) -> Result<Value, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     get_job_failure_insights(&conn)

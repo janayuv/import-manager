@@ -81,6 +81,13 @@ pub fn import_key_from_imkey_path(path: &Path, replace_confirmed: bool) -> Resul
     Ok(())
 }
 
+/// Key material for decrypting existing `.enc` backups. **Never** creates or rotates the keyring entry.
+pub fn get_backup_encryption_password_for_decrypt() -> Result<String, String> {
+    get_raw_backup_key_silent().ok_or_else(|| {
+        "No backup encryption key in the system keyring. For encrypted backups (.enc), use Import backup key with the .imkey file from the machine that created the backup, or export/import the key from Database Management.".to_string()
+    })
+}
+
 /// 256-bit key material, base64-encoded (not stored in the app database).
 pub fn get_or_create_backup_encryption_password() -> Result<String, String> {
     let e =

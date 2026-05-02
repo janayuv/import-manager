@@ -47,6 +47,9 @@ const BoePage = () => {
   const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [boes, setBoes] = React.useState<BoeDetails[]>([]);
+  const [totalCount, setTotalCount] = React.useState(0);
+  const [page, setPage] = React.useState(1);
+  const [pageSize] = React.useState(settings.modules?.boe?.itemsPerPage || 50);
   const [loading, setLoading] = React.useState(true);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = React.useState(false);
   const [boeToDelete, setBoeToDelete] = React.useState<{
@@ -80,18 +83,31 @@ const BoePage = () => {
     navigate('/boe');
   }, [navigate]);
 
+  type PaginatedResult<T> = {
+    data: T[];
+    totalCount: number;
+  };
+
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const fetchedBoes = await invoke<BoeDetails[]>('get_boes');
-      setBoes(fetchedBoes);
+      const result = await invoke<PaginatedResult<BoeDetails>>(
+        'get_boes_paginated',
+        { page, pageSize }
+      );
+      const safeData = Array.isArray(result?.data) ? result.data : [];
+      const safeTotalCount = Number.isFinite(result?.totalCount)
+        ? result.totalCount
+        : safeData.length;
+      setBoes(safeData);
+      setTotalCount(safeTotalCount);
     } catch (error) {
       console.error('Failed to fetch BOE data:', error);
       notifications.boe.error('load data', String(error));
     } finally {
       setLoading(false);
     }
-  }, [notifications.boe]);
+  }, [notifications.boe, page, pageSize]);
 
   React.useEffect(() => {
     fetchData();
@@ -539,8 +555,8 @@ const BoePage = () => {
         data={boes}
         searchPlaceholder="Search all BOEs..."
         showSearch={true}
-        showPagination={true}
-        pageSize={settings.modules?.boe?.itemsPerPage || 10}
+        showPagination={false}
+        pageSize={pageSize}
         className=""
         hideColumnsOnSmall={['paymentDate', 'dutyPaid']}
         columnWidths={{
@@ -555,6 +571,32 @@ const BoePage = () => {
         }}
         moduleName="boe"
       />
+      <div className="mt-4 flex items-center justify-between">
+        <div className="text-muted-foreground text-sm">
+          Showing {(page - 1) * pageSize + 1}-
+          {Math.min(page * pageSize, totalCount)} of {totalCount}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            disabled={page <= 1}
+            onClick={() => setPage(prev => Math.max(1, prev - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            disabled={page * pageSize >= totalCount}
+            onClick={() => setPage(prev => prev + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
 
       {deleteDialog}
     </div>

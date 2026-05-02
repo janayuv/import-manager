@@ -163,9 +163,22 @@ test.describe('UI performance (large datasets)', () => {
     await expectPageMarker(page, 'Shipment Management');
 
     const content = appContent(page);
-    await expect(content.getByText(/Showing 1 of 1 shipments/)).toBeVisible({
-      timeout: 20_000,
+    const beforeCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<unknown>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      const rows = await inv('get_shipments');
+      return rows.length;
     });
+    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
+      {
+        timeout: 20_000,
+      }
+    );
 
     await content.getByRole('button', { name: 'Table' }).click();
 
@@ -199,11 +212,9 @@ test.describe('UI performance (large datasets)', () => {
       `shipment import took ${elapsed.toFixed(0)} ms (max ${SHIPMENT_IMPORT_MAX_MS} ms)`
     ).toBeLessThan(SHIPMENT_IMPORT_MAX_MS);
 
-    const expected = 1 + LARGE_SHIPMENT_COUNT;
+    const expected = beforeCount + LARGE_SHIPMENT_COUNT;
     await expect(
-      content.getByText(
-        new RegExp(`Showing ${expected} of ${expected} shipments`)
-      )
+      content.getByText(`Showing ${expected} of ${expected} shipments`)
     ).toBeVisible({ timeout: 30_000 });
   });
 

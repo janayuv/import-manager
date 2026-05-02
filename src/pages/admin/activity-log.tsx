@@ -18,7 +18,7 @@ import {
   queryDashboardActivityLog,
   type DashboardActivityRow,
 } from '@/lib/dashboard-activity';
-import { useUser } from '@/lib/user-context';
+import { useCurrentUserId, useUser } from '@/lib/user-context';
 
 export default function AdminActivityLogPage() {
   const { user } = useUser();
@@ -29,38 +29,50 @@ export default function AdminActivityLogPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
-  const [limit, setLimit] = useState(500);
+  const [pageSize, setPageSize] = useState(100);
+  const [pageIndex, setPageIndex] = useState(0);
+  const callerUserId = useCurrentUserId();
   const [rows, setRows] = useState<DashboardActivityRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await queryDashboardActivityLog({
-        userId: userId.trim() || undefined,
-        actionType: actionType.trim() || undefined,
-        dateFrom: dateFrom.trim() || undefined,
-        dateTo: dateTo.trim() || undefined,
-        search: search.trim() || undefined,
-        limit,
-      });
-      setRows(data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
-      setRows([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [userId, actionType, dateFrom, dateTo, search, limit]);
+  const runQuery = useCallback(
+    async (pageIdx: number) => {
+      setLoading(true);
+      setError(null);
+      try {
+        const uid = callerUserId.trim();
+        if (!uid) {
+          setRows([]);
+          return;
+        }
+        const data = await queryDashboardActivityLog(
+          {
+            userId: userId.trim() || undefined,
+            actionType: actionType.trim() || undefined,
+            dateFrom: dateFrom.trim() || undefined,
+            dateTo: dateTo.trim() || undefined,
+            search: search.trim() || undefined,
+            limit: pageSize,
+            offset: pageIdx * pageSize,
+          },
+          uid
+        );
+        setRows(data);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : String(e));
+        setRows([]);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [userId, actionType, dateFrom, dateTo, search, pageSize, callerUserId]
+  );
 
   useEffect(() => {
     if (!isAdmin) return;
-    void load();
-    // Intentionally mount-only; filters refresh via "Apply filters".
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAdmin]);
+    void runQuery(pageIndex);
+  }, [isAdmin, pageIndex, pageSize, runQuery]);
 
   if (!isAdmin) {
     return <Navigate to="/" replace />;
@@ -69,13 +81,12 @@ export default function AdminActivityLogPage() {
   return (
     <div className="container mx-auto max-w-7xl space-y-6 p-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Dashboard activity log
-        </h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Activity log</h1>
         <p className="text-muted-foreground text-sm">
-          Audit trail from{' '}
-          <code className="text-xs">dashboard_activity_log</code>— filter by
-          user, action, date range, or free-text search.
+          Application and ERP-style events from{' '}
+          <code className="text-xs">dashboard_activity_log</code> (paginated).
+          Security-sensitive auth and operator actions are also listed under{' '}
+          <strong>User activity</strong>.
         </p>
       </div>
 
@@ -103,14 +114,17 @@ export default function AdminActivityLogPage() {
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="al-limit">Row limit</Label>
+            <Label htmlFor="al-limit">Page size</Label>
             <Input
               id="al-limit"
               type="number"
               min={1}
               max={2000}
-              value={limit}
-              onChange={e => setLimit(Number(e.target.value) || 500)}
+              value={pageSize}
+              onChange={e => {
+                setPageSize(Number(e.target.value) || 100);
+                setPageIndex(0);
+              }}
             />
           </div>
           <div className="space-y-2">
@@ -140,15 +154,36 @@ export default function AdminActivityLogPage() {
               placeholder="Matches details, module, record ref, navigation, context"
             />
           </div>
-          <div className="flex items-end gap-2 md:col-span-2 lg:col-span-3">
+          <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3">
             <Button
               type="button"
-              onClick={() => void load()}
+              variant="outline"
+              onClick={() => setPageIndex(i => Math.max(0, i - 1))}
+              disabled={loading || pageIndex === 0}
+            >
+              Previous page
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setPageIndex(i => i + 1)}
+              disabled={loading || rows.length < pageSize}
+            >
+              Next page
+            </Button>
+            <Button
+              type="button"
+              onClick={() => {
+                setPageIndex(0);
+                void runQuery(0);
+              }}
               disabled={loading}
             >
               {loading ? 'Loading…' : 'Apply filters'}
             </Button>
-            <Badge variant="secondary">{rows.length} row(s)</Badge>
+            <Badge variant="secondary">
+              Page {pageIndex + 1} · {rows.length} row(s)
+            </Badge>
           </div>
         </CardContent>
       </Card>

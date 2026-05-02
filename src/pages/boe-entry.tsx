@@ -40,6 +40,11 @@ export default function BoeEntryPage() {
   const [allBoes, setAllBoes] = React.useState<BoeDetails[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [deletingBoe, setDeletingBoe] = React.useState<SavedBoe | null>(null);
+  const [savedBoePage, setSavedBoePage] = React.useState(1);
+  const [savedBoeTotal, setSavedBoeTotal] = React.useState(0);
+  const pageSize = 50;
+
+  type PaginatedResult<T> = { data: T[]; totalCount: number };
 
   const entryPanel = React.useMemo((): 'none' | 'view' | 'edit' | 'add' => {
     if (location.pathname === boeEntryNewPath) return 'add';
@@ -70,17 +75,42 @@ export default function BoeEntryPage() {
   const fetchData = React.useCallback(async () => {
     try {
       const [shipmentsData, savedBoesData, allBoesData] = await Promise.all([
-        invoke<Shipment[]>('get_shipments_for_boe_entry'),
-        invoke<SavedBoe[]>('get_boe_calculations'),
-        invoke<BoeDetails[]>('get_boes'),
+        invoke<PaginatedResult<Shipment>>(
+          'get_shipments_for_boe_entry_paginated',
+          {
+            page: 1,
+            pageSize: 100,
+          }
+        ),
+        invoke<PaginatedResult<SavedBoe>>('get_boe_calculations_paginated', {
+          page: savedBoePage,
+          pageSize,
+        }),
+        invoke<PaginatedResult<BoeDetails>>('get_boes_paginated', {
+          page: 1,
+          pageSize: 100,
+        }),
       ]);
-      setShipments(shipmentsData);
-      setSavedBoes(savedBoesData);
-      setAllBoes(allBoesData);
+      const safeShipments = Array.isArray(shipmentsData?.data)
+        ? shipmentsData.data
+        : [];
+      const safeSavedBoes = Array.isArray(savedBoesData?.data)
+        ? savedBoesData.data
+        : [];
+      const safeAllBoes = Array.isArray(allBoesData?.data)
+        ? allBoesData.data
+        : [];
+      const safeSavedBoeTotal = Number.isFinite(savedBoesData?.totalCount)
+        ? savedBoesData.totalCount
+        : safeSavedBoes.length;
+      setShipments(safeShipments);
+      setSavedBoes(safeSavedBoes);
+      setSavedBoeTotal(safeSavedBoeTotal);
+      setAllBoes(safeAllBoes);
     } catch (error) {
       notifications.boe.error('load data', String(error));
     }
-  }, [notifications.boe]);
+  }, [notifications.boe, savedBoePage]);
 
   React.useEffect(() => {
     const loadInitialData = async () => {
@@ -170,7 +200,7 @@ export default function BoeEntryPage() {
 
   if (entryPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
         <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
           <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
             <Button
@@ -350,6 +380,32 @@ export default function BoeEntryPage() {
         onEdit={handleEditBoe}
         onDelete={handleDeleteBoe}
       />
+      <div className="flex items-center justify-between">
+        <div className="text-muted-foreground text-sm">
+          Showing {(savedBoePage - 1) * pageSize + 1}-
+          {Math.min(savedBoePage * pageSize, savedBoeTotal)} of {savedBoeTotal}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            disabled={savedBoePage <= 1}
+            onClick={() => setSavedBoePage(prev => Math.max(1, prev - 1))}
+          >
+            Previous
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            useAccentColor
+            disabled={savedBoePage * pageSize >= savedBoeTotal}
+            onClick={() => setSavedBoePage(prev => prev + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      </div>
 
       {deleteDialog}
     </div>

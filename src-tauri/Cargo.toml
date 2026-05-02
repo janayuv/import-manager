@@ -1,6 +1,6 @@
 [package]
 name = "app"
-version = "0.2.3"
+version = "0.3.1"
 description = "A Tauri App"
 authors = ["you"]
 license = "MIT"
@@ -25,7 +25,10 @@ serde = { version = "1.0", features = ["derive"] }
 log = "0.4"
 rusqlite = { version = "0.31.0", features = ["bundled"] }
 paste = "1.0"
-keyring = "3.6"
+keyring = { version = "3.6", default-features = false }
+
+[target.'cfg(windows)'.dependencies]
+keyring = { version = "3.6", default-features = false, features = ["windows-native"] }
 base64 = "0.21"
 hex = "0.4"
 refinery = { version = "0.8", features = ["rusqlite"] }
@@ -57,6 +60,10 @@ calamine = "0.25"
 strsim = "0.11"
 image = "0.25.6"
 argon2 = "0.5.3"
+bcrypt = "0.15"
+rust_decimal = "1"
+sysinfo = "0.30"
+zip = { version = "2", default-features = false, features = ["deflate"] }
 
 [features]
 # this feature is used for production builds or when `devPath` points to the filesystem
@@ -65,3 +72,4 @@ custom-protocol = ["tauri/custom-protocol"]
 
 [dev-dependencies]
 rust_xlsxwriter = "0.66.0"
+tempfile = "3"

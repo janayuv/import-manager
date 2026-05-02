@@ -61,11 +61,15 @@ export type DashboardActivityRow = {
 };
 
 export async function fetchDashboardActivityLog(
-  limit = 200
+  limit = 200,
+  callerUserId?: string
 ): Promise<DashboardActivityRow[]> {
   try {
+    const uid = callerUserId?.trim();
+    if (!uid) return [];
     return await invoke<DashboardActivityRow[]>('get_dashboard_activity_log', {
       limit,
+      callerUserId: uid,
     });
   } catch {
     return [];
@@ -79,12 +83,15 @@ export type ActivityLogQuery = {
   dateTo?: string;
   search?: string;
   limit?: number;
+  offset?: number;
 };
 
 export async function queryDashboardActivityLog(
-  query: ActivityLogQuery
+  query: ActivityLogQuery,
+  callerUserId: string
 ): Promise<DashboardActivityRow[]> {
   return invoke<DashboardActivityRow[]>('query_dashboard_activity_log', {
     query,
+    callerUserId,
   });
 }

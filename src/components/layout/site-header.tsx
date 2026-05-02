@@ -10,6 +10,8 @@ import {
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { invoke } from '@tauri-apps/api/core';
+import { toast } from 'sonner';
 
 import { useTheme } from '@/components/layout/theme-context';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
@@ -27,6 +29,13 @@ import { useSidebar } from '@/components/ui/use-sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AboutDialog } from '@/components/about-dialog';
 import { CustomColorPicker } from '@/components/ui/custom-color-picker';
+import { ipcErrorMessage, parseIpcError } from '@/lib/ipc-error';
+import {
+  assertTrustworthySavePath,
+  save,
+  useNativeFileDialogs,
+} from '@/lib/tauri-bridge';
+import { useUser } from '@/lib/user-context';
 
 export function SiteHeader() {
   const { toggleSidebar } = useSidebar();
@@ -36,6 +45,8 @@ export function SiteHeader() {
   const [notificationSheetOpen, setNotificationSheetOpen] = useState(false);
   const [customColorPickerOpen, setCustomColorPickerOpen] = useState(false);
   const [aboutOpen, setAboutOpen] = useState(false);
+  const [exportingDiagnostics, setExportingDiagnostics] = useState(false);
+  const { user } = useUser();
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -102,6 +113,59 @@ export function SiteHeader() {
     }
   };
 
+  const exportDiagnostics = async () => {
+    if (!useNativeFileDialogs) {
+      toast.message(
+        'Export diagnostics is available in the desktop application.'
+      );
+      return;
+    }
+    const uid = user?.id?.trim();
+    if (!uid) {
+      toast.error('Sign in to export diagnostics.');
+      return;
+    }
+    let outputPath: string | null;
+    try {
+      outputPath = await save({
+        defaultPath: 'import-manager-diagnostics.zip',
+        filters: [{ name: 'ZIP archive', extensions: ['zip'] }],
+      });
+    } catch (e) {
+      toast.error(ipcErrorMessage(e, 'Could not open save dialog.'));
+      return;
+    }
+    if (!outputPath) {
+      return;
+    }
+    try {
+      assertTrustworthySavePath(outputPath);
+    } catch (pathErr) {
+      toast.error(pathErr instanceof Error ? pathErr.message : String(pathErr));
+      return;
+    }
+    setExportingDiagnostics(true);
+    try {
+      const clientReportedAppVersion =
+        import.meta.env.VITE_APP_VERSION?.trim() || null;
+      await invoke('export_diagnostics_bundle', {
+        callerUserId: uid,
+        outputPath,
+        clientReportedAppVersion,
+      });
+      toast.success('Diagnostics bundle saved.');
+    } catch (e) {
+      const ipc = parseIpcError(e);
+      const cid =
+        ipc?.correlationId != null && ipc.correlationId !== ''
+          ? ` Correlation: ${ipc.correlationId}.`
+          : '';
+      toast.error(`${ipcErrorMessage(e)}${cid}`);
+    } finally {
+      setExportingDiagnostics(false);
+    }
+  };
+
   return (
     <header className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-40 flex w-full items-center border-b backdrop-blur">
       <div className="flex h-14 w-full items-center gap-2 px-4">
@@ -140,6 +204,14 @@ export function SiteHeader() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={exportingDiagnostics}
+                onSelect={() => {
+                  void exportDiagnostics();
+                }}
+              >
+                Export diagnostics…
+              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
                 About Import Manager
               </DropdownMenuItem>

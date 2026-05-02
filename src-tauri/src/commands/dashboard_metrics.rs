@@ -1,12 +1,12 @@
 #![allow(clippy::uninlined_format_args)]
 //! Dashboard aggregates and KPI governance (ERP-style direction).
 
-use crate::commands::dashboard_cache::{
-    read_cached_metrics_json, write_metrics_cache,
-};
+use crate::commands::dashboard_cache::{read_cached_metrics_json, write_metrics_cache};
 use crate::commands::exception_reliability::log_integrity_issue;
 use crate::commands::utils::dashboard_activity_checksum;
+use crate::connection_manager::ConnectionManager;
 use crate::db::DbState;
+use crate::ipc_error::IpcError;
 use chrono::Utc;
 use rusqlite::{params, ToSql};
 use serde::{Deserialize, Serialize};
@@ -181,6 +181,57 @@ pub struct DashboardMetricsResponse {
     pub erp: DashboardErpExtras,
 }
 
+#[derive(Debug, Default)]
+struct ShipmentAggregateRow {
+    total_shipments: i64,
+    pending_shipments: i64,
+    delivered_shipments: i64,
+    overdue_eta_count: i64,
+    shipments_missing_eta: i64,
+    shipments_missing_etd: i64,
+    shipments_without_boe_row: i64,
+    shipments_without_expense: i64,
+}
+
+#[derive(Debug, Default)]
+struct DashboardKpiSnapshotRow {
+    total_shipments: i64,
+    pending_shipments: i64,
+    delivered_shipments: i64,
+    overdue_eta_count: i64,
+    shipments_missing_boe: i64,
+    shipments_missing_expense: i64,
+    total_invoice_value: f64,
+    total_expense_value: f64,
+    total_duty_savings: f64,
+    /// Present after V69 snapshot generation; `None` forces regeneration.
+    reconciled_boes: Option<i64>,
+    duty_total: Option<f64>,
+    avg_transit_days: Option<f64>,
+    shipments_missing_eta: Option<i64>,
+    shipments_missing_etd: Option<i64>,
+    total_suppliers: Option<i64>,
+    total_items: Option<i64>,
+}
+
+#[derive(Debug, Default)]
+struct DashboardExceptionSnapshotRow {
+    missing_boe_count: i64,
+    missing_expense_count: i64,
+    overdue_eta_count: i64,
+    open_exception_count: i64,
+    sla_breach_count: i64,
+}
+
+#[derive(Debug, Default)]
+struct DashboardWorkflowSnapshotRow {
+    open_workflow_count: i64,
+    active_workflow_count: i64,
+    sla_breach_count: i64,
+    recent_incident_count: i64,
+    resolved_today_count: i64,
+}
+
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct DocumentComplianceSummary {
@@ -300,6 +351,580 @@ fn query_f64(conn: &rusqlite::Connection, sql: &str, p: &[&dyn ToSql]) -> Result
         .map_err(|e| e.to_string())
 }
 
+fn query_shipment_aggregates(
+    conn: &rusqlite::Connection,
+    w: &str,
+    p: &[&dyn ToSql],
+) -> Result<ShipmentAggregateRow, String> {
+    let sql = format!(
+        "SELECT
+            COUNT(*) AS total_shipments,
+            COALESCE(SUM(CASE WHEN s.status = 'docu-received' THEN 1 ELSE 0 END), 0) AS pending_shipments,
+            COALESCE(SUM(CASE WHEN s.status = 'delivered' THEN 1 ELSE 0 END), 0) AS delivered_shipments,
+            COALESCE(SUM(CASE
+                WHEN s.eta IS NOT NULL AND TRIM(s.eta) != ''
+                 AND s.status IS NOT NULL AND LOWER(s.status) NOT IN ('delivered', 'completed')
+                 AND length(s.eta) >= 10 AND s.eta GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+                 AND date(s.eta) < date('now')
+                THEN 1 ELSE 0 END), 0) AS overdue_eta_count,
+            COALESCE(SUM(CASE WHEN s.eta IS NULL OR TRIM(s.eta) = '' THEN 1 ELSE 0 END), 0) AS shipments_missing_eta,
+            COALESCE(SUM(CASE WHEN s.etd IS NULL OR TRIM(s.etd) = '' THEN 1 ELSE 0 END), 0) AS shipments_missing_etd,
+            COALESCE(SUM(CASE
+                WHEN NOT EXISTS (SELECT 1 FROM boe_calculations bc WHERE bc.shipment_id = s.id)
+                THEN 1 ELSE 0 END), 0) AS shipments_without_boe_row,
+            COALESCE(SUM(CASE
+                WHEN NOT EXISTS (SELECT 1 FROM expenses e WHERE e.shipment_id = s.id)
+                THEN 1 ELSE 0 END), 0) AS shipments_without_expense
+         FROM shipments s
+         WHERE {w}",
+        w = w
+    );
+    let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
+    stmt.query_row(rusqlite::params_from_iter(p.iter().copied()), |r| {
+        Ok(ShipmentAggregateRow {
+            total_shipments: r.get(0)?,
+            pending_shipments: r.get(1)?,
+            delivered_shipments: r.get(2)?,
+            overdue_eta_count: r.get(3)?,
+            shipments_missing_eta: r.get(4)?,
+            shipments_missing_etd: r.get(5)?,
+            shipments_without_boe_row: r.get(6)?,
+            shipments_without_expense: r.get(7)?,
+        })
+    })
+    .map_err(|e| e.to_string())
+}
+
+fn query_invoice_and_expense_totals(
+    conn: &rusqlite::Connection,
+    w: &str,
+    p: &[&dyn ToSql],
+) -> Result<(f64, f64), String> {
+    let totals_sql = format!(
+        "WITH scoped_shipments AS (
+            SELECT s.id, COALESCE(s.invoice_value, 0) AS invoice_value
+            FROM shipments s
+            WHERE {w}
+         )
+         SELECT
+           COALESCE((SELECT SUM(invoice_value) FROM scoped_shipments), 0) AS total_invoice_value,
+           COALESCE((SELECT SUM(e.total_amount)
+                     FROM expenses e
+                     INNER JOIN scoped_shipments ss ON ss.id = e.shipment_id), 0) AS expense_total",
+        w = w
+    );
+    let mut totals_stmt = conn.prepare(&totals_sql).map_err(|e| e.to_string())?;
+    totals_stmt
+        .query_row(rusqlite::params_from_iter(p.iter().copied()), |r| {
+            Ok((r.get(0)?, r.get(1)?))
+        })
+        .map_err(|e| e.to_string())
+}
+
+fn query_monthly_summary(
+    conn: &rusqlite::Connection,
+    w: &str,
+    p: &[&dyn ToSql],
+) -> Result<Vec<MonthlySummaryRow>, String> {
+    let mut stmt = conn
+        .prepare(&format!(
+            "SELECT strftime('%Y-%m', s.invoice_date) AS period,
+                    COUNT(*) AS cnt,
+                    COALESCE(SUM(s.invoice_value), 0) AS val,
+                    COALESCE(SUM(
+                        max(0.0,
+                            s.invoice_value * 0.2 - COALESCE(
+                                (SELECT CAST(json_extract(bc.calculation_result_json, '$.customsDutyTotal') AS REAL)
+                                 FROM boe_calculations bc
+                                 WHERE bc.shipment_id = s.id AND bc.status = 'Reconciled' LIMIT 1),
+                                0.0
+                            )
+                        )
+                    ), 0) AS duty_savings
+             FROM shipments s
+             WHERE {w} AND strftime('%Y-%m', s.invoice_date) IS NOT NULL
+             GROUP BY period
+             ORDER BY period",
+            w = w
+        ))
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(rusqlite::params_from_iter(p.iter().copied()), |row| {
+            Ok(MonthlySummaryRow {
+                period: row.get(0)?,
+                shipments: row.get(1)?,
+                value: row.get(2)?,
+                duty_savings: row.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    Ok(rows.filter_map(|r| r.ok()).collect())
+}
+
+fn read_dashboard_kpi_snapshot(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+) -> Result<Option<DashboardKpiSnapshotRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT total_shipments, pending_shipments, delivered_shipments, overdue_eta_count,
+                    shipments_missing_boe, shipments_missing_expense,
+                    total_invoice_value, total_expense_value, total_duty_savings,
+                    reconciled_boes, duty_total, avg_transit_days, shipments_missing_eta,
+                    shipments_missing_etd, total_suppliers, total_items
+             FROM dashboard_kpi_snapshot
+             WHERE snapshot_date = ?1",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map(params![snapshot_date], |r| {
+            let reconciled_boes: Option<i64> = r.get(9)?;
+            Ok(DashboardKpiSnapshotRow {
+                total_shipments: r.get(0)?,
+                pending_shipments: r.get(1)?,
+                delivered_shipments: r.get(2)?,
+                overdue_eta_count: r.get(3)?,
+                shipments_missing_boe: r.get(4)?,
+                shipments_missing_expense: r.get(5)?,
+                total_invoice_value: r.get(6)?,
+                total_expense_value: r.get(7)?,
+                total_duty_savings: r.get(8)?,
+                reconciled_boes,
+                duty_total: r.get(10)?,
+                avg_transit_days: r.get(11)?,
+                shipments_missing_eta: r.get(12)?,
+                shipments_missing_etd: r.get(13)?,
+                total_suppliers: r.get(14)?,
+                total_items: r.get(15)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    let row = rows.next().transpose().map_err(|e| e.to_string())?;
+    Ok(row.and_then(|r| {
+        if r.reconciled_boes.is_none() {
+            None
+        } else {
+            Some(r)
+        }
+    }))
+}
+
+fn read_dashboard_monthly_snapshot(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+) -> Result<Vec<MonthlySummaryRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT period, shipments, value, duty_savings
+             FROM dashboard_monthly_snapshot
+             WHERE snapshot_date = ?1
+             ORDER BY period",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map(params![snapshot_date], |r| {
+            Ok(MonthlySummaryRow {
+                period: r.get(0)?,
+                shipments: r.get(1)?,
+                value: r.get(2)?,
+                duty_savings: r.get(3)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
+}
+
+fn read_dashboard_exception_snapshot(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+) -> Result<Option<DashboardExceptionSnapshotRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT missing_boe_count, missing_expense_count, overdue_eta_count, open_exception_count, sla_breach_count
+             FROM dashboard_exception_snapshot
+             WHERE snapshot_date = ?1",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map(params![snapshot_date], |r| {
+            Ok(DashboardExceptionSnapshotRow {
+                missing_boe_count: r.get(0)?,
+                missing_expense_count: r.get(1)?,
+                overdue_eta_count: r.get(2)?,
+                open_exception_count: r.get(3)?,
+                sla_breach_count: r.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.next().transpose().map_err(|e| e.to_string())
+}
+
+fn read_exception_sample_ids(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+    sample_kind: &str,
+) -> Result<Vec<String>, String> {
+    let payload: Option<String> = conn
+        .query_row(
+            "SELECT shipment_ids_json FROM dashboard_exception_sample_cache
+             WHERE snapshot_date = ?1 AND sample_kind = ?2",
+            params![snapshot_date, sample_kind],
+            |r| r.get(0),
+        )
+        .ok();
+    if let Some(json) = payload {
+        serde_json::from_str::<Vec<String>>(&json).map_err(|e| e.to_string())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+fn write_exception_sample_ids(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+    sample_kind: &str,
+    shipment_ids: &[String],
+) -> Result<(), String> {
+    let mut ids = shipment_ids.to_vec();
+    ids.truncate(10);
+    let payload = serde_json::to_string(&ids).map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO dashboard_exception_sample_cache (snapshot_date, sample_kind, shipment_ids_json)
+         VALUES (?1, ?2, ?3)
+         ON CONFLICT(snapshot_date, sample_kind) DO UPDATE SET
+           shipment_ids_json = excluded.shipment_ids_json,
+           created_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')",
+        params![snapshot_date, sample_kind, payload],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn read_dashboard_workflow_snapshot(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+) -> Result<Option<DashboardWorkflowSnapshotRow>, String> {
+    let mut stmt = conn
+        .prepare(
+            "SELECT open_workflow_count, active_workflow_count, sla_breach_count, recent_incident_count, resolved_today_count
+             FROM dashboard_workflow_snapshot
+             WHERE snapshot_date = ?1",
+        )
+        .map_err(|e| e.to_string())?;
+    let mut rows = stmt
+        .query_map(params![snapshot_date], |r| {
+            Ok(DashboardWorkflowSnapshotRow {
+                open_workflow_count: r.get(0)?,
+                active_workflow_count: r.get(1)?,
+                sla_breach_count: r.get(2)?,
+                recent_incident_count: r.get(3)?,
+                resolved_today_count: r.get(4)?,
+            })
+        })
+        .map_err(|e| e.to_string())?;
+    rows.next().transpose().map_err(|e| e.to_string())
+}
+
+fn read_workflow_sample_ids(
+    conn: &rusqlite::Connection,
+    snapshot_date: &str,
+) -> Result<Vec<String>, String> {
+    let payload: Option<String> = conn
+        .query_row(
+            "SELECT workflow_ids_json FROM dashboard_workflow_sample_cache WHERE snapshot_date = ?1",
+            params![snapshot_date],
+            |r| r.get(0),
+        )
+        .ok();
+    if let Some(json) = payload {
+        serde_json::from_str::<Vec<String>>(&json).map_err(|e| e.to_string())
+    } else {
+        Ok(Vec::new())
+    }
+}
+
+pub fn generate_dashboard_kpi_snapshot(conn: &rusqlite::Connection) -> Result<(), String> {
+    let snapshot_date = Utc::now().format("%Y-%m-%d").to_string();
+    let w = "1=1";
+    let p: Vec<&dyn ToSql> = Vec::new();
+    let aggs = query_shipment_aggregates(conn, w, &p)?;
+    let (total_invoice_value, total_expense_value) = query_invoice_and_expense_totals(conn, w, &p)?;
+    let monthly_summary = query_monthly_summary(conn, w, &p)?;
+    let total_duty_savings: f64 = monthly_summary.iter().map(|m| m.duty_savings).sum();
+
+    let reconciled_boes = query_i64(
+        conn,
+        "SELECT COUNT(*) FROM boe_calculations WHERE status = 'Reconciled'",
+        &[],
+    )?;
+    let duty_sql = format!(
+        "SELECT COALESCE(SUM(rv.bcd_amount + rv.sws_amount + rv.igst_amount), 0)
+         FROM report_view rv
+         JOIN shipments s ON s.invoice_number = rv.invoice_no AND s.supplier_id = rv.supplier_id
+         WHERE {w}",
+        w = w
+    );
+    let duty_total = query_f64(conn, &duty_sql, &p)?;
+    let avg_sql = format!(
+        "SELECT AVG(
+            julianday(substr(s.date_of_delivery, 1, 10)) - julianday(substr(s.etd, 1, 10))
+        ) FROM shipments s
+        WHERE {w}
+          AND length(s.etd) >= 10 AND length(s.date_of_delivery) >= 10
+          AND s.etd GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+          AND s.date_of_delivery GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'",
+        w = w
+    );
+    let mut avg_stmt = conn.prepare(&avg_sql).map_err(|e| e.to_string())?;
+    let avg_transit_days: Option<f64> = match avg_stmt
+        .query_row(rusqlite::params_from_iter(p.iter().copied()), |row| {
+            row.get::<_, Option<f64>>(0)
+        }) {
+        Ok(v) => v,
+        Err(rusqlite::Error::QueryReturnedNoRows) => None,
+        Err(e) => return Err(e.to_string()),
+    };
+    let total_suppliers = query_i64(conn, "SELECT COUNT(*) FROM suppliers", &[])?;
+    let total_items = query_i64(conn, "SELECT COUNT(*) FROM items", &[])?;
+
+    conn.execute(
+        "INSERT INTO dashboard_kpi_snapshot (
+            snapshot_date, total_shipments, pending_shipments, delivered_shipments, overdue_eta_count,
+            shipments_missing_boe, shipments_missing_expense, total_invoice_value, total_expense_value, total_duty_savings,
+            reconciled_boes, duty_total, avg_transit_days, shipments_missing_eta, shipments_missing_etd,
+            total_suppliers, total_items
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17)
+         ON CONFLICT(snapshot_date) DO UPDATE SET
+           total_shipments = excluded.total_shipments,
+           pending_shipments = excluded.pending_shipments,
+           delivered_shipments = excluded.delivered_shipments,
+           overdue_eta_count = excluded.overdue_eta_count,
+           shipments_missing_boe = excluded.shipments_missing_boe,
+           shipments_missing_expense = excluded.shipments_missing_expense,
+           total_invoice_value = excluded.total_invoice_value,
+           total_expense_value = excluded.total_expense_value,
+           total_duty_savings = excluded.total_duty_savings,
+           reconciled_boes = excluded.reconciled_boes,
+           duty_total = excluded.duty_total,
+           avg_transit_days = excluded.avg_transit_days,
+           shipments_missing_eta = excluded.shipments_missing_eta,
+           shipments_missing_etd = excluded.shipments_missing_etd,
+           total_suppliers = excluded.total_suppliers,
+           total_items = excluded.total_items,
+           created_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')",
+        params![
+            snapshot_date,
+            aggs.total_shipments,
+            aggs.pending_shipments,
+            aggs.delivered_shipments,
+            aggs.overdue_eta_count,
+            aggs.shipments_without_boe_row,
+            aggs.shipments_without_expense,
+            total_invoice_value,
+            total_expense_value,
+            total_duty_savings,
+            reconciled_boes,
+            duty_total,
+            avg_transit_days,
+            aggs.shipments_missing_eta,
+            aggs.shipments_missing_etd,
+            total_suppliers,
+            total_items
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    conn.execute(
+        "DELETE FROM dashboard_monthly_snapshot WHERE snapshot_date = ?1",
+        params![snapshot_date],
+    )
+    .map_err(|e| e.to_string())?;
+    for m in monthly_summary {
+        conn.execute(
+            "INSERT INTO dashboard_monthly_snapshot
+                (snapshot_date, period, shipments, value, duty_savings, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime'))",
+            params![
+                snapshot_date,
+                m.period,
+                m.shipments,
+                m.value,
+                m.duty_savings
+            ],
+        )
+        .map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
+pub fn generate_dashboard_exception_snapshot(conn: &rusqlite::Connection) -> Result<(), String> {
+    let snapshot_date = Utc::now().format("%Y-%m-%d").to_string();
+    let w = "1=1";
+    let p: Vec<&dyn ToSql> = Vec::new();
+    let shipment_aggs = query_shipment_aggregates(conn, w, &p)?;
+    let open_exception_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases WHERE status IN ('OPEN', 'IN_PROGRESS')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let sla_breach_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases WHERE status IN ('OPEN', 'IN_PROGRESS') AND sla_status = 'BREACHED'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    conn.execute(
+        "INSERT INTO dashboard_exception_snapshot (
+            snapshot_date, missing_boe_count, missing_expense_count, overdue_eta_count,
+            open_exception_count, sla_breach_count
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(snapshot_date) DO UPDATE SET
+           missing_boe_count = excluded.missing_boe_count,
+           missing_expense_count = excluded.missing_expense_count,
+           overdue_eta_count = excluded.overdue_eta_count,
+           open_exception_count = excluded.open_exception_count,
+           sla_breach_count = excluded.sla_breach_count,
+           created_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')",
+        params![
+            snapshot_date,
+            shipment_aggs.shipments_without_boe_row,
+            shipment_aggs.shipments_without_expense,
+            shipment_aggs.overdue_eta_count,
+            open_exception_count,
+            sla_breach_count
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let overdue_sample_sql = format!(
+        "SELECT s.id FROM shipments s WHERE {w}
+         AND s.eta IS NOT NULL AND TRIM(s.eta) != ''
+         AND s.status IS NOT NULL AND LOWER(s.status) NOT IN ('delivered', 'completed')
+         AND length(s.eta) >= 10 AND s.eta GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
+         AND date(s.eta) < date('now') ORDER BY s.eta ASC LIMIT 10",
+        w = w
+    );
+    let no_boe_sample_sql = format!(
+        "SELECT s.id FROM shipments s WHERE {w}
+         AND NOT EXISTS (SELECT 1 FROM boe_calculations bc WHERE bc.shipment_id = s.id)
+         ORDER BY s.invoice_date DESC LIMIT 10",
+        w = w
+    );
+    let no_exp_sample_sql = format!(
+        "SELECT s.id FROM shipments s WHERE {w}
+         AND NOT EXISTS (SELECT 1 FROM expenses e WHERE e.shipment_id = s.id)
+         ORDER BY s.invoice_date DESC LIMIT 10",
+        w = w
+    );
+
+    let overdue_ids =
+        crate::commands::exception_workflow::query_shipment_ids(conn, &overdue_sample_sql, &p)
+            .unwrap_or_default();
+    let no_boe_ids =
+        crate::commands::exception_workflow::query_shipment_ids(conn, &no_boe_sample_sql, &p)
+            .unwrap_or_default();
+    let no_exp_ids =
+        crate::commands::exception_workflow::query_shipment_ids(conn, &no_exp_sample_sql, &p)
+            .unwrap_or_default();
+    let _ = write_exception_sample_ids(conn, &snapshot_date, "overdue_eta", &overdue_ids);
+    let _ = write_exception_sample_ids(conn, &snapshot_date, "missing_boe", &no_boe_ids);
+    let _ = write_exception_sample_ids(conn, &snapshot_date, "missing_expense", &no_exp_ids);
+
+    Ok(())
+}
+
+pub fn generate_dashboard_workflow_snapshot(conn: &rusqlite::Connection) -> Result<(), String> {
+    let snapshot_date = Utc::now().format("%Y-%m-%d").to_string();
+    let open_workflow_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases WHERE status IN ('OPEN', 'IN_PROGRESS')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let active_workflow_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases WHERE status = 'IN_PROGRESS'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let sla_breach_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases WHERE status IN ('OPEN', 'IN_PROGRESS') AND sla_status = 'BREACHED'",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let recent_incident_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases
+             WHERE datetime(created_at) >= datetime('now', '-1 day')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    let resolved_today_count: i64 = conn
+        .query_row(
+            "SELECT COUNT(*) FROM exception_cases
+             WHERE status = 'RESOLVED' AND date(resolved_at) = date('now')",
+            [],
+            |r| r.get(0),
+        )
+        .unwrap_or(0);
+    conn.execute(
+        "INSERT INTO dashboard_workflow_snapshot (
+            snapshot_date, open_workflow_count, active_workflow_count, sla_breach_count, recent_incident_count, resolved_today_count
+         ) VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(snapshot_date) DO UPDATE SET
+           open_workflow_count = excluded.open_workflow_count,
+           active_workflow_count = excluded.active_workflow_count,
+           sla_breach_count = excluded.sla_breach_count,
+           recent_incident_count = excluded.recent_incident_count,
+           resolved_today_count = excluded.resolved_today_count,
+           created_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')",
+        params![
+            snapshot_date,
+            open_workflow_count,
+            active_workflow_count,
+            sla_breach_count,
+            recent_incident_count,
+            resolved_today_count
+        ],
+    )
+    .map_err(|e| e.to_string())?;
+
+    let mut stmt = conn
+        .prepare(
+            "SELECT id FROM exception_cases
+             WHERE status IN ('OPEN', 'IN_PROGRESS')
+             ORDER BY datetime(updated_at) DESC
+             LIMIT 10",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| r.get::<_, String>(0))
+        .map_err(|e| e.to_string())?;
+    let workflow_ids = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+    let workflow_ids_json = serde_json::to_string(&workflow_ids).map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO dashboard_workflow_sample_cache (snapshot_date, workflow_ids_json)
+         VALUES (?1, ?2)
+         ON CONFLICT(snapshot_date) DO UPDATE SET
+           workflow_ids_json = excluded.workflow_ids_json,
+           created_at = strftime('%Y-%m-%d %H:%M:%S', 'now', 'localtime')",
+        params![snapshot_date, workflow_ids_json],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
 fn metrics_cache_key(filters: &DashboardMetricsFilters) -> Result<String, String> {
     let mut fk = filters.clone();
     fk.user_role = None;
@@ -309,11 +934,7 @@ fn metrics_cache_key(filters: &DashboardMetricsFilters) -> Result<String, String
     Ok(format!("{:x}", h.finalize()))
 }
 
-fn metric_value_for_alert(
-    name: &str,
-    r: &DashboardMetricsResponse,
-    overdue: i64,
-) -> Option<f64> {
+fn metric_value_for_alert(name: &str, r: &DashboardMetricsResponse, overdue: i64) -> Option<f64> {
     match name {
         "pending_shipments" => Some(r.pending_shipments as f64),
         "overdue_eta" => Some(overdue as f64),
@@ -409,7 +1030,13 @@ fn load_dashboard_permissions(conn: &rusqlite::Connection, role: &str) -> HashMa
     }
     if m.is_empty() {
         for widget_key in [
-            "kpis", "charts", "exceptions", "finance", "compliance", "history", "forecast",
+            "kpis",
+            "charts",
+            "exceptions",
+            "finance",
+            "compliance",
+            "history",
+            "forecast",
         ] {
             m.insert(widget_key.to_string(), true);
         }
@@ -515,6 +1142,7 @@ fn linear_forecast_total_shipments(conn: &rusqlite::Connection) -> Option<KpiFor
     })
 }
 
+#[allow(clippy::too_many_arguments)]
 fn enrich_dashboard_response(
     conn: &rusqlite::Connection,
     r: &mut DashboardMetricsResponse,
@@ -523,12 +1151,9 @@ fn enrich_dashboard_response(
     w: &str,
     p_ship: &[&dyn ToSql],
     sync_exception_cases: bool,
+    snapshot_date: Option<&str>,
 ) -> Result<(), String> {
-    let role = filters
-        .user_role
-        .as_deref()
-        .unwrap_or("viewer")
-        .to_string();
+    let role = filters.user_role.as_deref().unwrap_or("viewer").to_string();
     r.erp.overdue_eta_count = overdue;
     r.erp.active_kpi_alerts = evaluate_kpi_alerts(conn, r, overdue)?;
     r.erp.dashboard_permissions = load_dashboard_permissions(conn, &role);
@@ -537,15 +1162,36 @@ fn enrich_dashboard_response(
     r.erp.avg_compliance_score = avg;
     r.erp.compliance_low_count = low;
     r.erp.kpi_forecast = linear_forecast_total_shipments(conn);
-    if sync_exception_cases {
-        crate::commands::exception_workflow::sync_exception_cases_for_shipment_scope(conn, w, p_ship)?;
+    let workflow_snapshot = if let Some(sd) = snapshot_date {
+        read_dashboard_workflow_snapshot(conn, sd)?
     } else {
+        None
+    };
+    if sync_exception_cases && workflow_snapshot.is_none() {
+        crate::commands::exception_workflow::sync_exception_cases_for_shipment_scope(
+            conn, w, p_ship,
+        )?;
+    } else if workflow_snapshot.is_none() {
         crate::commands::exception_workflow::refresh_all_open_exception_sla(conn)?;
     }
     r.erp.entity_exceptions =
         crate::commands::exception_workflow::load_entity_exceptions_for_dashboard(conn, w, p_ship)?;
     r.erp.exception_workflow =
         crate::commands::exception_workflow::load_exception_workflow_summary(conn)?;
+    if let Some(ws) = workflow_snapshot {
+        r.erp.exception_workflow.open_count = ws.open_workflow_count;
+        r.erp.exception_workflow.resolved_today_count = ws.resolved_today_count;
+        r.erp.exception_workflow.sla_breached_count = ws.sla_breach_count;
+        let workflow_ids = snapshot_date
+            .map(|sd| read_workflow_sample_ids(conn, sd).unwrap_or_default())
+            .unwrap_or_default();
+        if !workflow_ids.is_empty() {
+            r.erp.warnings.push(format!(
+                "workflow snapshot active: {} active, {} recent incidents, {} sample workflow IDs cached",
+                ws.active_workflow_count, ws.recent_incident_count, workflow_ids.len()
+            ));
+        }
+    }
     Ok(())
 }
 
@@ -570,10 +1216,7 @@ fn record_daily_snapshots(
         ("duty_total", m.duty_total),
         ("total_duty_savings_estimate", m.total_duty_savings_estimate),
         ("landed_cost_total", m.landed_cost_total),
-        (
-            "avg_transit_days",
-            m.avg_transit_days.unwrap_or(f64::NAN),
-        ),
+        ("avg_transit_days", m.avg_transit_days.unwrap_or(f64::NAN)),
     ];
     for (name, val) in pairs {
         if name == "avg_transit_days" && val.is_nan() {
@@ -609,7 +1252,9 @@ fn record_daily_snapshots(
 pub fn get_dashboard_metrics(
     filters: Option<DashboardMetricsFilters>,
     state: State<DbState>,
-) -> Result<DashboardMetricsResponse, String> {
+    connection_manager: State<ConnectionManager>,
+) -> Result<DashboardMetricsResponse, IpcError> {
+    let started = std::time::Instant::now();
     let f = filters.unwrap_or_default();
     let scope = ShipmentScope::from_filters(&f);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
@@ -623,49 +1268,90 @@ pub fn get_dashboard_metrics(
         let role = f.user_role.as_deref().unwrap_or("viewer");
         r.erp.dashboard_permissions = load_dashboard_permissions(&conn, role);
         r.erp.exception_trend = load_exception_trend(&conn, 120);
-        let _ = crate::commands::exception_workflow::refresh_all_open_exception_sla(&conn);
-        r.erp.entity_exceptions =
-            crate::commands::exception_workflow::load_entity_exceptions_for_dashboard(
-                &conn, w, &p_ship,
-            )?;
-        r.erp.exception_workflow =
-            crate::commands::exception_workflow::load_exception_workflow_summary(&conn)?;
+        connection_manager.track_query("get_dashboard_metrics_cached", started, 1);
         return Ok(r);
     }
 
     let snapshot_at = Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true);
+    let snapshot_date = Utc::now().format("%Y-%m-%d").to_string();
+    let snapshot_scope_only = scope.params.is_empty() && scope.where_sql == "1=1";
 
-    let total_suppliers = query_i64(&conn, "SELECT COUNT(*) FROM suppliers", &[])?;
-    let total_items = query_i64(&conn, "SELECT COUNT(*) FROM items", &[])?;
+    let mut snapshot_kpi = None;
+    let mut snapshot_exception = None;
+    let mut snapshot_monthly = Vec::new();
+    if snapshot_scope_only {
+        snapshot_kpi = read_dashboard_kpi_snapshot(&conn, &snapshot_date)?;
+        if snapshot_kpi.is_none() {
+            let _ = generate_dashboard_kpi_snapshot(&conn);
+            snapshot_kpi = read_dashboard_kpi_snapshot(&conn, &snapshot_date)?;
+        }
+        snapshot_exception = read_dashboard_exception_snapshot(&conn, &snapshot_date)?;
+        if snapshot_exception.is_none() {
+            let _ = generate_dashboard_exception_snapshot(&conn);
+            snapshot_exception = read_dashboard_exception_snapshot(&conn, &snapshot_date)?;
+        }
+        if read_dashboard_workflow_snapshot(&conn, &snapshot_date)?.is_none() {
+            let _ = generate_dashboard_workflow_snapshot(&conn);
+        }
+        if snapshot_kpi.is_some() {
+            snapshot_monthly =
+                read_dashboard_monthly_snapshot(&conn, &snapshot_date).unwrap_or_default();
+        }
+    }
 
-    let total_shipments = query_i64(
-        &conn,
-        &format!("SELECT COUNT(*) FROM shipments s WHERE {w}"),
-        &p_ship,
-    )?;
-    let pending_shipments = query_i64(
-        &conn,
-        &format!(
-            "SELECT COUNT(*) FROM shipments s WHERE {w} AND s.status = 'docu-received'"
-        ),
-        &p_ship,
-    )?;
-    let delivered_shipments = query_i64(
-        &conn,
-        &format!("SELECT COUNT(*) FROM shipments s WHERE {w} AND s.status = 'delivered'"),
-        &p_ship,
-    )?;
-    let total_invoice_value = query_f64(
-        &conn,
-        &format!("SELECT COALESCE(SUM(s.invoice_value), 0) FROM shipments s WHERE {w}"),
-        &p_ship,
-    )?;
+    let total_suppliers = match &snapshot_kpi {
+        Some(s) if s.total_suppliers.is_some() => s.total_suppliers.unwrap(),
+        _ => query_i64(&conn, "SELECT COUNT(*) FROM suppliers", &[])?,
+    };
+    let total_items = match &snapshot_kpi {
+        Some(s) if s.total_items.is_some() => s.total_items.unwrap(),
+        _ => query_i64(&conn, "SELECT COUNT(*) FROM items", &[])?,
+    };
 
-    let reconciled_boes = query_i64(
-        &conn,
-        "SELECT COUNT(*) FROM boe_calculations WHERE status = 'Reconciled'",
-        &[],
-    )?;
+    let shipment_aggs = if let Some(ref snap) = snapshot_kpi {
+        ShipmentAggregateRow {
+            total_shipments: snap.total_shipments,
+            pending_shipments: snap.pending_shipments,
+            delivered_shipments: snap.delivered_shipments,
+            overdue_eta_count: snap.overdue_eta_count,
+            shipments_missing_eta: snap.shipments_missing_eta.unwrap_or(0),
+            shipments_missing_etd: snap.shipments_missing_etd.unwrap_or(0),
+            shipments_without_boe_row: snap.shipments_missing_boe,
+            shipments_without_expense: snap.shipments_missing_expense,
+        }
+    } else {
+        query_shipment_aggregates(&conn, w, &p_ship)?
+    };
+    let total_shipments = shipment_aggs.total_shipments;
+    let pending_shipments = shipment_aggs.pending_shipments;
+    let delivered_shipments = shipment_aggs.delivered_shipments;
+    let overdue = snapshot_exception
+        .as_ref()
+        .map(|s| s.overdue_eta_count)
+        .unwrap_or(shipment_aggs.overdue_eta_count);
+    let no_boe = snapshot_exception
+        .as_ref()
+        .map(|s| s.missing_boe_count)
+        .unwrap_or(shipment_aggs.shipments_without_boe_row);
+    let no_exp = snapshot_exception
+        .as_ref()
+        .map(|s| s.missing_expense_count)
+        .unwrap_or(shipment_aggs.shipments_without_expense);
+
+    let (total_invoice_value, expense_total) = if let Some(ref snap) = snapshot_kpi {
+        (snap.total_invoice_value, snap.total_expense_value)
+    } else {
+        query_invoice_and_expense_totals(&conn, w, &p_ship)?
+    };
+
+    let reconciled_boes = match &snapshot_kpi {
+        Some(s) if s.reconciled_boes.is_some() => s.reconciled_boes.unwrap(),
+        _ => query_i64(
+            &conn,
+            "SELECT COUNT(*) FROM boe_calculations WHERE status = 'Reconciled'",
+            &[],
+        )?,
+    };
 
     // Align duty with consolidated report: BCD + SWS + IGST from `report_view`, scoped to shipments filter.
     let duty_sql = format!(
@@ -674,14 +1360,10 @@ pub fn get_dashboard_metrics(
          JOIN shipments s ON s.invoice_number = rv.invoice_no AND s.supplier_id = rv.supplier_id
          WHERE {w}"
     );
-    let duty_total = query_f64(&conn, &duty_sql, &p_ship)?;
-
-    let expense_sql = format!(
-        "SELECT COALESCE(SUM(e.total_amount), 0) FROM expenses e
-         INNER JOIN shipments s ON e.shipment_id = s.id
-         WHERE {w}"
-    );
-    let expense_total = query_f64(&conn, &expense_sql, &p_ship)?;
+    let duty_total = match &snapshot_kpi {
+        Some(s) if s.duty_total.is_some() => s.duty_total.unwrap(),
+        _ => query_f64(&conn, &duty_sql, &p_ship)?,
+    };
 
     // Avg transit: only ISO yyyy-MM-dd for both etd and date_of_delivery
     let avg_sql = format!(
@@ -693,49 +1375,30 @@ pub fn get_dashboard_metrics(
           AND s.etd GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
           AND s.date_of_delivery GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'"
     );
-    let mut avg_stmt = conn.prepare(&avg_sql).map_err(|e| e.to_string())?;
-    let avg_transit_days: Option<f64> = match avg_stmt.query_row(
-        rusqlite::params_from_iter(p_ship.iter().copied()),
-        |row| row.get::<_, Option<f64>>(0),
-    ) {
-        Ok(v) => v,
-        Err(rusqlite::Error::QueryReturnedNoRows) => None,
-        Err(e) => return Err(e.to_string()),
+    let avg_transit_days: Option<f64> = if snapshot_kpi.is_some() {
+        snapshot_kpi.as_ref().and_then(|s| s.avg_transit_days)
+    } else {
+        let mut avg_stmt = conn.prepare(&avg_sql).map_err(|e| e.to_string())?;
+        match avg_stmt.query_row(rusqlite::params_from_iter(p_ship.iter().copied()), |row| {
+            row.get::<_, Option<f64>>(0)
+        }) {
+            Ok(v) => v,
+            Err(rusqlite::Error::QueryReturnedNoRows) => None,
+            Err(e) => return Err(e.to_string().into()),
+        }
     };
 
-    let mut stmt = conn
-        .prepare(&format!(
-            "SELECT strftime('%Y-%m', s.invoice_date) AS period,
-                    COUNT(*) AS cnt,
-                    COALESCE(SUM(s.invoice_value), 0) AS val,
-                    COALESCE(SUM(
-                        max(0.0,
-                            s.invoice_value * 0.2 - COALESCE(
-                                (SELECT CAST(json_extract(bc.calculation_result_json, '$.customsDutyTotal') AS REAL)
-                                 FROM boe_calculations bc
-                                 WHERE bc.shipment_id = s.id AND bc.status = 'Reconciled' LIMIT 1),
-                                0.0
-                            )
-                        )
-                    ), 0) AS duty_savings
-             FROM shipments s
-             WHERE {w} AND strftime('%Y-%m', s.invoice_date) IS NOT NULL
-             GROUP BY period
-             ORDER BY period",
-            w = w
-        ))
-        .map_err(|e| e.to_string())?;
-    let rows = stmt
-        .query_map(rusqlite::params_from_iter(p_ship.iter().copied()), |row| {
-            Ok(MonthlySummaryRow {
-                period: row.get(0)?,
-                shipments: row.get(1)?,
-                value: row.get(2)?,
-                duty_savings: row.get(3)?,
-            })
-        })
-        .map_err(|e| e.to_string())?;
-    let mut monthly_summary: Vec<MonthlySummaryRow> = rows.filter_map(|r| r.ok()).collect();
+    let mut monthly_summary: Vec<MonthlySummaryRow> =
+        if snapshot_scope_only && !snapshot_monthly.is_empty() {
+            snapshot_monthly
+        } else {
+            query_monthly_summary(&conn, w, &p_ship)?
+        };
+    let total_duty_savings_estimate: f64 = if let Some(ref snap) = snapshot_kpi {
+        snap.total_duty_savings
+    } else {
+        monthly_summary.iter().map(|m| m.duty_savings).sum()
+    };
     let mut safety_warnings: Vec<String> = Vec::new();
     if monthly_summary.len() > 2000 {
         safety_warnings.push(format!(
@@ -745,34 +1408,10 @@ pub fn get_dashboard_metrics(
         monthly_summary.truncate(2000);
     }
 
-    // Simplified duty savings estimate (matches legacy dashboard intent): max(0, 0.2*invoice - duty) per reconciled BOE shipment in scope
-    let savings_sql = format!(
-        "SELECT COALESCE(SUM(
-            max(0.0, s.invoice_value * 0.2 - COALESCE(
-                (SELECT CAST(json_extract(bc.calculation_result_json, '$.customsDutyTotal') AS REAL) FROM boe_calculations bc WHERE bc.shipment_id = s.id AND bc.status = 'Reconciled' LIMIT 1),
-                0.0
-            ))
-        ), 0) FROM shipments s WHERE {w}"
-    );
-    let total_duty_savings_estimate = query_f64(&conn, &savings_sql, &p_ship).unwrap_or(0.0);
-
     let landed_cost_total = total_invoice_value + duty_total + expense_total;
 
     let mut exceptions = Vec::new();
 
-    let overdue = query_i64(
-        &conn,
-        &format!(
-            "SELECT COUNT(*) FROM shipments s WHERE {w}
-             AND s.eta IS NOT NULL AND TRIM(s.eta) != ''
-             AND s.status IS NOT NULL AND LOWER(s.status) NOT IN ('delivered', 'completed')
-             AND length(s.eta) >= 10 AND s.eta GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'
-             AND date(s.eta) < date('now')",
-            w = w
-        ),
-        &p_ship,
-    )
-    .unwrap_or(0);
     if overdue > 0 {
         let mut fp = serde_json::Map::new();
         fp.insert("overdue".into(), json!("true"));
@@ -786,9 +1425,16 @@ pub fn get_dashboard_metrics(
              AND date(s.eta) < date('now') ORDER BY s.eta ASC LIMIT 25",
             w = w
         );
-        let sample_shipment_ids =
-            crate::commands::exception_workflow::query_shipment_ids(&conn, &overdue_sample_sql, &p_ship)
-                .unwrap_or_default();
+        let sample_shipment_ids = if snapshot_scope_only {
+            read_exception_sample_ids(&conn, &snapshot_date, "overdue_eta").unwrap_or_default()
+        } else {
+            crate::commands::exception_workflow::query_shipment_ids(
+                &conn,
+                &overdue_sample_sql,
+                &p_ship,
+            )
+            .unwrap_or_default()
+        };
         exceptions.push(DashboardException {
             kind: "overdue_eta".into(),
             severity: "warning".into(),
@@ -804,16 +1450,6 @@ pub fn get_dashboard_metrics(
         });
     }
 
-    let no_boe = query_i64(
-        &conn,
-        &format!(
-            "SELECT COUNT(*) FROM shipments s WHERE {w}
-             AND NOT EXISTS (SELECT 1 FROM boe_calculations bc WHERE bc.shipment_id = s.id)",
-            w = w
-        ),
-        &p_ship,
-    )
-    .unwrap_or(0);
     if no_boe > 0 {
         let mut fp = serde_json::Map::new();
         fp.insert("boe_missing".into(), json!("true"));
@@ -825,9 +1461,12 @@ pub fn get_dashboard_metrics(
              ORDER BY s.invoice_date DESC LIMIT 25",
             w = w
         );
-        let sample_shipment_ids =
+        let sample_shipment_ids = if snapshot_scope_only {
+            read_exception_sample_ids(&conn, &snapshot_date, "missing_boe").unwrap_or_default()
+        } else {
             crate::commands::exception_workflow::query_shipment_ids(&conn, &sample_sql, &p_ship)
-                .unwrap_or_default();
+                .unwrap_or_default()
+        };
         exceptions.push(DashboardException {
             kind: "missing_boe".into(),
             severity: "info".into(),
@@ -843,16 +1482,6 @@ pub fn get_dashboard_metrics(
         });
     }
 
-    let no_exp = query_i64(
-        &conn,
-        &format!(
-            "SELECT COUNT(*) FROM shipments s WHERE {w}
-             AND NOT EXISTS (SELECT 1 FROM expenses e WHERE e.shipment_id = s.id)",
-            w = w
-        ),
-        &p_ship,
-    )
-    .unwrap_or(0);
     if no_exp > 0 {
         let mut fp = serde_json::Map::new();
         fp.insert("expense_missing".into(), json!("true"));
@@ -864,9 +1493,12 @@ pub fn get_dashboard_metrics(
              ORDER BY s.invoice_date DESC LIMIT 25",
             w = w
         );
-        let sample_shipment_ids =
+        let sample_shipment_ids = if snapshot_scope_only {
+            read_exception_sample_ids(&conn, &snapshot_date, "missing_expense").unwrap_or_default()
+        } else {
             crate::commands::exception_workflow::query_shipment_ids(&conn, &sample_sql, &p_ship)
-                .unwrap_or_default();
+                .unwrap_or_default()
+        };
         exceptions.push(DashboardException {
             kind: "no_expenses".into(),
             severity: "info".into(),
@@ -882,24 +1514,8 @@ pub fn get_dashboard_metrics(
         });
     }
 
-    let shipments_missing_eta = query_i64(
-        &conn,
-        &format!(
-            "SELECT COUNT(*) FROM shipments s WHERE {w} AND (s.eta IS NULL OR TRIM(s.eta) = '')",
-            w = w
-        ),
-        &p_ship,
-    )
-    .unwrap_or(0);
-    let shipments_missing_etd = query_i64(
-        &conn,
-        &format!(
-            "SELECT COUNT(*) FROM shipments s WHERE {w} AND (s.etd IS NULL OR TRIM(s.etd) = '')",
-            w = w
-        ),
-        &p_ship,
-    )
-    .unwrap_or(0);
+    let shipments_missing_eta = shipment_aggs.shipments_missing_eta;
+    let shipments_missing_etd = shipment_aggs.shipments_missing_etd;
 
     let document_compliance = DocumentComplianceSummary {
         shipments_missing_eta,
@@ -931,24 +1547,35 @@ pub fn get_dashboard_metrics(
     };
     response.erp.overdue_eta_count = overdue;
     response.erp.warnings = safety_warnings;
-    enrich_dashboard_response(&conn, &mut response, &f, overdue, w, &p_ship, true)?;
+    enrich_dashboard_response(
+        &conn,
+        &mut response,
+        &f,
+        overdue,
+        w,
+        &p_ship,
+        true,
+        if snapshot_scope_only {
+            Some(snapshot_date.as_str())
+        } else {
+            None
+        },
+    )?;
+    if let Some(exs) = snapshot_exception {
+        response.erp.exception_workflow.open_count = exs.open_exception_count;
+        response.erp.exception_workflow.sla_breached_count = exs.sla_breach_count;
+    }
 
     let json = serde_json::to_string(&response).map_err(|e| e.to_string())?;
     if let Err(e) = write_metrics_cache(&conn, &key, &json, &response.snapshot_at) {
         log::warn!("dashboard metrics cache write: {}", e);
     }
 
-    if let Err(e) = record_daily_snapshots(
-        &conn,
-        &response,
-        overdue,
-        no_boe,
-        no_exp,
-        missing_doc,
-    ) {
+    if let Err(e) = record_daily_snapshots(&conn, &response, overdue, no_boe, no_exp, missing_doc) {
         log::warn!("kpi_daily_snapshots: {}", e);
     }
 
+    connection_manager.track_query("get_dashboard_metrics", started, 1);
     Ok(response)
 }
 
@@ -972,7 +1599,8 @@ pub fn get_kpi_metadata(state: State<DbState>) -> Result<Vec<KpiMetadataRow>, St
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 fn map_kpi_snapshot_row(row: &rusqlite::Row) -> rusqlite::Result<KpiSnapshotHistoryRow> {
@@ -990,7 +1618,7 @@ pub fn get_kpi_snapshot_history(
     state: State<DbState>,
 ) -> Result<Vec<KpiSnapshotHistoryRow>, String> {
     let q = query.unwrap_or_default();
-    let limit = q.limit_days.unwrap_or(90).max(1).min(365);
+    let limit = q.limit_days.unwrap_or(90).clamp(1, 365);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let offset = format!("-{limit} days");
 
@@ -1006,7 +1634,8 @@ pub fn get_kpi_snapshot_history(
             let iter = stmt
                 .query_map(params![name, &offset], map_kpi_snapshot_row)
                 .map_err(|e| e.to_string())?;
-            iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+            iter.collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())
         }
         _ => {
             let mut stmt = conn
@@ -1019,7 +1648,8 @@ pub fn get_kpi_snapshot_history(
             let iter = stmt
                 .query_map([&offset], map_kpi_snapshot_row)
                 .map_err(|e| e.to_string())?;
-            iter.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+            iter.collect::<Result<Vec<_>, _>>()
+                .map_err(|e| e.to_string())
         }
     }
 }
@@ -1088,6 +1718,8 @@ pub struct ActivityLogQueryInput {
     pub date_to: Option<String>,
     pub search: Option<String>,
     pub limit: Option<i32>,
+    #[serde(default)]
+    pub offset: Option<i32>,
 }
 
 fn dashboard_activity_is_recent_duplicate(
@@ -1144,7 +1776,8 @@ pub fn get_kpi_alert_rules(state: State<DbState>) -> Result<Vec<KpiAlertRuleRow>
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1182,7 +1815,9 @@ pub fn save_kpi_alert_rule(rule: KpiAlertRuleInput, state: State<DbState>) -> Re
 pub fn log_dashboard_activity(
     input: DashboardActivityInput,
     state: State<DbState>,
+    session: State<crate::desktop_session::DesktopSessionState>,
 ) -> Result<(), String> {
+    session.assert_caller_user(&input.user_id)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     if dashboard_activity_is_recent_duplicate(&conn, &input)? {
         return Ok(());
@@ -1222,15 +1857,20 @@ pub fn log_dashboard_activity(
 #[tauri::command]
 pub fn get_dashboard_activity_log(
     limit: Option<i32>,
+    caller_user_id: String,
     state: State<DbState>,
+    session: State<crate::desktop_session::DesktopSessionState>,
 ) -> Result<Vec<DashboardActivityRow>, String> {
-    let lim = limit.unwrap_or(200).max(1).min(2000);
-    query_dashboard_activity_log(
-        Some(ActivityLogQueryInput {
+    session.assert_caller_user(caller_user_id.trim())?;
+    let lim = limit.unwrap_or(200).clamp(1, 2000);
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    execute_dashboard_activity_query(
+        &conn,
+        &ActivityLogQueryInput {
             limit: Some(lim),
+            offset: Some(0),
             ..Default::default()
-        }),
-        state,
+        },
     )
 }
 
@@ -1249,15 +1889,12 @@ fn map_dashboard_activity_row(r: &rusqlite::Row) -> rusqlite::Result<DashboardAc
     })
 }
 
-/// Filtered audit log for admin viewers (same row shape as `get_dashboard_activity_log`).
-#[tauri::command]
-pub fn query_dashboard_activity_log(
-    query: Option<ActivityLogQueryInput>,
-    state: State<DbState>,
+fn execute_dashboard_activity_query(
+    conn: &rusqlite::Connection,
+    q: &ActivityLogQueryInput,
 ) -> Result<Vec<DashboardActivityRow>, String> {
-    let q = query.unwrap_or_default();
-    let lim = q.limit.unwrap_or(500).max(1).min(2000) as i64;
-    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    let lim = q.limit.unwrap_or(500).clamp(1, 2000) as i64;
+    let off = q.offset.unwrap_or(0).max(0) as i64;
 
     let mut sql = String::from(
         "SELECT id, user_id, timestamp, action_type, details,
@@ -1305,14 +1942,19 @@ pub fn query_dashboard_activity_log(
         }
     }
 
-    sql.push_str(&format!(" ORDER BY id DESC LIMIT {lim}"));
+    sql.push_str(&format!(" ORDER BY id DESC LIMIT {lim} OFFSET {off}"));
 
     let mut stmt = conn.prepare(&sql).map_err(|e| e.to_string())?;
     let params_dyn: Vec<&dyn ToSql> = binds.iter().map(|s| s as &dyn ToSql).collect();
     let rows = stmt
-        .query_map(rusqlite::params_from_iter(params_dyn), map_dashboard_activity_row)
+        .query_map(
+            rusqlite::params_from_iter(params_dyn),
+            map_dashboard_activity_row,
+        )
         .map_err(|e| e.to_string())?;
-    let out: Vec<DashboardActivityRow> = rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())?;
+    let out: Vec<DashboardActivityRow> = rows
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
     for row in &out {
         if !row.checksum.is_empty() {
             let exp = dashboard_activity_checksum(
@@ -1326,7 +1968,7 @@ pub fn query_dashboard_activity_log(
             );
             if exp != row.checksum {
                 let _ = log_integrity_issue(
-                    &conn,
+                    conn,
                     &row.id.to_string(),
                     "AUDIT_LOG_CHECKSUM_MISMATCH",
                     &format!("stored={}", row.checksum),
@@ -1337,13 +1979,27 @@ pub fn query_dashboard_activity_log(
     Ok(out)
 }
 
+/// Filtered audit log for admin viewers (same row shape as `get_dashboard_activity_log`).
+#[tauri::command]
+pub fn query_dashboard_activity_log(
+    query: Option<ActivityLogQueryInput>,
+    caller_user_id: String,
+    state: State<DbState>,
+    session: State<crate::desktop_session::DesktopSessionState>,
+) -> Result<Vec<DashboardActivityRow>, String> {
+    session.assert_admin_caller(&state, caller_user_id.trim())?;
+    let q = query.unwrap_or_default();
+    let conn = state.db.lock().map_err(|e| e.to_string())?;
+    execute_dashboard_activity_query(&conn, &q)
+}
+
 #[tauri::command]
 pub fn get_exception_trend_history(
     limit_days: Option<i64>,
     state: State<DbState>,
 ) -> Result<Vec<DailyExceptionSummaryRow>, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let lim = limit_days.unwrap_or(365).max(1).min(365);
+    let lim = limit_days.unwrap_or(365).clamp(1, 365);
     let off = format!("-{lim} days");
     let mut stmt = conn
         .prepare(
@@ -1364,12 +2020,13 @@ pub fn get_exception_trend_history(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
 pub fn set_kpi_snapshot_retention_days(days: i64, state: State<DbState>) -> Result<(), String> {
-    let d = days.max(30).min(3650);
+    let d = days.clamp(30, 3650);
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     conn.execute(
         "INSERT INTO app_metadata (key, value) VALUES ('kpi_snapshot_retention_days', ?1)

@@ -121,6 +121,13 @@ export default defineConfig(({ mode }) => ({
     'import.meta.env.IMPORT_MANAGER_DEEPSEEK_ENV_OK': JSON.stringify(
       isDeepseekExtractionEnvHintOk(mode, __rootDir) ? 'true' : 'false'
     ),
+    ...(usePlaywrightTauriStub
+      ? {
+          'import.meta.env.VITE_PLAYWRIGHT_E2E_PASSWORD': JSON.stringify(
+            process.env.E2E_PASSWORD ?? 'inzi@123$%'
+          ),
+        }
+      : {}),
   },
   build: {
     // 4. Tauri uses Chromium on Windows - edgeDAMN WebView2

@@ -1,6 +1,18 @@
 import type { Buffer } from 'node:buffer';
 
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
+
+const E2E_USERNAME = process.env.E2E_USERNAME ?? 'Jana';
+const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'inzi@123$%';
+
+/** Stable selectors: `#username` / `#password` / `data-testid=login-submit`. */
+export async function loginAsAdmin(page: Page) {
+  await page.goto('/login');
+  await page.locator('#username').fill(E2E_USERNAME);
+  await page.locator('#password').fill(E2E_PASSWORD);
+  await page.getByTestId('login-submit').click();
+  await expect(page).toHaveURL('/', { timeout: 30_000 });
+}
 
 export async function waitForPlaywrightInvoke(page: Page) {
   await page.waitForFunction(

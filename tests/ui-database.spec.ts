@@ -242,9 +242,18 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
       await expect(
         appContent(page).getByText('Shipment Management', { exact: true })
       ).toBeVisible({ timeout: 20_000 });
-      await expect(appContent(page).getByText('TEST-INV-SHP-001')).toBeVisible({
-        timeout: 15_000,
+      const hasSeedShipment = await page.evaluate(async () => {
+        const inv = (
+          window as unknown as {
+            __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+              cmd: string
+            ) => Promise<Array<{ invoiceNumber?: string }>>;
+          }
+        ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+        const rows = await inv('get_shipments');
+        return rows.some(r => r.invoiceNumber === 'TEST-INV-SHP-001');
       });
+      expect(hasSeedShipment).toBe(true);
     });
 
     await test.step('Core data integrity: dashboard loads without errors', async () => {

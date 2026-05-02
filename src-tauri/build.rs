@@ -1,6 +1,13 @@
 use std::env;
 use std::path::Path;
 
+/// Bcrypt hash of the E2E/dev default password (`inzi@123$%`). Used when
+/// `IMPORT_MANAGER_ADMIN_PASSWORD_HASH` is unset (non-Playwright builds) so local
+/// `cargo run` / Vitest still work; release installers should set the env explicitly.
+fn dev_admin_password_hash() -> &'static str {
+    "$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq"
+}
+
 fn main() {
     let git_hash = std::process::Command::new("git")
         .args(["rev-parse", "--short", "HEAD"])
@@ -18,6 +25,27 @@ fn main() {
 
     let playwright = env::var("VITE_PLAYWRIGHT").unwrap_or_default() == "1";
     println!("cargo:rerun-if-env-changed=VITE_PLAYWRIGHT");
+    println!("cargo:rerun-if-env-changed=PROFILE");
+    let profile = env::var("PROFILE").unwrap_or_default();
+
+    let admin_user = env::var("IMPORT_MANAGER_ADMIN_USERNAME").unwrap_or_else(|_| "Jana".to_string());
+    println!("cargo:rerun-if-env-changed=IMPORT_MANAGER_ADMIN_USERNAME");
+    println!("cargo:rustc-env=IMPORT_MANAGER_ADMIN_USERNAME={admin_user}");
+
+    let admin_hash = env::var("IMPORT_MANAGER_ADMIN_PASSWORD_HASH").unwrap_or_default();
+    println!("cargo:rerun-if-env-changed=IMPORT_MANAGER_ADMIN_PASSWORD_HASH");
+
+    let effective_hash = if playwright {
+        dev_admin_password_hash().to_string()
+    } else if !admin_hash.is_empty() {
+        admin_hash
+    } else if profile != "release" {
+        dev_admin_password_hash().to_string()
+    } else {
+        String::new()
+    };
+    println!("cargo:rustc-env=IMPORT_MANAGER_ADMIN_PASSWORD_HASH={effective_hash}");
+
     if playwright {
         println!("cargo:rustc-env=IMPORT_MANAGER_PLAYWRIGHT_BUILD=1");
     } else {

@@ -1,4 +1,5 @@
 // src/pages/dashboard.tsx
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { invoke } from '@tauri-apps/api/core';
 import {
   format,
@@ -79,6 +80,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { formatDateForDisplay } from '@/lib/date-format';
+import { ipcErrorMessage } from '@/lib/ipc-error';
 import { useUser } from '@/lib/user-context';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type {
@@ -430,19 +432,11 @@ const DashboardPage = () => {
   const [timeframe, setTimeframe] = useState<Timeframe>('monthly');
   /** Empty = all currencies in client-side charts; metrics API uses the same when unset. */
   const [chartCurrency, setChartCurrency] = useState('');
-  const [loading, setLoading] = useState(true);
   const [layoutDirection, setLayoutDirection] = useState<
     'horizontal' | 'vertical'
   >('horizontal');
 
-  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [items, setItems] = useState<Item[]>([]);
-  const [shipments, setShipments] = useState<ShipmentTs[]>([]);
-  const [metrics, setMetrics] = useState<DashboardMetricsResponse | null>(null);
-  const [kpiByName, setKpiByName] = useState<Record<string, KpiMetadataRow>>(
-    {}
-  );
-  const [kpiHistory, setKpiHistory] = useState<KpiSnapshotHistoryRow[]>([]);
+  const queryClient = useQueryClient();
   const [historyTimeRange, setHistoryTimeRange] =
     useState<KpiHistoryTimeRange>('90d');
 
@@ -477,61 +471,107 @@ const DashboardPage = () => {
     fiscalStartMonth,
   ]);
 
-  const loadDashboard = useCallback(async () => {
-    try {
-      setLoading(true);
+  const dashboardQueryKey = useMemo(
+    () =>
+      [
+        'dashboard-main',
+        filtersEpoch,
+        chartCurrency,
+        filterStart,
+        filterEnd,
+        filterSupplierId,
+        fiscalYear,
+        fiscalStartMonth,
+        user?.role ?? '',
+      ] as const,
+    [
+      filtersEpoch,
+      chartCurrency,
+      filterStart,
+      filterEnd,
+      filterSupplierId,
+      fiscalYear,
+      fiscalStartMonth,
+      user?.role,
+    ]
+  );
+
+  const dashboardQuery = useQuery({
+    queryKey: dashboardQueryKey,
+    queryFn: async () => {
       const filters: DashboardMetricsFilters = {
         ...buildFilters(),
         userRole: user?.role?.trim() || undefined,
       };
-      const [sup, it, shp, m, meta] = await Promise.all([
-        invoke<Supplier[]>('get_suppliers'),
-        invoke<Item[]>('get_items'),
-        invoke<ShipmentTs[]>('get_shipments'),
-        invoke<DashboardMetricsResponse>('get_dashboard_metrics', {
-          filters,
-        }),
-        invoke<KpiMetadataRow[]>('get_kpi_metadata'),
-      ]);
-      setSuppliers(sup);
-      setItems(it);
-      setShipments(shp);
-      setMetrics(m);
-      setKpiByName(Object.fromEntries(meta.map(k => [k.kpiName, k])));
-    } catch (e) {
-      console.error('Failed to load dashboard data', e);
-      notifications.system.error('load dashboard data', String(e));
-    } finally {
-      setLoading(false);
-    }
-  }, [buildFilters, notifications.system, user?.role]);
+      try {
+        const [sup, it, shp, m, meta] = await Promise.all([
+          invoke<Supplier[]>('get_suppliers'),
+          invoke<Item[]>('get_items'),
+          invoke<ShipmentTs[]>('get_shipments'),
+          invoke<DashboardMetricsResponse>('get_dashboard_metrics', {
+            filters,
+          }),
+          invoke<KpiMetadataRow[]>('get_kpi_metadata'),
+        ]);
+        return {
+          suppliers: sup,
+          items: it,
+          shipments: shp,
+          metrics: m,
+          kpiByName: Object.fromEntries(
+            meta.map(k => [k.kpiName, k])
+          ) as Record<string, KpiMetadataRow>,
+        };
+      } catch (e) {
+        console.error('Failed to load dashboard data', e);
+        notifications.system.error('load dashboard data', ipcErrorMessage(e));
+        throw e;
+      }
+    },
+    staleTime: 45_000,
+  });
 
-  const loadKpiHistory = useCallback(async () => {
-    try {
-      const rows = await invoke<KpiSnapshotHistoryRow[]>(
-        'get_kpi_snapshot_history',
-        {
-          query: { limitDays: 365 },
-        }
-      );
-      setKpiHistory(rows);
-    } catch (e) {
-      console.error('Failed to load KPI snapshot history', e);
-      notifications.system.error('load KPI history', String(e));
-      setKpiHistory([]);
-    }
-  }, [notifications.system]);
+  const kpiHistoryQuery = useQuery({
+    queryKey: ['kpi-snapshot-history'] as const,
+    queryFn: async () => {
+      try {
+        return await invoke<KpiSnapshotHistoryRow[]>(
+          'get_kpi_snapshot_history',
+          {
+            query: { limitDays: 365 },
+          }
+        );
+      } catch (e) {
+        console.error('Failed to load KPI snapshot history', e);
+        notifications.system.error('load KPI history', ipcErrorMessage(e));
+        return [];
+      }
+    },
+    staleTime: 120_000,
+  });
 
-  useEffect(() => {
-    void loadDashboard();
-    // chartCurrency + filtersEpoch drive reload; filter fields apply on Apply / this effect tick only.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chartCurrency, filtersEpoch]);
-
-  useEffect(() => {
-    void loadKpiHistory();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- mount-only; refresh via handleRefresh
-  }, []);
+  const suppliers = useMemo(
+    () => dashboardQuery.data?.suppliers ?? [],
+    [dashboardQuery.data?.suppliers]
+  );
+  const items = useMemo(
+    () => dashboardQuery.data?.items ?? [],
+    [dashboardQuery.data?.items]
+  );
+  const shipments = useMemo(
+    () => dashboardQuery.data?.shipments ?? [],
+    [dashboardQuery.data?.shipments]
+  );
+  const metrics = dashboardQuery.data?.metrics ?? null;
+  const kpiByName = useMemo(
+    () => dashboardQuery.data?.kpiByName ?? {},
+    [dashboardQuery.data?.kpiByName]
+  );
+  const kpiHistory = useMemo(
+    () => kpiHistoryQuery.data ?? [],
+    [kpiHistoryQuery.data]
+  );
+  const loading = dashboardQuery.isPending;
 
   useEffect(() => {
     try {
@@ -634,7 +674,7 @@ const DashboardPage = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-    void fetchDashboardActivityLog(150).then(rows => {
+    void fetchDashboardActivityLog(150, user.id).then(rows => {
       setActivityRows(rows.filter(r => r.userId === user.id));
     });
   }, [user?.id, metrics?.snapshotAt]);
@@ -751,7 +791,10 @@ const DashboardPage = () => {
   const handleRefresh = async () => {
     notifications.loading('Refreshing dashboard data...');
     try {
-      await Promise.all([loadDashboard(), loadKpiHistory()]);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['dashboard-main'] }),
+        queryClient.invalidateQueries({ queryKey: ['kpi-snapshot-history'] }),
+      ]);
       notifications.success(
         'Refresh Complete',
         'Dashboard data refreshed successfully'
@@ -828,7 +871,10 @@ const DashboardPage = () => {
   const fyYears = [2023, 2024, 2025, 2026, 2027];
 
   return (
-    <div className={`container mx-auto space-y-6 p-6 ${getSpacingClass()}`}>
+    <div
+      data-testid="dashboard-page"
+      className={`container mx-auto space-y-6 p-6 ${getSpacingClass()}`}
+    >
       <div
         className={`flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between ${getSpacingClass()}`}
       >
@@ -1099,7 +1145,7 @@ const DashboardPage = () => {
             workflow={metrics.erp?.exceptionWorkflow}
             entityExceptions={metrics.erp?.entityExceptions ?? []}
             userId={user?.id || 'anonymous'}
-            onRefresh={() => void loadDashboard()}
+            onRefresh={() => void dashboardQuery.refetch()}
           />
         </div>
       )}

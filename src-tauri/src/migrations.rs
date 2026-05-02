@@ -1,6 +1,7 @@
 #![allow(clippy::uninlined_format_args)]
 use refinery::embed_migrations;
 use rusqlite::{params, Connection, Result};
+use serde::Serialize;
 use std::path::Path;
 use std::time::Instant;
 
@@ -27,10 +28,26 @@ const SOFT_DELETE_INDEXES: &[(&str, &str, &str)] = &[
     ("idx_items_deleted_at", "items", "deleted_at"),
     ("idx_invoices_deleted_at", "invoices", "deleted_at"),
     ("idx_boe_details_deleted_at", "boe_details", "deleted_at"),
-    ("idx_boe_calculations_deleted_at", "boe_calculations", "deleted_at"),
-    ("idx_service_providers_deleted_at", "service_providers", "deleted_at"),
-    ("idx_expense_types_deleted_at", "expense_types", "deleted_at"),
-    ("idx_expense_invoices_deleted_at", "expense_invoices", "deleted_at"),
+    (
+        "idx_boe_calculations_deleted_at",
+        "boe_calculations",
+        "deleted_at",
+    ),
+    (
+        "idx_service_providers_deleted_at",
+        "service_providers",
+        "deleted_at",
+    ),
+    (
+        "idx_expense_types_deleted_at",
+        "expense_types",
+        "deleted_at",
+    ),
+    (
+        "idx_expense_invoices_deleted_at",
+        "expense_invoices",
+        "deleted_at",
+    ),
     ("idx_expenses_deleted_at", "expenses", "deleted_at"),
     (
         "idx_workflow_incidents_deleted_at",
@@ -58,6 +75,13 @@ const V48_PERFORMANCE_INDEXES: &[&str] = &[
     "idx_shipments_supplier_invoice",
     "idx_suppliers_name",
     "idx_items_part_number",
+];
+
+/// V70 composite indexes for dashboard/report/BOE paths; verified in [verify_schema_integrity].
+const V70_QUERY_PATH_INDEXES: &[&str] = &[
+    "idx_invoice_line_items_invoice_id_item_id",
+    "idx_boe_calculations_shipment_id_status",
+    "idx_shipments_supplier_id_invoice_date",
 ];
 
 pub struct DatabaseMigrations;
@@ -301,11 +325,9 @@ fn max_applied_migration_version_for_drift(conn: &Connection) -> Result<i32, Str
         return Ok(0);
     }
     let n: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM refinery_schema_history",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |r| {
+            r.get(0)
+        })
         .map_err(|e| e.to_string())?;
     if n == 0 {
         return Ok(0);
@@ -437,11 +459,9 @@ fn require_migration_head(conn: &Connection) -> Result<i32, String> {
         return Err("Migration history missing — database inconsistent".into());
     }
     let n: i32 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM refinery_schema_history",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |r| {
+            r.get(0)
+        })
         .map_err(|e| e.to_string())?;
     if n == 0 {
         return Err("Migration history missing — database inconsistent".into());
@@ -474,8 +494,7 @@ pub fn backup_database(conn: &Connection, dest: &Path) -> Result<(), String> {
     }
     let quoted = path_for_vacuum_into(dest);
     let sql = format!("VACUUM INTO '{quoted}'");
-    conn
-        .execute(&sql, [])
+    conn.execute(&sql, [])
         .map_err(|e| format!("VACUUM INTO backup failed: {e}"))?;
     log::info!(
         target: "import_manager::migrations",
@@ -485,15 +504,15 @@ pub fn backup_database(conn: &Connection, dest: &Path) -> Result<(), String> {
     Ok(())
 }
 
-/// Validates critical workflow tables, soft-delete columns, and refinery history after migrations.
-/// Returns a readable error (no panic) if anything is missing.
-pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
+/// Collects schema integrity problems without logging (for health UI / diagnostics).
+pub fn schema_integrity_problems(conn: &Connection) -> Result<Vec<String>, String> {
     let mut problems: Vec<String> = Vec::new();
 
     for table in [
         "workflow_incidents",
         "workflow_incident_history",
         "workflow_failure_forecast",
+        "user_activity_audit_logs",
     ] {
         if !table_exists(conn, table).map_err(|e| e.to_string())? {
             problems.push(table.to_string());
@@ -511,11 +530,9 @@ pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
         problems.push("refinery_schema_history (table missing)".to_string());
     } else {
         let n: i32 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM refinery_schema_history",
-                [],
-                |r| r.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |r| {
+                r.get(0)
+            })
             .map_err(|e| e.to_string())?;
         if n == 0 {
             problems.push("refinery_schema_history (empty)".to_string());
@@ -528,6 +545,19 @@ pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
         }
     }
 
+    for idx in V70_QUERY_PATH_INDEXES {
+        if !index_exists(conn, idx).map_err(|e| e.to_string())? {
+            problems.push(format!("index missing: {idx}"));
+        }
+    }
+
+    Ok(problems)
+}
+
+/// Validates critical workflow tables, soft-delete columns, and refinery history after migrations.
+/// Returns a readable error (no panic) if anything is missing.
+pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
+    let problems = schema_integrity_problems(conn)?;
     if problems.is_empty() {
         log::info!(
             target: "import_manager::migrations",
@@ -540,6 +570,75 @@ pub fn verify_schema_integrity(conn: &Connection) -> Result<(), String> {
     let msg = format!("Schema integrity verification failed: missing or invalid: {detail}");
     log::error!(target: "import_manager::migrations", "{msg}");
     Err(msg)
+}
+
+/// Highest migration version embedded in this binary (same set Refinery applies).
+pub fn embedded_migration_head_version() -> i32 {
+    migrations::runner()
+        .get_migrations()
+        .iter()
+        .map(|m| m.version() as i32)
+        .max()
+        .unwrap_or(0)
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SchemaHealth {
+    /// `ok` | `migration_pending` | `version_mismatch` | `migration_failed`
+    pub state: String,
+    pub expected_version: i32,
+    pub applied_version: i32,
+    pub pending_migration_rows: i32,
+    pub integrity_error: Option<String>,
+}
+
+/// Live schema health for admin UI (no hardcoded version; `expected` comes from embedded migrations).
+pub fn compute_schema_health(conn: &Connection) -> SchemaHealth {
+    let expected_version = embedded_migration_head_version();
+    let mut applied_version: i32 = 0;
+    let mut pending_migration_rows: i32 = 0;
+
+    if migration_table_exists(conn).unwrap_or(false) {
+        if let Ok(v) = conn.query_row(
+            "SELECT COALESCE(MAX(version), 0) FROM refinery_schema_history",
+            [],
+            |r| r.get::<_, i32>(0),
+        ) {
+            applied_version = v;
+        }
+        if let Ok(p) = conn.query_row(
+            "SELECT COUNT(*) FROM refinery_schema_history WHERE applied_on IS NULL OR trim(COALESCE(applied_on, '')) = ''",
+            [],
+            |r| r.get::<_, i32>(0),
+        ) {
+            pending_migration_rows = p;
+        }
+    }
+
+    let integrity_error = match schema_integrity_problems(conn) {
+        Ok(p) if p.is_empty() => None,
+        Ok(p) => Some(p.join(", ")),
+        Err(e) => Some(e),
+    };
+
+    let state = if expected_version == 0 || integrity_error.is_some() {
+        "migration_failed".to_string()
+    } else if applied_version > expected_version {
+        "version_mismatch".to_string()
+    } else if applied_version < expected_version || pending_migration_rows > 0 {
+        "migration_pending".to_string()
+    } else {
+        "ok".to_string()
+    };
+
+    SchemaHealth {
+        state,
+        expected_version,
+        applied_version,
+        pending_migration_rows,
+        integrity_error,
+    }
 }
 
 impl DatabaseMigrations {
@@ -597,7 +696,10 @@ impl DatabaseMigrations {
     }
 
     /// Runs pre-migration backup, refinery + post steps, schema integrity checks, and timing logs.
-    pub fn run_migrations(conn: &mut Connection, pre_migration_backup: &Path) -> Result<(), String> {
+    pub fn run_migrations(
+        conn: &mut Connection,
+        pre_migration_backup: &Path,
+    ) -> Result<(), String> {
         log::info!(
             target: "import_manager::migrations",
             "Creating pre-migration backup at {}",
@@ -722,8 +824,7 @@ mod tests {
         );
 
         assert!(
-            user_table_exists(&conn, "app_settings")
-                .map_err(|e| format!("app_settings: {e}"))?,
+            user_table_exists(&conn, "app_settings").map_err(|e| format!("app_settings: {e}"))?,
             "app_settings must exist after migrations"
         );
 

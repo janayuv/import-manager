@@ -24,13 +24,19 @@ const KEYRING_SERVICE: &str = "ImportManager";
 const KEYRING_USER: &str = "google_drive_refresh_token";
 const KEYRING_EMAIL: &str = "google_drive_user_email";
 const OAUTH_REDIRECT: &str = "http://127.0.0.1:8765/";
-/// drive.file + read email for status UI
+/// Full Drive scope: `drive.file` alone does not allow listing or uploading into `ImportManagerBackups`
+/// created on another machine; all devices must share one user-visible folder.
 const OAUTH_SCOPE: &str =
-    "https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.email";
+    "https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.email";
+
+/// Shared Google Drive folder for encrypted backups (all devices use the same folder by name).
+pub const GDRIVE_BACKUP_FOLDER_NAME: &str = "ImportManagerBackups";
 
 const META_GDRIVE_ACCESS: &str = "gdrive_access_token";
 const META_GDRIVE_REFRESH: &str = "gdrive_refresh_token";
 const META_GDRIVE_EXPIRY: &str = "gdrive_token_expiry";
+/// Last resolved `ImportManagerBackups` folder id (debug/support only). Never used to skip API discovery.
+const META_GDRIVE_BACKUP_FOLDER_ID: &str = "gdrive_backup_folder_id";
 const PERM_BACKUP_SETTINGS: &str = "backup.settings";
 
 static OPERATION_CANCEL: AtomicBool = AtomicBool::new(false);
@@ -55,13 +61,7 @@ fn ensure_command_permission(
     if actor.eq_ignore_ascii_case("system") || actor.eq_ignore_ascii_case("scheduler") {
         return Ok(());
     }
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![actor],
-            |row| row.get(0),
-        )
-        .map_err(|_| "Permission denied: user role not configured.".to_string())?;
+    let role = crate::security::resolve_role_strict(db, actor)?;
     if role_allows_permission(&role, permission) {
         Ok(())
     } else {
@@ -126,9 +126,33 @@ fn store_gdrive_tokens_in_metadata(
 }
 
 fn clear_gdrive_metadata_tokens(conn: &Connection) {
-    for k in [META_GDRIVE_ACCESS, META_GDRIVE_REFRESH, META_GDRIVE_EXPIRY] {
+    for k in [
+        META_GDRIVE_ACCESS,
+        META_GDRIVE_REFRESH,
+        META_GDRIVE_EXPIRY,
+        META_GDRIVE_BACKUP_FOLDER_ID,
+    ] {
         let _ = conn.execute("DELETE FROM app_metadata WHERE key = ?1", params![k]);
     }
+}
+
+/// Record last resolved folder id for debugging. Resolution always uses Drive API search by folder name first.
+fn persist_last_resolved_backup_folder_id(conn: &Connection, folder_id: &str) -> Result<(), String> {
+    conn.execute(
+        "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
+        params![META_GDRIVE_BACKUP_FOLDER_ID, folder_id.trim()],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
+}
+
+fn log_shared_backup_folder_in_use(folder_id: &str) {
+    log::info!(
+        target: "google_drive",
+        "Using backup folder: {}",
+        GDRIVE_BACKUP_FOLDER_NAME
+    );
+    log::info!(target: "google_drive", "Folder ID: {}", folder_id);
 }
 
 /// True if keyring or `app_metadata` has a non-empty refresh token.
@@ -426,6 +450,15 @@ pub async fn google_drive_connect(
         target: "import_manager::gdrive",
         "Google Drive connected successfully"
     );
+    if let Err(e) =
+        resolve_import_manager_backup_folder_id(Some(&db_state.db)).await
+    {
+        log::warn!(
+            target: "google_drive",
+            "Backup folder discovery after connect failed: {}",
+            e
+        );
+    }
     Ok(())
 }
 
@@ -646,6 +679,367 @@ struct DriveFileCreateResponse {
     id: String,
 }
 
+#[derive(Deserialize)]
+struct DriveFileLabelMetadata {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default, rename = "modifiedTime")]
+    modified_time: Option<String>,
+}
+
+async fn fetch_drive_file_label_metadata_once(
+    file_id: &str,
+    db: Option<&Mutex<Connection>>,
+) -> Result<(String, String), String> {
+    if file_id.trim().is_empty() {
+        return Err(user_message("download", "Empty Drive file id."));
+    }
+    let token = get_access_token_for_transfer(db).await?;
+    let url = format!(
+        "https://www.googleapis.com/drive/v3/files/{}?supportsAllDrives=true&fields=name,modifiedTime",
+        file_id
+    );
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let res = drive_get_json_expect_ok(&client, &url, &token).await?;
+    let meta: DriveFileLabelMetadata = res.json().await.map_err(|e| e.to_string())?;
+    let name = meta
+        .name
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| "backup.enc".to_string());
+    let modified = meta
+        .modified_time
+        .filter(|s| !s.trim().is_empty())
+        .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
+    Ok((name, modified))
+}
+
+/// `name` + `modifiedTime` for a Drive file (restore preview when there is no local `backups` row).
+pub(crate) async fn fetch_drive_file_label_metadata(
+    file_id: &str,
+    db: Option<&Mutex<Connection>>,
+) -> Result<(String, String), String> {
+    match fetch_drive_file_label_metadata_once(file_id, db).await {
+        Ok(v) => Ok(v),
+        Err(e) if e.contains("401") || e.contains("token") => {
+            let _ = refresh_access_token_force(db).await;
+            fetch_drive_file_label_metadata_once(file_id, db).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+#[derive(Deserialize)]
+struct DriveFilesListResponse {
+    #[serde(default)]
+    files: Vec<DriveFileRef>,
+    #[serde(default, rename = "nextPageToken")]
+    next_page_token: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct DriveFileRef {
+    id: String,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    size: Option<String>,
+    #[serde(default, rename = "modifiedTime")]
+    modified_time: Option<String>,
+    #[serde(default, rename = "createdTime")]
+    created_time: Option<String>,
+}
+
+/// One `.enc` file listed from the shared backup folder (for merging into backup history).
+#[derive(Debug, Clone)]
+pub struct GdriveEncBackupRow {
+    pub file_id: String,
+    pub filename: String,
+    pub size_bytes: Option<i64>,
+    pub modified_time: String,
+}
+
+fn drive_q_escape_literal(s: &str) -> String {
+    s.replace('\\', "\\\\").replace('\'', "\\'")
+}
+
+async fn drive_get_json_expect_ok(
+    client: &reqwest::Client,
+    url: &str,
+    token: &str,
+) -> Result<reqwest::Response, String> {
+    let res = client
+        .get(url)
+        .bearer_auth(token)
+        .send()
+        .await
+        .map_err(|e| user_message("network", e.to_string()))?;
+    if res.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(user_message("token", "HTTP 401"));
+    }
+    if !res.status().is_success() {
+        let status = res.status();
+        let t = res.text().await.unwrap_or_default();
+        return Err(map_http_error(status, &t));
+    }
+    Ok(res)
+}
+
+/// Paginated list of folders named exactly [GDRIVE_BACKUP_FOLDER_NAME] in the user's Drive (not trashed).
+async fn list_all_backup_root_folder_entries(token: &str) -> Result<Vec<DriveFileRef>, String> {
+    let name_esc = drive_q_escape_literal(GDRIVE_BACKUP_FOLDER_NAME);
+    let q = format!(
+        "name = '{}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false",
+        name_esc
+    );
+    let mut out: Vec<DriveFileRef> = Vec::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let mut page_token: Option<String> = None;
+    loop {
+        let mut url = format!(
+            "https://www.googleapis.com/drive/v3/files?q={}&spaces=drive&corpora=user&fields=nextPageToken,files(id,name,createdTime)&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=100",
+            urlencoding::encode(&q)
+        );
+        if let Some(ref pt) = page_token {
+            url.push_str("&pageToken=");
+            url.push_str(&urlencoding::encode(pt));
+        }
+        let res = drive_get_json_expect_ok(&client, &url, token).await?;
+        let parsed: DriveFilesListResponse = res.json().await.map_err(|e| e.to_string())?;
+        out.extend(parsed.files);
+        page_token = parsed.next_page_token;
+        if page_token.is_none() {
+            break;
+        }
+    }
+    Ok(out)
+}
+
+/// Count `.enc` files directly under a folder (paginated).
+async fn count_enc_files_in_folder(token: &str, folder_id: &str) -> Result<usize, String> {
+    let q = format!(
+        "'{}' in parents and name contains '.enc' and trashed = false",
+        drive_q_escape_literal(folder_id)
+    );
+    let mut total = 0usize;
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let mut page_token: Option<String> = None;
+    loop {
+        let mut url = format!(
+            "https://www.googleapis.com/drive/v3/files?q={}&spaces=drive&corpora=user&fields=nextPageToken,files(id)&supportsAllDrives=true&includeItemsFromAllDrives=true&pageSize=1000",
+            urlencoding::encode(&q)
+        );
+        if let Some(ref pt) = page_token {
+            url.push_str("&pageToken=");
+            url.push_str(&urlencoding::encode(pt));
+        }
+        let res = drive_get_json_expect_ok(&client, &url, token).await?;
+        let parsed: DriveFilesListResponse = res.json().await.map_err(|e| e.to_string())?;
+        total += parsed.files.len();
+        page_token = parsed.next_page_token;
+        if page_token.is_none() {
+            break;
+        }
+    }
+    Ok(total)
+}
+
+/// When several folders share the name, prefer the one that already holds backups (typical: folder from another PC).
+async fn pick_backup_folder_id(token: &str, folders: Vec<DriveFileRef>) -> Result<String, String> {
+    let n_candidates = folders.len();
+    if n_candidates == 0 {
+        return Err(user_message(
+            "permission",
+            "No ImportManagerBackups folder candidates.",
+        ));
+    }
+    if n_candidates == 1 {
+        let id = folders[0].id.clone();
+        log_shared_backup_folder_in_use(&id);
+        return Ok(id);
+    }
+    log::warn!(
+        target: "google_drive",
+        "event=backup_folder_multiple count={} — selecting folder with most .enc backups",
+        n_candidates
+    );
+    let mut scored: Vec<(String, usize, Option<String>)> = Vec::new();
+    for f in folders {
+        let id = f.id;
+        let n_enc = count_enc_files_in_folder(token, &id).await?;
+        scored.push((id, n_enc, f.created_time));
+    }
+    scored.sort_by(|a, b| {
+        b.1.cmp(&a.1).then_with(|| match (&a.2, &b.2) {
+            (Some(ca), Some(cb)) => ca.cmp(cb),
+            (None, Some(_)) => std::cmp::Ordering::Greater,
+            (Some(_), None) => std::cmp::Ordering::Less,
+            (None, None) => std::cmp::Ordering::Equal,
+        })
+    });
+    let chosen_id = scored[0].0.clone();
+    let chosen_n = scored[0].1;
+    log::info!(
+        target: "google_drive",
+        "Picked folder with {} .enc file(s) among {} candidate folder(s) named {}",
+        chosen_n,
+        n_candidates,
+        GDRIVE_BACKUP_FOLDER_NAME
+    );
+    log_shared_backup_folder_in_use(&chosen_id);
+    Ok(chosen_id)
+}
+
+async fn create_backup_root_folder(token: &str) -> Result<String, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(60))
+        .build()
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let body = serde_json::json!({
+        "name": GDRIVE_BACKUP_FOLDER_NAME,
+        "mimeType": "application/vnd.google-apps.folder",
+    });
+    let res = client
+        .post("https://www.googleapis.com/drive/v3/files?supportsAllDrives=true&fields=id")
+        .bearer_auth(token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| user_message("network", e.to_string()))?;
+    if res.status() == reqwest::StatusCode::UNAUTHORIZED {
+        return Err(user_message("token", "HTTP 401"));
+    }
+    if !res.status().is_success() {
+        let status = res.status();
+        let t = res.text().await.unwrap_or_default();
+        return Err(map_http_error(status, &t));
+    }
+    let created: DriveFileCreateResponse = res.json().await.map_err(|e| e.to_string())?;
+    Ok(created.id)
+}
+
+async fn resolve_import_manager_backup_folder_id_once(
+    db: Option<&Mutex<Connection>>,
+) -> Result<String, String> {
+    let token = get_access_token_for_transfer(db).await?;
+    let entries = list_all_backup_root_folder_entries(&token).await?;
+    let id = if !entries.is_empty() {
+        pick_backup_folder_id(&token, entries).await?
+    } else {
+        let token = get_access_token_for_transfer(db).await?;
+        let new_id = create_backup_root_folder(&token).await?;
+        log::info!(
+            target: "google_drive",
+            "Created backup folder {:?} (no existing folder from search)",
+            GDRIVE_BACKUP_FOLDER_NAME
+        );
+        log_shared_backup_folder_in_use(&new_id);
+        new_id
+    };
+    if let Some(m) = db {
+        if let Ok(g) = m.lock() {
+            if let Err(e) = persist_last_resolved_backup_folder_id(&g, &id) {
+                log::warn!(
+                    target: "google_drive",
+                    "event=backup_folder_id_persist_skipped err={}",
+                    e
+                );
+            }
+        }
+    }
+    Ok(id)
+}
+
+/// Resolves the shared backup folder on every call via Drive API (search by name). Persists last id only for support/debug.
+pub async fn resolve_import_manager_backup_folder_id(
+    db: Option<&Mutex<Connection>>,
+) -> Result<String, String> {
+    match resolve_import_manager_backup_folder_id_once(db).await {
+        Ok(id) => Ok(id),
+        Err(e) if e.contains("401") || e.contains("token") => {
+            let _ = refresh_access_token_force(db).await;
+            resolve_import_manager_backup_folder_id_once(db).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
+async fn fetch_gdrive_enc_backup_rows_with_token(
+    token: &str,
+    folder_id: &str,
+) -> Result<Vec<GdriveEncBackupRow>, String> {
+    let q = format!(
+        "'{}' in parents and name contains '.enc' and trashed = false",
+        drive_q_escape_literal(folder_id)
+    );
+    let mut out: Vec<GdriveEncBackupRow> = Vec::new();
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(120))
+        .build()
+        .map_err(|e| user_message("network", e.to_string()))?;
+    let mut page_token: Option<String> = None;
+    loop {
+        let mut url = format!(
+            "https://www.googleapis.com/drive/v3/files?q={}&spaces=drive&corpora=user&fields=nextPageToken,files(id,name,size,modifiedTime)&supportsAllDrives=true&includeItemsFromAllDrives=true&orderBy={}&pageSize=1000",
+            urlencoding::encode(&q),
+            urlencoding::encode("modifiedTime desc")
+        );
+        if let Some(ref pt) = page_token {
+            url.push_str("&pageToken=");
+            url.push_str(&urlencoding::encode(pt));
+        }
+        let res = drive_get_json_expect_ok(&client, &url, token).await?;
+        let parsed: DriveFilesListResponse = res.json().await.map_err(|e| e.to_string())?;
+        for f in parsed.files {
+            let name = f.name.unwrap_or_default();
+            if !name.to_lowercase().ends_with(".enc") {
+                continue;
+            }
+            let size_bytes = f.size.and_then(|s| s.parse::<i64>().ok());
+            let modified_time = f
+                .modified_time
+                .filter(|t| !t.is_empty())
+                .unwrap_or_else(|| chrono::Utc::now().to_rfc3339());
+            out.push(GdriveEncBackupRow {
+                file_id: f.id,
+                filename: name,
+                size_bytes,
+                modified_time,
+            });
+        }
+        page_token = parsed.next_page_token;
+        if page_token.is_none() {
+            break;
+        }
+    }
+    log::info!(target: "google_drive", "Found {} backup files", out.len());
+    Ok(out)
+}
+
+/// Lists `.enc` files in the shared backup folder, newest first. Folder id is resolved on each call.
+pub async fn fetch_gdrive_enc_backup_rows(
+    db: Option<&Mutex<Connection>>,
+) -> Result<Vec<GdriveEncBackupRow>, String> {
+    let folder_id = resolve_import_manager_backup_folder_id(db).await?;
+    let token = get_access_token_for_transfer(db).await?;
+    match fetch_gdrive_enc_backup_rows_with_token(&token, &folder_id).await {
+        Ok(v) => Ok(v),
+        Err(e) if e.contains("401") || e.contains("token") => {
+            let t2 = refresh_access_token_force(db).await?;
+            fetch_gdrive_enc_backup_rows_with_token(&t2, &folder_id).await
+        }
+        Err(e) => Err(e),
+    }
+}
+
 fn map_http_error(status: reqwest::StatusCode, body: &str) -> String {
     let s = status.as_u16();
     if s == 401 {
@@ -763,6 +1157,7 @@ async fn upload_once_with_progress(
     _attempt: u32,
     db: Option<&Mutex<Connection>>,
 ) -> Result<String, String> {
+    let folder_id = resolve_import_manager_backup_folder_id(db).await?;
     let token = get_access_token_for_transfer(db).await?;
 
     let client = reqwest::Client::builder()
@@ -773,6 +1168,7 @@ async fn upload_once_with_progress(
     let meta = serde_json::json!({
         "name": filename,
         "mimeType": "application/octet-stream",
+        "parents": [folder_id],
     });
 
     let init = client

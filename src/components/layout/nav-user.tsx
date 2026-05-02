@@ -1,5 +1,6 @@
 'use client';
 
+import { invoke } from '@tauri-apps/api/core';
 import { FileText, Lock, LogOut, Snowflake, User } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -17,6 +18,8 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { SidebarMenu, SidebarMenuButton } from '@/components/ui/sidebar';
 import { useSidebar } from '@/components/ui/use-sidebar';
+import { setAuthenticated } from '@/lib/auth';
+import { isTauriEnvironment } from '@/lib/tauri-bridge';
 
 export function NavUser({
   user,
@@ -31,9 +34,18 @@ export function NavUser({
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.removeItem('isAuthenticated');
-    navigate('/login');
-    toast.info('You have been logged out.');
+    void (async () => {
+      if (isTauriEnvironment) {
+        try {
+          await invoke('clear_desktop_session');
+        } catch {
+          /* still clear client state */
+        }
+      }
+      setAuthenticated(false);
+      navigate('/login');
+      toast.info('You have been logged out.');
+    })();
   };
 
   const goFrozen = () => navigate('/frozen-shipments');

@@ -182,6 +182,24 @@ export async function save(
 }
 
 /**
+ * Reject obvious path traversal in user-selected save paths (trust boundary for export flows).
+ */
+export function assertTrustworthySavePath(path: string): void {
+  const p = path.replace(/\\/g, '/').trim();
+  if (!p) {
+    throw new Error('Invalid path.');
+  }
+  if (
+    p.includes('/../') ||
+    p.includes('\\..\\') ||
+    p.endsWith('/..') ||
+    p.endsWith('\\..')
+  ) {
+    throw new Error('Invalid path: parent-directory segments are not allowed.');
+  }
+}
+
+/**
  * Ok/Cancel confirmation. Never rejects: Tauri plugin failures fall back to
  * `window.confirm` so callers never trigger global `unhandledrejection`.
  */

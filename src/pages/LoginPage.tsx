@@ -1,3 +1,4 @@
+import { invoke } from '@tauri-apps/api/core';
 import { toast } from 'sonner';
 
 import { useState } from 'react';
@@ -12,14 +13,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { authenticateUser, setAuthenticated } from '@/lib/auth';
+import {
+  authenticateUser,
+  setAuthenticated,
+  userFromDesktopSession,
+  type DesktopSessionInfo,
+} from '@/lib/auth';
+import { isTauriEnvironment } from '@/lib/tauri-bridge';
+import { ipcErrorMessage } from '@/lib/ipc-error';
 
 export function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
   const handleLogin = async () => {
@@ -31,18 +41,33 @@ export function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await authenticateUser({ username, password });
-
-      if (result.success) {
-        setAuthenticated(true, result.user);
+      if (isTauriEnvironment) {
+        const session = await invoke<DesktopSessionInfo>(
+          'authenticate_desktop',
+          {
+            username,
+            password,
+            rememberMe,
+          }
+        );
+        const user = userFromDesktopSession(session);
+        setAuthenticated(true, user);
         toast.success('Login successful!');
         navigate('/');
       } else {
-        toast.error(result.message);
+        const result = await authenticateUser({ username, password });
+
+        if (result.success && result.user) {
+          setAuthenticated(true, result.user);
+          toast.success('Login successful!');
+          navigate('/');
+        } else {
+          toast.error(result.message);
+        }
       }
     } catch (error) {
       console.error('Login error:', error);
-      toast.error('Login failed. Please try again.');
+      toast.error(ipcErrorMessage(error, 'Login failed. Please try again.'));
     } finally {
       setIsLoading(false);
     }
@@ -50,7 +75,7 @@ export function LoginPage() {
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !isLoading) {
-      handleLogin();
+      void handleLogin();
     }
   };
 
@@ -90,14 +115,28 @@ export function LoginPage() {
                 required
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                onKeyPress={handleKeyPress}
+                onKeyDown={handleKeyPress}
                 disabled={isLoading}
               />
             </div>
+            {isTauriEnvironment ? (
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="remember"
+                  checked={rememberMe}
+                  onCheckedChange={v => setRememberMe(v === true)}
+                  disabled={isLoading}
+                />
+                <Label htmlFor="remember" className="text-sm font-normal">
+                  Remember this device (30 days)
+                </Label>
+              </div>
+            ) : null}
             <Button
               type="submit"
               className="w-full"
-              onClick={handleLogin}
+              data-testid="login-submit"
+              onClick={() => void handleLogin()}
               disabled={isLoading}
             >
               {isLoading ? 'Logging in...' : 'Login'}

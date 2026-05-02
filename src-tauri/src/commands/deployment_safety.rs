@@ -1,5 +1,6 @@
 //! Deployment safety helpers (risk, conflicts, persistence). Invoked from
 //! `workflow_rule_deployment` after governance readiness to avoid circular imports.
+#![allow(clippy::too_many_arguments)]
 
 use crate::commands::workflow_production_observability::{
     bump_workflow_runtime_metric, insert_workflow_alert_signal, log_structured_event,
@@ -51,9 +52,7 @@ pub fn upsert_risk_assessment(
     assessment: &Value,
 ) -> Result<(), String> {
     let id = Uuid::new_v4().to_string();
-    let ts = chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let ts = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     let safe_i: i64 = if safe_to_deploy { 1 } else { 0 };
     conn.execute(
         "INSERT INTO deployment_risk_assessment (assessment_id, assessed_at, rule_id, version_id, tenant_id, environment_id, risk_score, risk_level, safe_to_deploy, assessment_json)
@@ -93,9 +92,7 @@ pub fn record_risk_timeline(
     details: &Value,
 ) -> Result<(), String> {
     let id = Uuid::new_v4().to_string();
-    let ts = chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let ts = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     conn.execute(
         "INSERT INTO deployment_risk_timeline (id, deployment_time, risk_score, risk_level, environment_id, tenant_id, rule_id, version_id, result, details_json)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
@@ -126,9 +123,7 @@ fn log_conflict(
     details: &Value,
 ) -> Result<(), String> {
     let id = Uuid::new_v4().to_string();
-    let ts = chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string();
+    let ts = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string();
     conn.execute(
         "INSERT INTO deployment_conflict_log (id, detected_at, rule_id, tenant_id, environment_id, related_version_id, conflict_type, details_json)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -264,7 +259,9 @@ fn detect_conflicts(
                 "OVERLAPPING_CONDITION",
                 &d,
             )?;
-            warnings.push(format!("Overlapping condition with enabled rule {other_id}"));
+            warnings.push(format!(
+                "Overlapping condition with enabled rule {other_id}"
+            ));
         }
         if !action.is_empty() && action == o_act_l && prio == o_pr {
             let d = json!({"otherRuleId": &other_id, "priority": prio, "actionType": &action});
@@ -364,7 +361,10 @@ pub fn evaluate_deployment_safety(
         return Ok(out);
     }
 
-    let gov_ok = governance.get("ok").and_then(|x| x.as_bool()).unwrap_or(false);
+    let gov_ok = governance
+        .get("ok")
+        .and_then(|x| x.as_bool())
+        .unwrap_or(false);
     if !gov_ok {
         score += 35.0;
         blocking_issues.push(
@@ -496,7 +496,8 @@ pub fn evaluate_deployment_safety(
         .unwrap_or(0.0);
     score += (fail_rate * 40.0).min(28.0);
 
-    let conflict_notes = detect_conflicts(conn, rule_id, tenant_id, environment_id, version_id, &def)?;
+    let conflict_notes =
+        detect_conflicts(conn, rule_id, tenant_id, environment_id, version_id, &def)?;
     if !conflict_notes.is_empty() {
         score += (conflict_notes.len() as f64 * 10.0).min(35.0);
         warnings.extend(conflict_notes);
@@ -504,7 +505,7 @@ pub fn evaluate_deployment_safety(
 
     let _ = max_ms;
 
-    score = score.min(100.0).max(0.0);
+    score = score.clamp(0.0, 100.0);
     let risk_level = risk_level_from_score(score);
     let mut safe_to_deploy = blocking_issues.is_empty();
     if matches!(risk_level, "HIGH" | "CRITICAL") {

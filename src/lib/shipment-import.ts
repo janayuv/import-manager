@@ -1,4 +1,5 @@
 import Papa from 'papaparse';
+import { toast } from 'sonner';
 
 import { normalizeCsvEncoding } from '@/lib/csv-helpers';
 
@@ -127,4 +128,46 @@ export function parseShipmentImportCsv(content: string): {
   });
 
   return { data, errors: parsed.errors };
+}
+
+export function parseShipmentImportCsvStream(content: string): Promise<{
+  data: Record<string, string>[];
+  errors: Papa.ParseError[];
+}> {
+  const text = normalizeCsvEncoding(content);
+  const delimiter = guessShipmentCsvDelimiter(text);
+
+  return new Promise((resolve, reject) => {
+    const parsedRows: Record<string, string>[] = [];
+    const parseErrors: Papa.ParseError[] = [];
+
+    Papa.parse<Record<string, unknown>>(text, {
+      header: true,
+      skipEmptyLines: true,
+      delimiter,
+      worker: true,
+      step: result => {
+        const row = result.data;
+        const mappedRow: Record<string, string> = {};
+        for (const [rawKey, value] of Object.entries(row)) {
+          const mappedKey = canonicalShipmentCsvHeader(rawKey);
+          mappedRow[mappedKey] = value == null ? '' : String(value).trim();
+        }
+        parsedRows.push(mappedRow);
+        if (result.errors.length > 0) {
+          parseErrors.push(...result.errors);
+        }
+      },
+      complete: () => {
+        resolve({ data: parsedRows, errors: parseErrors });
+      },
+      error: (error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        toast.error('CSV parse failed', {
+          description: message,
+        });
+        reject(error);
+      },
+    });
+  });
 }

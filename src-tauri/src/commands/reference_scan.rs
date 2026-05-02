@@ -22,7 +22,10 @@ pub(crate) fn summarize_record_ids_for_log(ids: &[String]) -> String {
 }
 
 /// Logs FK edges that reference `parent_table` and their SQLite `ON DELETE` action.
-pub fn log_hard_delete_fk_cascade_impact(conn: &Connection, parent_table: &str) -> Result<(), String> {
+pub fn log_hard_delete_fk_cascade_impact(
+    conn: &Connection,
+    parent_table: &str,
+) -> Result<(), String> {
     log::info!(
         target: "import_manager::hard_delete",
         "[HARD_DELETE] Checking FK cascade impact parent_table={}",
@@ -70,7 +73,12 @@ pub(crate) struct HardDeleteFnLogGuard {
 }
 
 impl HardDeleteFnLogGuard {
-    pub(crate) fn new(name: &'static str, table: &str, record_id_summary: &str, batch_number: &str) -> Self {
+    pub(crate) fn new(
+        name: &'static str,
+        table: &str,
+        record_id_summary: &str,
+        batch_number: &str,
+    ) -> Self {
         log::info!(
             target: "import_manager::hard_delete",
             "[HARD_DELETE] Enter function: {} table={} record_id={} batch_number={}",
@@ -125,7 +133,7 @@ impl HardDeleteEnsureRecursionGuard {
                         id
                     );
                     return Err(
-                        "Recursive delete detected during reference safety check".to_string(),
+                        "Recursive delete detected during reference safety check".to_string()
                     );
                 }
                 set.insert(k.clone());
@@ -493,7 +501,10 @@ fn collect_child_ids_for_fk(
         while let Some(r) = rows.next().map_err(|e| e.to_string())? {
             let id_text = match r.get::<_, String>(0) {
                 Ok(s) => s,
-                Err(_) => r.get::<_, i64>(0).map(|n| n.to_string()).map_err(|e| e.to_string())?,
+                Err(_) => r
+                    .get::<_, i64>(0)
+                    .map(|n| n.to_string())
+                    .map_err(|e| e.to_string())?,
             };
             out.push(id_text);
         }
@@ -515,9 +526,16 @@ fn delete_child_rows_for_fk(
         }
         let placeholders = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
         let where_ = fk_in_clause_with_null_guard(&fk.from_col, &placeholders);
-        let q = format!("DELETE FROM {} WHERE {}", quote_ident(&fk.child_table), where_);
+        let q = format!(
+            "DELETE FROM {} WHERE {}",
+            quote_ident(&fk.child_table),
+            where_
+        );
         let n = tx
-            .execute(&q, rusqlite::params_from_iter(chunk.iter().map(String::as_str)))
+            .execute(
+                &q,
+                rusqlite::params_from_iter(chunk.iter().map(String::as_str)),
+            )
             .map_err(map_hard_delete_error_rusqlite)?;
         deleted += n as i64;
     }
@@ -536,7 +554,11 @@ fn count_child_rows_for_fk(
         }
         let placeholders = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
         let where_ = fk_in_clause_with_null_guard(&fk.from_col, &placeholders);
-        let q = format!("SELECT COUNT(*) FROM {} WHERE {}", quote_ident(&fk.child_table), where_);
+        let q = format!(
+            "SELECT COUNT(*) FROM {} WHERE {}",
+            quote_ident(&fk.child_table),
+            where_
+        );
         let c: i64 = conn
             .query_row(
                 &q,
@@ -621,7 +643,9 @@ fn delete_children_recursive(
                     fk.child_table,
                     cid
                 );
-                return Err("Recursive delete detected while resolving child dependencies".to_string());
+                return Err(
+                    "Recursive delete detected while resolving child dependencies".to_string(),
+                );
             }
         }
         delete_children_recursive(tx, &fk.child_table, &child_ids, seen)?;

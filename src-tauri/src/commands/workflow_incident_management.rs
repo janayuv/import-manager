@@ -1,4 +1,13 @@
 //! Single-operator incident engine: alert → incident → diagnosis → resolution → post-mortem.
+#![allow(
+    clippy::collapsible_if,
+    clippy::let_unit_value,
+    clippy::manual_clamp,
+    clippy::redundant_pattern_matching,
+    clippy::too_many_arguments,
+    clippy::type_complexity,
+    clippy::unnecessary_lazy_evaluations
+)]
 
 use crate::commands::workflow_production_observability::record_performance_timing;
 use crate::db::DbState;
@@ -12,9 +21,7 @@ const MIN_ROOT_CAUSE_LEN: usize = 50;
 const CORRELATION_WINDOW_MINS: i64 = 10;
 
 fn now_ts() -> String {
-    chrono::Utc::now()
-        .format("%Y-%m-%d %H:%M:%S")
-        .to_string()
+    chrono::Utc::now().format("%Y-%m-%d %H:%M:%S").to_string()
 }
 
 fn normalize_role(role: &str) -> String {
@@ -95,12 +102,7 @@ pub fn compute_incident_correlation_key(
         .map(|s| s.trim())
         .filter(|s| !s.is_empty())
         .unwrap_or("__global__");
-    format!(
-        "{}:{}:{}",
-        source_module.trim(),
-        event_type.trim(),
-        ent
-    )
+    format!("{}:{}:{}", source_module.trim(), event_type.trim(), ent)
 }
 
 fn find_correlated_open_incident(
@@ -778,7 +780,11 @@ pub fn resolve_incident(
 }
 
 /// Record automatic recovery against open incidents tied to this job (via alert entity_id).
-pub fn record_recovery_healing(conn: &Connection, job_id: &str, details: &Value) -> Result<(), String> {
+pub fn record_recovery_healing(
+    conn: &Connection,
+    job_id: &str,
+    details: &Value,
+) -> Result<(), String> {
     let mut stmt = conn
         .prepare(
             "SELECT i.incident_id FROM workflow_incidents i
@@ -843,11 +849,9 @@ fn cleanup_expired_forecast_actions(conn: &Connection) -> Result<(), String> {
 /// Keep the newest 1000 forecast rows; when over capacity, drop oldest. Otherwise drop rows older than 90 days.
 fn retain_recent_forecasts(conn: &Connection) -> Result<(), String> {
     let total: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM workflow_failure_forecast",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     if total > 1000 {
         let remove_n = total - 1000;
@@ -984,11 +988,9 @@ fn generate_system_integrity_snapshot(conn: &Connection) -> Result<(), String> {
         .query_row("SELECT COUNT(*) FROM workflow_incidents", [], |r| r.get(0))
         .unwrap_or(0);
     let forecasts: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM workflow_failure_forecast",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let suppressions: i64 = conn
         .query_row(
@@ -1520,8 +1522,7 @@ pub fn apply_incident_suppression_to_critical_alert(
             |r| r.get(0),
         )
         .unwrap_or_else(|_| "{}".into());
-    let mut det: Value =
-        serde_json::from_str(&prev).unwrap_or_else(|_| json!({}));
+    let mut det: Value = serde_json::from_str(&prev).unwrap_or_else(|_| json!({}));
     if let Some(o) = det.as_object_mut() {
         o.insert("incidentSuppressed".into(), json!(true));
         o.insert("suppressionId".into(), json!(&sid));
@@ -1823,15 +1824,16 @@ pub fn detect_stabilization_phase(conn: &Connection) -> Result<i64, String> {
         if let Some((sid, _start)) = find_open_stabilization_row(conn, &sm, &et)? {
             if quiet >= confirm_need {
                 let dur = quiet.round() as i64;
-                let u = conn.execute(
-                    "UPDATE workflow_incident_stabilization
+                let u = conn
+                    .execute(
+                        "UPDATE workflow_incident_stabilization
                      SET stabilization_confirmed = ?1,
                          stability_duration_minutes = ?2,
                          confidence_score = ?3
                      WHERE stabilization_id = ?4 AND stabilization_confirmed IS NULL",
-                    params![&ts, dur, conf, &sid],
-                )
-                .map_err(|e| e.to_string())?;
+                        params![&ts, dur, conf, &sid],
+                    )
+                    .map_err(|e| e.to_string())?;
                 if u == 0 {
                     continue;
                 }
@@ -1902,7 +1904,9 @@ pub fn detect_stabilization_phase(conn: &Connection) -> Result<i64, String> {
                     conn,
                     iid,
                     "STABILIZATION_STARTED",
-                    Some("Stabilization phase detected: no CRITICAL/FATAL in scope for quiet period"),
+                    Some(
+                        "Stabilization phase detected: no CRITICAL/FATAL in scope for quiet period",
+                    ),
                     &json!({
                         "stabilizationId": &sid,
                         "correlationId": &corr,
@@ -1915,15 +1919,16 @@ pub fn detect_stabilization_phase(conn: &Connection) -> Result<i64, String> {
             }
             if quiet >= confirm_need {
                 let dur = quiet.round() as i64;
-                let u2 = conn.execute(
-                    "UPDATE workflow_incident_stabilization
+                let u2 = conn
+                    .execute(
+                        "UPDATE workflow_incident_stabilization
                      SET stabilization_confirmed = ?1,
                          stability_duration_minutes = ?2,
                          confidence_score = ?3
                      WHERE stabilization_id = ?4 AND stabilization_confirmed IS NULL",
-                    params![&ts, dur, conf, &sid],
-                )
-                .map_err(|e| e.to_string())?;
+                        params![&ts, dur, conf, &sid],
+                    )
+                    .map_err(|e| e.to_string())?;
                 if u2 == 0 {
                     continue;
                 }
@@ -2395,12 +2400,7 @@ pub fn maybe_record_regression_from_structured_event(
                AND datetime(s.stabilization_confirmed) >= datetime('now', ?3)
                AND trim(upper(prev.status)) = 'RESOLVED'
                AND trim(prev.correlation_key) = trim(?4)",
-            params![
-                module.trim(),
-                event_type.trim(),
-                &window,
-                corr_key.trim(),
-            ],
+            params![module.trim(), event_type.trim(), &window, corr_key.trim(),],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)),
         )
         .optional()
@@ -2408,7 +2408,8 @@ pub fn maybe_record_regression_from_structured_event(
     let Some((stab_id, stab_conf_ts, prev_iid, stab_corr_id)) = stab else {
         return Ok(());
     };
-    let incident_id = if let Some(iid) = find_any_open_incident_by_correlation_key(conn, &corr_key)? {
+    let incident_id = if let Some(iid) = find_any_open_incident_by_correlation_key(conn, &corr_key)?
+    {
         iid
     } else {
         create_incident_from_structured_failure(
@@ -2577,11 +2578,7 @@ fn refresh_persistence_risk_score_row(conn: &Connection) -> Result<(), String> {
         )
         .unwrap_or(0);
     let tot: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM workflow_incidents",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM workflow_incidents", [], |r| r.get(0))
         .unwrap_or(1);
     let risk = (ptot as f64) / (tot.max(1) as f64);
     conn.execute(
@@ -2860,7 +2857,8 @@ pub fn compute_failure_trend(
 
     let c_last24h = count_failure_like_recent(conn, source_module, event_type, 24 * 60)?;
     let c_prev24 = count_failure_like_bounded(conn, source_module, event_type, 48 * 60, 24 * 60)?;
-    let med_slope = ((c_last24h as f64 / 24.0) - (c_prev24 as f64 / 24.0)) / (exp_per_10m * 6.0).max(0.01);
+    let med_slope =
+        ((c_last24h as f64 / 24.0) - (c_prev24 as f64 / 24.0)) / (exp_per_10m * 6.0).max(0.01);
     let medium_term_slope = med_slope;
     let med_w = norm_weight_from_ratio(med_slope);
 
@@ -2878,7 +2876,12 @@ pub fn compute_failure_trend(
     })
 }
 
-fn count_regressions_scope_recent(conn: &Connection, sm: &str, et: &str, hours: i64) -> Result<i64, String> {
+fn count_regressions_scope_recent(
+    conn: &Connection,
+    sm: &str,
+    et: &str,
+    hours: i64,
+) -> Result<i64, String> {
     let w = format!("-{hours} hours");
     let n: i64 = conn
         .query_row(
@@ -2892,7 +2895,12 @@ fn count_regressions_scope_recent(conn: &Connection, sm: &str, et: &str, hours: 
     Ok(n)
 }
 
-fn count_persistence_scope_recent(conn: &Connection, sm: &str, et: &str, hours: i64) -> Result<i64, String> {
+fn count_persistence_scope_recent(
+    conn: &Connection,
+    sm: &str,
+    et: &str,
+    hours: i64,
+) -> Result<i64, String> {
     let w = format!("-{hours} hours");
     let n: i64 = conn
         .query_row(
@@ -2912,8 +2920,7 @@ fn forecast_confidence_breakdown(baseline: f64, c60: i64, c24: i64, c7d: i64) ->
         ((exp_per_10m * 6.0) + (exp_per_10m * 144.0) + (exp_per_10m * 1008.0)).ceil() as i64;
     let max_expected_points = max_expected.max(24).min(50_000);
     let data_points_used = c60.saturating_add(c24).saturating_add(c7d);
-    let confidence =
-        ((data_points_used as f64) / (max_expected_points as f64)).clamp(0.01, 0.99);
+    let confidence = ((data_points_used as f64) / (max_expected_points as f64)).clamp(0.01, 0.99);
     (confidence, data_points_used, max_expected_points)
 }
 
@@ -2927,12 +2934,7 @@ fn dominant_forecast_factor(slope_w: f64, reg_w: f64, per_w: f64) -> &'static st
     }
 }
 
-fn build_forecast_trend_summary(
-    c_last30: i64,
-    c_prev30: i64,
-    reg_n: i64,
-    per_n: i64,
-) -> String {
+fn build_forecast_trend_summary(c_last30: i64, c_prev30: i64, reg_n: i64, per_n: i64) -> String {
     let mut parts: Vec<String> = Vec::new();
     if c_prev30 > 0 {
         let ratio = (c_last30 as f64) / (c_prev30 as f64);
@@ -3225,11 +3227,9 @@ fn try_emit_forecast_risk_escalation(
 fn refresh_forecast_risk_score_row(conn: &Connection) -> Result<(), String> {
     let ts = now_ts();
     let tot: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM workflow_failure_forecast",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let hi: i64 = conn
         .query_row(
@@ -3305,13 +3305,7 @@ fn validate_forecast_accuracy(conn: &Connection) -> Result<(f64, f64), String> {
         .map_err(|e| e.to_string())?;
     let rows: Vec<(String, String, String, f64, i64)> = stmt
         .query_map(params![&y], |r| {
-            Ok((
-                r.get(0)?,
-                r.get(1)?,
-                r.get(2)?,
-                r.get(3)?,
-                r.get(4)?,
-            ))
+            Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?))
         })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
@@ -3434,11 +3428,9 @@ fn refresh_forecast_explanation_score_row(conn: &Connection) -> Result<(), Strin
         )
         .unwrap_or(0);
     let tot: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM workflow_forecast_feedback",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM workflow_forecast_feedback", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let score = (acc as f64) / (tot.max(1) as f64);
     conn.execute(
@@ -3452,7 +3444,10 @@ fn refresh_forecast_explanation_score_row(conn: &Connection) -> Result<(), Strin
 fn collect_forecast_scope_pairs(conn: &Connection) -> Result<Vec<(String, String)>, String> {
     use std::collections::HashSet;
     let mut pairs: HashSet<(String, String)> = HashSet::new();
-    pairs.insert(("job_monitor".to_string(), "BACKGROUND_JOB_FAILURE".to_string()));
+    pairs.insert((
+        "job_monitor".to_string(),
+        "BACKGROUND_JOB_FAILURE".to_string(),
+    ));
     let mut s1 = conn
         .prepare(
             "SELECT DISTINCT trim(module), trim(event_type) FROM workflow_structured_event_log
@@ -3546,11 +3541,8 @@ pub fn detect_failure_forecasts(conn: &Connection) -> Result<i64, String> {
             continue;
         }
         let fid = Uuid::new_v4().to_string();
-        let primary_trigger = dominant_forecast_factor(
-            trend.slope_weight,
-            regression_weight,
-            persistence_weight,
-        );
+        let primary_trigger =
+            dominant_forecast_factor(trend.slope_weight, regression_weight, persistence_weight);
         let c_last30 = count_failure_like_recent(conn, &sm, &et, 30)?;
         let c_prev30 = count_failure_like_bounded(conn, &sm, &et, 60, 30)?;
         let trend_summary = build_forecast_trend_summary(c_last30, c_prev30, reg_n, per_n);
@@ -3561,24 +3553,17 @@ pub fn detect_failure_forecasts(conn: &Connection) -> Result<i64, String> {
             "medium_term_slope": trend.medium_term_slope,
             "long_term_slope": trend.long_term_slope,
         });
-        let actions_list = generate_recommended_actions(
-            primary_trigger,
-            &secondary_core,
-            sm.trim(),
-            et.trim(),
-        );
+        let actions_list =
+            generate_recommended_actions(primary_trigger, &secondary_core, sm.trim(), et.trim());
         let actions_arr = json!(actions_list);
-        let recommended_actions_json = serde_json::to_string(&actions_arr).map_err(|e| e.to_string())?;
+        let recommended_actions_json =
+            serde_json::to_string(&actions_arr).map_err(|e| e.to_string())?;
         let _: Vec<String> = serde_json::from_str(&recommended_actions_json)
             .map_err(|e| format!("recommended_actions_json invalid: {e}"))?;
         let action_priority = forecast_action_priority(prob_store);
         debug_assert_valid_forecast_action_priority(action_priority);
-        let bullets = forecast_explanation_bullets(
-            primary_trigger,
-            reg_n,
-            per_n,
-            trend.short_term_slope,
-        );
+        let bullets =
+            forecast_explanation_bullets(primary_trigger, reg_n, per_n, trend.short_term_slope);
         let secondary_triggers = json!({
             "recent_regressions": reg_n,
             "recent_persistence": per_n,
@@ -4102,8 +4087,9 @@ fn derive_root_cause_hint(
         || blob.contains("deadlock")
     {
         return RootCauseRefinement {
-            hint: "Database contention likely — review long transactions, locks, and pool saturation"
-                .into(),
+            hint:
+                "Database contention likely — review long transactions, locks, and pool saturation"
+                    .into(),
             classification: "database_lock".into(),
             confidence_score: 0.86,
         };
@@ -4149,8 +4135,9 @@ fn derive_root_cause_hint(
         };
     }
     RootCauseRefinement {
-        hint: "Systemic spike across the window — cross-check dependent services and platform health"
-            .into(),
+        hint:
+            "Systemic spike across the window — cross-check dependent services and platform health"
+                .into(),
         classification: "unknown".into(),
         confidence_score: 0.62,
     }
@@ -4410,7 +4397,8 @@ pub fn scan_systemic_failure_bursts(conn: &Connection) -> Result<i64, String> {
     let mut out = 0i64;
     let (jc, jmin, jmax) = counts_job_failures_window(conn)?;
     if jc >= 5 {
-        let baseline = compute_baseline_failure_rate(conn, "job_monitor", "BACKGROUND_JOB_FAILURE")?;
+        let baseline =
+            compute_baseline_failure_rate(conn, "job_monitor", "BACKGROUND_JOB_FAILURE")?;
         if let Some(_) = detect_failure_burst(
             conn,
             "job_monitor",
@@ -4581,10 +4569,7 @@ fn get_operations_center_dashboard_inner(conn: &Connection) -> Result<Value, Str
                     |r| r.get(0),
                 )
                 .unwrap_or(0);
-            obj.insert(
-                "resolutionRecommended".into(),
-                json!(rec_n > 0),
-            );
+            obj.insert("resolutionRecommended".into(), json!(rec_n > 0));
         }
         active.push(base);
     }
@@ -4713,8 +4698,7 @@ fn get_operations_center_dashboard_inner(conn: &Connection) -> Result<Value, Str
     let systemic_bursts: Vec<Value> = stmt_burst
         .query_map([], |r| {
             let details_s: String = r.get(11)?;
-            let details: Value =
-                serde_json::from_str(&details_s).unwrap_or_else(|_| json!({}));
+            let details: Value = serde_json::from_str(&details_s).unwrap_or_else(|_| json!({}));
             Ok(json!({
                 "burstId": r.get::<_, String>(0)?,
                 "sourceModule": r.get::<_, String>(1)?,
@@ -4828,15 +4812,7 @@ fn get_operations_center_dashboard_inner(conn: &Connection) -> Result<Value, Str
              LIMIT 20",
         )
         .map_err(|e| e.to_string())?;
-    let stab_raw: Vec<(
-        String,
-        String,
-        String,
-        String,
-        Option<String>,
-        f64,
-        i64,
-    )> = stmt_stab
+    let stab_raw: Vec<(String, String, String, String, Option<String>, f64, i64)> = stmt_stab
         .query_map([], |r| {
             Ok((
                 r.get(0)?,
@@ -5396,7 +5372,9 @@ pub fn export_workflow_incidents_report_csv(conn: &Connection) -> Result<String,
             esc(&j),
         ));
     }
-    out.push_str("\nhistory\nhistory_id,incident_id,event_type,event_timestamp,notes,details_json\n");
+    out.push_str(
+        "\nhistory\nhistory_id,incident_id,event_type,event_timestamp,notes,details_json\n",
+    );
     let mut h = conn
         .prepare(
             "SELECT history_id, incident_id, event_type, event_timestamp, COALESCE(notes,''), details_json
@@ -5826,8 +5804,12 @@ pub fn debug_trigger_failure(
         let aid_old = Uuid::new_v4().to_string();
         let t_resolve = now_ts();
         let ent_prev = format!("fc-reg-{}", Uuid::new_v4());
-        let corr_prev =
-            compute_incident_correlation_key(sm, "BACKGROUND_JOB_FAILURE", Some(ent_prev.as_str()), &t_resolve);
+        let corr_prev = compute_incident_correlation_key(
+            sm,
+            "BACKGROUND_JOB_FAILURE",
+            Some(ent_prev.as_str()),
+            &t_resolve,
+        );
         let rc = "p".repeat(60);
         let ctx_prev = json!({
             "message": "debug forecast prior resolved",
@@ -5902,8 +5884,12 @@ pub fn debug_trigger_failure(
         let sm = "job_monitor";
         let ent_open = format!("explain-fc-{}", Uuid::new_v4());
         let t0 = now_ts();
-        let corr_open =
-            compute_incident_correlation_key(sm, "BACKGROUND_JOB_FAILURE", Some(ent_open.as_str()), &t0);
+        let corr_open = compute_incident_correlation_key(
+            sm,
+            "BACKGROUND_JOB_FAILURE",
+            Some(ent_open.as_str()),
+            &t0,
+        );
         let open_iid = Uuid::new_v4().to_string();
         let open_corr = Uuid::new_v4().to_string();
         let link_id = Uuid::new_v4().to_string();
@@ -5956,8 +5942,12 @@ pub fn debug_trigger_failure(
         let aid_old = Uuid::new_v4().to_string();
         let t_resolve = now_ts();
         let ent_prev = format!("fc-exp-reg-{}", Uuid::new_v4());
-        let corr_prev =
-            compute_incident_correlation_key(sm, "BACKGROUND_JOB_FAILURE", Some(ent_prev.as_str()), &t_resolve);
+        let corr_prev = compute_incident_correlation_key(
+            sm,
+            "BACKGROUND_JOB_FAILURE",
+            Some(ent_prev.as_str()),
+            &t_resolve,
+        );
         let rc = "q".repeat(60);
         let ctx_prev = json!({
             "message": "debug explainable forecast prior resolved",
@@ -6064,7 +6054,8 @@ pub fn debug_trigger_failure(
         let aid_old = Uuid::new_v4().to_string();
         let t_resolve = now_ts();
         let ent_prev = format!("persist-prev-{}", Uuid::new_v4());
-        let corr_prev = compute_incident_correlation_key(sm, evt, Some(ent_prev.as_str()), &t_resolve);
+        let corr_prev =
+            compute_incident_correlation_key(sm, evt, Some(ent_prev.as_str()), &t_resolve);
         let rc = "z".repeat(60);
         let ctx_prev = json!({
             "message": "debug persistent prior resolved",
@@ -6206,7 +6197,14 @@ pub fn debug_trigger_failure(
     )
     .map_err(|e| e.to_string())?;
     let _ = maybe_promote_alert_to_incident(
-        conn, &aid, sig, sev, Some("debug"), msg, &details, module,
+        conn,
+        &aid,
+        sig,
+        sev,
+        Some("debug"),
+        msg,
+        &details,
+        module,
     )?;
     Ok(json!({ "ok": true, "alertId": aid, "mode": mode }))
 }
@@ -6326,7 +6324,10 @@ pub fn start_manual_incident_suppression_command(
         event_type.trim(),
         window_minutes,
         &reason,
-        incident_id.as_deref().map(str::trim).filter(|s| !s.is_empty()),
+        incident_id
+            .as_deref()
+            .map(str::trim)
+            .filter(|s| !s.is_empty()),
     )
 }
 
@@ -6351,12 +6352,7 @@ pub fn resolve_workflow_incident_command(
 ) -> Result<(), String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    resolve_incident(
-        &conn,
-        incident_id.trim(),
-        &root_cause_summary,
-        false,
-    )
+    resolve_incident(&conn, incident_id.trim(), &root_cause_summary, false)
 }
 
 #[tauri::command]
@@ -6478,11 +6474,7 @@ mod workflow_readiness_cert {
         let et = "BACKGROUND_JOB_FAILURE";
         for i in 0..1002 {
             let fid = format!("fc-ret-{i}");
-            let fts = format!(
-                "2020-01-01 {:02}:{:02}:00",
-                (i / 60) % 24,
-                i % 60
-            );
+            let fts = format!("2020-01-01 {:02}:{:02}:00", (i / 60) % 24, i % 60);
             conn.execute(
                 "INSERT INTO workflow_failure_forecast (forecast_id, source_module, event_type, forecast_time, predicted_failure_probability, confidence_score, forecast_horizon_minutes, details_json, primary_trigger, secondary_triggers_json, trend_summary, recommended_actions_json, action_priority)
                  VALUES (?1, ?2, ?3, ?4, 0.7, 0.5, 30, '{}', 'slope_weight', '{}', '', '[]', 'MEDIUM')",
@@ -6491,12 +6483,16 @@ mod workflow_readiness_cert {
             .expect("seed forecast");
         }
         let total: i64 = conn
-            .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(total, 1002);
         refresh_incident_daily_metrics(&conn).expect("refresh");
         let after: i64 = conn
-            .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| r.get(0))
+            .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert!(
             after <= 1000,
@@ -6571,11 +6567,9 @@ mod workflow_readiness_cert {
             .query_row("SELECT COUNT(*) FROM workflow_incidents", [], |r| r.get(0))
             .unwrap();
         let fc: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM workflow_failure_forecast",
-                [],
-                |r| r.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM workflow_failure_forecast", [], |r| {
+                r.get(0)
+            })
             .unwrap();
         assert_eq!(v["incidentCount"].as_i64().unwrap(), inc);
         assert_eq!(v["forecastCount"].as_i64().unwrap(), fc);
@@ -6647,7 +6641,10 @@ mod workflow_readiness_cert {
                 |r| r.get(0),
             )
             .unwrap_or(0);
-        assert!(ps >= 1, "expected PREVENTIVE_SUCCESS when ack in window and no failures");
+        assert!(
+            ps >= 1,
+            "expected PREVENTIVE_SUCCESS when ack in window and no failures"
+        );
     }
 
     #[test]

@@ -15,13 +15,7 @@ pub struct InvoiceCalculationSettings {
 }
 
 fn sanitize_decimals(value: Option<String>) -> u8 {
-    match value
-        .as_deref()
-        .unwrap_or("")
-        .trim()
-        .parse::<u8>()
-        .ok()
-    {
+    match value.as_deref().unwrap_or("").trim().parse::<u8>().ok() {
         Some(0) => 0,
         Some(2) => 2,
         _ => DEFAULT_DECIMALS,
@@ -82,13 +76,7 @@ fn ensure_command_permission(
     if actor.eq_ignore_ascii_case("system") || actor.eq_ignore_ascii_case("scheduler") {
         return Ok(());
     }
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![actor],
-            |row| row.get(0),
-        )
-        .map_err(|_| "Permission denied: user role not configured.".to_string())?;
+    let role = crate::security::resolve_role_strict(db, actor)?;
     if role_allows_permission(&role, permission) {
         Ok(())
     } else {
@@ -188,8 +176,8 @@ mod tests {
     fn invoice_calculation_settings_accept_zero_and_two() {
         let conn = setup_conn();
 
-        let updated = write_invoice_calculation_settings(&conn, 0, 2)
-            .expect("write settings should succeed");
+        let updated =
+            write_invoice_calculation_settings(&conn, 0, 2).expect("write settings should succeed");
         assert_eq!(updated.line_total_decimals, 0);
         assert_eq!(updated.invoice_total_decimals, 2);
 
@@ -203,8 +191,8 @@ mod tests {
     fn invoice_calculation_settings_reject_invalid_values() {
         let conn = setup_conn();
 
-        let err = write_invoice_calculation_settings(&conn, 1, 2)
-            .expect_err("line decimals=1 must fail");
+        let err =
+            write_invoice_calculation_settings(&conn, 1, 2).expect_err("line decimals=1 must fail");
         assert!(err.contains("line_total_decimals"));
 
         let err = write_invoice_calculation_settings(&conn, 2, 3)

@@ -53,13 +53,7 @@ fn ensure_command_permission(
     if actor.eq_ignore_ascii_case("scheduler") || actor.eq_ignore_ascii_case("system") {
         return Ok(());
     }
-    let role: String = db
-        .query_row(
-            "SELECT role FROM user_roles WHERE user_id = ?",
-            params![actor],
-            |row| row.get(0),
-        )
-        .map_err(|_| "Permission denied: user role not configured.".to_string())?;
+    let role = crate::security::resolve_role_strict(db, actor)?;
     if role_allows_permission(&role, permission) {
         Ok(())
     } else {
@@ -727,7 +721,9 @@ fn get_deleted_paged_all_tables_no_search(
             d_q
         );
         let mut stmt = conn.prepare(&q).map_err(|e| e.to_string())?;
-        let mut rows = stmt.query(params![needed as i64]).map_err(|e| e.to_string())?;
+        let mut rows = stmt
+            .query(params![needed as i64])
+            .map_err(|e| e.to_string())?;
         while let Some(row) = rows.next().map_err(|e| e.to_string())? {
             merged.push(DeletedRecordItem {
                 table: table.clone(),
@@ -867,7 +863,12 @@ pub async fn get_deleted_records(
         let end = (start + page_size as usize).min(all.len());
         all[start..end].to_vec()
     };
-    Ok(GetDeletedRecordsResponse { total, page, page_size, items })
+    Ok(GetDeletedRecordsResponse {
+        total,
+        page,
+        page_size,
+        items,
+    })
 }
 
 fn table_has_column(conn: &Connection, table: &str, col: &str) -> Result<bool, String> {

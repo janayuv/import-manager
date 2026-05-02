@@ -4,14 +4,14 @@ use crate::commands::dashboard_cache;
 use crate::commands::deployment_safety::{
     prod_safety_enforcement_enabled, record_risk_timeline, validate_deployment_safety,
 };
+use crate::commands::workflow_automation::{log_automation, log_workflow_rule_change};
+use crate::commands::workflow_multienv::{
+    active_tenant_id, default_version_environment_id, log_environment_deployment,
+};
 use crate::commands::workflow_production_observability::{
     bump_workflow_runtime_metric, insert_workflow_alert_signal, log_structured_event,
     record_performance_timing, RuntimeMetricDelta,
 };
-use crate::commands::workflow_multienv::{
-    active_tenant_id, default_version_environment_id, log_environment_deployment,
-};
-use crate::commands::workflow_automation::{log_automation, log_workflow_rule_change};
 use crate::db::DbState;
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
@@ -86,7 +86,11 @@ fn stable_hash_pct(case_id: &str) -> u32 {
 }
 
 /// When a canary is ACTIVE for `rule_id`, only `sample_size_percentage` of cases pass (deterministic by case id).
-pub fn canary_allows_case_for_rule(conn: &Connection, rule_id: &str, case_id: &str) -> Result<bool, String> {
+pub fn canary_allows_case_for_rule(
+    conn: &Connection,
+    rule_id: &str,
+    case_id: &str,
+) -> Result<bool, String> {
     let tid = active_tenant_id(conn);
     let row: Option<(f64, String)> = conn
         .query_row(
@@ -209,7 +213,11 @@ pub fn deployment_simulation_attachment(
     }))
 }
 
-fn row_to_definition_value(conn: &Connection, rule_id: &str, tenant_id: &str) -> Result<Value, String> {
+fn row_to_definition_value(
+    conn: &Connection,
+    rule_id: &str,
+    tenant_id: &str,
+) -> Result<Value, String> {
     conn.query_row(
         "SELECT rule_name, rule_type, condition_expression, action_type, priority, enabled
          FROM workflow_decision_rules WHERE rule_id = ?1 AND tenant_id = ?2",
@@ -248,10 +256,7 @@ fn apply_definition_to_live_rule(
         .get("conditionExpression")
         .and_then(|x| x.as_str())
         .unwrap_or("{}");
-    let at = def
-        .get("actionType")
-        .and_then(|x| x.as_str())
-        .unwrap_or("");
+    let at = def.get("actionType").and_then(|x| x.as_str()).unwrap_or("");
     let pr = def.get("priority").and_then(|x| x.as_i64()).unwrap_or(0);
     let en = def.get("enabled").and_then(|x| x.as_i64()).unwrap_or(1);
     let ts = now_local();
@@ -287,7 +292,9 @@ fn ensure_approval(conn: &Connection, rule_id: &str, version_id: &str) -> Result
         )
         .unwrap_or(0);
     if ok == 0 {
-        return Err("deployment requires APPROVED workflow_rule_approvals row for this version".into());
+        return Err(
+            "deployment requires APPROVED workflow_rule_approvals row for this version".into(),
+        );
     }
     Ok(())
 }
@@ -326,8 +333,10 @@ pub fn validate_rule_deployment_readiness(
     } else {
         checks.push(json!({"name": "approval", "passed": true, "note": "approval not required"}));
     }
-    if require_governance && meta_get(conn, "workflow_deploy_simulation_gate_enabled").trim() == "1" {
-        let sim_ok = meta_get(conn, "workflow_last_deploy_simulation_ok_version_id").trim() == version_id;
+    if require_governance && meta_get(conn, "workflow_deploy_simulation_gate_enabled").trim() == "1"
+    {
+        let sim_ok =
+            meta_get(conn, "workflow_last_deploy_simulation_ok_version_id").trim() == version_id;
         ok &= sim_ok;
         checks.push(json!({
             "name": "simulationGate",
@@ -517,7 +526,8 @@ pub fn deploy_rule_version(
                     "BLOCKED_SAFETY",
                     &safety,
                 );
-                let _ = bump_workflow_runtime_metric(conn, RuntimeMetricDelta::DeploymentsBlocked, 1);
+                let _ =
+                    bump_workflow_runtime_metric(conn, RuntimeMetricDelta::DeploymentsBlocked, 1);
                 let _ = insert_workflow_alert_signal(
                     conn,
                     "DEPLOYMENT_BLOCKED",
@@ -543,7 +553,9 @@ pub fn deploy_rule_version(
                     dep_ms,
                     &json!({ "ruleId": rule_id, "result": "REJECTED_SAFETY" }),
                 );
-                return Err(format!("deployment blocked by automatic safety gate: {safety}"));
+                return Err(format!(
+                    "deployment blocked by automatic safety gate: {safety}"
+                ));
             }
             let _ = record_risk_timeline(
                 conn,
@@ -656,7 +668,9 @@ pub fn deploy_rule_version(
             let _ = record_risk_timeline(
                 conn,
                 s.get("risk_score").and_then(|x| x.as_f64()).unwrap_or(0.0),
-                s.get("risk_level").and_then(|x| x.as_str()).unwrap_or("LOW"),
+                s.get("risk_level")
+                    .and_then(|x| x.as_str())
+                    .unwrap_or("LOW"),
                 &environment_id,
                 &tenant_id,
                 rule_id,
@@ -1038,52 +1052,53 @@ pub fn list_workflow_rule_staging(
 ) -> Result<Vec<WorkflowRuleStagingRow>, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let rows: Vec<WorkflowRuleStagingRow> =
-        if let Some(r) = rule_id.filter(|s| !s.trim().is_empty()) {
-            let mut stmt = conn
+    let rows: Vec<WorkflowRuleStagingRow> = if let Some(r) =
+        rule_id.filter(|s| !s.trim().is_empty())
+    {
+        let mut stmt = conn
                 .prepare(
                     "SELECT staging_id, rule_id, version_id, staging_environment, created_at, status
              FROM workflow_rule_staging WHERE rule_id = ?1 ORDER BY datetime(created_at) DESC LIMIT 200",
                 )
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map(params![&r], |row| {
-                    Ok(WorkflowRuleStagingRow {
-                        staging_id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        staging_environment: row.get(3)?,
-                        created_at: row.get(4)?,
-                        status: row.get(5)?,
-                    })
+        let mapped = stmt
+            .query_map(params![&r], |row| {
+                Ok(WorkflowRuleStagingRow {
+                    staging_id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    staging_environment: row.get(3)?,
+                    created_at: row.get(4)?,
+                    status: row.get(5)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        } else {
-            let mut stmt = conn
-                .prepare(
-                    "SELECT staging_id, rule_id, version_id, staging_environment, created_at, status
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        let mut stmt = conn
+            .prepare(
+                "SELECT staging_id, rule_id, version_id, staging_environment, created_at, status
              FROM workflow_rule_staging ORDER BY datetime(created_at) DESC LIMIT 200",
-                )
-                .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map([], |row| {
-                    Ok(WorkflowRuleStagingRow {
-                        staging_id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        staging_environment: row.get(3)?,
-                        created_at: row.get(4)?,
-                        status: row.get(5)?,
-                    })
+            )
+            .map_err(|e| e.to_string())?;
+        let mapped = stmt
+            .query_map([], |row| {
+                Ok(WorkflowRuleStagingRow {
+                    staging_id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    staging_environment: row.get(3)?,
+                    created_at: row.get(4)?,
+                    status: row.get(5)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        };
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
     Ok(rows)
 }
 
@@ -1136,56 +1151,57 @@ pub fn list_workflow_rule_approvals(
 ) -> Result<Vec<WorkflowRuleApprovalRow>, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let rows: Vec<WorkflowRuleApprovalRow> =
-        if let Some(r) = rule_id.filter(|s| !s.trim().is_empty()) {
-            let mut stmt = conn
+    let rows: Vec<WorkflowRuleApprovalRow> = if let Some(r) =
+        rule_id.filter(|s| !s.trim().is_empty())
+    {
+        let mut stmt = conn
                 .prepare(
                     "SELECT approval_id, rule_id, version_id, approved_by, approval_status, COALESCE(approval_time,''), requested_by, created_at
              FROM workflow_rule_approvals WHERE rule_id = ?1 ORDER BY datetime(created_at) DESC LIMIT 200",
                 )
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map(params![&r], |row| {
-                    Ok(WorkflowRuleApprovalRow {
-                        approval_id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        approved_by: row.get(3)?,
-                        approval_status: row.get(4)?,
-                        approval_time: row.get(5)?,
-                        requested_by: row.get(6)?,
-                        created_at: row.get(7)?,
-                    })
+        let mapped = stmt
+            .query_map(params![&r], |row| {
+                Ok(WorkflowRuleApprovalRow {
+                    approval_id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    approved_by: row.get(3)?,
+                    approval_status: row.get(4)?,
+                    approval_time: row.get(5)?,
+                    requested_by: row.get(6)?,
+                    created_at: row.get(7)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        } else {
-            let mut stmt = conn
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        let mut stmt = conn
                 .prepare(
                     "SELECT approval_id, rule_id, version_id, approved_by, approval_status, COALESCE(approval_time,''), requested_by, created_at
              FROM workflow_rule_approvals ORDER BY datetime(created_at) DESC LIMIT 200",
                 )
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map([], |row| {
-                    Ok(WorkflowRuleApprovalRow {
-                        approval_id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        approved_by: row.get(3)?,
-                        approval_status: row.get(4)?,
-                        approval_time: row.get(5)?,
-                        requested_by: row.get(6)?,
-                        created_at: row.get(7)?,
-                    })
+        let mapped = stmt
+            .query_map([], |row| {
+                Ok(WorkflowRuleApprovalRow {
+                    approval_id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    approved_by: row.get(3)?,
+                    approval_status: row.get(4)?,
+                    approval_time: row.get(5)?,
+                    requested_by: row.get(6)?,
+                    created_at: row.get(7)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        };
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
     Ok(rows)
 }
 
@@ -1263,57 +1279,58 @@ pub fn list_workflow_rule_deployment_log(
 ) -> Result<Vec<WorkflowRuleDeploymentLogRow>, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let lim = limit.unwrap_or(100).max(1).min(500);
-    let rows: Vec<WorkflowRuleDeploymentLogRow> =
-        if let Some(r) = rule_id.filter(|s| !s.trim().is_empty()) {
-            let mut stmt = conn
+    let lim = limit.unwrap_or(100).clamp(1, 500);
+    let rows: Vec<WorkflowRuleDeploymentLogRow> = if let Some(r) =
+        rule_id.filter(|s| !s.trim().is_empty())
+    {
+        let mut stmt = conn
                 .prepare(&format!(
                     "SELECT deployment_id, rule_id, version_id, deployed_by, deployment_status, deployment_time, rollback_flag, details_json
              FROM workflow_rule_deployment_log WHERE rule_id = ?1 ORDER BY datetime(deployment_time) DESC LIMIT {lim}"
                 ))
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map(params![&r], |row| {
-                    Ok(WorkflowRuleDeploymentLogRow {
-                        deployment_id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        deployed_by: row.get(3)?,
-                        deployment_status: row.get(4)?,
-                        deployment_time: row.get(5)?,
-                        rollback_flag: row.get(6)?,
-                        details_json: row.get(7)?,
-                    })
+        let mapped = stmt
+            .query_map(params![&r], |row| {
+                Ok(WorkflowRuleDeploymentLogRow {
+                    deployment_id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    deployed_by: row.get(3)?,
+                    deployment_status: row.get(4)?,
+                    deployment_time: row.get(5)?,
+                    rollback_flag: row.get(6)?,
+                    details_json: row.get(7)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        } else {
-            let mut stmt = conn
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        let mut stmt = conn
                 .prepare(&format!(
                     "SELECT deployment_id, rule_id, version_id, deployed_by, deployment_status, deployment_time, rollback_flag, details_json
              FROM workflow_rule_deployment_log ORDER BY datetime(deployment_time) DESC LIMIT {lim}"
                 ))
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map([], |row| {
-                    Ok(WorkflowRuleDeploymentLogRow {
-                        deployment_id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        deployed_by: row.get(3)?,
-                        deployment_status: row.get(4)?,
-                        deployment_time: row.get(5)?,
-                        rollback_flag: row.get(6)?,
-                        details_json: row.get(7)?,
-                    })
+        let mapped = stmt
+            .query_map([], |row| {
+                Ok(WorkflowRuleDeploymentLogRow {
+                    deployment_id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    deployed_by: row.get(3)?,
+                    deployment_status: row.get(4)?,
+                    deployment_time: row.get(5)?,
+                    rollback_flag: row.get(6)?,
+                    details_json: row.get(7)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        };
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
     Ok(rows)
 }
 
@@ -1388,7 +1405,8 @@ pub fn list_canary_rule_deployments(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1447,59 +1465,60 @@ pub fn list_rule_deployment_impact_metrics(
 ) -> Result<Vec<RuleDeploymentImpactRow>, String> {
     require_view(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
-    let lim = limit.unwrap_or(60).max(1).min(300);
-    let rows: Vec<RuleDeploymentImpactRow> =
-        if let Some(r) = rule_id.filter(|s| !s.trim().is_empty()) {
-            let mut stmt = conn
+    let lim = limit.unwrap_or(60).clamp(1, 300);
+    let rows: Vec<RuleDeploymentImpactRow> = if let Some(r) =
+        rule_id.filter(|s| !s.trim().is_empty())
+    {
+        let mut stmt = conn
                 .prepare(&format!(
                     "SELECT id, rule_id, version_id, snapshot_at, failure_rate, cost_units_delta, resolution_gain_delta, execution_count, factors_json
              FROM rule_deployment_impact_metrics WHERE rule_id = ?1 ORDER BY snapshot_at DESC LIMIT {lim}"
                 ))
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map(params![&r], |row| {
-                    Ok(RuleDeploymentImpactRow {
-                        id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        snapshot_at: row.get(3)?,
-                        failure_rate: row.get(4)?,
-                        cost_units_delta: row.get(5)?,
-                        resolution_gain_delta: row.get(6)?,
-                        execution_count: row.get(7)?,
-                        factors_json: row.get(8)?,
-                    })
+        let mapped = stmt
+            .query_map(params![&r], |row| {
+                Ok(RuleDeploymentImpactRow {
+                    id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    snapshot_at: row.get(3)?,
+                    failure_rate: row.get(4)?,
+                    cost_units_delta: row.get(5)?,
+                    resolution_gain_delta: row.get(6)?,
+                    execution_count: row.get(7)?,
+                    factors_json: row.get(8)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        } else {
-            let mut stmt = conn
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    } else {
+        let mut stmt = conn
                 .prepare(&format!(
                     "SELECT id, rule_id, version_id, snapshot_at, failure_rate, cost_units_delta, resolution_gain_delta, execution_count, factors_json
              FROM rule_deployment_impact_metrics ORDER BY snapshot_at DESC LIMIT {lim}"
                 ))
                 .map_err(|e| e.to_string())?;
-            let mapped = stmt
-                .query_map([], |row| {
-                    Ok(RuleDeploymentImpactRow {
-                        id: row.get(0)?,
-                        rule_id: row.get(1)?,
-                        version_id: row.get(2)?,
-                        snapshot_at: row.get(3)?,
-                        failure_rate: row.get(4)?,
-                        cost_units_delta: row.get(5)?,
-                        resolution_gain_delta: row.get(6)?,
-                        execution_count: row.get(7)?,
-                        factors_json: row.get(8)?,
-                    })
+        let mapped = stmt
+            .query_map([], |row| {
+                Ok(RuleDeploymentImpactRow {
+                    id: row.get(0)?,
+                    rule_id: row.get(1)?,
+                    version_id: row.get(2)?,
+                    snapshot_at: row.get(3)?,
+                    failure_rate: row.get(4)?,
+                    cost_units_delta: row.get(5)?,
+                    resolution_gain_delta: row.get(6)?,
+                    execution_count: row.get(7)?,
+                    factors_json: row.get(8)?,
                 })
-                .map_err(|e| e.to_string())?;
-            mapped
-                .collect::<Result<Vec<_>, _>>()
-                .map_err(|e| e.to_string())?
-        };
+            })
+            .map_err(|e| e.to_string())?;
+        mapped
+            .collect::<Result<Vec<_>, _>>()
+            .map_err(|e| e.to_string())?
+    };
     Ok(rows)
 }
 
@@ -1512,8 +1531,7 @@ pub fn refresh_rule_deployment_impact_metrics(
     require_mutate(&caller_role)?;
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     let tid = active_tenant_id(&conn);
-    let vid: Option<String> =
-        active_version_id_for_rule(&conn, &rule_id, &tid, "env-prod")?;
+    let vid: Option<String> = active_version_id_for_rule(&conn, &rule_id, &tid, "env-prod")?;
     let Some(version_id) = vid else {
         return Ok(());
     };
@@ -1812,10 +1830,8 @@ pub fn generate_deployment_safety_audit_report_command(
                 "details": serde_json::from_str::<Value>(&r.get::<_, String>(5)?).unwrap_or(Value::Null),
             }))
         }) {
-            for row in rows {
-                if let Ok(v) = row {
-                    timeline.push(v);
-                }
+            for v in rows.flatten() {
+                timeline.push(v);
             }
         }
     }
@@ -1831,10 +1847,8 @@ pub fn generate_deployment_safety_audit_report_command(
                 "details": serde_json::from_str::<Value>(&r.get::<_, String>(2)?).unwrap_or(Value::Null),
             }))
         }) {
-            for row in rows {
-                if let Ok(v) = row {
-                    conflicts.push(v);
-                }
+            for v in rows.flatten() {
+                conflicts.push(v);
             }
         }
     }
@@ -1879,7 +1893,9 @@ pub fn list_deployment_conflict_log_command(
             }))
         })
         .map_err(|e| e.to_string())?;
-    mapped.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    mapped
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1913,7 +1929,9 @@ pub fn list_deployment_risk_timeline_command(
             }))
         })
         .map_err(|e| e.to_string())?;
-    mapped.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    mapped
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]

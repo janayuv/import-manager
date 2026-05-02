@@ -38,6 +38,10 @@ interface ResponsiveDataTableProps<TData, TValue> {
   moduleName?: string;
   /** Extra row classes (e.g. exception highlighting). */
   rowClassName?: (row: Row<TData>) => string | undefined;
+  virtualizeRows?: boolean;
+  isRowExpanded?: (row: Row<TData>) => boolean;
+  onRowExpandToggle?: (row: Row<TData>) => void;
+  renderExpandedRow?: (row: Row<TData>) => React.ReactNode;
 }
 
 export function ResponsiveDataTable<TData, TValue>({
@@ -54,6 +58,10 @@ export function ResponsiveDataTable<TData, TValue>({
   statusActions,
   moduleName,
   rowClassName,
+  virtualizeRows = true,
+  isRowExpanded,
+  onRowExpandToggle,
+  renderExpandedRow,
 }: ResponsiveDataTableProps<TData, TValue>) {
   const { settings } = useSettings();
   const { isSmallScreen, getTableClass, getInputClass, getTextClass } =
@@ -61,6 +69,28 @@ export function ResponsiveDataTable<TData, TValue>({
 
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = React.useState('');
+  const [searchInput, setSearchInput] = React.useState('');
+  const [scrollTop, setScrollTop] = React.useState(0);
+  const [viewportHeight, setViewportHeight] = React.useState(480);
+  const scrollRef = React.useRef<HTMLDivElement>(null);
+  const rowHeight = 56;
+  const overscan = 8;
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setGlobalFilter(searchInput);
+    }, 300);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  React.useEffect(() => {
+    const node = scrollRef.current;
+    if (!node) return;
+    const update = () => setViewportHeight(node.clientHeight || 480);
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
 
   // Filter columns based on module settings and screen size
   const visibleColumns = columns.filter(column => {
@@ -157,6 +187,28 @@ export function ResponsiveDataTable<TData, TValue>({
     };
   };
 
+  const allRows = table.getRowModel().rows;
+  const shouldVirtualize = virtualizeRows && allRows.length > 25;
+  const startIndex = shouldVirtualize
+    ? Math.max(0, Math.floor(scrollTop / rowHeight) - overscan)
+    : 0;
+  const visibleCount = shouldVirtualize
+    ? Math.ceil(viewportHeight / rowHeight) + overscan * 2
+    : allRows.length;
+  const endIndex = shouldVirtualize
+    ? Math.min(allRows.length, startIndex + visibleCount)
+    : allRows.length;
+  const visibleRows = allRows.slice(startIndex, endIndex);
+  const topSpacer = shouldVirtualize ? startIndex * rowHeight : 0;
+  const bottomSpacer = shouldVirtualize
+    ? Math.max(0, (allRows.length - endIndex) * rowHeight)
+    : 0;
+
+  const hasExpandableRows = Boolean(
+    renderExpandedRow && isRowExpanded && onRowExpandToggle
+  );
+  const expandedColSpan = visibleColumns.length + (hasExpandableRows ? 1 : 0);
+
   return (
     <div className={`w-full space-y-6 ${className}`}>
       {/* Enhanced Search and Controls Section */}
@@ -168,8 +220,8 @@ export function ResponsiveDataTable<TData, TValue>({
                 <div className="relative">
                   <Input
                     placeholder={searchPlaceholder}
-                    value={globalFilter ?? ''}
-                    onChange={event => setGlobalFilter(event.target.value)}
+                    value={searchInput}
+                    onChange={event => setSearchInput(event.target.value)}
                     className={`h-10 w-full pl-10 sm:w-80 ${getInputClass()}`}
                   />
                   <div className="text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 transform">
@@ -200,11 +252,18 @@ export function ResponsiveDataTable<TData, TValue>({
 
       {/* Professional Table Container */}
       <div className="bg-card w-full overflow-hidden rounded-lg border shadow-sm">
-        <div className="w-full overflow-x-auto">
+        <div
+          ref={scrollRef}
+          className="max-h-[560px] w-full overflow-auto"
+          onScroll={e => setScrollTop(e.currentTarget.scrollTop)}
+        >
           <Table className={getTableClass()}>
             <TableHeader className="border-b bg-accent">
               {table.getHeaderGroups().map(headerGroup => (
                 <TableRow key={headerGroup.id} className="hover:bg-transparent">
+                  {hasExpandableRows ? (
+                    <TableHead className="w-[44px] px-2 py-4" />
+                  ) : null}
                   {headerGroup.headers.map(header => {
                     const columnStyle = getColumnStyle(header.id);
                     return (
@@ -226,35 +285,90 @@ export function ResponsiveDataTable<TData, TValue>({
               ))}
             </TableHeader>
             <TableBody>
-              {table.getRowModel().rows?.length ? (
-                table.getRowModel().rows.map((row, index) => (
-                  <TableRow
-                    key={row.id}
-                    className={`hover:bg-muted/50 transition-colors ${
-                      index % 2 === 0 ? 'bg-card' : 'bg-muted/20'
-                    } ${rowClassName?.(row) ?? ''}`}
-                  >
-                    {row.getVisibleCells().map(cell => {
-                      const columnStyle = getColumnStyle(cell.column.id);
-                      return (
-                        <TableCell
-                          key={cell.id}
-                          className={`${getTextClass('sm')} border-b px-4 py-4`}
-                          style={columnStyle}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext()
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))
+              {allRows.length ? (
+                <>
+                  {topSpacer > 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={expandedColSpan}
+                        style={{
+                          height: `${topSpacer}px`,
+                          padding: 0,
+                          border: 'none',
+                        }}
+                      />
+                    </TableRow>
+                  )}
+                  {visibleRows.map((row, index) => (
+                    <React.Fragment key={row.id}>
+                      <TableRow
+                        className={`hover:bg-muted/50 transition-colors ${
+                          (startIndex + index) % 2 === 0
+                            ? 'bg-card'
+                            : 'bg-muted/20'
+                        } ${rowClassName?.(row) ?? ''}`}
+                      >
+                        {hasExpandableRows ? (
+                          <TableCell className="border-b px-2 py-2">
+                            <button
+                              type="button"
+                              className="bg-background hover:bg-muted h-7 w-7 rounded border text-xs"
+                              onClick={() => onRowExpandToggle?.(row)}
+                              aria-label={
+                                isRowExpanded?.(row)
+                                  ? 'Collapse row'
+                                  : 'Expand row'
+                              }
+                            >
+                              {isRowExpanded?.(row) ? '-' : '+'}
+                            </button>
+                          </TableCell>
+                        ) : null}
+                        {row.getVisibleCells().map(cell => {
+                          const columnStyle = getColumnStyle(cell.column.id);
+                          return (
+                            <TableCell
+                              key={cell.id}
+                              className={`${getTextClass('sm')} border-b px-4 py-4`}
+                              style={columnStyle}
+                            >
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext()
+                              )}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                      {hasExpandableRows && isRowExpanded?.(row) ? (
+                        <TableRow className="bg-muted/30">
+                          <TableCell
+                            colSpan={expandedColSpan}
+                            className="px-4 py-3"
+                          >
+                            {renderExpandedRow?.(row)}
+                          </TableCell>
+                        </TableRow>
+                      ) : null}
+                    </React.Fragment>
+                  ))}
+                  {bottomSpacer > 0 && (
+                    <TableRow>
+                      <TableCell
+                        colSpan={expandedColSpan}
+                        style={{
+                          height: `${bottomSpacer}px`,
+                          padding: 0,
+                          border: 'none',
+                        }}
+                      />
+                    </TableRow>
+                  )}
+                </>
               ) : (
                 <TableRow>
                   <TableCell
-                    colSpan={visibleColumns.length}
+                    colSpan={expandedColSpan}
                     className={`h-32 text-center ${getTextClass()} text-muted-foreground`}
                   >
                     <div className="flex flex-col items-center gap-2">

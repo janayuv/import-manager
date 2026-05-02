@@ -1,7 +1,14 @@
+import { invoke } from '@tauri-apps/api/core';
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-import { getCurrentUser } from './auth';
-import type { User } from './auth';
+import {
+  getCurrentUser,
+  setAuthenticated,
+  userFromDesktopSession,
+  type DesktopSessionInfo,
+  type User,
+} from './auth';
+import { isTauriEnvironment } from './tauri-bridge';
 
 interface UserContextType {
   user: User | null;
@@ -23,8 +30,24 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    refreshUser();
-    setIsLoading(false);
+    void (async () => {
+      if (isTauriEnvironment) {
+        try {
+          const session = await invoke<DesktopSessionInfo | null>(
+            'get_desktop_session'
+          );
+          if (session) {
+            setAuthenticated(true, userFromDesktopSession(session));
+          } else {
+            setAuthenticated(false);
+          }
+        } catch {
+          setAuthenticated(false);
+        }
+      }
+      refreshUser();
+      setIsLoading(false);
+    })();
   }, []);
 
   return (

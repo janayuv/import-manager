@@ -133,9 +133,22 @@ test.describe('UI data integrity (import vs export)', () => {
     await expectPageMarker(page, 'Shipment Management');
 
     const content = appContent(page);
-    await expect(content.getByText('Showing 1 of 1 shipments')).toBeVisible({
-      timeout: 20_000,
+    const beforeCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<unknown>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      const rows = await inv('get_shipments');
+      return rows.length;
     });
+    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
+      {
+        timeout: 20_000,
+      }
+    );
 
     await content.getByRole('button', { name: 'Import' }).click();
     await setFilesOnBridgeFileInput(page, shipmentValidCsv);
@@ -143,7 +156,7 @@ test.describe('UI data integrity (import vs export)', () => {
       timeout: 20_000,
     });
 
-    const expectedTotal = 1 + importRows.length;
+    const expectedTotal = beforeCount + importRows.length;
     await expect(
       content.getByText(
         `Showing ${expectedTotal} of ${expectedTotal} shipments`

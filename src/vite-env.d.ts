@@ -16,6 +16,8 @@ declare module 'vite/client' {
      * for DeepSeek to align the "API key" warning in the UI.
      */
     readonly VITE_DEEPSEEK_API_CONFIGURED?: string;
+    /** Injected when `VITE_PLAYWRIGHT=1` (see `vite.config.ts`). */
+    readonly VITE_PLAYWRIGHT_E2E_PASSWORD?: string;
   }
 }
 

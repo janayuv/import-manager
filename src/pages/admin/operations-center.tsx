@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Link, Navigate } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
@@ -12,6 +12,7 @@ import {
   RefreshCw,
   Settings2,
   ShieldAlert,
+  Wrench,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -456,6 +457,39 @@ export default function OperationsCenterPage() {
           </Button>
         </div>
       </div>
+
+      {isAdmin ? (
+        <Card className="border-muted">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Platform maintenance</CardTitle>
+            <CardDescription>
+              Snapshot rebuild, diagnostics export, and health — centralized
+              entry points for admins.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" asChild>
+                <Link to="/admin/system-tools">
+                  <Wrench className="mr-1 size-4" />
+                  System tools
+                </Link>
+              </Button>
+              <Button variant="secondary" size="sm" asChild>
+                <Link to="/admin/system-health">System health</Link>
+              </Button>
+              <Button variant="secondary" size="sm" asChild>
+                <Link to="/admin/automation-center">Automation center</Link>
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Diagnostics bundle: Help → Export diagnostics (audit permission).
+              Rebuilds and exports are recorded in User activity with
+              correlation IDs.
+            </p>
+          </CardContent>
+        </Card>
+      ) : null}
 
       {loading && (
         <div className="grid gap-4 md:grid-cols-4">

@@ -403,8 +403,16 @@ fn rebuild_exception_lifecycle_from_logs(conn: &Connection) -> Result<i64, Strin
             "resolvedAt": ra,
         })
         .to_string();
-        let ev = if st == "IGNORED" { "IGNORED" } else { "RESOLVED" };
-        let uid = if rb.is_empty() { None } else { Some(rb.as_str()) };
+        let ev = if st == "IGNORED" {
+            "IGNORED"
+        } else {
+            "RESOLVED"
+        };
+        let uid = if rb.is_empty() {
+            None
+        } else {
+            Some(rb.as_str())
+        };
         insert_lifecycle(conn, &cid, ev, uid, &det)?;
         n += 1;
     }
@@ -635,7 +643,7 @@ fn query_workflow_maintenance_history(
     conn: &Connection,
     limit: i64,
 ) -> Result<Vec<WorkflowMaintenanceHistoryRow>, String> {
-    let lim = limit.max(1).min(500);
+    let lim = limit.clamp(1, 500);
     let mut stmt = conn
         .prepare(&format!(
             "SELECT run_id, job_name, started_at, completed_at, status, records_processed, errors_detected
@@ -657,7 +665,8 @@ fn query_workflow_maintenance_history(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -676,7 +685,9 @@ pub fn get_workflow_maintenance_history(
 }
 
 #[tauri::command]
-pub fn run_recovery_readiness_check(state: State<DbState>) -> Result<RecoveryReadinessReport, String> {
+pub fn run_recovery_readiness_check(
+    state: State<DbState>,
+) -> Result<RecoveryReadinessReport, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     build_recovery_readiness_report(&conn)
 }
@@ -688,7 +699,9 @@ pub fn reconstruct_exception_lifecycle(state: State<DbState>) -> Result<i64, Str
 }
 
 #[tauri::command]
-pub fn get_reliability_diagnostics(state: State<DbState>) -> Result<ReliabilityDiagnostics, String> {
+pub fn get_reliability_diagnostics(
+    state: State<DbState>,
+) -> Result<ReliabilityDiagnostics, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     build_reliability_diagnostics(&conn)
 }
@@ -700,7 +713,9 @@ pub fn get_predictive_workflow_risk(state: State<DbState>) -> Result<PredictiveR
 }
 
 #[tauri::command]
-pub fn get_audit_verification_summary(state: State<DbState>) -> Result<AuditVerificationSummary, String> {
+pub fn get_audit_verification_summary(
+    state: State<DbState>,
+) -> Result<AuditVerificationSummary, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     build_audit_verification_summary(&conn)
 }

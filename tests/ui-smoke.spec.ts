@@ -3,14 +3,12 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+  loginAsAdmin,
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
   setFilesOnBridgeFileInput,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
-
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 const supplierFixture = path.join(
   process.cwd(),
@@ -49,15 +47,10 @@ function appContent(page: Page) {
 }
 
 async function login(page: Page) {
-  await page.goto('/login');
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  // Dashboard shows a loading skeleton until `invoke` calls settle (or fail in web-only).
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
+  await loginAsAdmin(page);
+  await expect(page.getByTestId('dashboard-page')).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 function sidebar(page: Page) {
