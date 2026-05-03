@@ -1,8 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 
-import { Bot, Gauge, HeartPulse, Wrench } from 'lucide-react';
+import { AlertCircle, Bot, Gauge, HeartPulse, Wrench } from 'lucide-react';
 
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
   TableBody,
@@ -46,7 +48,7 @@ export default function AdminAutomationCenterPage() {
   const bg = healthQ.data?.backgroundTaskDurations;
 
   return (
-    <div className="container mx-auto max-w-5xl space-y-6 p-6">
+    <div className="container mx-auto flex max-w-5xl flex-col gap-6 p-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
           Automation center
@@ -97,13 +99,31 @@ export default function AdminAutomationCenterPage() {
         </CardHeader>
         <CardContent>
           {healthQ.isLoading ? (
-            <p className="text-muted-foreground text-sm">Loading…</p>
+            <div
+              className="flex flex-col gap-2"
+              role="status"
+              aria-label="Loading background task timings"
+            >
+              {Array.from({ length: 7 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="flex items-center justify-between gap-4"
+                >
+                  <Skeleton className="h-4 w-40" />
+                  <Skeleton className="h-4 w-14 shrink-0" />
+                </div>
+              ))}
+            </div>
           ) : healthQ.isError ? (
-            <p className="text-destructive text-sm" role="alert">
-              {healthQ.error instanceof Error
-                ? healthQ.error.message
-                : String(healthQ.error)}
-            </p>
+            <Alert variant="destructive">
+              <AlertCircle />
+              <AlertTitle>Could not load system health</AlertTitle>
+              <AlertDescription>
+                {healthQ.error instanceof Error
+                  ? healthQ.error.message
+                  : String(healthQ.error)}
+              </AlertDescription>
+            </Alert>
           ) : (
             <Table>
               <TableHeader>
@@ -168,7 +188,7 @@ export default function AdminAutomationCenterPage() {
             Latest dashboard snapshot timestamps from system health (read-only).
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-2 text-sm">
+        <CardContent className="flex flex-col gap-2 text-sm">
           <p>
             <span className="text-muted-foreground">Latest snapshot row: </span>
             {healthQ.data?.lastSnapshotTime ?? '—'}

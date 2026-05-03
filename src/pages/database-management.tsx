@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -39,19 +38,7 @@ import {
 } from '@/components/ui/dialog';
 import { Switch } from '@/components/ui/switch';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
   Database,
-  Shield,
-  Clock,
-  HardDrive,
-  Cloud,
   Download,
   Upload,
   CheckCircle,
@@ -60,10 +47,6 @@ import {
   Trash2,
   Edit3,
   AlertTriangle,
-  Plus,
-  Calendar,
-  Play,
-  Users,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -76,89 +59,38 @@ import {
 import { logError, logInfo } from '@/lib/logger';
 import { useCurrentUserId } from '@/lib/user-context';
 import { APP_TIMEZONE, formatAppDateTime } from '@/lib/app-timezone';
-
-interface DatabaseStats {
-  db_size_bytes: number;
-  table_counts: Record<string, number>;
-  last_backup?: string;
-  next_scheduled_backup?: string;
-  encryption_status: string;
-}
-
-interface BackupInfo {
-  id?: number;
-  filename: string;
-  path: string;
-  destination: string;
-  size_bytes?: number;
-  sha256?: string;
-  created_by?: string;
-  created_at: string;
-  retention_until?: string;
-  notes?: string;
-  status: string;
-  error_message?: string;
-  validation_status?: string | null;
-  validation_checked_at?: string | null;
-  validation_message?: string | null;
-  restore_simulation_status?: string | null;
-  restore_simulation_checked_at?: string | null;
-  restore_simulation_message?: string | null;
-}
-
-interface BackupHealthMetrics {
-  lastBackupTime?: string | null;
-  latestLocalBackupId?: number | null;
-  latestLocalBackupFilename?: string | null;
-  latestLocalBackupCreatedAt?: string | null;
-  latestLocalBackupSizeBytes?: number | null;
-  backupAgeHours?: number | null;
-  lastValidationStatus?: string | null;
-  lastValidationAt?: string | null;
-  lastRestoreSimulationStatus?: string | null;
-  lastRestoreSimulationAt?: string | null;
-  alerts: string[];
-  secondaryRedundancyEnabled: boolean;
-  secondaryRedundancyPath: string;
-  sizeTrendNote?: string | null;
-}
-
-interface BackupRedundancySettings {
-  enabled: boolean;
-  secondaryPath: string;
-}
-
-interface AuditLog {
-  id?: number;
-  table_name: string;
-  row_id?: string;
-  action: string;
-  user_id?: string;
-  before_json?: string;
-  after_json?: string;
-  metadata?: string;
-  created_at: string;
-}
-
-interface RestorePreview {
-  backup_info: BackupInfo;
-  current_db_stats: DatabaseStats;
-  /** Byte length of the backup file on disk at preview time */
-  backup_file_size_bytes: number;
-  /** Informational: (size MB × 0.02) s */
-  estimated_restore_seconds: number;
-  /** `missing` | `valid` | `invalid` */
-  checksum_status: string;
-  /** `null` = no SHA-256 in backups row; `true`/`false` = file vs. recorded */
-  recorded_hash_match: boolean | null;
-  integrity_check: string;
-  schema_compatibility: boolean;
-  embedded_migration_head_version: number;
-  backup_migration_max_version: number | null;
-  missing_core_tables: string[];
-  estimated_changes: Record<string, number>;
-  warnings: string[];
-}
+import {
+  DatabaseAuditTab,
+  DatabaseBackupRestoreTab,
+  DatabaseBrowseEditTab,
+  DatabaseBulkOperationsTab,
+  DatabaseOverviewTab,
+  DatabaseRolesTab,
+  DatabaseSchedulesTab,
+  DatabaseSettingsTab,
+  DatabaseSummaryStrip,
+} from '@/components/database';
+import type {
+  AuditLog,
+  BackupHealthMetrics,
+  BackupInfo,
+  BackupRedundancySettings,
+  BackupSchedule,
+  BulkManageableTable,
+  BulkSearchFilters,
+  DatabaseStats,
+  GoogleDriveStatus,
+  HardDeletePinSettings,
+  RestorePreview,
+  TableData,
+  UserRole,
+} from '@/components/database/types';
+import {
+  backupTypeLabel,
+  gdriveCloudBlocked,
+  isGdriveBackupPath,
+  normalizeGoogleDriveStatus,
+} from '@/components/database/backup-helpers';
 
 interface RestoreResult {
   success: boolean;
@@ -168,36 +100,11 @@ interface RestoreResult {
   tables_affected: string[];
 }
 
-interface TableData {
-  tableName: string;
-  columns: string[];
-  rows: Array<Array<unknown>>;
-  totalCount: number;
-  page: number;
-  pageSize: number;
-}
-
 interface UpdateResult {
   success: boolean;
   message: string;
   changes: Record<string, unknown>;
   audit_id?: number;
-}
-
-interface BackupSchedule {
-  id?: number;
-  name: string;
-  cron_expr?: string;
-  time_zone?: string;
-  destination: string;
-  retention_count?: number;
-  retention_days?: number;
-  enabled: boolean;
-  last_run?: string;
-  next_run?: string;
-  created_by?: string;
-  created_at: string;
-  notes?: string;
 }
 
 type SchedulePreset = 'daily' | 'weekly' | 'monthly' | 'custom';
@@ -255,14 +162,6 @@ function buildCronExpr(form: ScheduleFormState): string {
   return `${sec} ${m} ${h} * * *`;
 }
 
-interface GoogleDriveStatus {
-  configured: boolean;
-  connected: boolean;
-  /** not_configured | not_connected | connected */
-  state: string;
-  email?: string | null;
-}
-
 interface DriveTransferProgressPayload {
   phase: string;
   percent: number;
@@ -270,25 +169,6 @@ interface DriveTransferProgressPayload {
   totalBytes: number;
   attempt?: number;
   message?: string;
-}
-
-function normalizeGoogleDriveStatus(
-  raw: Partial<GoogleDriveStatus> | null | undefined
-): GoogleDriveStatus {
-  const configured = Boolean(raw?.configured);
-  const connected = Boolean(raw?.connected);
-  let state = raw?.state;
-  if (!state) {
-    if (!configured) state = 'not_configured';
-    else if (!connected) state = 'not_connected';
-    else state = 'connected';
-  }
-  return {
-    configured,
-    connected,
-    state,
-    email: raw?.email ?? null,
-  };
 }
 
 function invokeErrorMessage(err: unknown): string {
@@ -336,38 +216,6 @@ function parseGdriveErrorMessage(raw: string): string {
 
 function friendlyInvokeError(err: unknown): string {
   return parseGdriveErrorMessage(invokeErrorMessage(err));
-}
-
-function isGdriveBackupPath(path: string): boolean {
-  return path.startsWith('gdrive:');
-}
-
-function gdriveCloudBlocked(status: GoogleDriveStatus | null): boolean {
-  if (!status) return true;
-  return status.state === 'not_configured' || status.state === 'not_connected';
-}
-
-function gdriveStatusIndicator(status: GoogleDriveStatus | null): string {
-  if (!status) return '● Loading…';
-  if (status.state === 'not_configured') return '● Not Configured';
-  if (status.state === 'not_connected') return '● Not Connected';
-  return `● Connected${status.email ? ` (${status.email})` : ''}`;
-}
-
-function backupTypeLabel(backup: BackupInfo): 'Google Drive' | 'Local' {
-  return backup.destination === 'google_drive' ||
-    backup.path.startsWith('gdrive:')
-    ? 'Google Drive'
-    : 'Local';
-}
-
-interface UserRole {
-  id?: number;
-  user_id: string;
-  role: string;
-  permissions?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 interface BulkDeleteResult {
@@ -418,11 +266,6 @@ interface PreviewDeleteDependencies {
   scan_timed_out?: boolean;
 }
 
-interface BulkManageableTable {
-  name: string;
-  label: string;
-}
-
 interface HardDeleteImpactTableCount {
   table: string;
   records: number;
@@ -433,15 +276,6 @@ interface HardDeleteImpactPreview {
   root_records: number;
   total_with_dependencies: number;
   by_table: HardDeleteImpactTableCount[];
-}
-
-interface HardDeletePinSettings {
-  enabled: boolean;
-  threshold: number;
-  hasPin: boolean;
-  failedAttempts: number;
-  lockUntil: string | null;
-  lockActive: boolean;
 }
 
 interface HardDeletePinVerifyResult {
@@ -525,10 +359,6 @@ const DEFAULT_BULK_TABLE_OPTIONS: BulkManageableTable[] = [
 ];
 const LAST_SELECTED_BULK_TABLE_KEY = 'lastSelectedBulkTable';
 
-interface BulkSearchFilters {
-  [key: string]: unknown;
-}
-
 /** Coerce backend / IPC payloads so bulk UI never throws on missing arrays. */
 function normalizeTableData(
   raw: unknown,
@@ -564,41 +394,20 @@ function normalizeTableData(
   };
 }
 
-function formatBulkCell(cell: unknown): string {
-  if (cell === null || cell === undefined) return '';
-  if (typeof cell === 'object') {
-    try {
-      return JSON.stringify(cell);
-    } catch {
-      return '[object]';
-    }
+function databaseAuditActionIcon(action: string) {
+  switch (action) {
+    case 'backup':
+      return <Download className="h-4 w-4 text-blue-500" />;
+    case 'restore':
+      return <Upload className="h-4 w-4 text-green-500" />;
+    case 'delete':
+    case 'hard_delete':
+      return <Trash2 className="h-4 w-4 text-red-500" />;
+    case 'update':
+      return <Edit3 className="h-4 w-4 text-yellow-500" />;
+    default:
+      return <Database className="h-4 w-4 text-gray-500" />;
   }
-  return String(cell);
-}
-
-/** Avoids render crashes when stats exist but table_counts is missing or wrong shape. */
-function safeTableCounts(
-  stats: DatabaseStats | null | undefined
-): Record<string, number> {
-  const tc = stats?.table_counts;
-  if (!tc || typeof tc !== 'object' || Array.isArray(tc)) {
-    return {};
-  }
-  return tc as Record<string, number>;
-}
-
-function totalRecordsFromStats(
-  stats: DatabaseStats | null | undefined
-): number {
-  return Object.values(safeTableCounts(stats)).reduce(
-    (a, b) => a + (typeof b === 'number' && !Number.isNaN(b) ? b : 0),
-    0
-  );
-}
-
-function auditLogKey(log: AuditLog, index: number): string {
-  if (log.id != null) return String(log.id);
-  return `${log.created_at ?? 'unknown'}-${log.table_name ?? 'table'}-${log.row_id ?? index}`;
 }
 
 function DatabaseManagementContent() {
@@ -874,6 +683,26 @@ function DatabaseManagementContent() {
       toast.error('Failed to load backup history');
     }
   }, []);
+
+  const handleSaveRedundancySettings = useCallback(async () => {
+    setRedundancySaving(true);
+    try {
+      await invoke('set_backup_redundancy_settings', {
+        input: {
+          enabled: redundancyForm.enabled,
+          secondaryPath: redundancyForm.secondaryPath.trim(),
+        },
+        userId,
+      });
+      toast.success('Backup redundancy settings saved');
+      await loadDashboardData();
+    } catch (err) {
+      console.error(err);
+      toast.error('Could not save redundancy settings');
+    } finally {
+      setRedundancySaving(false);
+    }
+  }, [userId, redundancyForm, loadDashboardData]);
 
   const loadBulkManageableTables = useCallback(async () => {
     try {
@@ -2379,35 +2208,6 @@ function DatabaseManagementContent() {
     setSelectedRecords(newSelection);
   };
 
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'completed':
-        return <CheckCircle className="h-4 w-4 text-green-500" />;
-      case 'failed':
-        return <XCircle className="h-4 w-4 text-red-500" />;
-      case 'in_progress':
-        return <RefreshCw className="h-4 w-4 animate-spin text-blue-500" />;
-      default:
-        return <Clock className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
-  const getActionIcon = (action: string) => {
-    switch (action) {
-      case 'backup':
-        return <Download className="h-4 w-4 text-blue-500" />;
-      case 'restore':
-        return <Upload className="h-4 w-4 text-green-500" />;
-      case 'delete':
-      case 'hard_delete':
-        return <Trash2 className="h-4 w-4 text-red-500" />;
-      case 'update':
-        return <Edit3 className="h-4 w-4 text-yellow-500" />;
-      default:
-        return <Database className="h-4 w-4 text-gray-500" />;
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex h-96 items-center justify-center">
@@ -2446,115 +2246,13 @@ function DatabaseManagementContent() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Database Size</CardTitle>
-            <HardDrive className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats
-                ? formatBytes(Number(stats.db_size_bytes ?? 0))
-                : '0 Bytes'}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              {stats ? totalRecordsFromStats(stats) : 0} total records
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Last Backup</CardTitle>
-            <Download className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.last_backup
-                ? formatAppDateTime(stats.last_backup).split(' ')[0]
-                : 'Never'}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              {stats?.last_backup
-                ? formatAppDateTime(stats.last_backup).split(' ')[1]
-                : 'No backups yet'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Next Backup</CardTitle>
-            <Clock className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              {stats?.next_scheduled_backup
-                ? formatAppDateTime(stats.next_scheduled_backup).split(' ')[0]
-                : 'None'}
-            </div>
-            <p className="text-muted-foreground text-xs">
-              {stats?.next_scheduled_backup
-                ? formatAppDateTime(stats.next_scheduled_backup).split(' ')[1]
-                : 'No schedules'}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Security</CardTitle>
-            <Shield className="text-muted-foreground h-4 w-4" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">
-              <Badge
-                variant={
-                  stats?.encryption_status === 'Encrypted' ||
-                  stats?.encryption_status === 'AES-256 Enabled'
-                    ? 'default'
-                    : 'secondary'
-                }
-              >
-                {stats?.encryption_status || 'None'}
-              </Badge>
-            </div>
-            <p className="text-muted-foreground text-xs">
-              Backups: AES-256-GCM (key in system keyring)
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void handleExportBackupKey();
-                }}
-                disabled={!isTauriEnvironment}
-                title="Save backup_key.imkey for disaster recovery or new PC"
-              >
-                <Download className="mr-1.5 h-3.5 w-3.5" />
-                Export Backup Key
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  void handleImportBackupKey();
-                }}
-                disabled={!isTauriEnvironment}
-                title="Restore a key you exported on another device"
-              >
-                <Upload className="mr-1.5 h-3.5 w-3.5" />
-                Import Backup Key
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <DatabaseSummaryStrip
+        stats={stats}
+        formatBytes={formatBytes}
+        isTauriEnvironment={isTauriEnvironment}
+        onExportBackupKey={handleExportBackupKey}
+        onImportBackupKey={handleImportBackupKey}
+      />
 
       {/* Main Content Tabs */}
       <Tabs
@@ -2574,1274 +2272,120 @@ function DatabaseManagementContent() {
         </TabsList>
 
         <TabsContent value="overview" className="space-y-4">
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Table Statistics */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Table Statistics</CardTitle>
-                <CardDescription>Record counts by table</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-2">
-                  {Object.entries(safeTableCounts(stats)).map(
-                    ([table, count]) => (
-                      <div
-                        key={table}
-                        className="flex items-center justify-between"
-                      >
-                        <span className="text-sm font-medium capitalize">
-                          {table.replace(/_/g, ' ')}
-                        </span>
-                        <Badge variant="outline">
-                          {(typeof count === 'number'
-                            ? count
-                            : 0
-                          ).toLocaleString()}
-                        </Badge>
-                      </div>
-                    )
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Recent Activity */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>Latest database operations</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {auditLogs.slice(0, 5).map((log, idx) => (
-                    <div
-                      key={auditLogKey(log, idx)}
-                      className="flex items-center space-x-3"
-                    >
-                      {getActionIcon(log.action)}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium">
-                          {log.action} on {log.table_name}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          {formatAppDateTime(log.created_at)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                  {auditLogs.length === 0 && (
-                    <p className="text-muted-foreground text-sm">
-                      No recent activity
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <DatabaseOverviewTab
+            stats={stats}
+            auditLogs={auditLogs}
+            renderActionIcon={databaseAuditActionIcon}
+          />
         </TabsContent>
 
         <TabsContent value="browse" className="space-y-4">
-          <div className="space-y-4">
-            {/* Table Selection and Controls */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Browse & Edit Records</CardTitle>
-                <CardDescription>
-                  Select a table to view and edit records
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap items-center gap-4">
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor="table-select">Table:</Label>
-                    <Select
-                      value={selectedTable}
-                      disabled={pinDialogOpen}
-                      onValueChange={handleBrowseTableChange}
-                    >
-                      <SelectTrigger className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bulkTableOptions.map(option => (
-                          <SelectItem key={option.name} value={option.name}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor="page-size">Page Size:</Label>
-                    <Select
-                      value={pageSize.toString()}
-                      onValueChange={value => setPageSize(Number(value))}
-                    >
-                      <SelectTrigger className="w-20">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="25">25</SelectItem>
-                        <SelectItem value="50">50</SelectItem>
-                        <SelectItem value="100">100</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="include-deleted"
-                      checked={includeDeleted}
-                      disabled={pinDialogOpen}
-                      onChange={e => setIncludeDeleted(e.target.checked)}
-                    />
-                    <Label htmlFor="include-deleted">Include Deleted</Label>
-                  </div>
-
-                  <Button
-                    onClick={() => void loadTableData()}
-                    variant="outline"
-                    size="sm"
-                    disabled={pinDialogOpen}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" />
-                    Refresh
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Data Table */}
-            {tableData &&
-              Array.isArray(tableData.columns) &&
-              Array.isArray(tableData.rows) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      {(tableData.tableName || '').charAt(0).toUpperCase() +
-                        (tableData.tableName || '').slice(1)}
-                      ({Number(tableData.totalCount ?? 0).toLocaleString()}{' '}
-                      records)
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            {tableData.columns.map(column => (
-                              <TableHead key={column}>
-                                {String(column).replace(/_/g, ' ')}
-                              </TableHead>
-                            ))}
-                            <TableHead>Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {tableData.rows.map((row, rowIndex) => {
-                            if (!Array.isArray(row)) return null;
-                            const recordId = row[0]?.toString() || '';
-                            const recordData: Record<string, unknown> = {};
-                            tableData.columns.forEach((column, colIndex) => {
-                              recordData[column] = row[colIndex];
-                            });
-
-                            return (
-                              <TableRow key={rowIndex}>
-                                {row.map((cell, cellIndex) => (
-                                  <TableCell key={cellIndex}>
-                                    {cell === null ? (
-                                      <span className="text-muted-foreground">
-                                        null
-                                      </span>
-                                    ) : typeof cell === 'string' &&
-                                      cell.length > 50 ? (
-                                      <span title={cell}>
-                                        {cell.substring(0, 50)}...
-                                      </span>
-                                    ) : (
-                                      cell?.toString() || ''
-                                    )}
-                                  </TableCell>
-                                ))}
-                                <TableCell>
-                                  <div className="flex space-x-1">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleEditRecord(recordId, recordData)
-                                      }
-                                    >
-                                      <Edit3 className="h-3 w-3" />
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleSoftDelete(recordId)}
-                                      className="text-orange-600 hover:text-orange-700"
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                            );
-                          })}
-                        </TableBody>
-                      </Table>
-                    </div>
-
-                    {/* Pagination */}
-                    <div className="mt-4 flex items-center justify-between">
-                      <div className="text-sm text-gray-600">
-                        Showing {(tableData.page - 1) * tableData.pageSize + 1}{' '}
-                        to{' '}
-                        {Math.min(
-                          tableData.page * tableData.pageSize,
-                          tableData.totalCount
-                        )}{' '}
-                        of {tableData.totalCount} records
-                      </div>
-                      <div className="flex space-x-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setCurrentPage(Math.max(1, currentPage - 1))
-                          }
-                          disabled={currentPage === 1}
-                        >
-                          Previous
-                        </Button>
-                        <span className="px-3 py-1 text-sm">
-                          Page {currentPage} of{' '}
-                          {Math.ceil(
-                            tableData.totalCount /
-                              Math.max(1, tableData.pageSize || 1)
-                          )}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setCurrentPage(currentPage + 1)}
-                          disabled={
-                            currentPage >=
-                            Math.ceil(
-                              tableData.totalCount /
-                                Math.max(1, tableData.pageSize || 1)
-                            )
-                          }
-                        >
-                          Next
-                        </Button>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-          </div>
+          <DatabaseBrowseEditTab
+            selectedTable={selectedTable}
+            bulkTableOptions={bulkTableOptions}
+            pinDialogOpen={pinDialogOpen}
+            onTableChange={handleBrowseTableChange}
+            pageSize={pageSize}
+            onPageSizeChange={setPageSize}
+            includeDeleted={includeDeleted}
+            onIncludeDeletedChange={setIncludeDeleted}
+            onRefreshTable={loadTableData}
+            tableData={tableData}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            onEditRecord={handleEditRecord}
+            onSoftDelete={handleSoftDelete}
+          />
         </TabsContent>
 
         <TabsContent value="bulk" className="space-y-4">
-          <div className="space-y-4">
-            {/* Bulk Search Filters */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Bulk Search & Delete</CardTitle>
-                <CardDescription>
-                  Search for multiple records and perform bulk operations
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {/* Table Selection */}
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center space-x-2">
-                    <Label htmlFor="bulk-table-select">Table:</Label>
-                    <Select
-                      value={selectedTable}
-                      disabled={bulkBulkControlsDisabled}
-                      onValueChange={handleBulkTableChange}
-                    >
-                      <SelectTrigger id="bulk-table-select" className="w-48">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {bulkTableOptions.map(option => (
-                          <SelectItem key={option.name} value={option.name}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="bulk-include-deleted"
-                      checked={includeDeleted}
-                      disabled={bulkBulkControlsDisabled}
-                      onCheckedChange={(checked: boolean) => {
-                        setIncludeDeleted(checked as boolean);
-                      }}
-                    />
-                    <Label htmlFor="bulk-include-deleted">
-                      Include Deleted
-                    </Label>
-                  </div>
-
-                  <Button
-                    onClick={() => void handleBulkSearch()}
-                    disabled={bulkBulkControlsDisabled}
-                    className="bg-blue-600 hover:bg-blue-700"
-                  >
-                    <RefreshCw
-                      className={`mr-2 h-4 w-4 ${bulkOperationInProgress ? 'animate-spin' : ''}`}
-                    />
-                    Search
-                  </Button>
-                </div>
-
-                {/* Search Filters */}
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label htmlFor="filter-name">Name Filter</Label>
-                    <Input
-                      id="filter-name"
-                      placeholder="Search by name..."
-                      value={String(bulkFilters.name ?? '')}
-                      disabled={bulkBulkControlsDisabled}
-                      onChange={e => {
-                        setBulkFilters(prev => ({
-                          ...prev,
-                          name: e.target.value || null,
-                        }));
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="filter-status">Status Filter</Label>
-                    <Input
-                      id="filter-status"
-                      placeholder="Search by status..."
-                      value={String(bulkFilters.status ?? '')}
-                      disabled={bulkBulkControlsDisabled}
-                      onChange={e => {
-                        setBulkFilters(prev => ({
-                          ...prev,
-                          status: e.target.value || null,
-                        }));
-                      }}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="filter-description">
-                      Description Filter
-                    </Label>
-                    <Input
-                      id="filter-description"
-                      placeholder="Search by description..."
-                      value={String(bulkFilters.description ?? '')}
-                      disabled={bulkBulkControlsDisabled}
-                      onChange={e => {
-                        setBulkFilters(prev => ({
-                          ...prev,
-                          description: e.target.value || null,
-                        }));
-                      }}
-                    />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Bulk Operations Results */}
-            {bulkSearchResults && (
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <CardTitle>Search Results</CardTitle>
-                      <CardDescription>
-                        Found {bulkSearchResults.totalCount} records
-                        {totalSelectedRecords > 0 &&
-                          ` • ${totalSelectedRecords} selected`}
-                      </CardDescription>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => void handleSelectAll()}
-                        disabled={bulkBulkControlsDisabled}
-                      >
-                        {selectAllActive || totalSelectedRecords > 0
-                          ? 'Deselect All'
-                          : 'Select All'}
-                      </Button>
-                      <div className="flex items-center space-x-2">
-                        <Label htmlFor="delete-type">Delete Type:</Label>
-                        <Select
-                          value={bulkDeleteType}
-                          disabled={bulkBulkControlsDisabled}
-                          onValueChange={(value: 'soft' | 'hard') =>
-                            setBulkDeleteType(value)
-                          }
-                        >
-                          <SelectTrigger id="delete-type" className="w-32">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="soft">Soft Delete</SelectItem>
-                            <SelectItem value="hard">Hard Delete</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={handleBulkDelete}
-                        disabled={
-                          totalSelectedRecords === 0 || bulkBulkControlsDisabled
-                        }
-                      >
-                        <Trash2 className="mr-2 h-4 w-4" />
-                        Delete Selected ({totalSelectedRecords})
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="overflow-x-auto">
-                    <table className="w-full border-collapse border border-gray-300">
-                      <thead>
-                        <tr className="bg-gray-50">
-                          <th className="border border-gray-300 px-3 py-2 text-left">
-                            <Checkbox
-                              checked={
-                                bulkSearchResults.totalCount > 0 &&
-                                totalSelectedRecords ===
-                                  bulkSearchResults.totalCount
-                              }
-                              disabled={bulkBulkControlsDisabled}
-                              onCheckedChange={() => void handleSelectAll()}
-                            />
-                          </th>
-                          {(Array.isArray(bulkSearchResults.columns)
-                            ? bulkSearchResults.columns
-                            : []
-                          ).map((column, index) => (
-                            <th
-                              key={index}
-                              className="border border-gray-300 px-3 py-2 text-left font-medium"
-                            >
-                              {column.charAt(0).toUpperCase() + column.slice(1)}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {(Array.isArray(bulkSearchResults.rows)
-                          ? bulkSearchResults.rows
-                          : []
-                        ).map((row, rowIndex) => {
-                          if (!Array.isArray(row)) return null;
-                          const recordId = row[0]?.toString() || '';
-                          return (
-                            <tr key={rowIndex} className="hover:bg-gray-50">
-                              <td className="border border-gray-300 px-3 py-2">
-                                <Checkbox
-                                  checked={
-                                    selectAllActive
-                                      ? !excludedRecordIds.has(recordId)
-                                      : selectedRecords.has(recordId)
-                                  }
-                                  disabled={bulkBulkControlsDisabled}
-                                  onCheckedChange={() =>
-                                    handleSelectRecord(recordId)
-                                  }
-                                />
-                              </td>
-                              {row.map((cell, cellIndex) => (
-                                <td
-                                  key={cellIndex}
-                                  className="border border-gray-300 px-3 py-2"
-                                >
-                                  {formatBulkCell(cell)}
-                                </td>
-                              ))}
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
+          <DatabaseBulkOperationsTab
+            selectedTable={selectedTable}
+            bulkTableOptions={bulkTableOptions}
+            bulkBulkControlsDisabled={bulkBulkControlsDisabled}
+            onBulkTableChange={handleBulkTableChange}
+            includeDeleted={includeDeleted}
+            onIncludeDeletedChange={setIncludeDeleted}
+            onBulkSearch={() => void handleBulkSearch()}
+            bulkOperationInProgress={bulkOperationInProgress}
+            bulkFilters={bulkFilters}
+            onBulkFiltersChange={setBulkFilters}
+            bulkSearchResults={bulkSearchResults}
+            totalSelectedRecords={totalSelectedRecords}
+            selectAllActive={selectAllActive}
+            excludedRecordIds={excludedRecordIds}
+            selectedRecords={selectedRecords}
+            bulkDeleteType={bulkDeleteType}
+            onBulkDeleteTypeChange={setBulkDeleteType}
+            onSelectAll={handleSelectAll}
+            onBulkDelete={handleBulkDelete}
+            onSelectRecord={handleSelectRecord}
+          />
         </TabsContent>
 
         <TabsContent value="backup" className="space-y-4">
-          {isPlaywrightBuild && (
-            <div className="sr-only">
-              <label htmlFor="database-restore-file-input">
-                Upload backup JSON for restore (Playwright)
-              </label>
-              <input
-                id="database-restore-file-input"
-                type="file"
-                accept=".json,application/json"
-                data-testid="database-restore-file-input"
-                onChange={e => void handlePlaywrightRestoreFileSelected(e)}
-              />
-            </div>
-          )}
-          <div className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Backup health</CardTitle>
-                <CardDescription>
-                  Last validation, restore simulation, and redundancy status
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {backupHealth &&
-                backupHealth.alerts &&
-                backupHealth.alerts.length > 0 ? (
-                  <Alert variant="destructive">
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      <ul className="list-inside list-disc text-sm">
-                        {backupHealth.alerts.map(a => (
-                          <li key={a}>{a}</li>
-                        ))}
-                      </ul>
-                    </AlertDescription>
-                  </Alert>
-                ) : null}
-                {backupHealth ? (
-                  <div className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
-                    <p>
-                      <span className="text-foreground font-medium">
-                        Last backup (metadata):{' '}
-                      </span>
-                      {backupHealth.lastBackupTime
-                        ? formatAppDateTime(backupHealth.lastBackupTime)
-                        : '—'}
-                    </p>
-                    <p>
-                      <span className="text-foreground font-medium">
-                        Latest local file:{' '}
-                      </span>
-                      {backupHealth.latestLocalBackupFilename ?? '—'}
-                    </p>
-                    <p>
-                      <span className="text-foreground font-medium">Age: </span>
-                      {backupHealth.backupAgeHours != null
-                        ? `${backupHealth.backupAgeHours.toFixed(1)} h`
-                        : '—'}
-                    </p>
-                    <p>
-                      <span className="text-foreground font-medium">
-                        Validation:{' '}
-                      </span>
-                      {backupHealth.lastValidationStatus ?? '—'}
-                      {backupHealth.lastValidationAt
-                        ? ` (${formatAppDateTime(backupHealth.lastValidationAt)})`
-                        : ''}
-                    </p>
-                    <p>
-                      <span className="text-foreground font-medium">
-                        Restore simulation:{' '}
-                      </span>
-                      {backupHealth.lastRestoreSimulationStatus ?? '—'}
-                      {backupHealth.lastRestoreSimulationAt
-                        ? ` (${formatAppDateTime(
-                            backupHealth.lastRestoreSimulationAt
-                          )})`
-                        : ''}
-                    </p>
-                    <p>
-                      <span className="text-foreground font-medium">
-                        Secondary folder:{' '}
-                      </span>
-                      {backupHealth.secondaryRedundancyEnabled
-                        ? backupHealth.secondaryRedundancyPath || '(path empty)'
-                        : 'off'}
-                    </p>
-                    {backupHealth.sizeTrendNote ? (
-                      <p className="text-amber-700 sm:col-span-2 dark:text-amber-400">
-                        <span className="font-medium">Size trend: </span>
-                        {backupHealth.sizeTrendNote}
-                      </p>
-                    ) : null}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Loading health metrics…
-                  </p>
-                )}
-                <div className="space-y-3 border-t pt-4">
-                  <h4 className="text-sm font-medium">
-                    Secondary backup folder
-                  </h4>
-                  <p className="text-muted-foreground text-xs">
-                    When enabled, each local backup is copied here and the
-                    folder is used if the primary AppData path cannot be
-                    prepared (disk full or permission).
-                  </p>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox
-                      id="secondary-enabled"
-                      checked={redundancyForm.enabled}
-                      onCheckedChange={v =>
-                        setRedundancyForm(prev => ({
-                          ...prev,
-                          enabled: v === true,
-                        }))
-                      }
-                      disabled={redundancySaving}
-                    />
-                    <Label htmlFor="secondary-enabled" className="font-normal">
-                      Enable secondary path
-                    </Label>
-                  </div>
-                  <Input
-                    placeholder="e.g. D:\ImportManagerBackup or \\server\share\im"
-                    value={redundancyForm.secondaryPath}
-                    onChange={e =>
-                      setRedundancyForm(prev => ({
-                        ...prev,
-                        secondaryPath: e.target.value,
-                      }))
-                    }
-                    disabled={redundancySaving}
-                  />
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={redundancySaving}
-                    onClick={() =>
-                      void (async () => {
-                        setRedundancySaving(true);
-                        try {
-                          await invoke('set_backup_redundancy_settings', {
-                            input: {
-                              enabled: redundancyForm.enabled,
-                              secondaryPath:
-                                redundancyForm.secondaryPath.trim(),
-                            },
-                            userId,
-                          });
-                          toast.success('Backup redundancy settings saved');
-                          await loadDashboardData();
-                        } catch (err) {
-                          console.error(err);
-                          toast.error('Could not save redundancy settings');
-                        } finally {
-                          setRedundancySaving(false);
-                        }
-                      })()
-                    }
-                  >
-                    {redundancySaving ? 'Saving…' : 'Save redundancy settings'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Create Backup */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Create Backup</CardTitle>
-                  <CardDescription>
-                    Create a new database backup
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {backupInProgress &&
-                    backupForm.destination !== 'google_drive' && (
-                      <Alert>
-                        <RefreshCw className="h-4 w-4 animate-spin" />
-                        <AlertDescription>
-                          Creating backup... {backupProgress}%
-                          <Progress value={backupProgress} className="mt-2" />
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                  {googleDriveStatus?.state === 'not_configured' && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Google Drive requires OAuth credentials at build time (
-                        <code className="text-xs">
-                          IMPORT_MANAGER_GOOGLE_CLIENT_ID
-                        </code>
-                        ). Local backups work without this.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-
-                  <div className="bg-muted/40 flex flex-col gap-2 rounded-lg border p-3">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-sm font-medium">
-                        <Cloud className="mr-1 inline h-4 w-4" />
-                        Google Drive
-                      </span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {googleDriveStatus?.state === 'connected' && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            title="Refresh account email"
-                            onClick={() => void handleRefreshGoogleProfile()}
-                          >
-                            <RefreshCw className="h-4 w-4" />
-                          </Button>
-                        )}
-                        {googleDriveStatus?.configured ? (
-                          googleDriveStatus.state === 'connected' ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => void handleDisconnectGoogleDrive()}
-                            >
-                              Disconnect
-                            </Button>
-                          ) : (
-                            <Button
-                              type="button"
-                              variant="secondary"
-                              size="sm"
-                              onClick={() => void handleConnectGoogleDrive()}
-                            >
-                              Connect
-                            </Button>
-                          )
-                        ) : null}
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium">
-                      {gdriveStatusIndicator(googleDriveStatus)}
-                    </p>
-                    <p className="text-muted-foreground text-xs">
-                      {googleDriveStatus?.state === 'not_configured'
-                        ? 'Not available in this build.'
-                        : googleDriveStatus?.state === 'connected'
-                          ? 'You can back up to Google Drive or restore from cloud backups below. Retry and cancel are shown during upload or download.'
-                          : 'Connect once to upload encrypted backups to your own Drive (app-created files only).'}
-                    </p>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div>
-                      <Label htmlFor="destination">Destination</Label>
-                      <Select
-                        value={backupForm.destination}
-                        onValueChange={value =>
-                          setBackupForm(prev => ({
-                            ...prev,
-                            destination: value,
-                          }))
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="local">Local Storage</SelectItem>
-                          <SelectItem value="google_drive">
-                            Google Drive
-                          </SelectItem>
-                          <SelectItem value="s3" disabled>
-                            AWS S3 (Coming Soon)
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div>
-                      <Label htmlFor="filename">Filename (optional)</Label>
-                      <Input
-                        id="filename"
-                        placeholder="Auto-generated if empty"
-                        value={backupForm.filename}
-                        onChange={e =>
-                          setBackupForm(prev => ({
-                            ...prev,
-                            filename: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor="notes">Notes</Label>
-                      <Textarea
-                        id="notes"
-                        placeholder="Optional backup notes"
-                        value={backupForm.notes}
-                        onChange={e =>
-                          setBackupForm(prev => ({
-                            ...prev,
-                            notes: e.target.value,
-                          }))
-                        }
-                      />
-                    </div>
-
-                    <Button
-                      onClick={handleBackupNow}
-                      disabled={
-                        backupInProgress ||
-                        (backupForm.destination === 'google_drive' &&
-                          gdriveCloudBlocked(googleDriveStatus))
-                      }
-                      className="w-full"
-                      useAccentColor
-                    >
-                      {backupInProgress ? (
-                        <>
-                          <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                          Creating Backup...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="mr-2 h-4 w-4" />
-                          Create Backup Now
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Backup History */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Backup History</CardTitle>
-                  <CardDescription>Recent database backups</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {backupHistory.map(backup => (
-                      <div
-                        key={backup.id ?? backup.path}
-                        className="flex items-center justify-between rounded-lg border p-3"
-                      >
-                        <div className="flex items-center space-x-3">
-                          {getStatusIcon(backup.status)}
-                          <div>
-                            <p className="text-sm font-medium">
-                              {backup.filename}
-                            </p>
-                            <p className="text-muted-foreground text-xs">
-                              Type: {backupTypeLabel(backup)}
-                            </p>
-                            {backupTypeLabel(backup) === 'Google Drive' && (
-                              <p className="text-muted-foreground text-xs">
-                                Google Drive file name: {backup.filename}
-                              </p>
-                            )}
-                            <p className="text-muted-foreground text-xs">
-                              {formatAppDateTime(backup.created_at)}
-                              {' • '}
-                              {backup.size_bytes != null
-                                ? formatBytes(backup.size_bytes)
-                                : 'Unknown size'}
-                            </p>
-                            {backup.destination === 'local' &&
-                            backup.validation_status != null &&
-                            backup.validation_status !== '' ? (
-                              <p className="text-muted-foreground text-xs">
-                                Validation: {backup.validation_status}
-                                {backup.validation_checked_at
-                                  ? ` • ${formatAppDateTime(backup.validation_checked_at)}`
-                                  : ''}
-                              </p>
-                            ) : null}
-                            {backup.destination === 'local' &&
-                            backup.restore_simulation_status != null &&
-                            backup.restore_simulation_status !== '' ? (
-                              <p className="text-muted-foreground text-xs">
-                                Restore test: {backup.restore_simulation_status}
-                                {backup.restore_simulation_checked_at
-                                  ? ` • ${formatAppDateTime(backup.restore_simulation_checked_at)}`
-                                  : ''}
-                              </p>
-                            ) : null}
-                          </div>
-                        </div>
-                        <div className="flex space-x-2">
-                          {isPlaywrightBuild && (
-                            <Button
-                              variant="secondary"
-                              size="sm"
-                              type="button"
-                              onClick={() =>
-                                void downloadPlaywrightBackupSnapshot(
-                                  backup.path
-                                )
-                              }
-                            >
-                              <Download className="mr-1 h-4 w-4" />
-                              Download snapshot
-                            </Button>
-                          )}
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleRestorePreview(backup.path)}
-                            disabled={backup.status !== 'completed'}
-                          >
-                            <Upload className="mr-1 h-4 w-4" />
-                            Preview Restore
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                    {backupHistory.length === 0 && (
-                      <p className="text-muted-foreground text-sm">
-                        No backups found
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </div>
+          <DatabaseBackupRestoreTab
+            isPlaywrightBuild={isPlaywrightBuild}
+            onPlaywrightRestoreFileChange={handlePlaywrightRestoreFileSelected}
+            backupHealth={backupHealth}
+            redundancyForm={redundancyForm}
+            setRedundancyForm={setRedundancyForm}
+            redundancySaving={redundancySaving}
+            onSaveRedundancySettings={handleSaveRedundancySettings}
+            backupInProgress={backupInProgress}
+            backupProgress={backupProgress}
+            backupForm={backupForm}
+            setBackupForm={setBackupForm}
+            googleDriveStatus={googleDriveStatus}
+            onRefreshGoogleProfile={handleRefreshGoogleProfile}
+            onDisconnectGoogleDrive={handleDisconnectGoogleDrive}
+            onConnectGoogleDrive={handleConnectGoogleDrive}
+            onBackupNow={handleBackupNow}
+            backupHistory={backupHistory}
+            formatBytes={formatBytes}
+            onRestorePreview={handleRestorePreview}
+            onDownloadPlaywrightSnapshot={downloadPlaywrightBackupSnapshot}
+          />
         </TabsContent>
 
         <TabsContent value="schedules" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Backup Schedules</h2>
-              <p className="text-muted-foreground">
-                Manage automated backup schedules
-              </p>
-            </div>
-            <Button onClick={openCreateSchedule} useAccentColor>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Schedule
-            </Button>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Active Schedules</CardTitle>
-              <CardDescription>
-                {backupSchedules.length} backup schedules configured
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {backupSchedules.length === 0 ? (
-                <div className="text-muted-foreground py-8 text-center">
-                  <Calendar className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>No backup schedules configured</p>
-                  <p className="text-sm">
-                    Create your first schedule to automate backups
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {backupSchedules.map(schedule => (
-                    <div
-                      key={schedule.id}
-                      className="flex items-center justify-between rounded-lg border p-4"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{schedule.name}</h3>
-                          <Badge
-                            variant={schedule.enabled ? 'default' : 'secondary'}
-                          >
-                            {schedule.enabled ? 'Enabled' : 'Disabled'}
-                          </Badge>
-                        </div>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          {schedule.cron_expr ?? '—'} •{' '}
-                          {schedule.destination === 'google_drive'
-                            ? 'Google Drive'
-                            : 'Local'}
-                        </p>
-                        <p className="text-muted-foreground text-xs">
-                          Last run:{' '}
-                          {schedule.last_run
-                            ? formatAppDateTime(schedule.last_run)
-                            : 'Never'}{' '}
-                          • Next run:{' '}
-                          {schedule.next_run
-                            ? formatAppDateTime(schedule.next_run)
-                            : 'Not set'}
-                        </p>
-                        {schedule.notes && (
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            {schedule.notes}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleRunSchedule(schedule.id!)}
-                        >
-                          <Play className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEditSchedule(schedule)}
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteSchedule(schedule.id!)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DatabaseSchedulesTab
+            backupSchedules={backupSchedules}
+            onCreateSchedule={openCreateSchedule}
+            onRunSchedule={handleRunSchedule}
+            onEditSchedule={openEditSchedule}
+            onDeleteSchedule={handleDeleteSchedule}
+          />
         </TabsContent>
 
         <TabsContent value="roles" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">User Roles</h2>
-              <p className="text-muted-foreground">
-                Manage user roles and permissions
-              </p>
-            </div>
-            <Button
-              onClick={() => toast.info('Role creation feature coming soon')}
-              useAccentColor
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Create Role
-            </Button>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>User Roles</CardTitle>
-              <CardDescription>
-                {userRoles.length} user roles configured
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {userRoles.length === 0 ? (
-                <div className="text-muted-foreground py-8 text-center">
-                  <Users className="mx-auto mb-4 h-12 w-12 opacity-50" />
-                  <p>No user roles configured</p>
-                  <p className="text-sm">
-                    Create roles to manage user permissions
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {userRoles.map(role => (
-                    <div
-                      key={role.id}
-                      className="flex items-center justify-between rounded-lg border p-4"
-                    >
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">{role.user_id}</h3>
-                          <Badge variant="outline">{role.role}</Badge>
-                        </div>
-                        <p className="text-muted-foreground mt-1 text-sm">
-                          Created:{' '}
-                          {new Date(role.created_at).toLocaleDateString()}
-                        </p>
-                        {role.permissions && (
-                          <p className="text-muted-foreground mt-1 text-xs">
-                            Custom permissions: {role.permissions}
-                          </p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() =>
-                            toast.info('Role editing feature coming soon')
-                          }
-                        >
-                          <Edit3 className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => handleDeleteRole(role.id!)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <DatabaseRolesTab
+            userRoles={userRoles}
+            onDeleteRole={handleDeleteRole}
+          />
         </TabsContent>
 
         <TabsContent value="audit" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Audit Trail</CardTitle>
-              <CardDescription>
-                Complete log of database operations
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {auditLogs.map((log, idx) => (
-                  <div
-                    key={auditLogKey(log, idx)}
-                    className="flex items-start space-x-3 rounded-lg border p-3"
-                  >
-                    {getActionIcon(log.action)}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center space-x-2">
-                        <Badge variant="outline" className="text-xs">
-                          {log.action}
-                        </Badge>
-                        <span className="text-sm font-medium">
-                          {log.table_name}
-                        </span>
-                        {log.row_id && (
-                          <span className="text-muted-foreground text-xs">
-                            #{log.row_id}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        {formatAppDateTime(log.created_at)}
-                        {log.user_id && ` • by ${log.user_id}`}
-                      </p>
-                      {log.metadata && (
-                        <p className="text-muted-foreground mt-1 text-xs">
-                          {log.metadata}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {auditLogs.length === 0 && (
-                  <p className="text-muted-foreground text-sm">
-                    No audit logs found
-                  </p>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+          <DatabaseAuditTab
+            auditLogs={auditLogs}
+            renderActionIcon={databaseAuditActionIcon}
+          />
         </TabsContent>
 
         <TabsContent value="settings" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Database Settings</CardTitle>
-              <CardDescription>
-                Configure backup schedules and security settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Hard Delete Protection
-                  </CardTitle>
-                  <CardDescription>
-                    Protect hard delete operations with a numeric PIN.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <div>
-                      <p className="text-sm font-medium">
-                        Enable Hard Delete PIN
-                      </p>
-                      <p className="text-muted-foreground text-xs">
-                        Require PIN when affected records exceed threshold.
-                      </p>
-                    </div>
-                    <Switch
-                      checked={!!pinSettings?.enabled}
-                      onCheckedChange={checked =>
-                        void handleToggleHardDeletePinEnabled(checked)
-                      }
-                      disabled={!pinSettings?.hasPin}
-                    />
-                  </div>
-                  {!pinSettings?.hasPin && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        PIN is not set. Set a PIN to enable protection.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  {pinLockActive && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        Too many incorrect attempts. Try again in{' '}
-                        {pinLockRemainingSeconds ?? 0} seconds.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor="pin-threshold">
-                        Require PIN when deleting more than:
-                      </Label>
-                      <Input
-                        id="pin-threshold"
-                        type="number"
-                        min={1}
-                        value={pinThresholdInput}
-                        onChange={e =>
-                          setPinThresholdInput(Number(e.target.value))
-                        }
-                        onBlur={() =>
-                          void handleSaveHardDeletePinThreshold(
-                            pinThresholdInput
-                          )
-                        }
-                      />
-                    </div>
-                    <div className="flex items-end gap-2">
-                      <Button onClick={() => setSetPinDialogVisible(true)}>
-                        Set PIN
-                      </Button>
-                      <Button
-                        variant="outline"
-                        onClick={() => setChangePinDialogOpen(true)}
-                        disabled={!pinSettings?.hasPin}
-                      >
-                        Change PIN
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </CardContent>
-          </Card>
+          <DatabaseSettingsTab
+            pinSettings={pinSettings}
+            pinLockActive={pinLockActive}
+            pinLockRemainingSeconds={pinLockRemainingSeconds}
+            pinThresholdInput={pinThresholdInput}
+            onPinThresholdInputChange={setPinThresholdInput}
+            onPinThresholdBlur={() =>
+              void handleSaveHardDeletePinThreshold(pinThresholdInput)
+            }
+            onToggleHardDeletePinEnabled={handleToggleHardDeletePinEnabled}
+            onOpenSetPin={() => setSetPinDialogVisible(true)}
+            onOpenChangePin={() => setChangePinDialogOpen(true)}
+          />
         </TabsContent>
       </Tabs>
 

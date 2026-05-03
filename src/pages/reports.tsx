@@ -1,7 +1,7 @@
 import type { Row } from '@tanstack/react-table';
 import { format } from 'date-fns';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
@@ -105,91 +105,94 @@ export default function ReportsPage() {
     window.print();
   };
 
-  const columns = [
-    { accessorKey: 'supplier', header: 'Supplier' },
-    { accessorKey: 'invoice_no', header: 'Invoice No' },
-    {
-      accessorKey: 'invoice_date',
-      header: 'Date',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const date = row.getValue('invoice_date');
-        if (!date) return '';
-        try {
-          return format(new Date(date as string), 'dd/MM/yyyy');
-        } catch {
-          console.warn('Invalid date value:', date);
-          return String(date);
-        }
+  const columns = useMemo(
+    () => [
+      { accessorKey: 'supplier', header: 'Supplier' },
+      { accessorKey: 'invoice_no', header: 'Invoice No' },
+      {
+        accessorKey: 'invoice_date',
+        header: 'Date',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const date = row.getValue('invoice_date');
+          if (!date) return '';
+          try {
+            return format(new Date(date as string), 'dd/MM/yyyy');
+          } catch {
+            console.warn('Invalid date value:', date);
+            return String(date);
+          }
+        },
       },
-    },
-    { accessorKey: 'part_no', header: 'Part No' },
-    { accessorKey: 'description', header: 'Description' },
-    { accessorKey: 'unit', header: 'Unit' },
-    {
-      accessorKey: 'qty',
-      header: 'Qty',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const qty = row.getValue('qty');
-        return qty ? Number(qty).toFixed(2) : '0.00';
+      { accessorKey: 'part_no', header: 'Part No' },
+      { accessorKey: 'description', header: 'Description' },
+      { accessorKey: 'unit', header: 'Unit' },
+      {
+        accessorKey: 'qty',
+        header: 'Qty',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const qty = row.getValue('qty');
+          return qty ? Number(qty).toFixed(2) : '0.00';
+        },
       },
-    },
-    {
-      accessorKey: 'unit_price',
-      header: 'Unit Price',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const price = row.getValue('unit_price');
-        return price ? Number(price).toFixed(4) : '0.0000';
+      {
+        accessorKey: 'unit_price',
+        header: 'Unit Price',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const price = row.getValue('unit_price');
+          return price ? Number(price).toFixed(4) : '0.0000';
+        },
       },
-    },
-    {
-      accessorKey: 'assessable_value',
-      header: 'Assessable Value',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const value = row.getValue('assessable_value');
-        return value ? Number(value).toFixed(2) : '0.00';
+      {
+        accessorKey: 'assessable_value',
+        header: 'Assessable Value',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const value = row.getValue('assessable_value');
+          return value ? Number(value).toFixed(2) : '0.00';
+        },
       },
-    },
-    {
-      accessorKey: 'bcd_amount',
-      header: 'BCD',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const amount = row.getValue('bcd_amount');
-        return amount ? Number(amount).toFixed(2) : '0.00';
+      {
+        accessorKey: 'bcd_amount',
+        header: 'BCD',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const amount = row.getValue('bcd_amount');
+          return amount ? Number(amount).toFixed(2) : '0.00';
+        },
       },
-    },
-    {
-      accessorKey: 'sws_amount',
-      header: 'SWS',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const amount = row.getValue('sws_amount');
-        return amount ? Number(amount).toFixed(2) : '0.00';
+      {
+        accessorKey: 'sws_amount',
+        header: 'SWS',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const amount = row.getValue('sws_amount');
+          return amount ? Number(amount).toFixed(2) : '0.00';
+        },
       },
-    },
-    {
-      accessorKey: 'igst_amount',
-      header: 'IGST',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const amount = row.getValue('igst_amount');
-        return amount ? Number(amount).toFixed(2) : '0.00';
+      {
+        accessorKey: 'igst_amount',
+        header: 'IGST',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const amount = row.getValue('igst_amount');
+          return amount ? Number(amount).toFixed(2) : '0.00';
+        },
       },
-    },
-    {
-      accessorKey: 'expenses_total',
-      header: 'Expenses (Basic)',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const amount = row.getValue('expenses_total');
-        return amount ? Number(amount).toFixed(2) : '0.00';
+      {
+        accessorKey: 'expenses_total',
+        header: 'Expenses (Basic)',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const amount = row.getValue('expenses_total');
+          return amount ? Number(amount).toFixed(2) : '0.00';
+        },
       },
-    },
-    {
-      accessorKey: 'ldc_per_qty',
-      header: 'LDC per qty',
-      cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
-        const amount = row.getValue('ldc_per_qty');
-        return amount ? Number(amount).toFixed(2) : '0.00';
+      {
+        accessorKey: 'ldc_per_qty',
+        header: 'LDC per qty',
+        cell: ({ row }: { row: Row<Record<string, unknown>> }) => {
+          const amount = row.getValue('ldc_per_qty');
+          return amount ? Number(amount).toFixed(2) : '0.00';
+        },
       },
-    },
-  ];
+    ],
+    []
+  );
 
   return (
     <div className="container mx-auto space-y-6 py-6">

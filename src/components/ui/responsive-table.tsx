@@ -93,19 +93,17 @@ export function ResponsiveDataTable<TData, TValue>({
   }, []);
 
   // Filter columns based on module settings and screen size
-  const visibleColumns = columns.filter(column => {
-    // Check module settings visibility first
-    if ((column.meta as { visible?: boolean })?.visible === false) {
-      return false;
-    }
-
-    // Hide specified columns on small screens
-    if (isSmallScreen && hideColumnsOnSmall.includes(column.id as string)) {
-      return false;
-    }
-
-    return true;
-  });
+  const visibleColumns = React.useMemo(() => {
+    return columns.filter(column => {
+      if ((column.meta as { visible?: boolean })?.visible === false) {
+        return false;
+      }
+      if (isSmallScreen && hideColumnsOnSmall.includes(column.id as string)) {
+        return false;
+      }
+      return true;
+    });
+  }, [columns, isSmallScreen, hideColumnsOnSmall]);
 
   const table = useReactTable({
     data,

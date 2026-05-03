@@ -362,6 +362,12 @@ export function useOptimizedForm<T extends Record<string, unknown>>(
   };
 }
 
+/**
+ * Session-cached TanStack table UI state (sorting, filters, page size).
+ * For simple list UIs, prefer [`DataTable`](@/components/shared/data-table.tsx)
+ * (debounced global filter) or [`ResponsiveDataTable`](@/components/ui/responsive-table.tsx);
+ * use this hook when wiring a custom `useReactTable` and you want persisted controls.
+ */
 // Optimized table state with caching
 export function useOptimizedTable<T>(
   _data: T[],

@@ -33,16 +33,26 @@ interface DataTableProps<TData, TValue> {
   toolbar?: React.ReactNode;
 }
 
+const GLOBAL_FILTER_DEBOUNCE_MS = 300;
+
 export function DataTable<TData, TValue>({
   columns,
   data,
   storageKey,
   toolbar,
 }: DataTableProps<TData, TValue>) {
+  const [searchInput, setSearchInput] = React.useState('');
   const [globalFilter, setGlobalFilter] = React.useState('');
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
   );
+
+  React.useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setGlobalFilter(searchInput);
+    }, GLOBAL_FILTER_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
 
   const table = useReactTable({
     data,
@@ -69,8 +79,8 @@ export function DataTable<TData, TValue>({
       <div className="flex items-center justify-between">
         <Input
           placeholder="Search all columns..."
-          value={globalFilter ?? ''}
-          onChange={event => setGlobalFilter(event.target.value)}
+          value={searchInput}
+          onChange={event => setSearchInput(event.target.value)}
           className="max-w-sm"
         />
         {toolbar}
