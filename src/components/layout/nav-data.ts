@@ -158,6 +158,11 @@ export const navItems: AppNavItem[] = [
         url: '/admin/operations-center',
         requiredPermission: 'automation.ops_center',
       },
+      {
+        title: 'System agent',
+        url: '/admin/system-agent',
+        requiredPermission: 'automation.system_agent',
+      },
     ],
   },
   {

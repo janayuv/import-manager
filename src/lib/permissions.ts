@@ -34,6 +34,7 @@ export const PERMISSIONS = [
   'automation.view',
   'automation.mutate',
   'automation.ops_center',
+  'automation.system_agent',
   'role.read',
   'role.write',
   'role.bootstrap',
@@ -94,6 +95,7 @@ export const ROLE_PERMISSIONS: Record<Role, ReadonlySet<Permission>> = {
     'automation.view',
     'automation.mutate',
     'automation.ops_center',
+    'automation.system_agent',
     'security.session_read',
   ]),
   operator: new Set<Permission>([

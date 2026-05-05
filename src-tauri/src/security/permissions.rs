@@ -79,6 +79,7 @@ pub enum Permission {
     AutomationView,
     AutomationMutate,
     AutomationOpsCenter,
+    AutomationSystemAgent,
     RoleRead,
     RoleWrite,
     RoleBootstrap,
@@ -88,7 +89,7 @@ pub enum Permission {
 }
 
 impl Permission {
-    pub const ALL: [Permission; 24] = [
+    pub const ALL: [Permission; 25] = [
         Permission::DataRead,
         Permission::DataWrite,
         Permission::DataDelete,
@@ -107,6 +108,7 @@ impl Permission {
         Permission::AutomationView,
         Permission::AutomationMutate,
         Permission::AutomationOpsCenter,
+        Permission::AutomationSystemAgent,
         Permission::RoleRead,
         Permission::RoleWrite,
         Permission::RoleBootstrap,
@@ -135,6 +137,7 @@ impl Permission {
             Permission::AutomationView => "automation.view",
             Permission::AutomationMutate => "automation.mutate",
             Permission::AutomationOpsCenter => "automation.ops_center",
+            Permission::AutomationSystemAgent => "automation.system_agent",
             Permission::RoleRead => "role.read",
             Permission::RoleWrite => "role.write",
             Permission::RoleBootstrap => "role.bootstrap",
@@ -166,6 +169,7 @@ impl Permission {
             "automation.view" => Some(Permission::AutomationView),
             "automation.mutate" => Some(Permission::AutomationMutate),
             "automation.ops_center" => Some(Permission::AutomationOpsCenter),
+            "automation.system_agent" => Some(Permission::AutomationSystemAgent),
             "role.read" | "user.manage" => Some(Permission::RoleRead),
             "role.write" => Some(Permission::RoleWrite),
             "role.bootstrap" => Some(Permission::RoleBootstrap),
@@ -208,6 +212,7 @@ pub fn role_has(role: Role, perm: Permission) -> bool {
                 | P::AutomationView
                 | P::AutomationMutate
                 | P::AutomationOpsCenter
+                | P::AutomationSystemAgent
                 | P::SecuritySessionRead
         ),
         R::Operator => matches!(
@@ -340,6 +345,7 @@ mod tests {
                     "automation.view",
                     "automation.mutate",
                     "automation.ops_center",
+                    "automation.system_agent",
                     "security.session_read",
                 ],
             ),

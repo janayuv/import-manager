@@ -2030,12 +2030,180 @@ export async function invoke<T = unknown>(
           integrityError: null,
         },
       } as T;
+    case 'get_system_agent_settings':
+      return {
+        enabled: true,
+        model: 'deepseek-chat',
+        baseUrl: 'https://api.deepseek.com/chat/completions',
+        confidenceThresholdMutate: 0.75,
+        maxLlmCallsPerDay: 250,
+        maxLlmCallsPerSession: 30,
+        hasApiKey: true,
+      } as T;
+    case 'set_system_agent_settings':
+      return {
+        enabled: Boolean(
+          (args as { input?: { enabled?: boolean } })?.input?.enabled
+        ),
+        model:
+          (args as { input?: { model?: string } })?.input?.model ??
+          'deepseek-chat',
+        baseUrl:
+          (args as { input?: { baseUrl?: string } })?.input?.baseUrl ??
+          'https://api.deepseek.com/chat/completions',
+        confidenceThresholdMutate:
+          Number(
+            (args as { input?: { confidenceThresholdMutate?: number } })?.input
+              ?.confidenceThresholdMutate ?? 0.75
+          ) || 0.75,
+        maxLlmCallsPerDay: 250,
+        maxLlmCallsPerSession: 30,
+        hasApiKey: true,
+      } as T;
+    case 'system_agent_turn': {
+      const input = (
+        args as { input?: { messages?: Array<{ content?: string }> } }
+      )?.input;
+      const last =
+        input?.messages?.[input.messages.length - 1]?.content?.toLowerCase() ??
+        '';
+      if (
+        last.includes('failure') ||
+        last.includes('root cause') ||
+        last.includes('explain')
+      ) {
+        return {
+          intentRoute: 'TRACE_ONLY_FAILURE',
+          matchedRuleId: 'explain_failure_1',
+          llmUsed: false,
+          content: 'Deterministic failure trace generated.',
+          explainGraph: {
+            schemaVersion: 'v1',
+            traceSha256: 'stub-trace-sha256',
+            generatedAt: new Date().toISOString(),
+            snapshotTimestamp: new Date().toISOString(),
+            dbVersion: 76,
+            events: [
+              {
+                event: 'execution_failed',
+                execution_id: 'stub-exec-1',
+                job_id: 'automation_cycle',
+                cause_code: 'DEPENDENCY_TIMEOUT',
+                is_root_cause: true,
+              },
+            ],
+          },
+          policyDecision: null,
+          groundingOk: true,
+        } as T;
+      }
+      if (last.includes('health')) {
+        return {
+          intentRoute: 'DIRECT_READ',
+          matchedRuleId: 'health_summary_1',
+          llmUsed: false,
+          content: JSON.stringify({ activeRules: 3, failedJobsLast24h: 0 }),
+          explainGraph: null,
+          policyDecision: null,
+          groundingOk: true,
+        } as T;
+      }
+      return {
+        intentRoute: 'LLM_AGENT',
+        matchedRuleId: null,
+        llmUsed: true,
+        content: 'Stub DeepSeek response for system automation query.',
+        explainGraph: null,
+        policyDecision: {
+          decision: 'ALLOW',
+          severity: 'LOW',
+          reasonCode: 'POLICY_OK',
+          userMessage: 'Policy checks passed.',
+        },
+        groundingOk: true,
+      } as T;
+    }
+    case 'get_system_agent_observability_summary':
+      return {
+        totalTurns7d: 42,
+        llmUsedTurns7d: 18,
+        blockedTurns7d: 4,
+        blockedPercent7d: 9.52,
+      } as T;
     case 'has_backup_key_in_keyring':
       return true as T;
     case 'export_backup_key':
     case 'export_backup_key_to_path':
     case 'import_backup_key_from_path':
       return undefined as T;
+    case 'get_bug_notes':
+      return [] as T;
+    case 'create_bug_note': {
+      const payload = args?.payload as Record<string, unknown> | undefined;
+      const now = Date.now();
+      const id =
+        typeof payload?.id === 'string' && payload.id.trim()
+          ? payload.id.trim()
+          : `stub-bug-${now}`;
+      return {
+        id,
+        title: typeof payload?.title === 'string' ? payload.title : 'Untitled',
+        description:
+          payload?.description === undefined || payload?.description === null
+            ? null
+            : String(payload.description),
+        status:
+          payload?.status === 'SOLVED'
+            ? 'SOLVED'
+            : payload?.status === 'OPEN'
+              ? 'OPEN'
+              : 'OPEN',
+        screenshotPath:
+          payload?.screenshotPath === undefined ||
+          payload?.screenshotPath === null
+            ? null
+            : String(payload.screenshotPath),
+        context:
+          payload?.context === undefined || payload?.context === null
+            ? null
+            : String(payload.context),
+        meta: null,
+        createdAt: now,
+        updatedAt: now,
+      } as T;
+    }
+    case 'update_bug_note': {
+      const payload = args?.payload as Record<string, unknown> | undefined;
+      const now = Date.now();
+      const id = String(payload?.id ?? 'stub-bug');
+      return {
+        id,
+        title:
+          payload?.title !== undefined ? String(payload.title) : 'Untitled',
+        description:
+          payload?.description === undefined || payload?.description === null
+            ? null
+            : String(payload.description),
+        status:
+          payload?.status === 'SOLVED'
+            ? 'SOLVED'
+            : payload?.status === 'OPEN'
+              ? 'OPEN'
+              : 'OPEN',
+        screenshotPath: null,
+        context:
+          payload?.context === undefined || payload?.context === null
+            ? null
+            : String(payload.context),
+        meta: null,
+        createdAt: now - 1000,
+        updatedAt: now,
+      } as T;
+    }
+    case 'delete_bug_note':
+      return undefined as T;
+    case 'save_bug_screenshot':
+      return 'C:\\stub\\bug-notes\\screenshot.png' as T;
     default:
       if (cmd.startsWith('get_') || cmd.startsWith('browse_')) {
         return [] as unknown as T;

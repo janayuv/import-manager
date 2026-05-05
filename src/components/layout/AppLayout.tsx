@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router-dom';
 
+import { BugTrackerRoot } from '@/components/bug-tracker/BugTrackerRoot';
 import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
@@ -26,6 +27,7 @@ export function AppLayout() {
         <main className={`flex-1 overflow-y-auto ${getPaddingClass()}`}>
           <Outlet />
         </main>
+        <BugTrackerRoot />
       </SidebarInset>
     </SidebarProvider>
   );

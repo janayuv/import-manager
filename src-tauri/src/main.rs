@@ -182,6 +182,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 );
             }
 
+            if let Err(e) =
+                commands::bug_notes::cleanup_orphan_bug_screenshots(&db_connection, &data_dir)
+            {
+                log::warn!(
+                    target: "import_manager::bug_notes",
+                    "orphan bug screenshot cleanup failed (startup continues): {}",
+                    e
+                );
+            }
+
             if let Err(e) = commands::db_maintenance::run_database_maintenance(&db_connection) {
                 log::error!(
                     target: "import_manager::database",
@@ -198,6 +208,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             crate::commands::reference_scan::run_startup_fk_diagnostics(&db_connection);
+            if let Err(e) = crate::commands::system_agent::validate_system_agent_rules_on_startup() {
+                log::error!(
+                    target: "import_manager::system_agent",
+                    "system agent intent rule validation failed: {}",
+                    e
+                );
+                return Err(std::io::Error::new(std::io::ErrorKind::Other, e).into());
+            }
             if let Err(e) = crate::services::boe_service::reconcile_boe_attachments(&db_connection)
             {
                 log::warn!(
@@ -305,6 +323,11 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     let governance_start = Instant::now();
                     crate::commands::db_management::governance_tick();
                     let governance_ms = governance_start.elapsed().as_millis();
+                    if let Some(db_state) = app_handle.try_state::<DbState>() {
+                        if let Ok(conn) = db_state.db.lock() {
+                            let _ = crate::commands::system_agent::run_system_agent_retention_cleanup(&conn);
+                        }
+                    }
 
                     let wal_start = Instant::now();
                     if let Some(db_state) = app_handle.try_state::<DbState>() {
@@ -828,6 +851,15 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             commands::reset_test_database,
             commands::query_user_activity_logs,
+            commands::get_system_agent_settings,
+            commands::set_system_agent_settings,
+            commands::system_agent_turn,
+            commands::get_system_agent_observability_summary,
+            commands::create_bug_note,
+            commands::get_bug_notes,
+            commands::update_bug_note,
+            commands::delete_bug_note,
+            commands::save_bug_screenshot,
         ])
         .run(tauri::generate_context!())
         .map_err(|e| {

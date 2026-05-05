@@ -59,6 +59,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     })();
   }, []);
 
+  useEffect(() => {
+    const onAuthChanged = () => refreshUser();
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === null || event.key === 'currentUser') {
+        refreshUser();
+      }
+    };
+    window.addEventListener('auth-changed', onAuthChanged);
+    window.addEventListener('storage', onStorage);
+    return () => {
+      window.removeEventListener('auth-changed', onAuthChanged);
+      window.removeEventListener('storage', onStorage);
+    };
+  }, []);
+
   const hasPermission = useMemo(() => {
     const userRole = user?.canonicalRole ?? null;
     const grantedSet = new Set<string>(user?.permissions ?? []);

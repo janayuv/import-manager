@@ -43,6 +43,7 @@ const EXPECTED_RUST_SNAPSHOT: Array<{ role: Role; permissions: Permission[] }> =
         'automation.view',
         'automation.mutate',
         'automation.ops_center',
+        'automation.system_agent',
         'security.session_read',
       ],
     },

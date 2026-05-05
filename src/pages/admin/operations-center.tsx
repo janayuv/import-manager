@@ -110,6 +110,19 @@ function healthLabel(status: string): string {
   return status;
 }
 
+function incidentSeveritySummary(dash: OperationsCenterDashboard): string {
+  if (dash.openFatal > 0) {
+    return `${dash.openFatal} fatal incident${dash.openFatal === 1 ? '' : 's'} open`;
+  }
+  if (dash.openCritical > 0) {
+    return `${dash.openCritical} critical incident${dash.openCritical === 1 ? '' : 's'} open`;
+  }
+  if (dash.activeIncidentCount > 0) {
+    return `${dash.activeIncidentCount} open incident${dash.activeIncidentCount === 1 ? '' : 's'} pending`;
+  }
+  return 'No open incidents';
+}
+
 function healthBadgeClass(status: string): string {
   if (status === 'green')
     return 'border-green-600/30 bg-green-50 text-green-800';
@@ -978,7 +991,7 @@ export default function OperationsCenterPage() {
                   ) : (
                     <AlertTriangle className="size-4" />
                   )}
-                  System health
+                  Incident health
                 </CardTitle>
                 <CardDescription className="text-current/80">
                   {healthLabel(dash.healthStatus)}
@@ -990,6 +1003,14 @@ export default function OperationsCenterPage() {
                   <span>Critical: {dash.openCritical}</span>
                   <span>Fatal: {dash.openFatal}</span>
                 </div>
+                <p className="text-current/80 mt-2 text-xs">
+                  {incidentSeveritySummary(dash)}. This card tracks incident
+                  severity queue; database/runtime checks are shown in{' '}
+                  <Link to="/admin/system-health" className="underline">
+                    System health
+                  </Link>
+                  .
+                </p>
               </CardContent>
             </Card>
             <Card>
@@ -1042,222 +1063,6 @@ export default function OperationsCenterPage() {
                     No row for today yet
                   </span>
                 )}
-                {dash.stabilizationMetricsToday ? (
-                  <div className="text-muted-foreground mt-3 border-t pt-2 text-xs">
-                    <span className="text-foreground font-medium">
-                      Stabilization (today)
-                    </span>
-                    : detected{' '}
-                    {dash.stabilizationMetricsToday.stabilizationsDetected} ·
-                    avg{' '}
-                    {dash.stabilizationMetricsToday.avgStabilizationTime.toFixed(
-                      1
-                    )}{' '}
-                    min · conf avg{' '}
-                    {dash.stabilizationMetricsToday.stabilityConfidenceAvg.toFixed(
-                      2
-                    )}
-                  </div>
-                ) : null}
-                {dash.systemStabilityScore ? (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    <span className="text-foreground font-medium">
-                      System stability score
-                    </span>
-                    :{' '}
-                    {(dash.systemStabilityScore.stabilityScore * 100).toFixed(
-                      1
-                    )}
-                    %
-                    <span className="ml-1">
-                      ({dash.systemStabilityScore.successfulStabilizations} /{' '}
-                      {dash.systemStabilityScore.totalIncidents} incidents)
-                    </span>
-                  </div>
-                ) : null}
-                {dash.regressionMetricsToday ? (
-                  <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">
-                    <span className="text-foreground font-medium">
-                      Regression (today)
-                    </span>
-                    : {dash.regressionMetricsToday.regressionsDetected} · avg
-                    gap{' '}
-                    {dash.regressionMetricsToday.avgRegressionTimeMinutes.toFixed(
-                      1
-                    )}{' '}
-                    min · freq vs stabilizations{' '}
-                    {dash.regressionMetricsToday.regressionFrequency.toFixed(2)}
-                  </div>
-                ) : null}
-                {dash.regressionRiskScore ? (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    <span className="text-foreground font-medium">
-                      Regression risk
-                    </span>
-                    :{' '}
-                    {(dash.regressionRiskScore.regressionRisk * 100).toFixed(1)}
-                    %
-                    <span className="ml-1">
-                      (regs {dash.regressionRiskScore.regressionsDetected} /
-                      stab {dash.regressionRiskScore.stabilizationsDetected})
-                    </span>
-                  </div>
-                ) : null}
-                {dash.structuredRegressionMetricsToday ? (
-                  <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">
-                    <span className="text-foreground font-medium">
-                      Structured regression (today)
-                    </span>
-                    :{' '}
-                    {
-                      dash.structuredRegressionMetricsToday
-                        .structuredRegressionsDetected
-                    }{' '}
-                    · avg gap{' '}
-                    {dash.structuredRegressionMetricsToday.avgStructuredRegressionTime.toFixed(
-                      1
-                    )}{' '}
-                    min · ratio{' '}
-                    {dash.structuredRegressionMetricsToday.structuredRegressionRatio.toFixed(
-                      2
-                    )}
-                  </div>
-                ) : null}
-                {dash.persistenceMetricsToday ? (
-                  <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">
-                    <span className="text-foreground font-medium">
-                      Persistent failure (today)
-                    </span>
-                    : {dash.persistenceMetricsToday.persistentFailuresDetected}{' '}
-                    · avg duration{' '}
-                    {dash.persistenceMetricsToday.avgPersistenceDuration.toFixed(
-                      1
-                    )}{' '}
-                    · freq{' '}
-                    {dash.persistenceMetricsToday.persistenceFrequency.toFixed(
-                      2
-                    )}
-                  </div>
-                ) : null}
-                {dash.persistenceRiskScore ? (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    <span className="text-foreground font-medium">
-                      Persistence risk
-                    </span>
-                    :{' '}
-                    {(dash.persistenceRiskScore.persistenceRisk * 100).toFixed(
-                      2
-                    )}
-                    %
-                    <span className="ml-1">
-                      (persistent{' '}
-                      {dash.persistenceRiskScore.persistentFailuresDetected} /
-                      incidents {dash.persistenceRiskScore.totalIncidents})
-                    </span>
-                  </div>
-                ) : null}
-                {dash.forecastMetricsToday ? (
-                  <div className="text-muted-foreground mt-2 border-t border-purple-200/60 pt-2 text-xs dark:border-purple-800/50">
-                    <span className="font-medium text-purple-950 dark:text-purple-100">
-                      Failure forecast (today)
-                    </span>
-                    : generated {dash.forecastMetricsToday.forecastsGenerated} ·
-                    accuracy{' '}
-                    {(dash.forecastMetricsToday.forecastAccuracy * 100).toFixed(
-                      1
-                    )}
-                    % · FP rate{' '}
-                    {(
-                      dash.forecastMetricsToday.forecastFalsePositiveRate * 100
-                    ).toFixed(1)}
-                    % · prediction score{' '}
-                    {(
-                      dash.forecastMetricsToday.predictionAccuracyScore * 100
-                    ).toFixed(1)}
-                    %
-                  </div>
-                ) : null}
-                {dash.forecastRiskScore ? (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    <span className="font-medium text-purple-950 dark:text-purple-100">
-                      Forecast risk (high / total)
-                    </span>
-                    :{' '}
-                    {(dash.forecastRiskScore.forecastRiskScore * 100).toFixed(
-                      1
-                    )}
-                    %
-                    <span className="ml-1">
-                      ({dash.forecastRiskScore.highRiskForecasts} /{' '}
-                      {dash.forecastRiskScore.totalForecasts})
-                    </span>
-                  </div>
-                ) : null}
-                {dash.forecastExplanationMetricsToday ? (
-                  <div className="text-muted-foreground mt-2 border-t border-purple-200/60 pt-2 text-xs dark:border-purple-800/50">
-                    <span className="font-medium text-purple-950 dark:text-purple-100">
-                      Forecast explanations (today)
-                    </span>
-                    : generated{' '}
-                    {dash.forecastExplanationMetricsToday.explanationsGenerated}{' '}
-                    · accurate{' '}
-                    {dash.forecastExplanationMetricsToday.accurateExplanations}{' '}
-                    · misleading{' '}
-                    {
-                      dash.forecastExplanationMetricsToday
-                        .misleadingExplanations
-                    }
-                  </div>
-                ) : null}
-                {dash.forecastExplanationScore ? (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    <span className="font-medium text-purple-950 dark:text-purple-100">
-                      Explanation accuracy (feedback)
-                    </span>
-                    :{' '}
-                    {(
-                      dash.forecastExplanationScore.explanationAccuracyScore *
-                      100
-                    ).toFixed(1)}
-                    %
-                    <span className="ml-1">
-                      (accurate{' '}
-                      {dash.forecastExplanationScore.accurateExplanations} /
-                      total {dash.forecastExplanationScore.totalExplanations})
-                    </span>
-                  </div>
-                ) : null}
-                {dash.forecastActionMetricsToday ? (
-                  <div className="text-muted-foreground mt-2 border-t border-purple-200/60 pt-2 text-xs dark:border-purple-800/50">
-                    <span className="font-medium text-purple-950 dark:text-purple-100">
-                      Preventive actions (today)
-                    </span>
-                    : generated{' '}
-                    {dash.forecastActionMetricsToday.actionsGenerated} ·
-                    acknowledged{' '}
-                    {dash.forecastActionMetricsToday.actionsAcknowledged} ·
-                    effective {dash.forecastActionMetricsToday.actionsEffective}
-                  </div>
-                ) : null}
-                {dash.preventiveReliabilityScore ? (
-                  <div className="text-muted-foreground mt-1 text-xs">
-                    <span className="font-medium text-purple-950 dark:text-purple-100">
-                      Preventive reliability
-                    </span>
-                    :{' '}
-                    {(
-                      dash.preventiveReliabilityScore
-                        .preventiveReliabilityScore * 100
-                    ).toFixed(1)}
-                    %
-                    <span className="ml-1">
-                      (prevented{' '}
-                      {dash.preventiveReliabilityScore.preventedFailures} /
-                      evaluated{' '}
-                      {dash.preventiveReliabilityScore.totalForecastsEvaluated})
-                    </span>
-                  </div>
-                ) : null}
               </CardContent>
             </Card>
           </div>

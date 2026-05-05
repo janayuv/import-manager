@@ -66,6 +66,7 @@ const AdminSystemToolsPage = lazy(() => import('@/pages/admin/system-tools'));
 const AdminAutomationCenterPage = lazy(
   () => import('@/pages/admin/automation-center')
 );
+const AdminSystemAgentPage = lazy(() => import('@/pages/admin/system-agent'));
 const SecurityCenterPage = lazy(() => import('@/pages/admin/security-center'));
 const RolesPermissionsPage = lazy(
   () => import('@/pages/admin/roles-permissions')
@@ -349,6 +350,16 @@ function App() {
                               <Route
                                 path="/admin/automation-rules"
                                 element={<AutomationRulesAdminPage />}
+                              />
+                            </Route>
+                            <Route
+                              element={
+                                <RequirePermission permission="automation.system_agent" />
+                              }
+                            >
+                              <Route
+                                path="/admin/system-agent"
+                                element={<AdminSystemAgentPage />}
                               />
                             </Route>
                             <Route

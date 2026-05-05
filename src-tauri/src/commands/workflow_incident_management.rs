@@ -377,9 +377,8 @@ fn correlation_time_spread_minutes(conn: &Connection, incident_id: &str) -> Resu
                AND event_type IN ('CREATED','CORRELATED_EVENT','ALERT_CORRELATED')
                AND datetime(event_timestamp) > datetime('now', ?2)",
             params![incident_id, &window],
-            |r| r.get(0),
+            |r| r.get::<_, Option<f64>>(0),
         )
-        .optional()
         .map_err(|e| e.to_string())?;
     Ok(spread.unwrap_or(0.0))
 }
@@ -500,9 +499,8 @@ fn correlation_stats_json(conn: &Connection, incident_id: &str) -> Result<Value,
              FROM workflow_incident_history
              WHERE incident_id = ?1 AND event_type IN ('CORRELATED_EVENT','ALERT_CORRELATED')",
             params![incident_id],
-            |r| r.get::<_, f64>(0),
+            |r| r.get::<_, Option<f64>>(0),
         )
-        .optional()
         .map_err(|e| e.to_string())?;
     Ok(json!({
         "relatedEventCount": n,
@@ -4160,9 +4158,15 @@ fn counts_job_failures_window(conn: &Connection) -> Result<(i64, String, String)
              WHERE status IN ('FAILED','TIMEOUT')
                AND datetime(started_at) > datetime('now', ?1)",
             params![&w],
-            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+            |r| {
+                let tmin: Option<String> = r.get(0)?;
+                let tmax: Option<String> = r.get(1)?;
+                Ok(match (tmin, tmax) {
+                    (Some(a), Some(b)) => Some((a, b)),
+                    _ => None,
+                })
+            },
         )
-        .optional()
         .map_err(|e| e.to_string())?;
     let ts = now_ts();
     let (tmin, tmax) = bounds.unwrap_or((ts.clone(), ts));
@@ -4192,9 +4196,15 @@ fn counts_structured_failures_window(
                AND upper(trim(severity)) IN ('ERROR','CRITICAL','FATAL')
                AND datetime(timestamp) > datetime('now', ?3)",
             params![source_module, event_type, &w],
-            |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)),
+            |r| {
+                let tmin: Option<String> = r.get(0)?;
+                let tmax: Option<String> = r.get(1)?;
+                Ok(match (tmin, tmax) {
+                    (Some(a), Some(b)) => Some((a, b)),
+                    _ => None,
+                })
+            },
         )
-        .optional()
         .map_err(|e| e.to_string())?;
     let ts = now_ts();
     let (tmin, tmax) = bounds.unwrap_or((ts.clone(), ts));
@@ -4806,9 +4816,19 @@ fn get_operations_center_dashboard_inner(conn: &Connection) -> Result<Value, Str
         .prepare(
             "SELECT stabilization_id, source_module, event_type, stabilization_start, stabilization_confirmed,
                     confidence_score, stability_duration_minutes
-             FROM workflow_incident_stabilization
-             WHERE datetime(stabilization_start) > datetime('now', '-72 hours')
-             ORDER BY datetime(COALESCE(stabilization_confirmed, stabilization_start)) DESC
+             FROM (
+               SELECT stabilization_id, source_module, event_type, stabilization_start, stabilization_confirmed,
+                      confidence_score, stability_duration_minutes,
+                      ROW_NUMBER() OVER (
+                        PARTITION BY source_module, event_type
+                        ORDER BY datetime(COALESCE(stabilization_confirmed, stabilization_start)) DESC,
+                                 stabilization_id DESC
+                      ) AS rn
+               FROM workflow_incident_stabilization
+               WHERE datetime(stabilization_start) > datetime('now', '-72 hours')
+             ) ranked
+             WHERE ranked.rn = 1
+             ORDER BY datetime(COALESCE(ranked.stabilization_confirmed, ranked.stabilization_start)) DESC
              LIMIT 20",
         )
         .map_err(|e| e.to_string())?;

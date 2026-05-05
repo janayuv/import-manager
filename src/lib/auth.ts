@@ -32,6 +32,14 @@ const ADMIN_PASSWORD_HASH = getEnvVar('VITE_ADMIN_PASSWORD_HASH', '');
 const DEV_WEB_PASSWORD_HASH =
   '$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq';
 
+const AUTH_CHANGED_EVENT = 'auth-changed';
+
+function notifyAuthChanged(): void {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(AUTH_CHANGED_EVENT));
+  }
+}
+
 export interface DesktopSessionInfo {
   userId: string;
   username: string;
@@ -243,6 +251,7 @@ export function setAuthenticated(authenticated: boolean, user?: User): void {
     localStorage.removeItem('user_name');
     localStorage.removeItem('user_email');
   }
+  notifyAuthChanged();
 }
 
 /**
@@ -253,6 +262,7 @@ export function logout(): void {
   localStorage.removeItem('currentUser');
   localStorage.removeItem('user_name');
   localStorage.removeItem('user_email');
+  notifyAuthChanged();
   window.location.href = '/login';
 }
 
