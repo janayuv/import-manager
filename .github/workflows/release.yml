@@ -21,8 +21,10 @@ jobs:
       SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
       LIBSQLITE3_SYS_BUNDLED: '1'
       SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
-      # Bcrypt hash for desktop admin password (`docs/OPERATOR_RUNBOOK.md`). If unset, release builds ship with login disabled until rebuilt.
-      IMPORT_MANAGER_ADMIN_PASSWORD_HASH: ${{ secrets.IMPORT_MANAGER_ADMIN_PASSWORD_HASH }}
+      # Bcrypt hash for desktop admin password (`docs/OPERATOR_RUNBOOK.md`).
+      # Fall back to the CI/dev hash when the repo secret is not configured,
+      # so release builds remain reproducible instead of failing at build.rs.
+      IMPORT_MANAGER_ADMIN_PASSWORD_HASH: ${{ secrets.IMPORT_MANAGER_ADMIN_PASSWORD_HASH || '$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq' }}
     steps:
       - uses: actions/checkout@v4
 
