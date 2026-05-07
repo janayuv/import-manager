@@ -1,6 +1,6 @@
 ﻿RELEASE BUILD METADATA
 ========================================
-Version: 0.4.0
+Version: 0.4.2
 Commit: b810b2e28791e3617f675544728922435b42d94b
 Build Date: 2026-05-06 15:37:24
 

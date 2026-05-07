@@ -1129,6 +1129,12 @@ function DatabaseManagementContent() {
   };
 
   const handleConnectGoogleDrive = async () => {
+    if (googleDriveStatus?.state === 'not_configured') {
+      toast.error(
+        'Google OAuth is not configured for this build (IMPORT_MANAGER_GOOGLE_CLIENT_ID). Use Local backups or rebuild with OAuth credentials.'
+      );
+      return;
+    }
     try {
       toast.info('Complete sign-in in your browser…');
       await invoke('google_drive_connect', { userId });
