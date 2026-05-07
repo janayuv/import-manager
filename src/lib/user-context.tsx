@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import React, {
   createContext,
   useContext,
@@ -107,12 +107,12 @@ export function useUser() {
 
 export function useCurrentUserId(): string {
   const { user } = useUser();
-  return user?.id || 'system';
+  return user?.id || '';
 }
 
 export function useCurrentUserName(): string {
   const { user } = useUser();
-  return user?.name || 'system';
+  return user?.name || '';
 }
 
 /**

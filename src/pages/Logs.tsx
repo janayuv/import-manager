@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { RefreshCw, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
 

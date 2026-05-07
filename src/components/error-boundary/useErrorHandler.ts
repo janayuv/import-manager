@@ -1,4 +1,5 @@
 import { toast } from 'sonner';
+import { captureErrorEvent } from '@/lib/error-memory';
 
 import { useCallback, useRef } from 'react';
 
@@ -72,6 +73,24 @@ export function useErrorHandler(options: ErrorHandlerOptions = {}) {
       if (onError) {
         onError(errorObj, context?.componentName);
       }
+
+      void captureErrorEvent({
+        moduleName: 'frontend.error_handler',
+        pageName: window.location.pathname,
+        componentName: context?.componentName,
+        commandName: context?.operation,
+        errorCode: 'FE_HANDLER_ERROR',
+        errorCategory: 'ui',
+        errorMessage,
+        stackTrace: errorObj.stack,
+        userAction: context?.operation,
+        redactedInputContext: context?.additionalData
+          ? JSON.stringify(context.additionalData)
+          : undefined,
+        severity: 'error',
+        recoverable: true,
+        retryable: true,
+      });
 
       // Update error tracking
       errorCountRef.current++;

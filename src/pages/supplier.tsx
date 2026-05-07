@@ -1,6 +1,6 @@
 // src/pages/supplier.tsx
 import type { Column, ColumnDef } from '@tanstack/react-table';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { openTextFile } from '@/lib/tauri-bridge';
 import {
   ArrowDown,
@@ -552,7 +552,7 @@ const SupplierPage = () => {
             variant="default"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             useAccentColor
-            className="h-auto bg-transparent p-0 !text-sm !font-semibold text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
+            className="text-sm! font-semibold! h-auto bg-transparent p-0 text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
           >
             Supplier ID
             <SortIndicator column={column} />
@@ -567,7 +567,7 @@ const SupplierPage = () => {
             variant="default"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             useAccentColor
-            className="h-auto bg-transparent p-0 !text-sm !font-semibold text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
+            className="text-sm! font-semibold! h-auto bg-transparent p-0 text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
           >
             Supplier Name
             <SortIndicator column={column} />
@@ -596,7 +596,7 @@ const SupplierPage = () => {
             variant="default"
             onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
             useAccentColor
-            className="h-auto bg-transparent p-0 !text-sm !font-semibold text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
+            className="text-sm! font-semibold! h-auto bg-transparent p-0 text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
           >
             Country
             <SortIndicator column={column} />
@@ -768,7 +768,7 @@ const SupplierPage = () => {
 
   if (supplierPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
         <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
           <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
             <Button
@@ -857,7 +857,7 @@ const SupplierPage = () => {
   }
 
   return (
-    <div className="from-background to-muted/20 min-h-screen bg-gradient-to-br">
+    <div className="from-background to-muted/20 bg-linear-to-br min-h-screen">
       <div className="container mx-auto px-4 py-8">
         {/* Professional Header Section */}
         <div className="mb-8">

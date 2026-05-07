@@ -7,6 +7,10 @@ use std::time::Instant;
 use uuid::Uuid;
 
 const DEFAULT_SHIPMENT_STATUS: &str = "docs-rcvd";
+const STARTUP_INVALID_DATE_SIGNATURE_KEY: &str =
+    "shipment.invalid_date_rows.startup_signature.v1";
+const STARTUP_INVALID_DATE_LAST_COUNT_KEY: &str =
+    "shipment.invalid_date_rows.startup_last_count.v1";
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -97,6 +101,15 @@ pub struct ShipmentDateNormalizationApplyReport {
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct ShipmentStartupDateStabilizationReport {
+    pub rows_repaired: i64,
+    pub rows_skipped: i64,
+    pub invalid_remaining: usize,
+    pub repeated_signature: bool,
+}
+
+#[derive(Debug, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct ShipmentTimezoneRiskRow {
     pub shipment_id: String,
     pub invoice_date: String,
@@ -144,6 +157,32 @@ fn normalize_date_candidate(value: &str) -> Option<String> {
         }
     }
     None
+}
+
+fn unresolved_signature(rows: &[InvalidShipmentDateRow]) -> String {
+    let mut parts: Vec<String> = rows
+        .iter()
+        .map(|r| {
+            format!(
+                "{}|{}|{}",
+                r.id,
+                r.invoice_date.trim(),
+                r.eta.as_deref().unwrap_or("").trim()
+            )
+        })
+        .collect();
+    parts.sort();
+    parts.join(";")
+}
+
+fn upsert_app_metadata_value(conn: &Connection, key: &str, value: &str) -> Result<(), String> {
+    conn.execute(
+        "INSERT INTO app_metadata (key, value) VALUES (?1, ?2)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        params![key, value],
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(())
 }
 
 fn map_shipment_row(row: &rusqlite::Row<'_>) -> rusqlite::Result<Shipment> {
@@ -462,16 +501,19 @@ pub fn detect_invalid_date_rows(conn: &Connection) -> Result<Vec<InvalidShipment
         }
     }
     if !invalid.is_empty() {
-        let ids = invalid
+        let sample_ids = invalid
             .iter()
+            .take(15)
             .map(|r| r.id.as_str())
             .collect::<Vec<_>>()
             .join(", ");
+        let more = invalid.len().saturating_sub(15);
         log::warn!(
             target: "import_manager::shipment",
-            "invalid shipment date rows detected count={} ids={}",
+            "invalid shipment date rows detected count={} sample_ids={} more={}",
             invalid.len(),
-            ids
+            sample_ids,
+            more
         );
     }
     Ok(invalid)
@@ -621,6 +663,70 @@ pub fn apply_shipment_date_normalization(
         batch_id,
         rows_updated,
         rows_skipped,
+    })
+}
+
+pub fn stabilize_shipment_dates_on_startup(
+    conn: &mut Connection,
+) -> Result<ShipmentStartupDateStabilizationReport, String> {
+    let apply = apply_shipment_date_normalization(conn)?;
+    let invalid = detect_invalid_date_rows(conn)?;
+    let signature = unresolved_signature(&invalid);
+    let previous_signature: Option<String> = conn
+        .query_row(
+            "SELECT value FROM app_metadata WHERE key = ?1",
+            params![STARTUP_INVALID_DATE_SIGNATURE_KEY],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| e.to_string())?;
+    let repeated_signature = previous_signature
+        .as_deref()
+        .map(|v| v == signature)
+        .unwrap_or(false);
+    upsert_app_metadata_value(conn, STARTUP_INVALID_DATE_SIGNATURE_KEY, &signature)?;
+    upsert_app_metadata_value(
+        conn,
+        STARTUP_INVALID_DATE_LAST_COUNT_KEY,
+        &invalid.len().to_string(),
+    )?;
+
+    if invalid.is_empty() {
+        if apply.rows_updated > 0 {
+            log::info!(
+                target: "import_manager::shipment",
+                "startup shipment-date stabilization repaired_rows={} unresolved_rows=0",
+                apply.rows_updated
+            );
+        }
+    } else if repeated_signature {
+        log::info!(
+            target: "import_manager::shipment",
+            "startup shipment-date stabilization unresolved_count={} (unchanged since last startup)",
+            invalid.len()
+        );
+    } else {
+        let sample_ids = invalid
+            .iter()
+            .take(10)
+            .map(|r| r.id.as_str())
+            .collect::<Vec<_>>()
+            .join(", ");
+        log::warn!(
+            target: "import_manager::shipment",
+            "startup shipment-date stabilization unresolved_count={} sample_ids={} repaired_rows={} skipped_rows={}",
+            invalid.len(),
+            sample_ids,
+            apply.rows_updated,
+            apply.rows_skipped
+        );
+    }
+
+    Ok(ShipmentStartupDateStabilizationReport {
+        rows_repaired: apply.rows_updated,
+        rows_skipped: apply.rows_skipped,
+        invalid_remaining: invalid.len(),
+        repeated_signature,
     })
 }
 
@@ -1135,4 +1241,133 @@ pub fn update_shipment_with_validation(
     )
     .map_err(|e| e.to_string())?;
     tx.commit().map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+
+    fn setup_db() -> Connection {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE shipments (
+                id TEXT PRIMARY KEY,
+                supplier_id TEXT NOT NULL,
+                invoice_number TEXT NOT NULL,
+                invoice_date TEXT NOT NULL,
+                goods_category TEXT NOT NULL,
+                invoice_value REAL NOT NULL,
+                invoice_currency TEXT NOT NULL,
+                incoterm TEXT NOT NULL,
+                shipment_mode TEXT,
+                shipment_type TEXT,
+                bl_awb_number TEXT,
+                bl_awb_date TEXT,
+                vessel_name TEXT,
+                container_number TEXT,
+                gross_weight_kg REAL,
+                etd TEXT,
+                eta TEXT,
+                status TEXT,
+                date_of_delivery TEXT,
+                is_frozen BOOLEAN NOT NULL DEFAULT 0
+            );
+            CREATE TABLE shipment_date_normalization_audit (
+                id TEXT PRIMARY KEY,
+                batch_id TEXT NOT NULL,
+                shipment_id TEXT NOT NULL,
+                old_invoice_date TEXT NOT NULL,
+                new_invoice_date TEXT NOT NULL,
+                old_eta TEXT,
+                new_eta TEXT,
+                snapshot_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%d %H:%M:%S','now'))
+            );
+            CREATE TABLE app_metadata (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+        conn
+    }
+
+    fn insert_shipment(conn: &Connection, id: &str, invoice_date: &str, eta: Option<&str>) {
+        conn.execute(
+            "INSERT INTO shipments
+             (id, supplier_id, invoice_number, invoice_date, goods_category, invoice_value, invoice_currency, incoterm, status, is_frozen, eta)
+             VALUES (?1, 'sup1', ?2, ?3, 'Category', 100.0, 'USD', 'EXW', 'docs-rcvd', 0, ?4)",
+            params![id, format!("INV-{id}"), invoice_date, eta],
+        )
+        .unwrap();
+    }
+
+    #[test]
+    fn startup_stabilization_repairs_known_legacy_format() {
+        let mut conn = setup_db();
+        insert_shipment(&conn, "s-legacy", "02/05/2026", Some("03/05/2026"));
+        let report = stabilize_shipment_dates_on_startup(&mut conn).unwrap();
+        assert_eq!(report.invalid_remaining, 0);
+        assert_eq!(report.rows_repaired, 1);
+        let got: (String, Option<String>) = conn
+            .query_row(
+                "SELECT invoice_date, eta FROM shipments WHERE id = 's-legacy'",
+                [],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(got.0, "2026-05-02");
+        assert_eq!(got.1.as_deref(), Some("2026-05-03"));
+    }
+
+    #[test]
+    fn startup_stabilization_keeps_ambiguous_invalid_dates() {
+        let mut conn = setup_db();
+        insert_shipment(&conn, "s-bad", "not-a-date", None);
+        let report = stabilize_shipment_dates_on_startup(&mut conn).unwrap();
+        assert_eq!(report.rows_repaired, 0);
+        assert_eq!(report.invalid_remaining, 1);
+        let raw: String = conn
+            .query_row(
+                "SELECT invoice_date FROM shipments WHERE id = 's-bad'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(raw, "not-a-date");
+    }
+
+    #[test]
+    fn startup_stabilization_handles_empty_optional_eta() {
+        let mut conn = setup_db();
+        insert_shipment(&conn, "s-empty", "2026-05-02", Some(""));
+        let report = stabilize_shipment_dates_on_startup(&mut conn).unwrap();
+        assert_eq!(report.invalid_remaining, 0);
+        assert_eq!(report.rows_repaired, 0);
+    }
+
+    #[test]
+    fn repeated_startup_marks_unchanged_signature() {
+        let mut conn = setup_db();
+        insert_shipment(&conn, "s-repeat", "xx/yy/zzzz", None);
+        let first = stabilize_shipment_dates_on_startup(&mut conn).unwrap();
+        let second = stabilize_shipment_dates_on_startup(&mut conn).unwrap();
+        assert_eq!(first.invalid_remaining, 1);
+        assert_eq!(second.invalid_remaining, 1);
+        assert!(!first.repeated_signature);
+        assert!(second.repeated_signature);
+    }
+
+    #[test]
+    fn known_legacy_date_shapes_are_convertible() {
+        assert_eq!(
+            normalize_date_candidate("31-12-2025").as_deref(),
+            Some("2025-12-31")
+        );
+        assert_eq!(
+            normalize_date_candidate("2025/12/31").as_deref(),
+            Some("2025-12-31")
+        );
+    }
 }

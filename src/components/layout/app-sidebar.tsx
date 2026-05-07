@@ -2,7 +2,7 @@ import { Package2 } from 'lucide-react';
 
 import * as React from 'react';
 import { useLocation } from 'react-router-dom';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 
 import { Separator } from '@/components/ui/separator';
 import {
@@ -14,7 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { useUser } from '@/lib/user-context';
+import { useCurrentUserId, useUser } from '@/lib/user-context';
 
 import { navItems, type AppNavItem } from './nav-data';
 import { NavMain } from './nav-main';
@@ -22,6 +22,7 @@ import { NavUser } from './nav-user';
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { user, hasPermission } = useUser();
+  const userId = useCurrentUserId();
   const location = useLocation();
   const [recycleBinCount, setRecycleBinCount] = React.useState<number | null>(
     null
@@ -29,12 +30,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
   const fetchRecycleCount = React.useCallback(async () => {
     try {
-      const n = await invoke<number>('get_recycle_bin_deleted_count');
+      const n = await invoke<number>('get_recycle_bin_deleted_count', {
+        userId,
+      });
       setRecycleBinCount(typeof n === 'number' ? n : 0);
     } catch {
       setRecycleBinCount(0);
     }
-  }, []);
+  }, [userId]);
 
   React.useEffect(() => {
     void fetchRecycleCount();

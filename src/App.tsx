@@ -1,6 +1,6 @@
 import React, { lazy, Suspense, useEffect, useState } from 'react';
 
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { Loader2 } from 'lucide-react';
 import {
   Navigate,
@@ -30,6 +30,7 @@ import {
   type DesktopSessionInfo,
 } from '@/lib/auth';
 import { isTauriEnvironment } from '@/lib/tauri-bridge';
+import { captureErrorEvent } from '@/lib/error-memory';
 import { LoginPage } from '@/pages/LoginPage';
 import {
   AccountDetailsPage,
@@ -63,6 +64,7 @@ const AutomationRulesAdminPage = lazy(
 );
 const AdminSystemHealthPage = lazy(() => import('@/pages/admin/system-health'));
 const AdminSystemToolsPage = lazy(() => import('@/pages/admin/system-tools'));
+const AdminErrorCenterPage = lazy(() => import('@/pages/admin/error-center'));
 const AdminAutomationCenterPage = lazy(
   () => import('@/pages/admin/automation-center')
 );
@@ -146,6 +148,53 @@ function App() {
     validateBuildMetadata();
     void runVersionConsistencyCheck();
     logStartupContextOnce();
+  }, []);
+
+  React.useEffect(() => {
+    const onWindowError = (event: ErrorEvent) => {
+      void captureErrorEvent({
+        moduleName: 'frontend.runtime',
+        pageName: window.location.pathname,
+        componentName: 'window.onerror',
+        errorCode: 'FE_RUNTIME_ERROR',
+        errorCategory: 'ui_runtime',
+        errorMessage: event.message || 'Unhandled window error',
+        stackTrace: event.error?.stack,
+        sourceFile: event.filename || undefined,
+        sourceFunction: undefined,
+        userAction: 'unhandled_error',
+        severity: 'error',
+        recoverable: false,
+        retryable: false,
+      });
+    };
+    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
+      const reason =
+        event.reason instanceof Error
+          ? event.reason.message
+          : String(event.reason ?? 'Unhandled promise rejection');
+      const stack =
+        event.reason instanceof Error ? event.reason.stack : undefined;
+      void captureErrorEvent({
+        moduleName: 'frontend.runtime',
+        pageName: window.location.pathname,
+        componentName: 'window.unhandledrejection',
+        errorCode: 'FE_UNHANDLED_REJECTION',
+        errorCategory: 'async_runtime',
+        errorMessage: reason,
+        stackTrace: stack,
+        userAction: 'unhandled_promise_rejection',
+        severity: 'error',
+        recoverable: false,
+        retryable: true,
+      });
+    };
+    window.addEventListener('error', onWindowError);
+    window.addEventListener('unhandledrejection', onUnhandledRejection);
+    return () => {
+      window.removeEventListener('error', onWindowError);
+      window.removeEventListener('unhandledrejection', onUnhandledRejection);
+    };
   }, []);
 
   return (
@@ -336,6 +385,10 @@ function App() {
                               <Route
                                 path="/admin/system-tools"
                                 element={<AdminSystemToolsPage />}
+                              />
+                              <Route
+                                path="/admin/error-center"
+                                element={<AdminErrorCenterPage />}
                               />
                             </Route>
                             <Route

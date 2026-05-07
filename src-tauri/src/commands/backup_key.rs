@@ -1,6 +1,8 @@
 //! Tauri commands for export/import of the backup AES key (`.imkey` files).
 
 use crate::db::DbState;
+use crate::ipc_error::IpcError;
+use crate::security::Permission;
 use std::fs;
 use std::path::Path;
 use tauri::State;
@@ -8,37 +10,7 @@ use tauri::WebviewWindow;
 use tauri_plugin_dialog::DialogExt;
 
 const IMKEY_NAME: &str = "backup_key.imkey";
-const PERM_SETTINGS_MANAGE: &str = "settings.manage";
-
-fn role_allows_permission(role: &str, permission: &str) -> bool {
-    match role {
-        "admin" => true,
-        "db_manager" => matches!(permission, "settings.manage"),
-        _ => false,
-    }
-}
-
-fn ensure_command_permission(
-    db: &rusqlite::Connection,
-    actor_user_id: Option<&str>,
-    permission: &str,
-) -> Result<(), String> {
-    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
-        return Err("Permission denied: missing user context.".to_string());
-    };
-    if actor.eq_ignore_ascii_case("system") || actor.eq_ignore_ascii_case("scheduler") {
-        return Ok(());
-    }
-    let role = crate::security::resolve_role_strict(db, actor)?;
-    if role_allows_permission(&role, permission) {
-        Ok(())
-    } else {
-        Err(format!(
-            "Permission denied: '{}' requires '{}'.",
-            actor, permission
-        ))
-    }
-}
+const PERM_SETTINGS_MANAGE: Permission = Permission::BackupSettings;
 
 /// True if a backup encryption key is already stored in the OS keyring.
 #[tauri::command]
@@ -54,16 +26,20 @@ pub async fn export_backup_key_to_path(
     path: String,
     user_id: Option<String>,
     db_state: State<'_, DbState>,
-) -> Result<(), String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
-    ensure_command_permission(&db, user_id.as_deref(), PERM_SETTINGS_MANAGE)?;
+) -> Result<(), IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, user_id.as_deref(), PERM_SETTINGS_MANAGE)?;
     let p = Path::new(&path);
     if let Some(parent) = p.parent() {
         if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            fs::create_dir_all(parent).map_err(|e| IpcError::new("io", e.to_string()))?;
         }
     }
     crate::utils::backup_keyring::export_key_to_imkey_file(p)
+        .map_err(|m| IpcError::new("backup_key_export_failed", m))
 }
 
 /// Native save dialog, then write `backup_key.imkey` at the chosen path.
@@ -72,9 +48,12 @@ pub async fn export_backup_key(
     window: WebviewWindow,
     user_id: Option<String>,
     db_state: State<'_, DbState>,
-) -> Result<(), String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
-    ensure_command_permission(&db, user_id.as_deref(), PERM_SETTINGS_MANAGE)?;
+) -> Result<(), IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, user_id.as_deref(), PERM_SETTINGS_MANAGE)?;
     let path = window
         .dialog()
         .file()
@@ -87,13 +66,14 @@ pub async fn export_backup_key(
     };
     let path_buf = file_path
         .into_path()
-        .map_err(|e| format!("Invalid save path: {}", e))?;
+        .map_err(|e| IpcError::new("invalid_path", format!("Invalid save path: {}", e)))?;
     if let Some(parent) = path_buf.parent() {
         if !parent.as_os_str().is_empty() {
-            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+            fs::create_dir_all(parent).map_err(|e| IpcError::new("io", e.to_string()))?;
         }
     }
     crate::utils::backup_keyring::export_key_to_imkey_file(&path_buf)
+        .map_err(|m| IpcError::new("backup_key_export_failed", m))
 }
 
 /// Reads a `.imkey` file, validates, and stores in the keyring. `replace_confirmed` is required
@@ -104,8 +84,19 @@ pub async fn import_backup_key_from_path(
     replace_confirmed: bool,
     user_id: Option<String>,
     db_state: State<'_, DbState>,
-) -> Result<(), String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
-    ensure_command_permission(&db, user_id.as_deref(), PERM_SETTINGS_MANAGE)?;
+) -> Result<(), IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, user_id.as_deref(), PERM_SETTINGS_MANAGE)?;
     crate::utils::backup_keyring::import_key_from_imkey_path(Path::new(&path), replace_confirmed)
+        .map_err(|e| {
+            log::error!(
+                target: "import_manager::security",
+                "Backup key import failed (path redacted): {}",
+                e
+            );
+            IpcError::new("backup_key_import_failed", e)
+        })
 }

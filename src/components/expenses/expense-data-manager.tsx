@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { confirm } from '@/lib/tauri-bridge';
 import { AlertTriangle, Trash2 } from 'lucide-react';
 

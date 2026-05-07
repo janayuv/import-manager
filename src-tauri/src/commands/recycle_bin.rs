@@ -6,6 +6,9 @@ use crate::commands::reference_scan::{
     HardDeleteFnLogGuard,
 };
 use crate::db::DbState;
+use crate::ipc_error::IpcError;
+use crate::security::Permission;
+use crate::services::user_activity_audit::{log_activity_with_severity, AuditSeverity};
 use rusqlite::OptionalExtension;
 use rusqlite::{params, Connection, Row};
 use serde::{Deserialize, Serialize};
@@ -19,8 +22,9 @@ const DEFAULT_PAGE_SIZE: u32 = 50;
 const IN_BATCH: usize = 90;
 const RECYCLE_RETENTION_DAYS_KEY: &str = "recycle_retention_days";
 const DEFAULT_RECYCLE_RETENTION_DAYS: u32 = 30;
-const PERM_DATA_EDIT: &str = "data.edit";
-const PERM_DATA_DELETE: &str = "data.delete";
+const PERM_RECYCLE_VIEW: Permission = Permission::RecycleBinView;
+const PERM_RECYCLE_RESTORE: Permission = Permission::RecycleBinRestore;
+const PERM_RECYCLE_PURGE: Permission = Permission::RecycleBinPurge;
 const SCALE_WARNING_RECYCLE_TOTAL: i64 = 10_000;
 static RECYCLE_QUERY_RUN_COUNT: AtomicU64 = AtomicU64::new(0);
 
@@ -30,38 +34,6 @@ fn is_safe_table_ident(name: &str) -> bool {
 
 fn quote_ident(s: &str) -> String {
     format!("\"{}\"", s.replace('"', "\"\""))
-}
-
-fn role_allows_permission(role: &str, permission: &str) -> bool {
-    match role {
-        "admin" => true,
-        "db_manager" => matches!(permission, "data.browse" | "data.edit" | "data.delete"),
-        "user" => matches!(permission, "data.browse" | "data.edit"),
-        "viewer" => matches!(permission, "data.browse"),
-        _ => false,
-    }
-}
-
-fn ensure_command_permission(
-    db: &Connection,
-    actor_user_id: Option<&str>,
-    permission: &str,
-) -> Result<(), String> {
-    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
-        return Err("Permission denied: missing user context.".to_string());
-    };
-    if actor.eq_ignore_ascii_case("scheduler") || actor.eq_ignore_ascii_case("system") {
-        return Ok(());
-    }
-    let role = crate::security::resolve_role_strict(db, actor)?;
-    if role_allows_permission(&role, permission) {
-        Ok(())
-    } else {
-        Err(format!(
-            "Permission denied: '{}' requires '{}'.",
-            actor, permission
-        ))
-    }
 }
 
 fn table_column_names(conn: &Connection, table: &str) -> Result<Vec<String>, String> {
@@ -102,18 +74,34 @@ pub fn get_soft_delete_tables_internal(conn: &Connection) -> Result<Vec<String>,
 }
 
 #[tauri::command]
-pub fn get_soft_delete_tables(db_state: tauri::State<'_, DbState>) -> Result<Vec<String>, String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
-    get_soft_delete_tables_internal(&db)
+pub fn get_soft_delete_tables(
+    db_state: tauri::State<'_, DbState>,
+    userId: Option<String>,
+) -> Result<Vec<String>, IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, userId.as_deref(), PERM_RECYCLE_VIEW)?;
+    get_soft_delete_tables_internal(&db).map_err(|m| IpcError::new("recycle_bin_query_failed", m))
 }
 
 #[tauri::command]
-pub fn get_recycle_bin_deleted_count(db_state: tauri::State<'_, DbState>) -> Result<i64, String> {
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
-    let tables = get_soft_delete_tables_internal(&db)?;
+pub fn get_recycle_bin_deleted_count(
+    db_state: tauri::State<'_, DbState>,
+    userId: Option<String>,
+) -> Result<i64, IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, userId.as_deref(), PERM_RECYCLE_VIEW)?;
+    let tables = get_soft_delete_tables_internal(&db)
+        .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
     let mut total: i64 = 0;
     for t in tables {
-        let columns = table_column_names(&db, &t)?;
+        let columns =
+            table_column_names(&db, &t).map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
         let Some(d_col) = columns
             .iter()
             .find(|c| c.eq_ignore_ascii_case("deleted_at"))
@@ -130,7 +118,7 @@ pub fn get_recycle_bin_deleted_count(db_state: tauri::State<'_, DbState>) -> Res
                 [],
                 |r| r.get(0),
             )
-            .map_err(|e| e.to_string())?;
+            .map_err(|e| IpcError::new("recycle_bin_query_failed", e.to_string()))?;
         total += c;
     }
     Ok(total)
@@ -772,11 +760,12 @@ fn get_deleted_paged_all_tables_no_search(
 #[tauri::command]
 pub async fn get_deleted_records(
     db_state: tauri::State<'_, DbState>,
+    userId: Option<String>,
     tableName: Option<String>,
     search: Option<String>,
     page: Option<u32>,
     pageSize: Option<u32>,
-) -> Result<GetDeletedRecordsResponse, String> {
+) -> Result<GetDeletedRecordsResponse, IpcError> {
     let run_started = Instant::now();
     let run_id = RECYCLE_QUERY_RUN_COUNT
         .fetch_add(1, Ordering::SeqCst)
@@ -792,16 +781,24 @@ pub async fn get_deleted_records(
     let search = search
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());
-    let db = db_state.db.lock().map_err(|e| e.to_string())?;
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, userId.as_deref(), PERM_RECYCLE_VIEW)?;
     if let Some(ref t) = tableName {
         if !t.is_empty() {
-            if !is_safe_table_ident(t) {
-                return Err("Invalid table name".to_string());
-            }
+            crate::safety::guard_safe_table_name(t)?;
             let allowed: HashSet<String> =
-                get_soft_delete_tables_internal(&db)?.into_iter().collect();
+                get_soft_delete_tables_internal(&db)
+                    .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
+                    .into_iter()
+                    .collect();
             if !allowed.contains(t) {
-                return Err("Table does not support soft delete".to_string());
+                return Err(IpcError::new(
+                    "validation",
+                    "Table does not support soft delete",
+                ));
             }
             log::info!(
                 target: "import_manager::recycle_bin",
@@ -809,7 +806,8 @@ pub async fn get_deleted_records(
                 run_id,
                 t
             );
-            return get_deleted_paged_single_table(&db, t, search, page, page_size);
+            return get_deleted_paged_single_table(&db, t, search, page, page_size)
+                .map_err(|m| IpcError::new("recycle_bin_query_failed", m));
         }
     }
 
@@ -826,11 +824,13 @@ pub async fn get_deleted_records(
             "event=workflow.recycle_bin.progress stage=execution run_id={} mode=all_tables_no_search",
             run_id
         );
-        return get_deleted_paged_all_tables_no_search(&db, page, page_size);
+        return get_deleted_paged_all_tables_no_search(&db, page, page_size)
+            .map_err(|m| IpcError::new("recycle_bin_query_failed", m));
     }
 
     // Search path keeps full matching semantics across table + label + id + deleted_at text.
-    let all = list_all_soft_deleted_for_recycle_bin(&db, search)?;
+    let all = list_all_soft_deleted_for_recycle_bin(&db, search)
+        .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
     let total = all.len() as i64;
     if total >= SCALE_WARNING_RECYCLE_TOTAL {
         log::warn!(
@@ -996,8 +996,9 @@ fn validate_restore_parents(
     child_table: &str,
     record_ids: &[String],
     restore_attempt_id: &str,
-) -> Result<(), String> {
-    let fks = list_outgoing_foreign_keys(conn, child_table)?;
+) -> Result<(), IpcError> {
+    let fks = list_outgoing_foreign_keys(conn, child_table)
+        .map_err(|m| IpcError::new("restore_validation_failed", m))?;
     if fks.is_empty() {
         return Ok(());
     }
@@ -1005,7 +1006,9 @@ fn validate_restore_parents(
     for chunk in record_ids.chunks(IN_BATCH) {
         for rid in chunk {
             for fk in &fks {
-                if !table_has_column(conn, child_table, &fk.child_from)? {
+                if !table_has_column(conn, child_table, &fk.child_from)
+                    .map_err(|m| IpcError::new("restore_validation_failed", m))?
+                {
                     continue;
                 }
                 let q = format!(
@@ -1017,11 +1020,14 @@ fn validate_restore_parents(
                     match conn.query_row(&q, [rid.as_str()], |r| r.get::<_, Option<String>>(0)) {
                         Ok(v) => v,
                         Err(rusqlite::Error::QueryReturnedNoRows) => {
-                            return Err(format!(
-                                "Record {rid} is not in deleted state in {child_table}"
+                            return Err(IpcError::new(
+                                "restore_validation_failed",
+                                format!("Record {rid} is not in deleted state in {child_table}"),
                             ));
                         }
-                        Err(e) => return Err(e.to_string()),
+                        Err(e) => {
+                            return Err(IpcError::new("restore_validation_failed", e.to_string()));
+                        }
                     };
                 let val = match val {
                     None => None,
@@ -1031,11 +1037,19 @@ fn validate_restore_parents(
                 let Some(ref pval) = val else {
                     continue;
                 };
-                if let Some(reason) =
-                    parent_reachable_reason(conn, &fk.parent_table, &fk.parent_to, pval)?
+                if let Some(reason) = parent_reachable_reason(
+                    conn,
+                    &fk.parent_table,
+                    &fk.parent_to,
+                    pval,
+                )
+                .map_err(|m| IpcError::new("restore_validation_failed", m))?
                 {
                     if reason == "invalid" {
-                        return Err("Invalid parent table reference in schema".to_string());
+                        return Err(IpcError::new(
+                            "restore_validation_failed",
+                            "Invalid parent table reference in schema",
+                        ));
                     }
                     details.push(MissingParentDetail {
                         record_id: rid.clone(),
@@ -1078,7 +1092,14 @@ fn validate_restore_parents(
         restore_attempt_id: restore_attempt_id.to_string(),
         details,
     };
-    Err(serde_json::to_string(&payload).map_err(|e| e.to_string())?)
+    let details_json = serde_json::to_string(&payload)
+        .map_err(|e| IpcError::new("restore_validation_failed", e.to_string()))?;
+    Err(IpcError::new(
+        "missing_parent",
+        "Cannot restore record because required parent records are missing or soft-deleted.",
+    )
+    .with_details(details_json)
+    .with_correlation_id(restore_attempt_id.to_string()))
 }
 
 #[tauri::command]
@@ -1087,18 +1108,23 @@ pub async fn restore_deleted_records(
     tableName: String,
     recordIds: Vec<String>,
     userId: Option<String>,
-) -> Result<String, String> {
-    if recordIds.is_empty() {
-        return Err("No record ids provided".to_string());
-    }
-    if !is_safe_table_ident(&tableName) {
-        return Err("Invalid table name".to_string());
-    }
-    let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
-    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_EDIT)?;
-    let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)?.into_iter().collect();
+) -> Result<String, IpcError> {
+    crate::safety::guard_non_empty_ids(&recordIds, "No record ids provided")?;
+    crate::safety::guard_safe_table_name(&tableName)?;
+    let mut db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, userId.as_deref(), PERM_RECYCLE_RESTORE)?;
+    let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)
+        .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
+        .into_iter()
+        .collect();
     if !allowed.contains(&tableName) {
-        return Err("Table does not support soft delete".to_string());
+        return Err(IpcError::new(
+            "validation",
+            "Table does not support soft delete",
+        ));
     }
     let restore_attempt_id = Uuid::new_v4().to_string();
     let op_started = Instant::now();
@@ -1110,13 +1136,17 @@ pub async fn restore_deleted_records(
         recordIds.len()
     );
     validate_restore_parents(&db, &tableName, &recordIds, &restore_attempt_id)?;
-    let has_by = table_has_column(&db, &tableName, "deleted_by")?;
+    let has_by = table_has_column(&db, &tableName, "deleted_by")
+        .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
     let set_rest = if has_by {
         "deleted_at = NULL, deleted_by = NULL"
     } else {
         "deleted_at = NULL"
     };
-    let tx = db.transaction().map_err(|e| e.to_string())?;
+    let tx = db
+        .transaction()
+        .map_err(|e| IpcError::new("restore_failed", e.to_string()))?;
+    let mut restored_rows: usize = 0;
     for chunk in recordIds.chunks(IN_BATCH) {
         let ph: String = (0..chunk.len()).map(|_| "?").collect::<Vec<_>>().join(",");
         let q = format!(
@@ -1125,10 +1155,22 @@ pub async fn restore_deleted_records(
             set_rest,
             ph
         );
-        tx.execute(&q, rusqlite::params_from_iter(chunk))
-            .map_err(|e| e.to_string())?;
+        restored_rows += tx
+            .execute(&q, rusqlite::params_from_iter(chunk))
+            .map_err(|e| IpcError::new("restore_failed", e.to_string()))?;
     }
-    tx.commit().map_err(|e| e.to_string())?;
+    tx.commit()
+        .map_err(|e| IpcError::new("restore_failed", e.to_string()))?;
+    if restored_rows != recordIds.len() {
+        return Err(IpcError::new(
+            "restore_partial",
+            format!(
+                "Restore partially applied: requested {}, restored {}.",
+                recordIds.len(),
+                restored_rows
+            ),
+        ));
+    }
     let duration_s = op_started.elapsed().as_secs_f64();
     crate::commands::db_management::invalidate_database_stats_cache();
     log::info!(
@@ -1138,6 +1180,24 @@ pub async fn restore_deleted_records(
         recordIds.len(),
         duration_s
     );
+    if let Ok(conn) = db_state.db.lock() {
+        let details = serde_json::json!({
+            "restoreAttemptId": restore_attempt_id,
+            "table": tableName,
+            "recordCount": recordIds.len(),
+        })
+        .to_string();
+        log_activity_with_severity(
+            &conn,
+            userId.as_deref(),
+            "recycle_bin.restore",
+            Some("recycle_bin"),
+            None,
+            Some(&details),
+            "success",
+            AuditSeverity::Info,
+        );
+    }
     Ok("Records restored successfully".to_string())
 }
 
@@ -1147,32 +1207,41 @@ pub async fn permanently_delete_records(
     tableName: String,
     recordIds: Vec<String>,
     userId: Option<String>,
-) -> Result<String, String> {
+) -> Result<String, IpcError> {
     let _trace = HardDeleteFnLogGuard::new(
         "permanently_delete_records",
         &tableName,
         &crate::commands::reference_scan::summarize_record_ids_for_log(&recordIds),
         "n/a",
     );
-    if recordIds.is_empty() {
-        return Err("No record ids provided".to_string());
-    }
-    if !is_safe_table_ident(&tableName) {
-        return Err("Invalid table name".to_string());
-    }
-    let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
-    ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
-    let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)?.into_iter().collect();
+    crate::safety::guard_non_empty_ids(&recordIds, "No record ids provided")?;
+    crate::safety::guard_safe_table_name(&tableName)?;
+    let mut db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, userId.as_deref(), PERM_RECYCLE_PURGE)?;
+    let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)
+        .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
+        .into_iter()
+        .collect();
     if !allowed.contains(&tableName) {
-        return Err("Table does not support soft delete".to_string());
+        return Err(IpcError::new(
+            "validation",
+            "Table does not support soft delete",
+        ));
     }
-    ensure_can_hard_delete(&db, &tableName, &recordIds)?;
+    ensure_can_hard_delete(&db, &tableName, &recordIds)
+        .map_err(|m| IpcError::new("hard_delete_blocked", m))?;
     log::info!(
         target: "import_manager::hard_delete",
         "[HARD_DELETE] Begin transaction"
     );
-    let tx = db.transaction().map_err(|e| e.to_string())?;
+    let tx = db
+        .transaction()
+        .map_err(|e| IpcError::new("hard_delete_failed", e.to_string()))?;
     let mut processed_ids: HashSet<String> = HashSet::new();
+    let mut deleted_rows: usize = 0;
     for (batch_idx, chunk) in recordIds.chunks(IN_BATCH).enumerate() {
         let batch_number = batch_idx + 1;
         for id in chunk {
@@ -1194,11 +1263,15 @@ pub async fn permanently_delete_records(
                 &tx,
                 &tableName,
                 std::slice::from_ref(id),
-            )?;
+            )
+            .map_err(|m| IpcError::new("hard_delete_failed", m))?;
             let q = format!("DELETE FROM {} WHERE id = ?1", quote_ident(&tableName));
             let exec_started = Instant::now();
-            tx.execute(&q, rusqlite::params![id.as_str()])
-                .map_err(map_hard_delete_error_rusqlite)?;
+            deleted_rows += tx
+                .execute(&q, rusqlite::params![id.as_str()])
+                .map_err(|e| {
+                    IpcError::new("hard_delete_failed", map_hard_delete_error_rusqlite(e))
+                })?;
             let exec_ms = exec_started.elapsed().as_millis();
             if exec_ms > 500 {
                 log::warn!(
@@ -1210,7 +1283,18 @@ pub async fn permanently_delete_records(
             }
         }
     }
-    tx.commit().map_err(|e| e.to_string())?;
+    tx.commit()
+        .map_err(|e| IpcError::new("hard_delete_failed", e.to_string()))?;
+    let expected = processed_ids.len();
+    if deleted_rows != expected {
+        return Err(IpcError::new(
+            "hard_delete_partial",
+            format!(
+                "Permanent delete partially applied: requested {}, deleted {}.",
+                expected, deleted_rows
+            ),
+        ));
+    }
     crate::commands::db_management::invalidate_database_stats_cache();
     log::info!(
         target: "import_manager::hard_delete",
@@ -1222,6 +1306,23 @@ pub async fn permanently_delete_records(
         tableName,
         recordIds.len()
     );
+    if let Ok(conn) = db_state.db.lock() {
+        let details = serde_json::json!({
+            "table": tableName,
+            "recordCount": recordIds.len(),
+        })
+        .to_string();
+        log_activity_with_severity(
+            &conn,
+            userId.as_deref(),
+            "recycle_bin.purge",
+            Some("recycle_bin"),
+            None,
+            Some(&details),
+            "success",
+            AuditSeverity::Warning,
+        );
+    }
     Ok("Records permanently deleted".to_string())
 }
 
@@ -1374,7 +1475,14 @@ mod tests {
         c.execute_batch("PRAGMA foreign_keys = ON;").unwrap();
         let err = validate_restore_parents(&c, "c_missing", &["c1".to_string()], "test-attempt-1")
             .expect_err("err");
-        assert!(err.contains("MISSING_PARENT"), "got {err}");
+        assert_eq!(err.code, "missing_parent", "got {}", err.message);
+        assert!(
+            err.details
+                .as_deref()
+                .unwrap_or_default()
+                .contains("MISSING_PARENT"),
+            "missing details marker"
+        );
     }
 
     #[test]
@@ -1390,7 +1498,14 @@ mod tests {
         .unwrap();
         let err = validate_restore_parents(&c, "c_soft", &["c1".to_string()], "test-attempt-1")
             .expect_err("err");
-        assert!(err.contains("MISSING_PARENT"), "got {err}");
+        assert_eq!(err.code, "missing_parent", "got {}", err.message);
+        assert!(
+            err.details
+                .as_deref()
+                .unwrap_or_default()
+                .contains("MISSING_PARENT"),
+            "missing details marker"
+        );
     }
 
     #[test]

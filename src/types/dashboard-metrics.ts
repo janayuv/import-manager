@@ -198,3 +198,41 @@ export type AuditVerificationSummary = {
   integrityWarnings: number;
   missingChecksumEntries: number;
 };
+
+export type AiConsistencyAuditReport = {
+  checksRun: number;
+  checksFailed: number;
+  staleSnapshotDetected: boolean;
+  duplicateIntentPatternsDetected: boolean;
+  rootCauseTraceViolations7d: number;
+  missingTraceChecksum7d: number;
+  summary: string;
+};
+
+export type RuntimeAnomalyReport = {
+  anomalyScore: number;
+  severity: 'low' | 'medium' | 'high' | 'critical' | string;
+  failedJobs1h: number;
+  timeoutJobs1h: number;
+  recoveryJournalStuck: number;
+  integrityIssues24h: number;
+  memoryWatermarkExceeded: boolean;
+  reasons: string[];
+};
+
+export type SelfHealingRecoveryResult = {
+  attempted: boolean;
+  healed: boolean;
+  repairedRecords: number;
+  anomalyScoreBefore: number;
+  anomalyScoreAfter: number;
+  actions: string[];
+  message: string;
+};
+
+export type Phase3TrendPoint = {
+  ts: string;
+  anomalyScore: number;
+  severity: string;
+  healed?: boolean;
+};

@@ -1,6 +1,6 @@
 // src/pages/item/index.tsx
 // react-table imports were unused in this refactored page
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { openTextFile, save, writeTextFile } from '@/lib/tauri-bridge';
 import {
   ArrowLeft,
@@ -463,7 +463,7 @@ export function ItemMasterPage() {
 
   if (itemPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 flex min-h-screen flex-col bg-gradient-to-br">
+      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
         <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
           <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
             <Button

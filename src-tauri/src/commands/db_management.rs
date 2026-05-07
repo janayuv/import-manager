@@ -95,8 +95,10 @@ fn sidecar_sha256_path(db_file: &Path) -> PathBuf {
 
 fn write_sha256_sidecar(db_file: &Path, hash_hex: &str) -> Result<(), String> {
     let side = sidecar_sha256_path(db_file);
-    fs::write(&side, format!("{}\n", hash_hex.trim()))
-        .map_err(|e| format!("Failed to write checksum file: {}", e))
+    let tmp = PathBuf::from(format!("{}.tmp", side.to_string_lossy()));
+    fs::write(&tmp, format!("{}\n", hash_hex.trim()))
+        .map_err(|e| format!("Failed to write checksum file: {}", e))?;
+    fs::rename(&tmp, &side).map_err(|e| format!("Failed to finalize checksum file: {}", e))
 }
 
 fn read_expected_sha256_from_sidecar(sidecar: &Path) -> Result<String, String> {
@@ -125,7 +127,7 @@ fn validate_local_backup_file_for_restore(local_path: &Path) -> Result<(), Strin
         log::warn!(
             target: "import_manager::restore",
             "No SHA256 sidecar for {}; continuing (backup created before checksum support)",
-            local_path.display()
+            crate::utils::redaction::redact_path(local_path)
         );
         return Ok(());
     }
@@ -629,33 +631,10 @@ pub(crate) fn ensure_command_permission(
     actor_user_id: Option<&str>,
     permission: &str,
 ) -> Result<(), String> {
-    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
-        log::warn!(
-            target: "import_manager::authz",
-            "event=authz.denied stage=validation reason=missing_actor permission={}",
-            permission
-        );
-        return Err("Permission denied: missing user context.".to_string());
-    };
-    if actor.eq_ignore_ascii_case("scheduler") || actor.eq_ignore_ascii_case("system") {
-        return Ok(());
-    }
-    let role = crate::security::resolve_role_strict(db, actor)?;
-    if role_allows_permission(&role, permission) {
-        Ok(())
-    } else {
-        log::warn!(
-            target: "import_manager::authz",
-            "event=authz.denied stage=validation reason=insufficient_permission actor={} role={} permission={}",
-            actor,
-            role,
-            permission
-        );
-        Err(format!(
-            "Permission denied: '{}' requires '{}'.",
-            actor, permission
-        ))
-    }
+    let perm = crate::security::Permission::from_str(permission).ok_or_else(|| {
+        format!("Invalid permission key: {permission} (bug; not a user error)")
+    })?;
+    crate::security::ensure_command_permission(db, actor_user_id, perm)
 }
 
 fn get_app_metadata_string(
@@ -1731,16 +1710,56 @@ async fn run_due_backup_schedules(app: AppHandle) -> Result<(), String> {
     };
 
     for schedule_id in due_ids {
-        if let Err(e) = run_scheduled_backup(
-            app.clone(),
-            db_state.clone(),
-            schedule_id,
-            Some("scheduler".to_string()),
-        )
-        .await
+        if let Err(e) = run_scheduled_backup_internal(app.clone(), db_state.clone(), schedule_id).await
         {
             log::warn!("scheduled backup id {} failed: {}", schedule_id, e);
         }
+    }
+    Ok(())
+}
+
+async fn run_scheduled_backup_internal(
+    app: AppHandle,
+    db_state: State<'_, DbState>,
+    schedule_id: i64,
+) -> Result<(), String> {
+    // Intentionally internal-only (background tick). IPC must always present a real user id.
+    let schedule = {
+        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        db.query_row(
+            "SELECT id, name, destination, enabled FROM backup_schedules WHERE id = ?",
+            params![schedule_id],
+            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?)),
+        )
+        .map_err(|e| e.to_string())?
+    };
+    if schedule.3 == 0 {
+        return Ok(());
+    }
+    let backup_request = BackupRequest {
+        destination: schedule.2,
+        filename: None,
+        include_wal: true,
+        notes: Some(format!("Scheduled backup: {}", schedule.1)),
+    };
+    let info = create_backup_internal(app, db_state.clone(), backup_request, None).await?;
+    if let Ok(conn) = db_state.db.lock() {
+        let details = serde_json::json!({
+            "scheduleId": schedule_id,
+            "backupId": info.id,
+            "destination": info.destination,
+        })
+        .to_string();
+        crate::services::user_activity_audit::log_activity_with_severity(
+            &conn,
+            None,
+            "backup.scheduled",
+            Some("backups"),
+            info.id.as_ref().map(|v| v.to_string()).as_deref(),
+            Some(&details),
+            "success",
+            AuditSeverity::Info,
+        );
     }
     Ok(())
 }
@@ -2421,7 +2440,10 @@ pub async fn create_backup(
         target: "import_manager::backup",
         "event=workflow.backup.start stage=entry destination={} user_id={}",
         backup_destination,
-        userId.as_deref().unwrap_or("unknown")
+        userId
+            .as_deref()
+            .map(crate::utils::redaction::redact_secret)
+            .unwrap_or_else(|| "unknown".to_string())
     );
     match create_backup_impl(
         app.clone(),
@@ -2655,7 +2677,7 @@ async fn create_backup_impl(
                 log::warn!(
                     target: "import_manager::backup",
                     "Prune: could not delete remote Google Drive file {}: {}",
-                    file_id,
+                    crate::utils::redaction::redact_secret(&file_id),
                     e
                 );
             }
@@ -3661,8 +3683,11 @@ pub async fn restore_database(
         target: "import_manager::restore",
         "event=workflow.restore.start stage=entry sequence={} backup_path={} user_id={}",
         heavy_seq,
-        backupPath,
-        userId.as_deref().unwrap_or("unknown")
+        crate::utils::redaction::redact_path_str(&backupPath),
+        userId
+            .as_deref()
+            .map(crate::utils::redaction::redact_secret)
+            .unwrap_or_else(|| "unknown".to_string())
     );
     log::info!(
         target: "import_manager::workload",
@@ -4231,6 +4256,24 @@ pub async fn restore_database(
                 restore_start.elapsed().as_millis(),
                 result.outcome
             );
+            if let Ok(conn) = db_state.db.lock() {
+                let details = serde_json::json!({
+                    "backupPath": crate::utils::redaction::redact_path_str(&backupPath),
+                    "outcome": format!("{:?}", result.outcome),
+                    "preRestoreBackup": result.backup_created.as_deref().unwrap_or(""),
+                })
+                .to_string();
+                crate::services::user_activity_audit::log_activity_with_severity(
+                    &conn,
+                    userId.as_deref(),
+                    "restore_database",
+                    Some("database"),
+                    None,
+                    Some(&details),
+                    "SUCCESS",
+                    AuditSeverity::Critical,
+                );
+            }
             record_performance_observation(
                 "restore_operation",
                 restore_start.elapsed().as_millis(),
@@ -4277,6 +4320,23 @@ pub async fn restore_database(
                 restore_start.elapsed().as_millis(),
                 e
             );
+            if let Ok(conn) = db_state.db.lock() {
+                let details = serde_json::json!({
+                    "backupPath": crate::utils::redaction::redact_path_str(&backupPath),
+                    "error": e,
+                })
+                .to_string();
+                crate::services::user_activity_audit::log_activity_with_severity(
+                    &conn,
+                    userId.as_deref(),
+                    "restore_database",
+                    Some("database"),
+                    None,
+                    Some(&details),
+                    "FAILED",
+                    AuditSeverity::Critical,
+                );
+            }
             record_performance_observation(
                 "restore_operation",
                 restore_start.elapsed().as_millis(),
@@ -7120,135 +7180,36 @@ mod authz_ensure_command_tests {
     use super::ensure_command_permission;
     use super::PERM_BACKUP_CREATE;
     use rusqlite::Connection;
-    use rusqlite::params;
 
     #[test]
-    fn unknown_actor_denied_backup_create_no_silent_admin_promotion() {
+    fn missing_actor_is_denied() {
         let conn = Connection::open_in_memory().unwrap();
-        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
+        let err = ensure_command_permission(&conn, None, PERM_BACKUP_CREATE).unwrap_err();
+        assert!(err.to_lowercase().contains("missing"), "unexpected: {err}");
+    }
+
+    #[test]
+    fn reserved_internal_actors_are_denied_from_ipc_authz_path() {
+        let conn = Connection::open_in_memory().unwrap();
         let err =
-            ensure_command_permission(&conn, Some("spoofed-user"), PERM_BACKUP_CREATE).unwrap_err();
-        assert!(
-            err.contains("not configured") || err.contains("Permission denied"),
-            "unexpected: {err}"
-        );
-        let n: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM user_roles WHERE user_id = ?1",
-                params!["spoofed-user"],
-                |r| r.get(0),
-            )
-            .unwrap();
-        assert_eq!(n, 0, "must not insert admin row for unknown actor");
-    }
-
-    #[test]
-    fn existing_viewer_denied_backup_create() {
-        let conn = Connection::open_in_memory().unwrap();
-        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
-        conn.execute(
-            "INSERT INTO user_roles (user_id, role) VALUES (?1, ?2)",
-            params!["vu", "viewer"],
-        )
-        .unwrap();
-        let err = ensure_command_permission(&conn, Some("vu"), PERM_BACKUP_CREATE).unwrap_err();
-        assert!(
-            err.contains("Permission denied") && err.contains("backup.create"),
-            "unexpected: {err}"
-        );
-    }
-
-    /// Regression: an existing admin does not allow arbitrary unknown users through privileged checks.
-    #[test]
-    fn admin_exists_unknown_user_denied_privileged_command() {
-        let conn = Connection::open_in_memory().unwrap();
-        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
-        conn.execute(
-            "INSERT INTO user_roles (user_id, role) VALUES (?1, ?2)",
-            params!["existing-admin", "admin"],
-        )
-        .unwrap();
+            ensure_command_permission(&conn, Some("system"), PERM_BACKUP_CREATE).unwrap_err();
+        assert!(err.to_lowercase().contains("reserved"), "unexpected: {err}");
         let err =
-            ensure_command_permission(&conn, Some("random-unknown"), PERM_BACKUP_CREATE).unwrap_err();
-        assert!(
-            err.contains("not configured") || err.contains("Permission denied"),
-            "unexpected: {err}"
-        );
-        let n: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM user_roles WHERE user_id = ?1",
-                params!["random-unknown"],
-                |r| r.get(0),
-            )
-            .unwrap();
-        assert_eq!(n, 0);
+            ensure_command_permission(&conn, Some("scheduler"), PERM_BACKUP_CREATE).unwrap_err();
+        assert!(err.to_lowercase().contains("reserved"), "unexpected: {err}");
     }
 
-    /// Regression: multiple distinct unknown users doing privileged checks — none get rows.
     #[test]
-    fn multiple_unknown_users_none_promoted_via_permission_checks() {
+    fn any_non_empty_user_id_is_allowed_in_single_user_mode() {
         let conn = Connection::open_in_memory().unwrap();
-        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
-        for uid in ["u1", "u2", "u3"] {
-            let err = ensure_command_permission(&conn, Some(uid), PERM_BACKUP_CREATE).unwrap_err();
-            assert!(
-                err.contains("not configured") || err.contains("Permission denied"),
-                "unexpected for {uid}: {err}"
-            );
-        }
-        let total: i64 = conn
-            .query_row("SELECT COUNT(*) FROM user_roles", [], |r| r.get(0))
-            .unwrap();
-        assert_eq!(total, 0);
-    }
-
-    /// Zero admins: explicit bootstrap creates exactly one admin; permission checks still deny others.
-    #[test]
-    fn zero_admins_explicit_bootstrap_then_strict_auth() {
-        let conn = Connection::open_in_memory().unwrap();
-        crate::security::bootstrap_first_admin_when_empty(&conn, "owner").unwrap();
         ensure_command_permission(&conn, Some("owner"), PERM_BACKUP_CREATE).unwrap();
-
-        let err =
-            ensure_command_permission(&conn, Some("other"), PERM_BACKUP_CREATE).unwrap_err();
-        assert!(
-            err.contains("not configured") || err.contains("Permission denied"),
-            "unexpected: {err}"
-        );
-
-        let err_second =
-            crate::security::bootstrap_first_admin_when_empty(&conn, "intruder").unwrap_err();
-        assert!(
-            err_second.contains("already exists"),
-            "unexpected: {err_second}"
-        );
+        ensure_command_permission(&conn, Some("any-non-empty"), PERM_BACKUP_CREATE).unwrap();
     }
 
-    /// Canonical role names accepted post-V72 normalization grant the matrix-defined permissions.
     #[test]
-    fn canonical_roles_match_permission_matrix() {
-        use super::PERM_DATA_DELETE;
+    fn invalid_permission_key_is_a_bug_error() {
         let conn = Connection::open_in_memory().unwrap();
-        crate::security::ensure_user_roles::ensure_user_roles_table(&conn).unwrap();
-        for (uid, role) in [
-            ("a", "administrator"),
-            ("m", "manager"),
-            ("o", "operator"),
-            ("v", "viewer"),
-        ] {
-            conn.execute(
-                "INSERT OR REPLACE INTO user_roles (user_id, role) VALUES (?1, ?2)",
-                params![uid, role],
-            )
-            .unwrap();
-        }
-        ensure_command_permission(&conn, Some("a"), PERM_DATA_DELETE).unwrap();
-        ensure_command_permission(&conn, Some("m"), PERM_DATA_DELETE).unwrap();
-        let err =
-            ensure_command_permission(&conn, Some("o"), PERM_DATA_DELETE).unwrap_err();
-        assert!(err.contains("Permission denied"), "operator should fail: {err}");
-        let err =
-            ensure_command_permission(&conn, Some("v"), PERM_DATA_DELETE).unwrap_err();
-        assert!(err.contains("Permission denied"), "viewer should fail: {err}");
+        let err = ensure_command_permission(&conn, Some("owner"), "nope.nope").unwrap_err();
+        assert!(err.to_lowercase().contains("invalid permission"), "unexpected: {err}");
     }
 }

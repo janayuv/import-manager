@@ -1,6 +1,6 @@
 // src/pages/dashboard.tsx
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
   format,
   formatDistanceToNowStrict,

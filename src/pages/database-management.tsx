@@ -5,7 +5,7 @@ import {
   useRef,
   type ChangeEvent,
 } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
   Card,
   CardContent,
@@ -173,9 +173,14 @@ interface DriveTransferProgressPayload {
 
 function invokeErrorMessage(err: unknown): string {
   if (typeof err === 'string') return err;
-  if (err && typeof err === 'object' && 'message' in err) {
-    const m = (err as { message?: unknown }).message;
+  if (err && typeof err === 'object') {
+    const o = err as { message?: unknown; error?: unknown; cause?: unknown };
+    const m = o.message;
     if (typeof m === 'string') return m;
+    const e = o.error;
+    if (typeof e === 'string') return e;
+    const c = o.cause;
+    if (typeof c === 'string') return c;
   }
   try {
     return String(err);
@@ -642,12 +647,13 @@ function DatabaseManagementContent() {
           invoke<DatabaseStats>('get_database_stats'),
           invoke<BackupInfo[]>('get_backup_history', { limit: 10 }),
           invoke<AuditLog[]>('get_audit_logs', { limit: 20 }),
-          invoke<GoogleDriveStatus>('google_drive_status').catch(() =>
-            normalizeGoogleDriveStatus({
-              configured: false,
-              connected: false,
-              state: 'not_configured',
-            })
+          invoke<GoogleDriveStatus>('google_drive_status', { userId }).catch(
+            () =>
+              normalizeGoogleDriveStatus({
+                configured: false,
+                connected: false,
+                state: 'not_configured',
+              })
           ),
           invoke<BackupHealthMetrics>('get_backup_health_metrics').catch(
             () => null
@@ -671,7 +677,7 @@ function DatabaseManagementContent() {
       console.error('Failed to load dashboard data:', error);
       toast.error('Failed to load database management data');
     }
-  }, []);
+  }, [userId]);
 
   /** Full backup list (including live Google Drive `.enc` files); always hits the backend — no client cache. */
   const loadBackupHistory = useCallback(async () => {
@@ -1127,7 +1133,9 @@ function DatabaseManagementContent() {
       toast.info('Complete sign-in in your browser…');
       await invoke('google_drive_connect', { userId });
       try {
-        const s = await invoke<GoogleDriveStatus>('google_drive_status');
+        const s = await invoke<GoogleDriveStatus>('google_drive_status', {
+          userId,
+        });
         setGoogleDriveStatus(normalizeGoogleDriveStatus(s));
       } catch {
         /* status refresh best-effort */
@@ -1138,7 +1146,9 @@ function DatabaseManagementContent() {
         /* profile optional */
       }
       try {
-        const s2 = await invoke<GoogleDriveStatus>('google_drive_status');
+        const s2 = await invoke<GoogleDriveStatus>('google_drive_status', {
+          userId,
+        });
         setGoogleDriveStatus(normalizeGoogleDriveStatus(s2));
       } catch {
         /* status after profile */
@@ -1345,9 +1355,7 @@ function DatabaseManagementContent() {
       logInfo('Backup encryption key export completed', 'security');
     } catch (e) {
       logError(String(e), 'export-backup-key');
-      toast.error(
-        e instanceof Error ? e.message : 'Failed to export backup key.'
-      );
+      toast.error(`Failed to export backup key: ${invokeErrorMessage(e)}`);
     }
   };
 
@@ -1385,9 +1393,7 @@ function DatabaseManagementContent() {
       logInfo('Backup encryption key import completed', 'security');
     } catch (e) {
       logError(String(e), 'import-backup-key');
-      toast.error(
-        e instanceof Error ? e.message : 'Failed to import backup key.'
-      );
+      toast.error(`Failed to import backup key: ${invokeErrorMessage(e)}`);
     }
   };
 

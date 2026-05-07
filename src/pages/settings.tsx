@@ -1,7 +1,7 @@
 // src/pages/settings.tsx
 'use client';
 
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { toast } from 'sonner';
 
 import * as React from 'react';

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';

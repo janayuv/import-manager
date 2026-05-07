@@ -1,12 +1,12 @@
 ﻿RELEASE BUILD METADATA
 ========================================
-Version: 0.2.3
-Commit: 38c5d0482009529557f707914184a83734e2b90a
-Build Date: 2026-04-28 22:50:59
+Version: 0.4.0
+Commit: b810b2e28791e3617f675544728922435b42d94b
+Build Date: 2026-05-06 15:37:24
 
 Node: v22.14.0
 npm: 11.5.2
 Rust: rustc 1.88.0 (6b00bc388 2025-06-23)
-Tauri: tauri-cli 2.10.1
+Tauri: tauri-cli 2.11.0
 
 ========================================

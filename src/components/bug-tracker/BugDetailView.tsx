@@ -1,5 +1,5 @@
 import { convertFileSrc } from '@tauri-apps/api/core';
-import { Trash2 } from 'lucide-react';
+import { ExternalLink, Trash2 } from 'lucide-react';
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
@@ -9,7 +9,11 @@ import {
   type ContextSelectorOptions,
 } from '@/components/bug-tracker/ContextSelector';
 import { buildFieldOptions } from '@/components/bug-tracker/context-suggestions';
-import { trimBugContext } from '@/components/bug-tracker/utils';
+import {
+  buildGitHubIssueUrlForBug,
+  formatBugForCursorChat,
+  trimBugContext,
+} from '@/components/bug-tracker/utils';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -115,6 +119,23 @@ export function BugDetailView({
     }
   };
 
+  const copyForCursor = async () => {
+    if (!bug) return;
+    const payload = formatBugForCursorChat(bug);
+    try {
+      await navigator.clipboard.writeText(payload);
+      toast.success('Bug details copied. Paste into Cursor chat.');
+    } catch {
+      toast.error('Could not copy bug details to clipboard.');
+    }
+  };
+
+  const shareToGitHub = () => {
+    if (!bug) return;
+    const issueUrl = buildGitHubIssueUrlForBug(bug);
+    window.open(issueUrl, '_blank', 'noopener,noreferrer');
+  };
+
   if (!bug) return null;
 
   const shot = imgSrc(bug.screenshotPath);
@@ -188,14 +209,27 @@ export function BugDetailView({
           </div>
 
           <DialogFooter className="gap-2 sm:justify-between">
-            <Button
-              type="button"
-              variant="destructive"
-              onClick={() => void handleDelete()}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete
-            </Button>
+            <div className="flex flex-wrap gap-2">
+              <Button type="button" variant="outline" onClick={shareToGitHub}>
+                <ExternalLink className="mr-2 h-4 w-4" />
+                Share to GitHub
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => void copyForCursor()}
+              >
+                Copy for Cursor
+              </Button>
+              <Button
+                type="button"
+                variant="destructive"
+                onClick={() => void handleDelete()}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </Button>
+            </div>
             <div className="flex gap-2">
               <Button
                 type="button"

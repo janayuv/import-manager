@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 
 /** Mirrors `get_system_metrics` JSON keys from the backend. */
 export type SystemMetricsExport = {

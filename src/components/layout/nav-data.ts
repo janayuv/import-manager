@@ -117,6 +117,11 @@ export const navItems: AppNavItem[] = [
         url: '/admin/system-tools',
         requiredPermission: 'admin.system_tools',
       },
+      {
+        title: 'Error center',
+        url: '/admin/error-center',
+        requiredPermission: 'admin.system_tools',
+      },
     ],
   },
   {

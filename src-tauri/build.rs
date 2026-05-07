@@ -1,9 +1,10 @@
 use std::env;
 use std::path::Path;
 
-/// Bcrypt hash of the E2E/dev default password (`inzi@123$%`). Used when
-/// `IMPORT_MANAGER_ADMIN_PASSWORD_HASH` is unset (non-Playwright builds) so local
-/// `cargo run` / Vitest still work; release installers should set the env explicitly.
+/// Bcrypt hash of the E2E/dev default password (`inzi@123$%`).
+///
+/// We use this as a safe fallback whenever `IMPORT_MANAGER_ADMIN_PASSWORD_HASH`
+/// is unset to avoid shipping installers that cannot log in at all.
 fn dev_admin_password_hash() -> &'static str {
     "$2b$12$GiJ5u10SABuUkJh9yI4x7unxEXasQ.j9KXMcZG/NoZWQGGJ6OPLLq"
 }
@@ -39,10 +40,13 @@ fn main() {
         dev_admin_password_hash().to_string()
     } else if !admin_hash.is_empty() {
         admin_hash
-    } else if profile != "release" {
-        dev_admin_password_hash().to_string()
     } else {
-        String::new()
+        if profile == "release" {
+            panic!(
+                "IMPORT_MANAGER_ADMIN_PASSWORD_HASH must be set for release builds. Refusing to use dev fallback hash."
+            );
+        }
+        dev_admin_password_hash().to_string()
     };
     println!("cargo:rustc-env=IMPORT_MANAGER_ADMIN_PASSWORD_HASH={effective_hash}");
 

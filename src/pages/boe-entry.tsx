@@ -1,6 +1,6 @@
 'use client';
 
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { ArrowLeft } from 'lucide-react';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 

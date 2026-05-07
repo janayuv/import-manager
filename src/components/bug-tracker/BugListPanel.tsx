@@ -54,7 +54,8 @@ export function BugListPanel({
         <SheetHeader>
           <SheetTitle>Bugs</SheetTitle>
           <SheetDescription>
-            Latest 200 bugs by update time. Toggle status from the badge.
+            Latest 200 bugs by update time. Open a bug and use "Copy for Cursor"
+            to share it in chat.
           </SheetDescription>
         </SheetHeader>
 

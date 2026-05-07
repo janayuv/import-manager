@@ -10,7 +10,7 @@ import {
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { toast } from 'sonner';
 
 import { useTheme } from '@/components/layout/theme-context';

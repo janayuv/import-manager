@@ -15,17 +15,31 @@ function Invoke-NpmCiWithRecovery {
 
     Write-Warning "npm ci failed - attempting recovery..."
 
-    taskkill /F /IM node.exe 2>$null
+    try {
+      taskkill /F /IM node.exe *> $null
+    } catch {
+      Write-Host "No running node.exe process to terminate."
+    }
 
-    $oxidePath = "node_modules\@tailwindcss\oxide"
+    # Tailwind's native oxide binary is frequently the locked file on Windows.
+    $oxideGlobs = @(
+      "node_modules\@tailwindcss\.oxide*",
+      "node_modules\@tailwindcss\oxide*"
+    )
 
-    if (Test-Path $oxidePath) {
-      Write-Host "Removing locked oxide module..."
-      Remove-Item `
-        $oxidePath `
-        -Recurse `
-        -Force `
-        -ErrorAction SilentlyContinue
+    foreach ($glob in $oxideGlobs) {
+      Get-ChildItem -Path $glob -Force -ErrorAction SilentlyContinue | ForEach-Object {
+        try {
+          if ($_.PSIsContainer) {
+            Remove-Item $_.FullName -Recurse -Force -ErrorAction Stop
+          } else {
+            attrib -R $_.FullName 2>$null
+            Remove-Item $_.FullName -Force -ErrorAction Stop
+          }
+        } catch {
+          Write-Warning "Could not remove locked path: $($_.FullName)"
+        }
+      }
     }
 
     if ($i -eq $maxAttempts) {

@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 
 import { useCallback, useEffect, useState } from 'react';
 
@@ -195,19 +195,19 @@ const ExpensesPage = () => {
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger
                 value="manage"
-                className="text-foreground bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
               >
                 Manage Expenses
               </TabsTrigger>
               <TabsTrigger
                 value="import"
-                className="text-foreground bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
               >
                 Import Expenses
               </TabsTrigger>
               <TabsTrigger
                 value="debug"
-                className="text-foreground bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
               >
                 Debug & Setup
               </TabsTrigger>

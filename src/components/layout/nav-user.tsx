@@ -1,6 +1,6 @@
 'use client';
 
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { FileText, Lock, LogOut, Snowflake, User } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -74,7 +74,7 @@ export function NavUser({
           </SidebarMenuButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent
-          className="w-[var(--radix-dropdown-menu-trigger-width)] min-w-56 rounded-lg"
+          className="w-(--radix-dropdown-menu-trigger-width) min-w-56 rounded-lg"
           side={isMobile ? 'bottom' : 'right'}
           align="end"
           sideOffset={4}

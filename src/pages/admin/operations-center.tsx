@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Navigate } from 'react-router-dom';
 import {
   Activity,
   AlertTriangle,
   Bell,
   CheckCircle2,
+  Copy,
   Download,
   FlaskConical,
   Flame,
@@ -63,6 +64,18 @@ import {
   type IncidentDetail,
   type OperationsCenterDashboard,
 } from '@/lib/incident-management';
+import {
+  getPhase3TrendHistory,
+  getRuntimeAnomalyReport,
+  runAiConsistencyAuditor,
+  runSelfHealingRecoveryFlow,
+  savePhase3TrendHistory,
+} from '@/lib/workflow-observability';
+import type {
+  AiConsistencyAuditReport,
+  Phase3TrendPoint,
+  RuntimeAnomalyReport,
+} from '@/types/dashboard-metrics';
 import { useUser, useHasPermission } from '@/lib/user-context';
 
 const DEBUG_MODES = [
@@ -238,6 +251,15 @@ export default function OperationsCenterPage() {
   const [supIncident, setSupIncident] = useState('');
   const [forecastFeedbackBusy, setForecastFeedbackBusy] = useState(false);
   const [forecastAckBusy, setForecastAckBusy] = useState(false);
+  const [consistencyAudit, setConsistencyAudit] =
+    useState<AiConsistencyAuditReport | null>(null);
+  const [anomalyReport, setAnomalyReport] =
+    useState<RuntimeAnomalyReport | null>(null);
+  const [phase3Loading, setPhase3Loading] = useState(false);
+  const [selfHealingBusy, setSelfHealingBusy] = useState(false);
+  const [phase3Trend, setPhase3Trend] = useState<Phase3TrendPoint[]>([]);
+
+  const activeIncidentsAnchorRef = useRef<HTMLDivElement | null>(null);
 
   const loadDash = useCallback(async () => {
     setLoading(true);
@@ -252,6 +274,37 @@ export default function OperationsCenterPage() {
       setLoading(false);
     }
   }, [role]);
+
+  const loadPhase3Safety = useCallback(async () => {
+    setPhase3Loading(true);
+    try {
+      const [audit, anomaly] = await Promise.all([
+        runAiConsistencyAuditor(),
+        getRuntimeAnomalyReport(),
+      ]);
+      setConsistencyAudit(audit);
+      setAnomalyReport(anomaly);
+      setPhase3Trend(prev => {
+        const next = [
+          ...prev,
+          {
+            ts: new Date().toISOString(),
+            anomalyScore: anomaly.anomalyScore,
+            severity: anomaly.severity,
+          },
+        ];
+        return next.slice(-12);
+      });
+    } catch (e) {
+      toast.error(
+        `Phase 3 safety load failed: ${e instanceof Error ? e.message : String(e)}`
+      );
+      setConsistencyAudit(null);
+      setAnomalyReport(null);
+    } finally {
+      setPhase3Loading(false);
+    }
+  }, []);
 
   const loadDetail = useCallback(
     async (incidentId: string) => {
@@ -278,6 +331,30 @@ export default function OperationsCenterPage() {
     if (!viewOk) return;
     void loadDash();
   }, [viewOk, loadDash]);
+
+  useEffect(() => {
+    if (!viewOk) return;
+    void loadPhase3Safety();
+  }, [viewOk, loadPhase3Safety]);
+
+  useEffect(() => {
+    if (!viewOk) return;
+    void (async () => {
+      try {
+        const rows = await getPhase3TrendHistory();
+        setPhase3Trend(Array.isArray(rows) ? rows.slice(-12) : []);
+      } catch {
+        setPhase3Trend([]);
+      }
+    })();
+  }, [viewOk]);
+
+  useEffect(() => {
+    if (!viewOk) return;
+    void savePhase3TrendHistory(phase3Trend).catch(() => {
+      // Non-blocking persistence for local trend UX.
+    });
+  }, [phase3Trend, viewOk]);
 
   useEffect(() => {
     if (!selectedId || !viewOk) {
@@ -308,9 +385,36 @@ export default function OperationsCenterPage() {
     try {
       await refreshWorkflowIncidentMetrics(role || 'Admin');
       await loadDash();
+      await loadPhase3Safety();
       toast.success('Incident metrics refreshed');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const onRunSelfHealing = async () => {
+    setSelfHealingBusy(true);
+    try {
+      const out = await runSelfHealingRecoveryFlow();
+      toast.message('Self-healing flow completed', {
+        description: `${out.message} (before=${out.anomalyScoreBefore}, after=${out.anomalyScoreAfter})`,
+      });
+      await loadPhase3Safety();
+      await loadDash();
+      setPhase3Trend(prev => {
+        const next = [...prev];
+        if (next.length > 0) {
+          next[next.length - 1] = {
+            ...next[next.length - 1],
+            healed: out.healed,
+          };
+        }
+        return next.slice(-12);
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : String(e));
+    } finally {
+      setSelfHealingBusy(false);
     }
   };
 
@@ -377,8 +481,23 @@ export default function OperationsCenterPage() {
       toast.error('Root cause summary must be at least 50 characters');
       return;
     }
+    const pendingResolutionNote = resolutionNote.trim();
+    if (pendingResolutionNote.length > 0 && pendingResolutionNote.length < 10) {
+      toast.error('Resolution note must be at least 10 characters');
+      return;
+    }
     try {
+      // Auto-persist a typed note before resolving so users do not need to
+      // click "Append note" as a separate mandatory step.
+      if (pendingResolutionNote.length >= 10) {
+        await appendWorkflowIncidentResolutionNote(
+          selectedId,
+          pendingResolutionNote,
+          role || 'Admin'
+        );
+      }
       await resolveWorkflowIncident(selectedId, s, role || 'Admin');
+      setResolutionNote('');
       setRootCauseDraft('');
       toast.success('Incident resolved');
       setSelectedId(null);
@@ -409,6 +528,15 @@ export default function OperationsCenterPage() {
       await loadDash();
     } catch (e) {
       toast.error(e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  const copyToClipboard = async (label: string, value: string) => {
+    try {
+      await navigator.clipboard.writeText(value);
+      toast.success(`${label} copied`);
+    } catch {
+      toast.error(`Failed to copy ${label.toLowerCase()}`);
     }
   };
 
@@ -443,7 +571,14 @@ export default function OperationsCenterPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" size="sm" onClick={() => void loadDash()}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              void loadDash();
+              void loadPhase3Safety();
+            }}
+          >
             <RefreshCw className="mr-1 size-4" />
             Refresh
           </Button>
@@ -502,6 +637,138 @@ export default function OperationsCenterPage() {
           </CardContent>
         </Card>
       ) : null}
+
+      <Card className="border-muted">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base">
+            Phase 3 production safety (single-user)
+          </CardTitle>
+          <CardDescription>
+            AI consistency auditor, runtime anomaly score, and deterministic
+            self-healing recovery.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {phase3Loading ? (
+            <Skeleton className="h-24 w-full rounded-md" />
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="rounded-md border p-3 text-sm">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="font-medium">AI consistency</span>
+                    <Badge
+                      variant={
+                        (consistencyAudit?.checksFailed ?? 0) > 0
+                          ? 'destructive'
+                          : 'secondary'
+                      }
+                    >
+                      {consistencyAudit?.checksFailed ?? 0} failed
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    {consistencyAudit?.summary ?? 'No data yet'}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Checks run: {consistencyAudit?.checksRun ?? 0} · Trace
+                    violations (7d):{' '}
+                    {consistencyAudit?.rootCauseTraceViolations7d ?? 0}
+                  </p>
+                </div>
+                <div className="rounded-md border p-3 text-sm">
+                  <div className="mb-1 flex items-center justify-between gap-2">
+                    <span className="font-medium">Runtime anomaly</span>
+                    <Badge variant="outline">
+                      {anomalyReport?.severity?.toUpperCase() ?? 'UNKNOWN'}
+                    </Badge>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Score: {anomalyReport?.anomalyScore ?? 0} · Failed jobs 1h:{' '}
+                    {anomalyReport?.failedJobs1h ?? 0} · Timeouts 1h:{' '}
+                    {anomalyReport?.timeoutJobs1h ?? 0}
+                  </p>
+                  <p className="text-muted-foreground mt-1 text-xs">
+                    Stuck recovery ops:{' '}
+                    {anomalyReport?.recoveryJournalStuck ?? 0}
+                    {' · '}Integrity issues 24h:{' '}
+                    {anomalyReport?.integrityIssues24h ?? 0}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void loadPhase3Safety()}
+                  disabled={phase3Loading || selfHealingBusy}
+                >
+                  <RefreshCw className="mr-1 size-4" />
+                  Refresh safety checks
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => void onRunSelfHealing()}
+                  disabled={phase3Loading || selfHealingBusy}
+                >
+                  <Wrench className="mr-1 size-4" />
+                  {selfHealingBusy
+                    ? 'Running self-heal...'
+                    : 'Run self-healing'}
+                </Button>
+              </div>
+              <div className="rounded-md border p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm font-medium">
+                    Safety trend (recent)
+                  </span>
+                  <span className="text-muted-foreground text-xs">
+                    last {phase3Trend.length || 0} samples
+                  </span>
+                </div>
+                {phase3Trend.length === 0 ? (
+                  <p className="text-muted-foreground text-xs">
+                    No samples yet. Refresh safety checks to start collecting.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-1">
+                      {phase3Trend.map((p, idx) => (
+                        <div
+                          key={`${p.ts}-${idx}`}
+                          title={`${new Date(p.ts).toLocaleTimeString()} | score=${p.anomalyScore} | ${p.severity}${p.healed != null ? ` | healed=${p.healed}` : ''}`}
+                          className={`h-8 min-w-[22px] rounded border px-1 text-center text-[10px] tabular-nums leading-7 ${
+                            p.anomalyScore >= 20
+                              ? 'border-red-300 bg-red-50 text-red-900'
+                              : p.anomalyScore >= 10
+                                ? 'border-amber-300 bg-amber-50 text-amber-900'
+                                : p.anomalyScore >= 5
+                                  ? 'border-yellow-300 bg-yellow-50 text-yellow-900'
+                                  : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                          }`}
+                        >
+                          {p.anomalyScore}
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-muted-foreground flex flex-wrap gap-3 text-[11px]">
+                      <span>
+                        High/critical:{' '}
+                        {phase3Trend.filter(p => p.anomalyScore >= 10).length}
+                      </span>
+                      <span>
+                        Self-heal improved:{' '}
+                        {phase3Trend.filter(p => p.healed === true).length}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
 
       {loading && (
         <div className="grid gap-4 md:grid-cols-4">
@@ -1011,6 +1278,24 @@ export default function OperationsCenterPage() {
                   </Link>
                   .
                 </p>
+
+                <div className="mt-3">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => {
+                      activeIncidentsAnchorRef.current?.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'start',
+                      });
+                    }}
+                    disabled={!dash.activeIncidentCount}
+                    className="w-full"
+                  >
+                    Jump to active incidents
+                  </Button>
+                </div>
               </CardContent>
             </Card>
             <Card>
@@ -1339,6 +1624,7 @@ export default function OperationsCenterPage() {
           )}
 
           <div className="grid gap-6 lg:grid-cols-5">
+            <div ref={activeIncidentsAnchorRef} />
             <Card className="lg:col-span-3">
               <CardHeader>
                 <CardTitle className="text-base">Active incidents</CardTitle>
@@ -1478,14 +1764,48 @@ export default function OperationsCenterPage() {
                       </div>
                     </div>
                     <div>
-                      <Label className="text-xs">Error context (JSON)</Label>
+                      <div className="flex items-center justify-between gap-2">
+                        <Label className="text-xs">Error context (JSON)</Label>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() =>
+                            void copyToClipboard(
+                              'Error context',
+                              errorContextPretty || '{}'
+                            )
+                          }
+                        >
+                          <Copy className="mr-1 size-3.5" />
+                          Copy
+                        </Button>
+                      </div>
                       <pre className="bg-muted mt-1 max-h-40 overflow-auto rounded-md p-2 text-[11px] leading-snug">
                         {errorContextPretty || '{}'}
                       </pre>
                     </div>
                     {detail.relatedAlert && (
                       <div>
-                        <Label className="text-xs">Related alert</Label>
+                        <div className="flex items-center justify-between gap-2">
+                          <Label className="text-xs">Related alert</Label>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 px-2 text-xs"
+                            onClick={() =>
+                              void copyToClipboard(
+                                'Related alert',
+                                JSON.stringify(detail.relatedAlert, null, 2)
+                              )
+                            }
+                          >
+                            <Copy className="mr-1 size-3.5" />
+                            Copy
+                          </Button>
+                        </div>
                         <pre className="bg-muted mt-1 max-h-32 overflow-auto rounded-md p-2 text-[11px]">
                           {JSON.stringify(detail.relatedAlert, null, 2)}
                         </pre>

@@ -1,6 +1,6 @@
 // src/pages/shipment/index.tsx
 // react-table imports not used here; table lives in a shared component
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
   useNativeFileDialogs,
   openTextFile,

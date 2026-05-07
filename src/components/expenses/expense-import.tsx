@@ -2,7 +2,7 @@
 
 import * as ExcelJS from 'exceljs';
 import { useCallback, useState } from 'react';
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 

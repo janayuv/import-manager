@@ -15,8 +15,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Mutex, OnceLock};
 use std::time::Duration;
 use tauri::{Emitter, State, WebviewWindow};
+use tokio::time::sleep;
 
 use crate::db::DbState;
+use crate::ipc_error::IpcError;
+use crate::security::Permission;
 
 pub const GDRIVE_PATH_PREFIX: &str = "gdrive:";
 
@@ -37,40 +40,10 @@ const META_GDRIVE_REFRESH: &str = "gdrive_refresh_token";
 const META_GDRIVE_EXPIRY: &str = "gdrive_token_expiry";
 /// Last resolved `ImportManagerBackups` folder id (debug/support only). Never used to skip API discovery.
 const META_GDRIVE_BACKUP_FOLDER_ID: &str = "gdrive_backup_folder_id";
-const PERM_BACKUP_SETTINGS: &str = "backup.settings";
+const PERM_BACKUP_SETTINGS: Permission = Permission::BackupSettings;
 
 static OPERATION_CANCEL: AtomicBool = AtomicBool::new(false);
 static GDRIVE_TOKEN_DB_PATH: OnceLock<PathBuf> = OnceLock::new();
-
-fn role_allows_permission(role: &str, permission: &str) -> bool {
-    match role {
-        "admin" => true,
-        "db_manager" => matches!(permission, "backup.settings" | "backup.create"),
-        _ => false,
-    }
-}
-
-fn ensure_command_permission(
-    db: &Connection,
-    actor_user_id: Option<&str>,
-    permission: &str,
-) -> Result<(), String> {
-    let Some(actor) = actor_user_id.map(str::trim).filter(|s| !s.is_empty()) else {
-        return Err("Permission denied: missing user context.".to_string());
-    };
-    if actor.eq_ignore_ascii_case("system") || actor.eq_ignore_ascii_case("scheduler") {
-        return Ok(());
-    }
-    let role = crate::security::resolve_role_strict(db, actor)?;
-    if role_allows_permission(&role, permission) {
-        Ok(())
-    } else {
-        Err(format!(
-            "Permission denied: '{}' requires '{}'.",
-            actor, permission
-        ))
-    }
-}
 
 /// Remember DB path so token read fallbacks can open the same file without `State`.
 fn record_gdrive_token_db_path(conn: &Connection) {
@@ -152,7 +125,11 @@ fn log_shared_backup_folder_in_use(folder_id: &str) {
         "Using backup folder: {}",
         GDRIVE_BACKUP_FOLDER_NAME
     );
-    log::info!(target: "google_drive", "Folder ID: {}", folder_id);
+    log::info!(
+        target: "google_drive",
+        "Folder ID (redacted): {}",
+        crate::utils::redaction::redact_secret(folder_id)
+    );
 }
 
 /// True if keyring or `app_metadata` has a non-empty refresh token.
@@ -309,10 +286,21 @@ pub fn parse_friendly_error(err: &str) -> String {
 #[tauri::command]
 pub async fn google_drive_status(
     db_state: State<'_, DbState>,
-) -> Result<GoogleDriveStatus, String> {
+    user_id: Option<String>,
+) -> Result<GoogleDriveStatus, IpcError> {
+    {
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
+        crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+    }
     let configured = is_configured();
     let connected = {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
         record_gdrive_token_db_path(&db);
         configured && has_gdrive_session(&db)
     };
@@ -351,20 +339,31 @@ pub async fn google_drive_status(
 pub async fn google_drive_refresh_profile(
     db_state: State<'_, DbState>,
     user_id: Option<String>,
-) -> Result<Option<String>, String> {
+) -> Result<Option<String>, IpcError> {
     {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
-        ensure_command_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
+        crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
         if !has_gdrive_session(&db) {
             return Ok(None);
         }
     }
-    let tok = get_access_token_for_transfer(Some(&db_state.db)).await?;
-    let email = fetch_user_email(&tok).await?;
+    let tok = get_access_token_for_transfer(Some(&db_state.db))
+        .await
+        .map_err(|m| IpcError::new("google_drive_token", m))?;
+    let email = fetch_user_email(&tok)
+        .await
+        .map_err(|m| IpcError::new("google_drive_profile", m))?;
     if let Ok(e) = keyring_entry_email() {
         let _ = e.set_password(&email);
     }
-    log::info!(target: "google_drive", "event=profile_refreshed email={}", email);
+    log::info!(
+        target: "google_drive",
+        "event=profile_refreshed email={}",
+        crate::utils::redaction::redact_secret(&email)
+    );
     Ok(Some(email))
 }
 
@@ -372,18 +371,24 @@ pub async fn google_drive_refresh_profile(
 pub async fn google_drive_disconnect(
     db_state: State<'_, DbState>,
     user_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
-        ensure_command_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
+        crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
     }
-    let e = keyring_entry_refresh()?;
+    let e = keyring_entry_refresh().map_err(|m| IpcError::new("google_drive_keyring", m))?;
     let _ = e.delete_credential();
     if let Ok(em) = keyring_entry_email() {
         let _ = em.delete_credential();
     }
     {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
         clear_gdrive_metadata_tokens(&db);
     }
     log::info!(target: "google_drive", "event=disconnected");
@@ -394,19 +399,23 @@ pub async fn google_drive_disconnect(
 pub async fn google_drive_connect(
     db_state: State<'_, DbState>,
     user_id: Option<String>,
-) -> Result<(), String> {
+) -> Result<(), IpcError> {
     {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
-        ensure_command_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
+        crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
     }
     let id = client_id()
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| {
+        .ok_or_else(|| IpcError::new(
+            "google_drive_oauth",
             user_message(
                 "oauth",
                 "OAuth is not configured for this build (IMPORT_MANAGER_GOOGLE_CLIENT_ID).",
-            )
-        })?
+            ),
+        ))?
         .to_string();
 
     let secret = client_secret().map(|s| s.to_string());
@@ -420,18 +429,26 @@ pub async fn google_drive_connect(
 
     log::info!(target: "google_drive", "event=oauth_browser_open");
 
-    let code =
-        std::thread::spawn(move || crate::commands::oauth_callback::capture_oauth_code(&auth_url))
-            .join()
-            .map_err(|_| user_message("oauth", "Sign-in thread panicked"))??;
+    let code = tauri::async_runtime::spawn_blocking(move || {
+        crate::commands::oauth_callback::capture_oauth_code(&auth_url)
+    })
+    .await
+    .map_err(|_| IpcError::new("google_drive_oauth", user_message("oauth", "Sign-in task panicked")))?
+    .map_err(|m| IpcError::new("google_drive_oauth", m))?;
 
     log::info!(target: "google_drive", "event=oauth_code_received");
 
-    let tr = exchange_code_http(&id, secret.as_deref(), &code).await?;
+    let tr = exchange_code_http(&id, secret.as_deref(), &code)
+        .await
+        .map_err(|m| IpcError::new("google_drive_oauth", m))?;
     {
-        let db = db_state.db.lock().map_err(|e| e.to_string())?;
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
         record_gdrive_token_db_path(&db);
-        persist_gdrive_token_exchange(&db, &tr)?;
+        persist_gdrive_token_exchange(&db, &tr)
+            .map_err(|m| IpcError::new("google_drive_token", m))?;
     }
 
     if let Some(ref access) = tr.access_token {
@@ -442,7 +459,7 @@ pub async fn google_drive_connect(
             log::info!(
                 target: "google_drive",
                 "event=oauth_user_email_stored email={}",
-                email
+                crate::utils::redaction::redact_secret(&email)
             );
         }
     }
@@ -513,7 +530,7 @@ async fn exchange_code_http(
 
     if !res.status().is_success() {
         let t = res.text().await.unwrap_or_default();
-        log::warn!(target: "google_drive", "event=token_exchange_http_error body={}", t);
+        log::warn!(target: "google_drive", "event=token_exchange_http_error");
         return Err(user_message(
             "oauth",
             format!("Token exchange failed ({})", t),
@@ -609,7 +626,7 @@ async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
 
     if !res.status().is_success() {
         let t = res.text().await.unwrap_or_default();
-        log::warn!(target: "google_drive", "event=refresh_token_failed body={}", t);
+        log::warn!(target: "google_drive", "event=refresh_token_failed");
         return Err(user_message(
             "token",
             format!("Session refresh failed: {t}"),
@@ -950,7 +967,7 @@ async fn resolve_import_manager_backup_folder_id_once(
                 log::warn!(
                     target: "google_drive",
                     "event=backup_folder_id_persist_skipped err={}",
-                    e
+                    crate::utils::redaction::redact_secret(&e)
                 );
             }
         }
@@ -1074,8 +1091,8 @@ pub async fn upload_backup_file(
 
     log::info!(
         target: "google_drive",
-        "event=upload_start path={:?} file_len={} filename={}",
-        staging,
+        "event=upload_start path={} file_len={} filename={}",
+        crate::utils::redaction::redact_path(staging),
         file_len,
         filename
     );
@@ -1133,12 +1150,12 @@ pub async fn upload_backup_file(
                 if attempt < max_attempts
                     && (e.contains("network") || e.contains("HTTP 5") || e.contains("timeout"))
                 {
-                    std::thread::sleep(Duration::from_millis(800 * attempt as u64));
+                    sleep(Duration::from_millis(800 * attempt as u64)).await;
                     continue;
                 }
                 if attempt < max_attempts && (e.contains("token") || e.contains("401")) {
                     let _ = refresh_access_token_force(db).await;
-                    std::thread::sleep(Duration::from_millis(400));
+                    sleep(Duration::from_millis(400)).await;
                     continue;
                 }
                 break;
@@ -1288,9 +1305,9 @@ pub async fn download_file_by_id(
 
     log::info!(
         target: "google_drive",
-        "event=download_start file_id={} dest={:?}",
-        file_id,
-        dest
+        "event=download_start file_id={} dest={}",
+        crate::utils::redaction::redact_secret(file_id),
+        crate::utils::redaction::redact_path(dest)
     );
 
     let token = get_access_token_for_transfer(db).await?;

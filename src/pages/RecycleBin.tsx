@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { RefreshCw, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -29,6 +29,7 @@ import {
   isTauriEnvironment,
 } from '@/lib/tauri-bridge';
 import { logInfo, logWarn } from '@/lib/logger';
+import { parseIpcError } from '@/lib/ipc-error';
 import { useCurrentUserId } from '@/lib/user-context';
 
 const PAGE_SIZE = 50;
@@ -194,13 +195,13 @@ function RecycleBinContent() {
 
   const loadTables = useCallback(async () => {
     try {
-      const t = await invoke<string[]>('get_soft_delete_tables');
+      const t = await invoke<string[]>('get_soft_delete_tables', { userId });
       setTables(Array.isArray(t) ? t : []);
     } catch (e) {
       console.error(e);
       setTables([]);
     }
-  }, []);
+  }, [userId]);
 
   const loadRecords = useCallback(async () => {
     if (!isTauriEnvironment) {
@@ -223,7 +224,9 @@ function RecycleBinContent() {
     try {
       let sidebarCount: number | null = null;
       try {
-        sidebarCount = await invoke<number>('get_recycle_bin_deleted_count');
+        sidebarCount = await invoke<number>('get_recycle_bin_deleted_count', {
+          userId,
+        });
       } catch (countErr) {
         console.warn(
           '[RecycleBin] get_recycle_bin_deleted_count failed:',
@@ -231,10 +234,10 @@ function RecycleBinContent() {
         );
       }
 
-      const r = await invoke<GetDeletedRecordsResponse>(
-        'get_deleted_records',
-        args
-      );
+      const r = await invoke<GetDeletedRecordsResponse>('get_deleted_records', {
+        ...args,
+        userId,
+      });
 
       if (sidebarCount != null && r?.total !== sidebarCount) {
         console.warn(
@@ -251,7 +254,7 @@ function RecycleBinContent() {
     } finally {
       setLoading(false);
     }
-  }, [filterTable, debouncedSearch, page]);
+  }, [filterTable, debouncedSearch, page, userId]);
 
   useEffect(() => {
     void loadTables();
@@ -306,32 +309,29 @@ function RecycleBinContent() {
           userId,
         });
       } catch (e) {
-        const raw =
-          e instanceof Error
-            ? e.message
-            : typeof e === 'string'
-              ? e
-              : String(e);
-        let parsed: {
-          type?: string;
-          details?: unknown;
-          restore_attempt_id?: string;
-        } | null = null;
-        try {
-          parsed = JSON.parse(raw) as {
+        const parsedIpc = parseIpcError(e);
+        if (parsedIpc?.code === 'missing_parent') {
+          let parsedDetails: {
             type?: string;
             details?: unknown;
             restore_attempt_id?: string;
-          };
-        } catch {
-          // not JSON
-        }
-        if (
-          parsed?.type === 'MISSING_PARENT' &&
-          Array.isArray(parsed.details)
-        ) {
-          const details = parsed.details as MissingParentDetailPayload[];
-          const attemptId = parsed.restore_attempt_id;
+          } | null = null;
+          if (typeof parsedIpc.details === 'string') {
+            try {
+              parsedDetails = JSON.parse(parsedIpc.details) as {
+                type?: string;
+                details?: unknown;
+                restore_attempt_id?: string;
+              };
+            } catch {
+              // Keep generic branch below.
+            }
+          }
+          const details = Array.isArray(parsedDetails?.details)
+            ? (parsedDetails?.details as MissingParentDetailPayload[])
+            : [];
+          const attemptId =
+            parsedIpc.correlationId ?? parsedDetails?.restore_attempt_id;
           if (details.length > 0) {
             const { description, copyText } = buildMissingParentErrorBody(
               table,
@@ -386,6 +386,13 @@ function RecycleBinContent() {
           }
           return;
         }
+        const raw =
+          parsedIpc?.message ??
+          (e instanceof Error
+            ? e.message
+            : typeof e === 'string'
+              ? e
+              : String(e));
         console.error(e);
         toast.error(`Restore failed: ${raw}`);
         return;

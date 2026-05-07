@@ -13,6 +13,7 @@ mod migrations;
 mod playwright_db;
 mod recovery_mode;
 mod restore_control;
+mod safety;
 mod security;
 mod services;
 mod utils;
@@ -99,6 +100,23 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             }
 
             let db_path = data_dir.join(playwright_db::active_db_filename());
+            crate::commands::error_memory::init_error_memory_db_path(&db_path);
+            let previous_hook = std::panic::take_hook();
+            std::panic::set_hook(Box::new(move |panic_info| {
+                let msg = if let Some(s) = panic_info.payload().downcast_ref::<&str>() {
+                    s.to_string()
+                } else if let Some(s) = panic_info.payload().downcast_ref::<String>() {
+                    s.clone()
+                } else {
+                    "panic".to_string()
+                };
+                crate::commands::error_memory::record_ipc_error_autolog(
+                    "panic",
+                    "internal",
+                    &format!("panic captured: {}", msg),
+                );
+                previous_hook(panic_info);
+            }));
 
             // Check if we're using bundled SQLite (CI environment or bundled build)
             let using_bundled_sqlite = std::env::var("LIBSQLITE3_SYS_BUNDLED").is_ok() 
@@ -259,14 +277,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     e
                 );
             }
-            if let Ok(invalid_rows) = crate::services::shipment_service::detect_invalid_date_rows(&db_connection) {
-                if !invalid_rows.is_empty() {
-                    log::warn!(
-                        target: "import_manager::shipment",
-                        "startup detected invalid shipment date rows count={}",
-                        invalid_rows.len()
-                    );
-                }
+            if let Err(e) =
+                crate::services::shipment_service::stabilize_shipment_dates_on_startup(
+                    &mut db_connection,
+                )
+            {
+                log::warn!(
+                    target: "import_manager::shipment",
+                    "startup shipment date stabilization failed (app continues): {}",
+                    e
+                );
             }
             if let Err(e) = crate::services::shipment_service::check_timezone_consistency(&db_connection) {
                 log::warn!(
@@ -658,6 +678,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::workflow_observability::get_reliability_diagnostics,
             commands::workflow_observability::get_predictive_workflow_risk,
             commands::workflow_observability::get_audit_verification_summary,
+            commands::workflow_observability::run_ai_consistency_auditor,
+            commands::workflow_observability::get_runtime_anomaly_report,
+            commands::workflow_observability::run_self_healing_recovery_flow,
             commands::workflow_automation::list_workflow_decision_rules,
             commands::workflow_automation::set_workflow_decision_rule_enabled,
             commands::workflow_automation::set_workflow_automation_master_enabled,
@@ -860,6 +883,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             commands::update_bug_note,
             commands::delete_bug_note,
             commands::save_bug_screenshot,
+            commands::capture_error_event,
+            commands::list_error_events,
+            commands::update_error_event_status,
+            commands::export_error_events_cursor_report,
+            commands::get_error_memory_maintenance_stats,
+            commands::run_error_memory_cleanup,
         ])
         .run(tauri::generate_context!())
         .map_err(|e| {

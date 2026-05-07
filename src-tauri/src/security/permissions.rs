@@ -157,7 +157,7 @@ impl Permission {
             "backup.create" => Some(Permission::BackupCreate),
             "backup.restore" => Some(Permission::BackupRestore),
             "backup.schedule" => Some(Permission::BackupSchedule),
-            "backup.settings" => Some(Permission::BackupSettings),
+            "backup.settings" | "settings.manage" => Some(Permission::BackupSettings),
             "audit.view" => Some(Permission::AuditView),
             "recycle_bin.view" => Some(Permission::RecycleBinView),
             "recycle_bin.restore" => Some(Permission::RecycleBinRestore),
@@ -224,6 +224,19 @@ pub fn role_has(role: Role, perm: Permission) -> bool {
             P::DataRead | P::AuditView | P::RecycleBinView | P::AutomationView
         ),
     }
+}
+
+/// String-based helper that accepts canonical or legacy role/permission aliases
+/// and applies the canonical RBAC matrix.
+#[cfg_attr(not(test), allow(dead_code))]
+pub fn role_has_permission_str(role: &str, permission: &str) -> bool {
+    let Some(parsed_role) = Role::from_db_str(role) else {
+        return false;
+    };
+    let Some(parsed_perm) = Permission::from_str(permission) else {
+        return false;
+    };
+    role_has(parsed_role, parsed_perm)
 }
 
 /// Permissions granted to `role`, in [`Permission::ALL`] order.
@@ -307,6 +320,18 @@ mod tests {
             Permission::from_str("user.manage"),
             Some(Permission::RoleRead)
         );
+    }
+
+    #[test]
+    fn role_permission_string_helper_accepts_aliases() {
+        assert!(role_has_permission_str("admin", "settings.manage"));
+        assert!(role_has_permission_str("administrator", "settings.manage"));
+        assert!(role_has_permission_str("db_manager", "backup.settings"));
+        assert!(role_has_permission_str("manager", "backup.create"));
+        assert!(role_has_permission_str("user", "data.edit"));
+        assert!(role_has_permission_str("operator", "data.write"));
+        assert!(role_has_permission_str("viewer", "data.browse"));
+        assert!(!role_has_permission_str("viewer", "data.delete"));
     }
 
     #[test]

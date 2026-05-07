@@ -1,6 +1,6 @@
 // src/components/shipment/shipment-multiline-form.tsx
 // Multi-line paste form for bulk shipment creation
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { save, writeTextFile } from '@/lib/tauri-bridge';
 import {
   AlertTriangle,

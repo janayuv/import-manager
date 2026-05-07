@@ -1,4 +1,4 @@
-import { invoke } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 
 const SESSION_DASHBOARD_VIEW_KEY = 'importManager.session.dashboardViewLogged';
 
