@@ -105,8 +105,19 @@ export function SupplierViewPanel({
           {supplier.supplierName}
         </h2>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          Read-only profile: identification, contact, and bank details.
+          Read-only profile with identification, contact, and bank details.
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs">
+          <span className="bg-muted rounded-md px-2 py-1 font-mono">
+            {supplier.id}
+          </span>
+          <Badge variant={supplier.isActive ? 'success' : 'destructive'}>
+            {supplier.isActive ? 'Active' : 'Inactive'}
+          </Badge>
+          <span className="bg-muted rounded-md px-2 py-1">
+            {supplier.country || 'Country not set'}
+          </span>
+        </div>
       </header>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
@@ -121,13 +132,11 @@ export function SupplierViewPanel({
           </CardHeader>
           <CardContent className="px-4 py-4 sm:px-5 sm:py-5">
             <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <DetailItem label="Supplier ID" value={supplier.id} />
               <DetailItem label="Supplier name" value={supplier.supplierName} />
               <DetailItem label="Short name" value={supplier.shortName} />
               <DetailItem label="Country" value={supplier.country} />
               <DetailItem label="Email" value={supplier.email} />
               <DetailItem label="Phone" value={supplier.phone} />
-              <DetailItem label="Status" value={supplier.isActive} />
             </div>
           </CardContent>
         </Card>

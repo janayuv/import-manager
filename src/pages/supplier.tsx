@@ -7,8 +7,11 @@ import {
   ArrowLeft,
   ArrowUp,
   ArrowUpDown,
+  CircleDot,
   Download,
+  Filter,
   Loader2,
+  Search,
   Upload,
   Settings,
 } from 'lucide-react';
@@ -42,6 +45,14 @@ import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type { Supplier } from '@/types/supplier';
 import { Input } from '@/components/ui/input';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 /** URL path for supplier view or edit (bookmarkable, browser back/forward). */
 export function supplierDetailPath(supplierId: string, mode: 'view' | 'edit') {
@@ -115,11 +126,22 @@ const SupplierPage = () => {
   const [searchText, setSearchText] = React.useState('');
   const [debouncedSearchText, setDebouncedSearchText] = React.useState('');
   const [isSearching, setIsSearching] = React.useState(false);
+  const [statusFilter, setStatusFilter] = React.useState<
+    'all' | 'active' | 'inactive'
+  >('all');
 
   const isSearchDebouncing =
     searchText.trim() !== debouncedSearchText.trim() &&
     searchText.trim().length > 0;
   const totalPages = Math.max(1, Math.ceil(totalSuppliersCount / PAGE_SIZE));
+  const startRecord =
+    totalSuppliersCount === 0
+      ? 0
+      : Math.min(currentPage * PAGE_SIZE + 1, totalSuppliersCount);
+  const endRecord =
+    totalSuppliersCount === 0
+      ? 0
+      : Math.min((currentPage + 1) * PAGE_SIZE, totalSuppliersCount);
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -152,6 +174,17 @@ const SupplierPage = () => {
     if (!decodedSupplierId) return null;
     return suppliers.find(s => s.id === decodedSupplierId) ?? null;
   }, [suppliers, decodedSupplierId]);
+
+  const filteredSuppliers = React.useMemo(() => {
+    if (statusFilter === 'all') return suppliers;
+    const showActive = statusFilter === 'active';
+    return suppliers.filter(supplier => supplier.isActive === showActive);
+  }, [suppliers, statusFilter]);
+
+  const activeSuppliersOnPage = React.useMemo(
+    () => suppliers.filter(supplier => supplier.isActive).length,
+    [suppliers]
+  );
 
   const closeSupplierPanel = React.useCallback(() => {
     navigate('/supplier');
@@ -859,132 +892,155 @@ const SupplierPage = () => {
   return (
     <div className="from-background to-muted/20 bg-linear-to-br min-h-screen">
       <div className="container mx-auto px-4 py-8">
-        {/* Professional Header Section */}
-        <div className="mb-8">
-          <div className="bg-card rounded-xl border p-6 shadow-sm">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              {/* Title Section */}
-              <div className="flex items-center gap-4">
-                <div className="bg-primary/10 rounded-lg p-3">
-                  <Settings className="text-primary h-6 w-6" />
-                </div>
-                <div>
-                  <h1 className="text-card-foreground text-2xl font-bold">
-                    Suppliers
-                  </h1>
-                  <p className="text-muted-foreground mt-1">
-                    Manage supplier information and business relationships
-                  </p>
-                  <div className="text-muted-foreground mt-2 flex items-center gap-4 text-sm">
-                    <span className="flex items-center gap-1">
-                      <div className="h-2 w-2 rounded-full bg-green-500"></div>
-                      {totalSuppliersCount} Active Suppliers
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <div className="h-2 w-2 rounded-full bg-blue-500"></div>
-                      Page {Math.min(currentPage + 1, totalPages)} of{' '}
-                      {totalPages}
-                    </span>
-                  </div>
-                </div>
+        <div className="bg-card mb-6 rounded-xl border p-5 shadow-sm">
+          <div className="flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex min-w-0 items-start gap-3">
+              <div className="bg-primary/10 mt-0.5 rounded-lg p-2.5">
+                <Settings className="text-primary h-5 w-5" />
               </div>
-
-              {/* Action Buttons */}
-              <div className="flex flex-wrap items-center gap-3">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="default"
-                        size="icon"
-                        onClick={() => setSettingsOpen(true)}
-                        className="h-10 w-10"
-                        useAccentColor
-                      >
-                        <Settings className="h-4 w-4" />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Module Settings</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-
-                <Button
-                  variant="default"
-                  onClick={handleExportExcel}
-                  className="h-10 px-4"
-                  useAccentColor
-                  disabled={isImportingSuppliers}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Export
-                </Button>
-
-                <Button
-                  variant="default"
-                  onClick={handleDownloadTemplate}
-                  className="h-10 px-4"
-                  useAccentColor
-                  disabled={isImportingSuppliers}
-                >
-                  <Download className="mr-2 h-4 w-4" />
-                  Template
-                </Button>
-
-                <Button
-                  variant="default"
-                  onClick={handleOpenDeletedSuppliers}
-                  className="h-10 px-4"
-                  useAccentColor
-                  disabled={isImportingSuppliers}
-                >
-                  Deleted Suppliers
-                </Button>
-
-                <Button
-                  variant="default"
-                  onClick={handleImport}
-                  className="h-10 px-4"
-                  useAccentColor
-                  disabled={isImportingSuppliers}
-                >
-                  <Upload className="mr-2 h-4 w-4" />
-                  {isImportingSuppliers ? 'Importing suppliers...' : 'Import'}
-                </Button>
-
-                <AddSupplierForm
-                  onAdd={handleAdd}
-                  disabled={isImportingSuppliers}
-                />
+              <div className="min-w-0">
+                <h1 className="text-card-foreground text-xl font-semibold tracking-tight">
+                  Suppliers
+                </h1>
+                <p className="text-muted-foreground mt-1 text-sm">
+                  Manage supplier identity, contact, and banking records.
+                </p>
+                <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-3 text-xs">
+                  <span className="bg-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1">
+                    <CircleDot className="text-success size-3" />
+                    {activeSuppliersOnPage} active on this page
+                  </span>
+                  <span className="bg-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1">
+                    <CircleDot className="text-primary size-3" />
+                    Showing {startRecord}-{endRecord} of {totalSuppliersCount}
+                  </span>
+                </div>
               </div>
             </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <AddSupplierForm
+                onAdd={handleAdd}
+                disabled={isImportingSuppliers}
+              />
+              <Button
+                variant="outline"
+                onClick={handleImport}
+                className="h-9 px-3"
+                useAccentColor
+                disabled={isImportingSuppliers}
+              >
+                <Upload className="mr-2 h-4 w-4" />
+                {isImportingSuppliers ? 'Importing...' : 'Import'}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleExportExcel}
+                className="h-9 px-3"
+                useAccentColor
+                disabled={isImportingSuppliers}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                Export
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleOpenDeletedSuppliers}
+                className="h-9 px-3"
+                useAccentColor
+                disabled={isImportingSuppliers}
+              >
+                Deleted suppliers
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleDownloadTemplate}
+                className="h-9 px-3"
+                useAccentColor
+                disabled={isImportingSuppliers}
+              >
+                Template
+              </Button>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => setSettingsOpen(true)}
+                      className="h-9 w-9"
+                      useAccentColor
+                    >
+                      <Settings className="h-4 w-4" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>Module Settings</p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </div>
           </div>
-        </div>
-
-        <div className="bg-card min-h-[280px] min-w-0 overflow-hidden rounded-xl border shadow-sm">
-          <div className="border-b p-4">
-            <div className="max-w-md space-y-2">
+          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(280px,420px)_1fr] lg:items-center">
+            <div className="space-y-1.5">
               <div className="relative">
+                <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
                 <Input
                   value={searchText}
                   onChange={e => setSearchText(e.target.value)}
-                  placeholder="Search suppliers by name..."
+                  placeholder="Search by supplier name, email, or country..."
                   disabled={isLoadingSuppliers}
-                  className="pr-10"
+                  className="h-9 pl-9 pr-10"
                 />
                 {isSearching || isSearchDebouncing ? (
                   <Loader2 className="text-muted-foreground absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin" />
                 ) : null}
               </div>
-              {isSearching || isSearchDebouncing ? (
-                <p className="text-muted-foreground text-xs">Searching...</p>
-              ) : null}
+              <p className="text-muted-foreground text-xs">
+                {isSearching || isSearchDebouncing
+                  ? 'Refreshing results...'
+                  : `Page ${Math.min(currentPage + 1, totalPages)} of ${totalPages}`}
+              </p>
+            </div>
+            <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
+              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide">
+                <Filter className="size-3.5" />
+                Status
+              </span>
+              <Button
+                type="button"
+                variant={statusFilter === 'all' ? 'default' : 'outline'}
+                useAccentColor
+                className="h-8 px-3 text-xs"
+                onClick={() => setStatusFilter('all')}
+              >
+                All
+              </Button>
+              <Button
+                type="button"
+                variant={statusFilter === 'active' ? 'default' : 'outline'}
+                useAccentColor
+                className="h-8 px-3 text-xs"
+                onClick={() => setStatusFilter('active')}
+              >
+                Active
+              </Button>
+              <Button
+                type="button"
+                variant={statusFilter === 'inactive' ? 'default' : 'outline'}
+                useAccentColor
+                className="h-8 px-3 text-xs"
+                onClick={() => setStatusFilter('inactive')}
+              >
+                Inactive
+              </Button>
             </div>
           </div>
+        </div>
+
+        <div className="bg-card min-h-[280px] min-w-0 overflow-hidden rounded-xl border shadow-sm">
           <ResponsiveDataTable
             columns={columns}
-            data={suppliers}
+            data={filteredSuppliers}
             showSearch={false}
             hideColumnsOnSmall={[
               'phone',
@@ -1005,37 +1061,45 @@ const SupplierPage = () => {
             className="border-0"
             moduleName="supplier"
           />
-          {!isLoadingSuppliers && suppliers.length === 0 ? (
+          {!isLoadingSuppliers && filteredSuppliers.length === 0 ? (
             <div className="text-muted-foreground border-t p-4 text-sm">
-              {debouncedSearchText.trim().length > 0
-                ? 'No suppliers found matching search'
-                : 'No suppliers found.'}
+              {debouncedSearchText.trim().length > 0 || statusFilter !== 'all'
+                ? 'No suppliers match the current filters. Try widening search or status filter.'
+                : 'No suppliers found. Add your first supplier to get started.'}
             </div>
           ) : null}
         </div>
 
-        <div className="mt-4 flex items-center justify-end gap-2">
-          <span className="text-muted-foreground mr-2 text-sm">
-            Page {Math.min(currentPage + 1, totalPages)} of {totalPages}
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+          <span className="text-muted-foreground text-sm">
+            Showing {startRecord}-{endRecord} of {totalSuppliersCount} total
+            suppliers
           </span>
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            disabled={currentPage === 0}
-            onClick={() => setCurrentPage(p => p - 1)}
-          >
-            Previous Page
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            disabled={currentPage >= totalPages - 1}
-            onClick={() => setCurrentPage(p => p + 1)}
-          >
-            Next Page
-          </Button>
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground mr-1 text-xs">
+              Page {Math.min(currentPage + 1, totalPages)} of {totalPages}
+            </span>
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              className="h-8"
+              disabled={currentPage === 0}
+              onClick={() => setCurrentPage(p => p - 1)}
+            >
+              Previous
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              useAccentColor
+              className="h-8"
+              disabled={currentPage >= totalPages - 1}
+              onClick={() => setCurrentPage(p => p + 1)}
+            >
+              Next
+            </Button>
+          </div>
         </div>
 
         <Dialog
@@ -1053,48 +1117,45 @@ const SupplierPage = () => {
                 </div>
               ) : deletedSuppliers.length === 0 ? (
                 <div className="text-muted-foreground py-8 text-center text-sm">
-                  No deleted suppliers found.
+                  No deleted suppliers found to restore.
                 </div>
               ) : (
-                <table className="w-full border-collapse text-sm">
-                  <thead className="bg-muted">
-                    <tr>
-                      <th className="border px-3 py-2 text-left">ID</th>
-                      <th className="border px-3 py-2 text-left">
-                        Supplier Name
-                      </th>
-                      <th className="border px-3 py-2 text-left">Country</th>
-                      <th className="border px-3 py-2 text-left">Email</th>
-                      <th className="border px-3 py-2 text-left">Phone</th>
-                      <th className="border px-3 py-2 text-left">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Supplier name</TableHead>
+                      <TableHead>Country</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Phone</TableHead>
+                      <TableHead className="w-[120px]">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                     {deletedSuppliers.map(supplier => (
-                      <tr key={supplier.id}>
-                        <td className="border px-3 py-2">{supplier.id}</td>
-                        <td className="border px-3 py-2">
+                      <TableRow key={supplier.id}>
+                        <TableCell>{supplier.id}</TableCell>
+                        <TableCell className="font-medium">
                           {supplier.supplierName}
-                        </td>
-                        <td className="border px-3 py-2">{supplier.country}</td>
-                        <td className="border px-3 py-2">{supplier.email}</td>
-                        <td className="border px-3 py-2">
-                          {supplier.phone || '-'}
-                        </td>
-                        <td className="border px-3 py-2">
+                        </TableCell>
+                        <TableCell>{supplier.country}</TableCell>
+                        <TableCell>{supplier.email}</TableCell>
+                        <TableCell>{supplier.phone || '-'}</TableCell>
+                        <TableCell>
                           <Button
                             type="button"
                             variant="outline"
                             useAccentColor
+                            className="h-8"
                             onClick={() => handleRestoreSupplier(supplier)}
                           >
                             Restore
                           </Button>
-                        </td>
-                      </tr>
+                        </TableCell>
+                      </TableRow>
                     ))}
-                  </tbody>
-                </table>
+                  </TableBody>
+                </Table>
               )}
             </div>
           </DialogContent>

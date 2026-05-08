@@ -55,9 +55,11 @@ export function SupplierEditPanel({
   className,
 }: SupplierEditPanelProps) {
   const [formData, setFormData] = useState<Supplier | null>(null);
+  const [initialSnapshot, setInitialSnapshot] = useState('');
 
   useEffect(() => {
     setFormData(supplier);
+    setInitialSnapshot(JSON.stringify(supplier));
   }, [supplier]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -73,6 +75,27 @@ export function SupplierEditPanel({
     if (formData) {
       onSave(formData);
     }
+  };
+
+  const isDirty = formData
+    ? JSON.stringify(formData) !== initialSnapshot
+    : false;
+  const canSave = formData
+    ? Boolean(
+        formData.supplierName.trim() &&
+        formData.country.trim() &&
+        formData.email.trim()
+      )
+    : false;
+
+  const handleCancel = () => {
+    if (isDirty) {
+      const confirmed = window.confirm(
+        'You have unsaved changes. Discard them and leave edit mode?'
+      );
+      if (!confirmed) return;
+    }
+    onCancel();
   };
 
   if (!formData) return null;
@@ -91,7 +114,7 @@ export function SupplierEditPanel({
           variant="ghost"
           size="icon"
           className="absolute right-3 top-3 h-9 w-9 sm:right-4 sm:top-4"
-          onClick={onCancel}
+          onClick={handleCancel}
           aria-label="Cancel editing"
         >
           <X className="size-4" />
@@ -103,8 +126,7 @@ export function SupplierEditPanel({
           {formData.supplierName}
         </h2>
         <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          Edit contact and bank information. Save to update this supplier
-          record.
+          Update contact and bank information, then save to apply changes.
         </p>
       </header>
 
@@ -293,12 +315,21 @@ export function SupplierEditPanel({
       </div>
 
       <footer className="bg-muted/25 border-border shrink-0 border-t px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          {isDirty ? (
+            <span className="mr-auto text-xs font-medium text-orange-600">
+              Unsaved changes
+            </span>
+          ) : (
+            <span className="text-muted-foreground mr-auto text-xs">
+              No unsaved changes
+            </span>
+          )}
           <Button
             type="button"
             variant="outline"
             useAccentColor
-            onClick={onCancel}
+            onClick={handleCancel}
           >
             Cancel
           </Button>
@@ -307,6 +338,7 @@ export function SupplierEditPanel({
             variant="default"
             useAccentColor
             onClick={handleSubmit}
+            disabled={!isDirty || !canSave}
           >
             Save supplier
           </Button>
