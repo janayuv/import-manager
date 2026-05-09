@@ -127,7 +127,7 @@ jobs:
           cargo test
       - name: Upload coverage reports
         if: hashFiles('coverage/lcov.info') != '' && matrix.node-version == '22.x'
-        uses: codecov/codecov-action@v4
+        uses: codecov/codecov-action@v6
         with:
           files: ./coverage/lcov.info
           flags: unittests
