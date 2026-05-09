@@ -27,6 +27,10 @@ import { ipcErrorMessage, parseIpcError } from '@/lib/ipc-error';
 
 type LockedState = { lockedUntilSeconds: number; message: string };
 
+type DesktopAuthSetupStatus = {
+  setupRequired: boolean;
+};
+
 export function LoginPage() {
   const navigate = useNavigate();
   const [username, setUsername] = useState('');
@@ -45,6 +49,28 @@ export function LoginPage() {
       .then(setRecoveryActive)
       .catch(() => setRecoveryActive(false));
   }, []);
+
+  useEffect(() => {
+    if (!isTauriEnvironment) return;
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const status = await invoke<DesktopAuthSetupStatus>(
+          'get_desktop_auth_setup_status'
+        );
+        if (!cancelled && status.setupRequired) {
+          navigate('/setup', { replace: true });
+        }
+      } catch {
+        /* allow login */
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
 
   useEffect(() => {
     if (!lockState) return;
@@ -94,7 +120,10 @@ export function LoginPage() {
     } catch (error) {
       console.error('Login error:', error);
       const parsed = parseIpcError(error);
-      if (parsed?.code === 'auth_locked') {
+      if (parsed?.code === 'auth_setup_required') {
+        navigate('/setup', { replace: true });
+        toast.info(parsed.message);
+      } else if (parsed?.code === 'auth_locked') {
         const seconds = Number(parsed.details ?? 0);
         const minutes = Math.max(1, Math.ceil(seconds / 60));
         setLockState({

@@ -32,6 +32,7 @@ import {
 import { isTauriEnvironment } from '@/lib/tauri-bridge';
 import { captureErrorEvent } from '@/lib/error-memory';
 import { LoginPage } from '@/pages/LoginPage';
+import { SetupPage } from '@/pages/SetupPage';
 import {
   AccountDetailsPage,
   AccountPasswordPage,
@@ -214,6 +215,7 @@ function App() {
                   <Router>
                     <Suspense fallback={<RouteLoadingSpinner />}>
                       <Routes>
+                        <Route path="/setup" element={<SetupPage />} />
                         <Route path="/login" element={<LoginPage />} />
                         <Route element={<ProtectedRoute />}>
                           <Route element={<AppLayout />}>

@@ -96,7 +96,7 @@ export type ErrorMemoryCleanupResult = {
   executedAt: string;
 };
 
-const APP_VERSION = '0.4.2';
+const APP_VERSION = '0.4.5';
 
 const scrub = (s: string): string =>
   s

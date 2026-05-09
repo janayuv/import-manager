@@ -2,26 +2,36 @@
 //!
 //! Each successful login issues a new `session_id`; the role is loaded from
 //! `user_roles` and re-checked on every session read. Verification supports
-//! Argon2id PHC strings and falls back to bcrypt for the compile-time admin
-//! hash. Failed attempts feed [`crate::security::lockout`] and trigger an
-//! account lock on the configured threshold. Sessions also enforce an idle
+//! Argon2id PHC strings and bcrypt for older hashes. Failed attempts feed
+//! [`crate::security::lockout`] and trigger an account lock on the configured threshold. Sessions also enforce an idle
 //! timeout in addition to the absolute TTL.
 
 use crate::correlation;
 use crate::db::DbState;
 use crate::ipc_error::IpcError;
 use crate::recovery_mode::RecoveryModeState;
-use crate::security::credentials::{active_admin_hash, verify_password};
+use crate::security::credentials::{
+    active_admin_hash, admin_credentials_configured,
+    enforce_password_policy, hash_password_argon2id, login_username_for_authentication,
+    normalize_desktop_username, persist_admin_hash, persist_admin_username,
+    verify_password,
+};
 use crate::security::lockout::{LockoutState, SecurityPolicy};
 use crate::security::{resolve_role_strict, Permission, Role};
 use crate::services::user_activity_audit::{log_activity, log_activity_with_severity, AuditSeverity};
 use chrono::{DateTime, Duration, Utc};
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use tauri::State;
 use uuid::Uuid;
 
 pub(crate) const DEFAULT_ADMIN_USER_ID: &str = "admin-001";
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DesktopAuthSetupStatus {
+    pub setup_required: bool,
+}
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -67,14 +77,6 @@ impl Default for DesktopSessionState {
             lockout: LockoutState::new(),
         }
     }
-}
-
-fn compiled_admin_username() -> &'static str {
-    env!("IMPORT_MANAGER_ADMIN_USERNAME")
-}
-
-fn compiled_admin_password_hash() -> &'static str {
-    env!("IMPORT_MANAGER_ADMIN_PASSWORD_HASH")
 }
 
 fn session_ttl(remember_me: bool) -> Duration {
@@ -220,6 +222,88 @@ impl DesktopSessionState {
     }
 }
 
+#[tauri::command]
+pub fn get_desktop_auth_setup_status(
+    db_state: State<'_, DbState>,
+) -> Result<DesktopAuthSetupStatus, String> {
+    let conn = db_state.db.lock().map_err(|e| e.to_string())?;
+    Ok(DesktopAuthSetupStatus {
+        setup_required: !admin_credentials_configured(&conn),
+    })
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CompleteDesktopAdminSetupInput {
+    pub username: String,
+    pub password: String,
+    pub password_confirm: String,
+}
+
+#[tauri::command]
+pub fn complete_desktop_admin_setup(
+    input: CompleteDesktopAdminSetupInput,
+    db_state: State<'_, DbState>,
+) -> Result<(), IpcError> {
+    if input.password != input.password_confirm {
+        return Err(IpcError::new(
+            "validation",
+            "Password confirmation does not match.",
+        ));
+    }
+    if let Err(violation) = enforce_password_policy(&input.password) {
+        return Err(IpcError::new("password_policy", violation.to_string()));
+    }
+    normalize_desktop_username(&input.username).map_err(|m| IpcError::new("validation", m))?;
+
+    let mut conn = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    if admin_credentials_configured(&conn) {
+        return Err(IpcError::new(
+            "auth_config",
+            "Administrator account is already configured.",
+        ));
+    }
+
+    let new_hash =
+        hash_password_argon2id(&input.password).map_err(|e| IpcError::new("auth_internal", e))?;
+
+    let tx = conn
+        .transaction()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    persist_admin_username(&tx, input.username.trim())
+        .map_err(|e| IpcError::new("internal", e))?;
+    persist_admin_hash(&tx, DEFAULT_ADMIN_USER_ID, &new_hash, None)
+        .map_err(|e| IpcError::new("internal", e))?;
+    tx.commit()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+
+    let detail = serde_json::json!({
+        "userId": DEFAULT_ADMIN_USER_ID,
+        "algorithm": "argon2id",
+        "source": "desktop_admin_setup",
+    })
+    .to_string();
+    log_activity_with_severity(
+        &conn,
+        None,
+        "auth.admin_setup_completed",
+        None,
+        None,
+        Some(&detail),
+        "success",
+        AuditSeverity::Security,
+    );
+    log::info!(
+        target: "import_manager::auth",
+        "event=desktop_admin_setup_completed user_id={}",
+        DEFAULT_ADMIN_USER_ID
+    );
+    Ok(())
+}
+
 /// Verifies credentials, enforces lockout policy, and opens a session with a
 /// new `session_id` and DB-backed role.
 #[tauri::command]
@@ -311,7 +395,26 @@ pub fn authenticate_desktop(
         }
     };
 
-    let expected_user = compiled_admin_username();
+    let (expected_user_opt, active_hash) = {
+        let conn = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()).with_correlation_id(&cid))?;
+        (
+            login_username_for_authentication(&conn),
+            active_admin_hash(&conn, ""),
+        )
+    };
+
+    let Some(expected_user) = expected_user_opt else {
+        audit_fail("setup_required", "failure");
+        return Err(IpcError::new(
+            "auth_setup_required",
+            "Finish creating your administrator account on the setup screen before signing in.",
+        )
+        .with_correlation_id(&cid));
+    };
+
     if trimmed_user != expected_user.trim() {
         audit_fail("invalid_username", "failure");
         record_failure_with_reason("invalid_username");
@@ -320,19 +423,11 @@ pub fn authenticate_desktop(
         );
     }
 
-    let active_hash = {
-        let conn = db_state
-            .db
-            .lock()
-            .map_err(|e| IpcError::new("internal", e.to_string()).with_correlation_id(&cid))?;
-        active_admin_hash(&conn, compiled_admin_password_hash())
-    };
-
-    if active_hash.is_empty() {
+    if active_hash.trim().is_empty() {
         audit_fail("missing_admin_hash", "failure");
         return Err(IpcError::new(
             "auth_config",
-            "This release was built without IMPORT_MANAGER_ADMIN_PASSWORD_HASH; login is disabled.",
+            "Administrator credentials are incomplete. Finish setup before signing in.",
         )
         .with_correlation_id(&cid));
     }

@@ -458,6 +458,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            desktop_session::get_desktop_auth_setup_status,
+            desktop_session::complete_desktop_admin_setup,
             desktop_session::authenticate_desktop,
             desktop_session::get_desktop_session,
             desktop_session::clear_desktop_session,

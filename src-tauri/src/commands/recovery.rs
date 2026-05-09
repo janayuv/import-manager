@@ -7,8 +7,8 @@ use crate::desktop_session::{DesktopSessionState, DEFAULT_ADMIN_USER_ID};
 use crate::ipc_error::IpcError;
 use crate::recovery_mode::RecoveryModeState;
 use crate::security::credentials::{
-    active_admin_hash, enforce_password_policy, hash_password_argon2id, persist_admin_hash,
-    read_password_history_depth,
+    active_admin_hash, enforce_password_policy, ensure_default_admin_username_if_absent,
+    hash_password_argon2id, persist_admin_hash, read_password_history_depth,
 };
 use crate::security::lockout::SecurityPolicy;
 use crate::services::user_activity_audit::{log_activity_with_severity, AuditSeverity};
@@ -119,8 +119,7 @@ pub fn recovery_set_admin_password(
         );
     }
     let conn = db.db.lock().map_err(|e| IpcError::new("internal", e.to_string()))?;
-    let fallback = env!("IMPORT_MANAGER_ADMIN_PASSWORD_HASH");
-    let prev = active_admin_hash(&conn, fallback);
+    let prev = active_admin_hash(&conn, "");
     let _ = conn.execute(
         "DELETE FROM auth_password_history WHERE lower(trim(user_id)) = lower(?1)",
         params![DEFAULT_ADMIN_USER_ID],
@@ -129,6 +128,7 @@ pub fn recovery_set_admin_password(
         .map_err(|e| IpcError::new("auth_internal", e))?;
     persist_admin_hash(&conn, DEFAULT_ADMIN_USER_ID, &new_hash, Some(prev.as_str()))
         .map_err(|e| IpcError::new("internal", e))?;
+    ensure_default_admin_username_if_absent(&conn).map_err(|e| IpcError::new("internal", e))?;
     let detail = serde_json::json!({
         "userId": DEFAULT_ADMIN_USER_ID,
         "algorithm": "argon2id",

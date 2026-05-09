@@ -254,14 +254,11 @@ pub fn change_admin_password(
     }
 
     let conn = db.db.lock().map_err(|e| IpcError::new("internal", e.to_string()))?;
-    let active_hash = crate::security::credentials::active_admin_hash(
-        &conn,
-        env!("IMPORT_MANAGER_ADMIN_PASSWORD_HASH"),
-    );
+    let active_hash = crate::security::credentials::active_admin_hash(&conn, "");
     if active_hash.is_empty() {
         return Err(IpcError::new(
             "auth_config",
-            "Admin password is not configured for this build.",
+            "Administrator password has not been set up yet.",
         ));
     }
     let ok = verify_password(&current_password, &active_hash)

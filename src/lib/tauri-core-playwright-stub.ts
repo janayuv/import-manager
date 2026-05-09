@@ -450,6 +450,10 @@ export async function invoke<T = unknown>(
     if (routed !== null) return routed as T;
   }
   switch (cmd) {
+    case 'get_desktop_auth_setup_status':
+      return { setupRequired: false } as T;
+    case 'complete_desktop_admin_setup':
+      return undefined as T;
     case 'authenticate_desktop': {
       const u = String(args?.username ?? '').trim();
       const p = String(args?.password ?? '');

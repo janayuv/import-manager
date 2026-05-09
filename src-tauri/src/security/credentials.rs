@@ -1,10 +1,11 @@
 //! Admin credential storage and password rotation.
 //!
-//! The desktop admin password lives in `app_settings.auth.admin_password_hash`
-//! once an admin rotates it through `change_admin_password`. Until then the
-//! compile-time hash baked by [`build.rs`] is used. Passwords are hashed with
-//! Argon2id; bcrypt verification is kept as a fallback for the compiled-in
-//! default (so `Jana` can log in on first launch).
+//! The desktop admin username and Argon2id password hash live in `app_settings`
+//! (`auth.admin_username`, `auth.admin_password_hash`). The first-run setup
+//! flow creates them once; thereafter login and password rotation use stored
+//! values only. Legacy databases may have only a stored hash—login username
+//! then falls back to [`LEGACY_FALLBACK_LOGIN_USERNAME`] (historical default).
+//! Bcrypt is still accepted for verifying older stored hashes only.
 
 use argon2::password_hash::rand_core::OsRng;
 use argon2::password_hash::{PasswordHash, PasswordHasher, PasswordVerifier, SaltString};
@@ -12,7 +13,12 @@ use argon2::Argon2;
 use rusqlite::{params, Connection, OptionalExtension};
 
 const APP_SETTING_ADMIN_HASH: &str = "auth.admin_password_hash";
+pub(crate) const APP_SETTING_ADMIN_USERNAME: &str = "auth.admin_username";
 const SETTINGS_KEY_PASSWORD_HISTORY_DEPTH: &str = "auth.password_history_depth";
+
+/// When [`read_stored_admin_username`] finds no row—common for DBs upgraded from
+/// password rotation before username was persisted—authenticate as this user.
+pub(crate) const LEGACY_FALLBACK_LOGIN_USERNAME: &str = "Jana";
 
 /// Allowed range for [`read_password_history_depth`] / [`write_password_history_depth`].
 pub const PASSWORD_HISTORY_DEPTH_MIN: usize = 1;
@@ -98,8 +104,8 @@ pub fn enforce_password_policy(password: &str) -> Result<(), PasswordPolicyError
     Ok(())
 }
 
-/// Returns the active admin password hash: the rotated value from
-/// `app_settings` when present, falling back to the supplied compile-time hash.
+/// Returns the stored admin hash from `app_settings`, or `fallback` when the
+/// key is missing or empty (callers normally pass `""`—runtime credentials only).
 pub fn active_admin_hash(conn: &Connection, fallback: &str) -> String {
     if let Some(stored) = read_app_setting(conn, APP_SETTING_ADMIN_HASH) {
         let trimmed = stored.trim();
@@ -108,6 +114,69 @@ pub fn active_admin_hash(conn: &Connection, fallback: &str) -> String {
         }
     }
     fallback.to_string()
+}
+
+/// True when [`APP_SETTING_ADMIN_HASH`] holds a non-empty password hash (initial
+/// setup complete or recovery password set).
+pub fn admin_credentials_configured(conn: &Connection) -> bool {
+    read_app_setting(conn, APP_SETTING_ADMIN_HASH)
+        .map(|s| !s.trim().is_empty())
+        .unwrap_or(false)
+}
+
+pub fn normalize_desktop_username(raw: &str) -> Result<String, String> {
+    let trimmed = raw.trim();
+    if trimmed.is_empty() {
+        return Err("Username cannot be empty.".to_string());
+    }
+    if trimmed.chars().count() > 128 {
+        return Err("Username must be at most 128 characters.".to_string());
+    }
+    if trimmed.chars().any(|c| c.is_control()) {
+        return Err("Username cannot contain control characters.".to_string());
+    }
+    Ok(trimmed.to_string())
+}
+
+pub fn persist_admin_username(conn: &Connection, username: &str) -> Result<(), String> {
+    let trimmed = normalize_desktop_username(username)?;
+    conn.execute(
+        "INSERT INTO app_settings (key, value, updated_at) VALUES (?1, ?2, datetime('now'))
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = datetime('now')",
+        params![APP_SETTING_ADMIN_USERNAME, trimmed],
+    )
+    .map_err(|e| format!("persist admin username: {e}"))?;
+    Ok(())
+}
+
+fn read_stored_admin_username(conn: &Connection) -> Option<String> {
+    let s = read_app_setting(conn, APP_SETTING_ADMIN_USERNAME)?;
+    let t = s.trim();
+    if t.is_empty() {
+        None
+    } else {
+        Some(t.to_string())
+    }
+}
+
+/// Canonical login username once credentials exist; `None` if setup still required.
+pub fn login_username_for_authentication(conn: &Connection) -> Option<String> {
+    if !admin_credentials_configured(conn) {
+        return None;
+    }
+    if let Some(u) = read_stored_admin_username(conn) {
+        return Some(u);
+    }
+    Some(LEGACY_FALLBACK_LOGIN_USERNAME.to_string())
+}
+
+/// If no `auth.admin_username` row exists, write [`LEGACY_FALLBACK_LOGIN_USERNAME`].
+/// Used after recovery password changes so credentials are explicit in `app_settings`.
+pub fn ensure_default_admin_username_if_absent(conn: &Connection) -> Result<(), String> {
+    if read_stored_admin_username(conn).is_some() {
+        return Ok(());
+    }
+    persist_admin_username(conn, LEGACY_FALLBACK_LOGIN_USERNAME)
 }
 
 /// Hashes `password` with Argon2id (default cost parameters).
@@ -339,6 +408,51 @@ mod tests {
         let conn = setup_conn();
         let active = active_admin_hash(&conn, "$2b$12$fallback");
         assert_eq!(active, "$2b$12$fallback");
+    }
+
+    #[test]
+    fn admin_credentials_configured_requires_hash() {
+        let conn = setup_conn();
+        assert!(!admin_credentials_configured(&conn));
+    }
+
+    #[test]
+    fn login_username_none_until_hash() {
+        let conn = setup_conn();
+        assert_eq!(login_username_for_authentication(&conn), None);
+    }
+
+    #[test]
+    fn login_username_uses_stored_name() {
+        let conn = setup_conn();
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?1, ?2)",
+            params![APP_SETTING_ADMIN_HASH, "$argon2id$stored"],
+        )
+        .unwrap();
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?1, ?2)",
+            params![APP_SETTING_ADMIN_USERNAME, "bob"],
+        )
+        .unwrap();
+        assert_eq!(
+            login_username_for_authentication(&conn).as_deref(),
+            Some("bob")
+        );
+    }
+
+    #[test]
+    fn login_username_legacy_when_hash_only() {
+        let conn = setup_conn();
+        conn.execute(
+            "INSERT INTO app_settings (key, value) VALUES (?1, ?2)",
+            params![APP_SETTING_ADMIN_HASH, "$argon2id$stored"],
+        )
+        .unwrap();
+        assert_eq!(
+            login_username_for_authentication(&conn).as_deref(),
+            Some(LEGACY_FALLBACK_LOGIN_USERNAME)
+        );
     }
 
     #[test]

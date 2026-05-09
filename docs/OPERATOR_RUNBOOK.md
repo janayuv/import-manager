@@ -46,4 +46,6 @@ Short procedures for support and on-call. This app stores data in a local SQLite
 
 ## Release builds and admin login
 
-Production installers must be built with **`IMPORT_MANAGER_ADMIN_PASSWORD_HASH`** set to a bcrypt hash of the desired admin password (and optionally **`IMPORT_MANAGER_ADMIN_USERNAME`**). Debug/non-release builds fall back to a development hash when the variable is unset; **release** builds leave the hash empty unless you set the variable, which disables login until configured.
+Administrator username and password are **not** baked into release binaries. On first launch against a new database, the app prompts for a **one-time setup**; credentials are stored in `app_settings` in the SQLite file (Argon2id hash). **Recovery mode** (`--recovery` / `IMPORT_MANAGER_RECOVERY=1`) can still reset lockout, policy, and the administrator password if you are locked out.
+
+If you copy an existing database between PCs, credentials move with the file; otherwise run setup on each fresh database.

@@ -1,7 +1,7 @@
 {
   "name": "Import Manager",
   "private": true,
-  "version": "0.4.2",
+  "version": "0.4.5",
   "description": "Windows-only desktop application for managing import/export operations",
   "os": [
     "win32"
