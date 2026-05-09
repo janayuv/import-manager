@@ -183,7 +183,7 @@ jobs:
         run: npm run test:e2e:ci
       - name: Upload Playwright test results
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: |
@@ -275,7 +275,7 @@ jobs:
           du -sh src-tauri/target/release/build/ || true
       - name: Upload build logs
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-logs
           path: |
@@ -288,7 +288,7 @@ jobs:
           if-no-files-found: ignore
       - name: Upload installer artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: import-manager-build
           path: src-tauri/target/release/bundle/
