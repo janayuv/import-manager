@@ -2,7 +2,8 @@
 unmaintained = "none"
 yanked = "deny"
 ignore = [
-  { id = "RUSTSEC-2024-0429", reason = "Transitive dependency issue in glib through Tauri. Fixed version requires system libraries not available on Windows. Will be resolved when Tauri updates to glib 0.20.0+" }
+  { id = "RUSTSEC-2024-0429", reason = "Transitive dependency issue in glib through Tauri. Fixed version requires system libraries not available on Windows. Will be resolved when Tauri updates to glib 0.20.0+" },
+  { id = "RUSTSEC-2026-0097", reason = "rand 0.7.3 is only reachable at build time via phf_generator 0.8.0 <- phf_codegen 0.8.0 <- selectors 0.24.0 <- kuchikiki <- tauri-utils. It is never compiled into the final binary. The unsoundness conditions (custom logger calling rand::thread_rng() during ThreadRng reseed) cannot trigger in a build script context." }
 ]
 
 [licenses]
