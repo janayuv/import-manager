@@ -5,6 +5,14 @@ import { format as formatDate, isValid, parse } from 'date-fns';
 const INPUT_FORMAT = 'yyyy-MM-dd';
 const DISPLAY_FORMAT = 'dd-MM-yyyy';
 
+/** Parse BOE/shipment-style date strings (dd-MM-yyyy, yyyy-MM-dd, ISO). */
+export function parseFlexibleDate(
+  dateString: string | undefined | null
+): Date | null {
+  if (!dateString) return null;
+  return tryParse(dateString);
+}
+
 function tryParse(dateString: string): Date | null {
   // Accept common formats: dd-MM-yyyy, yyyy-MM-dd
   const trimmed = (dateString || '').trim();
