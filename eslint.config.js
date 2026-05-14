@@ -14,6 +14,7 @@ export default tseslint.config([
     'test-results',
     '.cursor',
     '.github',
+    '.claude',
     'playwright-report',
     'codeql',
     'codeql_data',

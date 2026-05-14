@@ -24,7 +24,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 // Removed unused Select imports
+import { selectBoesForEntryDropdown } from '@/lib/boe-entry-dropdown-boes';
 import { calculateDuties } from '@/lib/duty-calculator';
+import { defaultSavedBoeStatusForNewEntry } from '@/lib/saved-boe-entry-status';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type { BoeDetails } from '@/types/boe';
@@ -51,6 +53,17 @@ import { ItemsTable } from './items-table';
 // src/components/boe-entry/form.tsx (MODIFIED)
 
 // src/components/boe-entry/form.tsx (MODIFIED)
+
+function boePrefixFilter(value: string, search: string): number {
+  if (!search) return 1;
+  const digits = (s: string) => s.replace(/\D/g, '');
+  const v = digits(value);
+  const q = digits(search);
+  if (!q) return 1;
+  if (v === q) return 2;
+  if (v.startsWith(q)) return 1;
+  return 0;
+}
 
 const formSchema = z.object({
   supplierName: z.string().min(1, { message: 'Please select a supplier.' }),
@@ -151,19 +164,9 @@ export function BoeEntryForm({
   }, [selectedShipment, form]);
 
   const boeOptions = React.useMemo(() => {
-    const usedBoeIds = new Set(
-      savedBoes
-        .map(savedBoe => savedBoe.boeId)
-        .filter((id): id is string => !!id)
+    return selectBoesForEntryDropdown(allBoes, savedBoes, initialData).map(
+      boe => ({ value: boe.id, label: boe.beNumber })
     );
-
-    return allBoes
-      .filter(boe => {
-        const isUnused = !usedBoeIds.has(boe.id);
-        const isCurrentlyEditing = initialData?.boeId === boe.id;
-        return isUnused || isCurrentlyEditing;
-      })
-      .map(boe => ({ value: boe.id, label: boe.beNumber }));
   }, [allBoes, savedBoes, initialData]);
 
   React.useEffect(() => {
@@ -531,7 +534,9 @@ export function BoeEntryForm({
       boeId: selectedBoeId,
       invoiceNumber: selectedShipment.invoiceNumber,
       supplierName: selectedShipment.supplierName,
-      status: initialData?.status ?? 'Awaiting BOE Data',
+      status: initialData
+        ? initialData.status
+        : defaultSavedBoeStatusForNewEntry(selectedBoeId),
       formValues: lastValidFormValues,
       itemInputs,
       calculationResult,
@@ -603,6 +608,7 @@ export function BoeEntryForm({
               placeholder="Select a BOE..."
               searchPlaceholder="Search BOE No..."
               emptyText="No BOE found."
+              filter={boePrefixFilter}
             />
           </FormItem>
         </div>

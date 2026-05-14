@@ -35,6 +35,8 @@ interface ComboboxProps {
   className?: string;
   disabled?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
+  /** Override cmdk's default fuzzy filter. Same signature as Command's filter prop. */
+  filter?: (value: string, search: string, keywords?: string[]) => number;
 }
 
 export function Combobox({
@@ -47,6 +49,7 @@ export function Combobox({
   className,
   disabled = false,
   size = 'md',
+  filter,
 }: ComboboxProps) {
   const [open, setOpen] = React.useState(false);
 
@@ -78,7 +81,7 @@ export function Combobox({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
-        <Command>
+        <Command filter={filter}>
           <CommandInput placeholder={searchPlaceholder} />
           <CommandList
             className="scroll-py-1 overflow-y-auto overflow-x-hidden"
