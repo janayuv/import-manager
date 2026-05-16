@@ -1,8 +1,8 @@
 ﻿RELEASE BUILD METADATA
 ========================================
 Version: 0.4.7
-Commit: 6d4741aa61729dbe45d2e875e20522ba28b39361
-Build Date: 2026-05-16 01:02:43
+Commit: 874d025e651619affdd1fd2b1476dc6d96e275f0
+Build Date: 2026-05-16 07:27:05
 
 Node: v22.14.0
 npm: 11.5.2
