@@ -2,12 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Switch } from '@/components/ui/switch';
 import { useHasPermission, useUser } from '@/lib/user-context';
 import {
   getSystemAgentObservabilitySummary,
@@ -18,6 +12,7 @@ import {
   type SystemAgentObservabilitySummary,
   type SystemAgentMessage,
 } from '@/lib/system-agent';
+import { AppBar, ImToggle } from '@/components/shared/im';
 
 type ChatRow = {
   role: 'user' | 'assistant' | 'system';
@@ -169,172 +164,382 @@ export default function SystemAgentAdminPage() {
   }
 
   return (
-    <div className="container mx-auto flex max-w-6xl flex-col gap-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">System agent</h1>
-        <p className="text-muted-foreground text-sm">
-          Deterministic automation control interface with optional DeepSeek
-          narration.
-        </p>
-      </div>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Administration', 'System Agent']} />
+      <div
+        className="im-dashboard-body"
+        style={{
+          maxWidth: 1152,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+        }}
+      >
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--color-im-text)',
+              fontFamily: 'var(--font-im-sans)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            System Agent
+          </h1>
+          <p
+            style={{
+              margin: '3px 0 0',
+              fontSize: 11.5,
+              color: 'var(--color-im-faint)',
+            }}
+          >
+            Deterministic automation control interface with optional DeepSeek
+            narration.
+          </p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Settings</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          <div className="flex items-center justify-between rounded border p-3">
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Settings</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: 12,
+                border: '1px solid var(--color-im-rule)',
+                borderRadius: 2,
+              }}
+            >
+              <div>
+                <label className="im-field-label" style={{ marginBottom: 2 }}>
+                  Enable system agent
+                </label>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 11,
+                    color: 'var(--color-im-faint)',
+                  }}
+                >
+                  LLM calls happen only when intent route requires it.
+                </p>
+              </div>
+              <ImToggle checked={enabled} onChange={setEnabled} />
+            </div>
             <div>
-              <Label>Enable system agent</Label>
-              <p className="text-muted-foreground text-xs">
-                LLM calls happen only when intent route requires it.
+              <label className="im-field-label">Model</label>
+              <input
+                className="im-input"
+                value={model}
+                onChange={e => setModel(e.target.value)}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label className="im-field-label">DeepSeek base URL</label>
+              <input
+                className="im-input"
+                value={baseUrl}
+                onChange={e => setBaseUrl(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">
+                Confidence threshold (mutate)
+              </label>
+              <input
+                className="im-input"
+                value={threshold}
+                onChange={e => setThreshold(e.target.value)}
+                inputMode="decimal"
+              />
+            </div>
+            <div>
+              <label className="im-field-label">
+                DeepSeek API key (optional update)
+              </label>
+              <input
+                className="im-input"
+                value={apiKey}
+                onChange={e => setApiKey(e.target.value)}
+                type="password"
+              />
+              <p
+                style={{
+                  margin: '4px 0 0',
+                  fontSize: 11,
+                  color: 'var(--color-im-faint)',
+                }}
+              >
+                {hasSavedApiKey
+                  ? 'A DeepSeek API key is already saved. Leave blank to keep it unchanged.'
+                  : 'No DeepSeek API key saved yet. Paste one and click Save settings.'}
               </p>
             </div>
-            <Switch checked={enabled} onCheckedChange={setEnabled} />
+            <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8 }}>
+              <button
+                className="im-btn"
+                onClick={() => void loadSettings()}
+                disabled={busy}
+              >
+                {settingsLoaded ? 'Reload settings' : 'Load settings'}
+              </button>
+              <button
+                className="im-btn im-btn--primary"
+                onClick={() => void saveSettings()}
+                disabled={busy}
+              >
+                Save settings
+              </button>
+            </div>
           </div>
-          <div className="grid gap-2">
-            <Label>Model</Label>
-            <Input value={model} onChange={e => setModel(e.target.value)} />
-          </div>
-          <div className="grid gap-2 md:col-span-2">
-            <Label>DeepSeek base URL</Label>
-            <Input value={baseUrl} onChange={e => setBaseUrl(e.target.value)} />
-          </div>
-          <div className="grid gap-2">
-            <Label>Confidence threshold (mutate)</Label>
-            <Input
-              value={threshold}
-              onChange={e => setThreshold(e.target.value)}
-              inputMode="decimal"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>DeepSeek API key (optional update)</Label>
-            <Input
-              value={apiKey}
-              onChange={e => setApiKey(e.target.value)}
-              type="password"
-            />
-            <p className="text-muted-foreground text-xs">
-              {hasSavedApiKey
-                ? 'A DeepSeek API key is already saved. Leave blank to keep it unchanged.'
-                : 'No DeepSeek API key saved yet. Paste one and click Save settings.'}
-            </p>
-          </div>
-          <div className="flex gap-2 md:col-span-2">
-            <Button variant="outline" onClick={loadSettings} disabled={busy}>
-              {settingsLoaded ? 'Reload settings' : 'Load settings'}
-            </Button>
-            <Button onClick={saveSettings} disabled={busy}>
-              Save settings
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Rate limit observability (7d)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2 text-sm md:grid-cols-4">
-          <div>
-            <p className="text-muted-foreground">Total turns</p>
-            <p className="font-medium">{obs?.totalTurns7d ?? '—'}</p>
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">
+              // Rate limit observability (7d)
+            </span>
           </div>
-          <div>
-            <p className="text-muted-foreground">LLM-used turns</p>
-            <p className="font-medium">{obs?.llmUsedTurns7d ?? '—'}</p>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 16,
+              fontSize: 12.5,
+            }}
+          >
+            <div>
+              <p style={{ margin: '0 0 4px', color: 'var(--color-im-muted)' }}>
+                Total turns
+              </p>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {obs?.totalTurns7d ?? '—'}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', color: 'var(--color-im-muted)' }}>
+                LLM-used turns
+              </p>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {obs?.llmUsedTurns7d ?? '—'}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', color: 'var(--color-im-muted)' }}>
+                Blocked turns
+              </p>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {obs?.blockedTurns7d ?? '—'}
+              </p>
+            </div>
+            <div>
+              <p style={{ margin: '0 0 4px', color: 'var(--color-im-muted)' }}>
+                Blocked %
+              </p>
+              <p style={{ margin: 0, fontWeight: 600 }}>
+                {obs ? `${obs.blockedPercent7d.toFixed(2)}%` : '—'}
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-muted-foreground">Blocked turns</p>
-            <p className="font-medium">{obs?.blockedTurns7d ?? '—'}</p>
-          </div>
-          <div>
-            <p className="text-muted-foreground">Blocked %</p>
-            <p className="font-medium">
-              {obs ? `${obs.blockedPercent7d.toFixed(2)}%` : '—'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Chat</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-3">
-            <ScrollArea className="h-80 rounded border p-3">
-              <div className="space-y-3">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 16,
+          }}
+        >
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Chat</span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              <div
+                style={{
+                  height: 320,
+                  overflowY: 'auto',
+                  padding: 12,
+                  border: '1px solid var(--color-im-rule)',
+                  borderRadius: 2,
+                }}
+              >
                 {chat.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 12.5,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
                     Ask about automation health, failed jobs, or request
                     deterministic failure trace.
                   </p>
                 ) : (
-                  chat.map((row, idx) => (
-                    <div key={idx} className="rounded border p-2 text-sm">
-                      <div className="text-muted-foreground mb-1 text-xs uppercase">
-                        {row.role}
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                    }}
+                  >
+                    {chat.map((row, idx) => (
+                      <div
+                        key={idx}
+                        style={{
+                          padding: 8,
+                          border: '1px solid var(--color-im-rule)',
+                          borderRadius: 2,
+                          fontSize: 12.5,
+                        }}
+                      >
+                        <div
+                          style={{
+                            marginBottom: 4,
+                            fontSize: 10,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.05em',
+                            color: 'var(--color-im-muted)',
+                          }}
+                        >
+                          {row.role}
+                        </div>
+                        <pre
+                          style={{
+                            margin: 0,
+                            whiteSpace: 'pre-wrap',
+                            wordBreak: 'break-word',
+                          }}
+                        >
+                          {row.content}
+                        </pre>
                       </div>
-                      <pre className="wrap-break-word whitespace-pre-wrap">
-                        {row.content}
-                      </pre>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 )}
               </div>
-            </ScrollArea>
-            <div className="flex gap-2">
-              <Input
-                value={prompt}
-                onChange={e => setPrompt(e.target.value)}
-                placeholder="Describe automation issue or ask for health summary"
-                onKeyDown={e => {
-                  if (e.key === 'Enter') {
-                    void sendPrompt();
-                  }
-                }}
-              />
-              <Button onClick={sendPrompt} disabled={busy || !prompt.trim()}>
-                Send
-              </Button>
-            </div>
-            {groundingWarning ? (
-              <p className="text-sm text-amber-700">{groundingWarning}</p>
-            ) : null}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Explain graph</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {explainGraph ? (
-              <div className="space-y-2 text-sm">
-                <div>
-                  <span className="text-muted-foreground">Schema: </span>
-                  {explainGraph.schemaVersion}
-                </div>
-                <div>
-                  <span className="text-muted-foreground">Trace SHA256: </span>
-                  <code className="text-xs">{explainGraph.traceSha256}</code>
-                </div>
-                <ScrollArea className="h-60 rounded border p-2">
-                  <pre className="wrap-break-word whitespace-pre-wrap text-xs">
-                    {JSON.stringify(explainGraph.events, null, 2)}
-                  </pre>
-                </ScrollArea>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  className="im-input"
+                  style={{ flex: 1 }}
+                  value={prompt}
+                  onChange={e => setPrompt(e.target.value)}
+                  placeholder="Describe automation issue or ask for health summary"
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      void sendPrompt();
+                    }
+                  }}
+                />
+                <button
+                  className="im-btn im-btn--primary"
+                  onClick={() => void sendPrompt()}
+                  disabled={busy || !prompt.trim()}
+                >
+                  Send
+                </button>
               </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                Failure trace appears here for TRACE_ONLY failure analysis
-                routes.
-              </p>
-            )}
-          </CardContent>
-        </Card>
+              {groundingWarning ? (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 12.5,
+                    color: 'var(--color-im-accent)',
+                  }}
+                >
+                  {groundingWarning}
+                </p>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Explain graph</span>
+            </div>
+            <div className="im-section__body">
+              {explainGraph ? (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    fontSize: 12.5,
+                  }}
+                >
+                  <div>
+                    <span style={{ color: 'var(--color-im-muted)' }}>
+                      Schema:{' '}
+                    </span>
+                    {explainGraph.schemaVersion}
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--color-im-muted)' }}>
+                      Trace SHA256:{' '}
+                    </span>
+                    <code style={{ fontSize: 11.5, fontFamily: 'monospace' }}>
+                      {explainGraph.traceSha256}
+                    </code>
+                  </div>
+                  <div
+                    style={{
+                      height: 240,
+                      overflowY: 'auto',
+                      padding: 8,
+                      border: '1px solid var(--color-im-rule)',
+                      borderRadius: 2,
+                    }}
+                  >
+                    <pre
+                      style={{
+                        margin: 0,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-word',
+                        fontSize: 11,
+                      }}
+                    >
+                      {JSON.stringify(explainGraph.events, null, 2)}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 12.5,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
+                  Failure trace appears here for TRACE_ONLY failure analysis
+                  routes.
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

@@ -1631,7 +1631,7 @@ fn run_post_backup_validation_sync(app: &AppHandle, backup_id: i64, enc_path: &P
         fail(&format!("integrity_check: {}", integrity));
         return;
     }
-    let schema_ok = match Connection::open(&tmp_path.as_path()) {
+    let schema_ok = match Connection::open(tmp_path.as_path()) {
         Ok(c) => c
             .query_row(
                 "SELECT COUNT(*) FROM refinery_schema_history",
@@ -2361,10 +2361,8 @@ pub async fn get_backup_health_metrics(
     ) {
         if let Ok(sizes_r) = stmt.query_map([], |row| row.get::<_, i64>(0)) {
             let mut sizes: Vec<i64> = Vec::new();
-            for s in sizes_r {
-                if let Ok(v) = s {
-                    sizes.push(v);
-                }
+            for v in sizes_r.flatten() {
+                sizes.push(v);
             }
             if sizes.len() >= 3 {
                 let latest = sizes[0];
@@ -3271,17 +3269,13 @@ pub async fn preview_restore(
         }
     }
 
-    match backup_info.validation_status.as_deref() {
-        Some("failed") => warnings.push(
-            "Automated backup validation reported failure for this file.".to_string(),
-        ),
-        _ => {}
+    if let Some("failed") = backup_info.validation_status.as_deref() {
+        warnings.push("Automated backup validation reported failure for this file.".to_string());
     }
-    match backup_info.restore_simulation_status.as_deref() {
-        Some("failed") => warnings.push(
+    if let Some("failed") = backup_info.restore_simulation_status.as_deref() {
+        warnings.push(
             "Last restore simulation failed for this backup — review before restoring.".to_string(),
-        ),
-        _ => {}
+        );
     }
 
     // Try to get table counts from backup (simplified approach)

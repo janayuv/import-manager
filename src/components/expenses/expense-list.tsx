@@ -13,16 +13,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import type {
   ExpenseType,
   ExpenseWithInvoice,
@@ -124,10 +115,29 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <div className="text-center">
-          <div className="border-primary mx-auto mb-2 h-8 w-8 animate-spin rounded-full border-b-2"></div>
-          <p className="text-muted-foreground">Loading expenses...</p>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '32px 0',
+        }}
+      >
+        <div style={{ textAlign: 'center' }}>
+          <div
+            style={{
+              border: '2px solid var(--color-im-accent)',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              width: 32,
+              height: 32,
+              animation: 'spin 1s linear infinite',
+              margin: '0 auto 8px',
+            }}
+          ></div>
+          <p style={{ color: 'var(--color-im-muted)', margin: 0 }}>
+            Loading expenses...
+          </p>
         </div>
       </div>
     );
@@ -135,136 +145,174 @@ const ExpenseList: React.FC<ExpenseListProps> = ({
 
   return (
     <div>
-      <div className="mb-4 flex items-center justify-between">
-        <h3 className="text-lg font-medium">Expenses ({expenses.length})</h3>
+      <div
+        style={{
+          marginBottom: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
+        <h3 style={{ fontSize: 16, fontWeight: 500, margin: 0 }}>
+          Expenses ({expenses.length})
+        </h3>
         {expenses.length > 0 && (
-          <Badge variant="secondary">
+          <span className="im-badge">
             Total: ₹
             {expenses
               .reduce((sum, exp) => sum + computeTotalForExpense(exp), 0)
               .toFixed(2)}
-          </Badge>
+          </span>
         )}
       </div>
 
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Expense Type</TableHead>
-            <TableHead>Service Provider</TableHead>
-            <TableHead>Invoice #</TableHead>
-            <TableHead>Date</TableHead>
-            <TableHead>Amount</TableHead>
-            <TableHead>CGST</TableHead>
-            <TableHead>SGST</TableHead>
-            <TableHead>IGST</TableHead>
-            <TableHead>TDS</TableHead>
-            <TableHead>Total Amount</TableHead>
-            <TableHead>Actions</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {expenses.map(expense => (
-            <TableRow key={expense.id} className="hover:bg-muted/50">
-              <TableCell>
-                <Badge variant="outline">
-                  {expenseTypes.get(expense.expenseTypeId) || 'N/A'}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {serviceProviders.get(expense.serviceProviderId) || 'N/A'}
-              </TableCell>
-              <TableCell className="font-mono text-sm">
-                {expense.invoiceNo || 'N/A'}
-              </TableCell>
-              <TableCell>
-                {expense.invoiceDate
-                  ? new Date(expense.invoiceDate).toLocaleDateString()
-                  : 'N/A'}
-              </TableCell>
-              <TableCell className="font-mono">
-                ₹{expense.amount.toFixed(2)}
-              </TableCell>
-              <TableCell className="font-mono">
-                ₹{expense.cgstAmount.toFixed(2)}
-              </TableCell>
-              <TableCell className="font-mono">
-                ₹{expense.sgstAmount.toFixed(2)}
-              </TableCell>
-              <TableCell className="font-mono">
-                ₹{expense.igstAmount.toFixed(2)}
-              </TableCell>
-              <TableCell className="font-mono">
-                ₹{expense.tdsAmount.toFixed(2)}
-              </TableCell>
-              <TableCell className="font-mono font-semibold">
-                ₹{computeTotalForExpense(expense).toFixed(2)}
-              </TableCell>
-              <TableCell>
-                <div className="flex space-x-2">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    useAccentColor
-                    onClick={() => handleEdit(expense)}
-                    className="h-8 px-2"
-                  >
-                    Edit
-                  </Button>
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        className="h-8 px-2"
-                        disabled={deletingExpenseId === expense.id}
-                      >
-                        {deletingExpenseId === expense.id
-                          ? 'Deleting...'
-                          : 'Delete'}
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Expense</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Are you sure you want to delete this expense? This
-                          action cannot be undone.
-                          <br />
-                          <strong>Expense Type:</strong>{' '}
-                          {expenseTypes.get(expense.expenseTypeId) || 'N/A'}
-                          <br />
-                          <strong>Amount:</strong> ₹
-                          {computeTotalForExpense(expense).toFixed(2)}
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel asChild>
-                          <Button variant="outline" useAccentColor>
-                            Cancel
-                          </Button>
-                        </AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleDelete(expense.id)}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+      <div className="im-table-scroll">
+        <table className="im-table">
+          <thead>
+            <tr>
+              <th className="im-th">Expense Type</th>
+              <th className="im-th">Service Provider</th>
+              <th className="im-th">Invoice #</th>
+              <th className="im-th">Date</th>
+              <th className="im-th">Amount</th>
+              <th className="im-th">CGST</th>
+              <th className="im-th">SGST</th>
+              <th className="im-th">IGST</th>
+              <th className="im-th">TDS</th>
+              <th className="im-th">Total Amount</th>
+              <th className="im-th">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {expenses.map(expense => (
+              <tr className="im-tr" key={expense.id}>
+                <td className="im-td">
+                  <span className="im-badge">
+                    {expenseTypes.get(expense.expenseTypeId) || 'N/A'}
+                  </span>
+                </td>
+                <td className="im-td">
+                  {serviceProviders.get(expense.serviceProviderId) || 'N/A'}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace', fontSize: 13 }}
+                >
+                  {expense.invoiceNo || 'N/A'}
+                </td>
+                <td className="im-td">
+                  {expense.invoiceDate
+                    ? new Date(expense.invoiceDate).toLocaleDateString()
+                    : 'N/A'}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace' }}
+                >
+                  ₹{expense.amount.toFixed(2)}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace' }}
+                >
+                  ₹{expense.cgstAmount.toFixed(2)}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace' }}
+                >
+                  ₹{expense.sgstAmount.toFixed(2)}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace' }}
+                >
+                  ₹{expense.igstAmount.toFixed(2)}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace' }}
+                >
+                  ₹{expense.tdsAmount.toFixed(2)}
+                </td>
+                <td
+                  className="im-td"
+                  style={{ fontFamily: 'Consolas, monospace', fontWeight: 600 }}
+                >
+                  ₹{computeTotalForExpense(expense).toFixed(2)}
+                </td>
+                <td className="im-td">
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      useAccentColor
+                      onClick={() => handleEdit(expense)}
+                      className="h-8 px-2"
+                    >
+                      Edit
+                    </Button>
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="h-8 px-2"
+                          disabled={deletingExpenseId === expense.id}
                         >
-                          Delete Expense
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
+                          {deletingExpenseId === expense.id
+                            ? 'Deleting...'
+                            : 'Delete'}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Delete Expense</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            Are you sure you want to delete this expense? This
+                            action cannot be undone.
+                            <br />
+                            <strong>Expense Type:</strong>{' '}
+                            {expenseTypes.get(expense.expenseTypeId) || 'N/A'}
+                            <br />
+                            <strong>Amount:</strong> ₹
+                            {computeTotalForExpense(expense).toFixed(2)}
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel asChild>
+                            <Button variant="outline" useAccentColor>
+                              Cancel
+                            </Button>
+                          </AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={() => handleDelete(expense.id)}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            Delete Expense
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
       {expenses.length === 0 && !loading && (
-        <div className="py-8 text-center">
-          <p className="text-muted-foreground">
+        <div style={{ padding: '32px 0', textAlign: 'center' }}>
+          <p style={{ color: 'var(--color-im-muted)', margin: 0 }}>
             No expenses found for this shipment.
           </p>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <p
+            style={{
+              color: 'var(--color-im-muted)',
+              fontSize: 13,
+              marginTop: 4,
+            }}
+          >
             Add your first expense using the form on the right.
           </p>
         </div>

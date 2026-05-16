@@ -1,0 +1,208 @@
+/* src/components/invoice/table-invoice.css
+ * Invoice Industrial Console — metrics, toolbar row 2, invoice status pills, numeric alignment.
+ * Import alongside ../supplier/table-industrial.css.
+ */
+
+/* ── Metric cards ─────────────────────────────────────────────────── */
+.im-invoice-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--im-rule);
+  flex-shrink: 0;
+  background: var(--im-bg);
+}
+@media (max-width: 1100px) {
+  .im-invoice-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.im-invoice-metric {
+  border: 1px solid var(--im-rule);
+  background: var(--im-panel);
+  padding: 10px 12px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.im-invoice-metric__label {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--im-faint);
+}
+.im-invoice-metric__value {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--im-text);
+  text-align: right;
+}
+.im-invoice-metric--accent .im-invoice-metric__value {
+  color: var(--im-accent);
+}
+.im-invoice-metric--good .im-invoice-metric__value {
+  color: var(--im-good);
+}
+.im-invoice-metric--bad .im-invoice-metric__value {
+  color: var(--im-bad);
+}
+
+/* ── Search grows on invoice toolbar row 1 ───────────────────────── */
+.im-table-search-wrap--grow {
+  flex: 1;
+  min-width: 200px;
+  max-width: 520px;
+}
+
+/* ── Toolbar row 2 (showing + auto-finalize) ─────────────────────── */
+.im-invoice-toolbar-row2 {
+  justify-content: space-between;
+}
+.im-invoice-showing {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  color: var(--im-muted);
+  letter-spacing: 0.03em;
+}
+.im-invoice-autofin {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.im-invoice-autofin-hint {
+  font-size: 11px;
+  color: var(--im-muted);
+}
+.im-invoice-autofin-hint--muted {
+  color: var(--im-faint);
+}
+.im-invoice-autofin-btn {
+  padding: 4px 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: rgba(95, 203, 125, 0.12);
+  border: 1px solid var(--im-good-bdr);
+  color: var(--im-good);
+  cursor: pointer;
+  transition: filter 0.1s;
+}
+.im-invoice-autofin-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* ── Right-aligned numeric headers / cells ──────────────────────── */
+.im-th.im-th--num .im-th-inner {
+  justify-content: flex-end;
+  width: 100%;
+}
+.im-th.im-th--num {
+  text-align: right;
+}
+.im-td.im-td--num {
+  text-align: right;
+}
+
+/* Monospace amounts (currency / qty) */
+.im-inv-num {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Invoice status pills (design system) ─────────────────────────── */
+.im-inv-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.im-inv-pill__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.im-inv-pill--draft {
+  background: rgba(140, 138, 130, 0.12);
+  color: var(--im-muted);
+  border: 1px solid rgba(140, 138, 130, 0.28);
+}
+.im-inv-pill--sent {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+}
+.im-inv-pill--paid {
+  background: var(--im-good-bg);
+  color: var(--im-good);
+  border: 1px solid var(--im-good-bdr);
+}
+.im-inv-pill--overdue {
+  background: var(--im-bad-bg);
+  color: var(--im-bad);
+  border: 1px solid var(--im-bad-bdr);
+}
+
+/* Row actions: allow overflow; quick-finalize accent */
+.im-td.im-td--actions {
+  overflow: visible;
+}
+.im-row-act-btn--finalize {
+  border-color: rgba(232, 162, 58, 0.35);
+  color: var(--im-accent);
+}
+.im-row-act-btn--finalize:hover:not(:disabled) {
+  border-color: var(--im-accent);
+  background: var(--im-accent-bg);
+}
+
+/* Match status column */
+.im-inv-match {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.im-inv-match-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.im-inv-match--ok .im-inv-match-dot {
+  background: var(--im-good);
+}
+.im-inv-match--ok .im-inv-match-label {
+  color: var(--im-good);
+}
+.im-inv-match--bad .im-inv-match-dot {
+  background: var(--im-bad);
+}
+.im-inv-match--bad .im-inv-match-label {
+  color: var(--im-bad);
+}
+.im-inv-match--click {
+  cursor: help;
+}
+.im-inv-match-muted {
+  color: var(--im-faint);
+  font-family: 'Consolas', 'Courier New', monospace;
+}

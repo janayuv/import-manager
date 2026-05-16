@@ -1,8 +1,8 @@
 // --- FILE: src/components/item/view.tsx ---
+import * as React from 'react';
+
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { cn } from '@/lib/utils';
 import type { Item } from '@/types/item';
 import type { Option } from '@/types/options';
 
@@ -35,11 +33,11 @@ const DetailItem = ({ label, value, isRate = false }: DetailItemProps) => {
   if (value === undefined || value === null || value === '') return null;
   if (typeof value === 'boolean') {
     return (
-      <div className="space-y-1">
-        <p className="text-muted-foreground text-sm">{label}</p>
-        <Badge variant={value ? 'success' : 'destructive'}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <p className="im-field-label">{label}</p>
+        <span className={'im-status-pill ' + (value ? 'is-active' : 'is-warn')}>
           {value ? 'Active' : 'Inactive'}
-        </Badge>
+        </span>
       </div>
     );
   }
@@ -53,9 +51,17 @@ const DetailItem = ({ label, value, isRate = false }: DetailItemProps) => {
     }
   }
   return (
-    <div className="space-y-1">
-      <p className="text-muted-foreground text-sm">{label}</p>
-      <p className="font-medium">{displayValue}</p>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <p className="im-field-label">{label}</p>
+      <p
+        style={{
+          fontFamily: 'var(--font-im-mono)',
+          fontSize: 12,
+          color: 'var(--color-im-text)',
+        }}
+      >
+        {displayValue}
+      </p>
     </div>
   );
 };
@@ -70,6 +76,7 @@ export function ItemViewDialog({
   onEdit,
 }: ViewItemProps) {
   const isPage = presentation === 'page';
+  const [activeItemTab, setActiveItemTab] = React.useState('general');
 
   if (!item) return null;
 
@@ -91,11 +98,18 @@ export function ItemViewDialog({
     <>
       <h2
         id="item-view-title"
-        className="text-lg font-semibold tracking-tight sm:text-xl"
+        style={{
+          fontFamily: 'var(--font-im-mono)',
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          color: 'var(--color-im-text)',
+          textTransform: 'uppercase',
+        }}
       >
         Item: {item.partNumber}
       </h2>
-      <p className="text-muted-foreground text-sm">
+      <p style={{ fontSize: 12, color: 'var(--color-im-faint)', marginTop: 4 }}>
         Read-only view of all item information.
       </p>
     </>
@@ -109,30 +123,43 @@ export function ItemViewDialog({
   );
 
   const tabsBlock = (
-    <Tabs defaultValue="general">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger
-          value="general"
-          className="bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+    <div>
+      <div className="im-tabs">
+        <button
+          type="button"
+          className={
+            'im-tab' + (activeItemTab === 'general' ? ' is-active' : '')
+          }
+          onClick={() => setActiveItemTab('general')}
         >
           General Details
-        </TabsTrigger>
-        <TabsTrigger
-          value="customs"
-          className="bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+        </button>
+        <button
+          type="button"
+          className={
+            'im-tab' + (activeItemTab === 'customs' ? ' is-active' : '')
+          }
+          onClick={() => setActiveItemTab('customs')}
         >
           Commercial & Customs
-        </TabsTrigger>
-        <TabsTrigger
-          value="specs"
-          className="bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+        </button>
+        <button
+          type="button"
+          className={'im-tab' + (activeItemTab === 'specs' ? ' is-active' : '')}
+          onClick={() => setActiveItemTab('specs')}
         >
           Specifications
-        </TabsTrigger>
-      </TabsList>
-      <div className="py-4">
-        <TabsContent value="general">
-          <div className="grid grid-cols-3 gap-4">
+        </button>
+      </div>
+      <div style={{ padding: '16px 0' }}>
+        {activeItemTab === 'general' && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+            }}
+          >
             <DetailItem label="Part Number" value={item.partNumber} />
             <div className="col-span-2">
               <DetailItem
@@ -147,69 +174,120 @@ export function ItemViewDialog({
             <DetailItem label="Supplier" value={supplierName} />
             <DetailItem label="Status" value={item.isActive} />
           </div>
-        </TabsContent>
-        <TabsContent value="customs">
-          <div className="grid grid-cols-3 gap-4">
-            <DetailItem label="BCD" value={item.bcd} isRate />
-            <DetailItem label="SWS" value={item.sws} isRate />
-            <DetailItem label="IGST" value={item.igst} isRate />
-            <DetailItem
-              label="Country of Origin"
-              value={item.countryOfOrigin}
-            />
-          </div>
-          <div className="mt-4 space-y-2">
-            <p className="text-muted-foreground text-sm">Technical Write-up</p>
-            <p className="whitespace-pre-wrap font-medium">
-              {item.technicalWriteUp || 'N/A'}
-            </p>
-          </div>
-        </TabsContent>
-        <TabsContent value="specs">
-          <div className="grid grid-cols-3 gap-4">
-            <DetailItem label="Category" value={item.category} />
-            <DetailItem label="End Use" value={item.endUse} />
-            <DetailItem label="Net Weight (Kg)" value={item.netWeightKg} />
-            <DetailItem label="Purchase UOM" value={item.purchaseUom} />
-            <DetailItem
-              label="Gross Weight per UOM (Kg)"
-              value={item.grossWeightPerUomKg}
-            />
-          </div>
-          <div className="mt-4 space-y-2">
-            <p className="text-muted-foreground text-sm">Photo</p>
-            <img
-              src={photoSrc}
-              alt="Item Preview"
-              className="h-24 w-24 rounded-md border object-cover"
-            />
-          </div>
-        </TabsContent>
+        )}
+        {activeItemTab === 'customs' && (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+              }}
+            >
+              <DetailItem label="BCD" value={item.bcd} isRate />
+              <DetailItem label="SWS" value={item.sws} isRate />
+              <DetailItem label="IGST" value={item.igst} isRate />
+              <DetailItem
+                label="Country of Origin"
+                value={item.countryOfOrigin}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <p className="im-field-label">Technical Write-up</p>
+              <p
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 12,
+                  color: 'var(--color-im-text)',
+                }}
+              >
+                {item.technicalWriteUp || 'N/A'}
+              </p>
+            </div>
+          </>
+        )}
+        {activeItemTab === 'specs' && (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+              }}
+            >
+              <DetailItem label="Category" value={item.category} />
+              <DetailItem label="End Use" value={item.endUse} />
+              <DetailItem label="Net Weight (Kg)" value={item.netWeightKg} />
+              <DetailItem label="Purchase UOM" value={item.purchaseUom} />
+              <DetailItem
+                label="Gross Weight per UOM (Kg)"
+                value={item.grossWeightPerUomKg}
+              />
+            </div>
+            <div
+              style={{
+                marginTop: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <p className="im-field-label">Photo</p>
+              <img
+                src={photoSrc}
+                alt="Item Preview"
+                style={{
+                  width: 96,
+                  height: 96,
+                  objectFit: 'cover',
+                  border: '1px solid var(--color-im-rule)',
+                }}
+              />
+            </div>
+          </>
+        )}
       </div>
-    </Tabs>
+    </div>
   );
 
   const footerBlock = (
     <div
-      className={cn(
-        'flex flex-wrap items-center justify-end gap-2 pt-4',
-        isPage && 'border-t px-6 pb-6'
-      )}
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        justifyContent: 'flex-end',
+        gap: 8,
+        paddingTop: isPage ? 16 : undefined,
+        borderTop: isPage ? '1px solid var(--color-im-rule)' : undefined,
+        padding: isPage ? '16px 24px' : undefined,
+      }}
     >
       {onEdit ? (
-        <Button type="button" variant="default" useAccentColor onClick={onEdit}>
+        <button
+          type="button"
+          className="im-btn im-btn--primary"
+          onClick={onEdit}
+        >
           Edit item
-        </Button>
+        </button>
       ) : null}
       {isPage ? (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          useAccentColor
+          className="im-btn"
           onClick={() => onOpenChange(false)}
         >
           Close
-        </Button>
+        </button>
       ) : null}
     </div>
   );
@@ -217,19 +295,38 @@ export function ItemViewDialog({
   if (isPage) {
     return (
       <section
-        className={cn(
-          'bg-card text-card-foreground flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border shadow-sm',
-          className
-        )}
+        className={className}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'var(--color-im-bg)',
+        }}
         aria-labelledby="item-view-title"
       >
-        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+        <header
+          style={{
+            flexShrink: 0,
+            borderBottom: '1px solid var(--color-im-rule)',
+            padding: '16px 24px',
+            background: 'var(--color-im-sub)',
+          }}
+        >
           {headerBlock}
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 [scrollbar-gutter:stable]">
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '0 24px',
+          }}
+        >
           {tabsBlock}
         </div>
-        <footer className="shrink-0 px-6">{footerBlock}</footer>
+        <footer style={{ flexShrink: 0 }}>{footerBlock}</footer>
       </section>
     );
   }

@@ -1,33 +1,18 @@
 // src/pages/supplier.tsx
-import type { Column, ColumnDef } from '@tanstack/react-table';
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { openTextFile } from '@/lib/tauri-bridge';
-import {
-  ArrowDown,
-  ArrowLeft,
-  ArrowUp,
-  ArrowUpDown,
-  CircleDot,
-  Download,
-  Filter,
-  Loader2,
-  Search,
-  Upload,
-  Settings,
-} from 'lucide-react';
+import { Package2, Plus } from 'lucide-react';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 import ExcelJS from 'exceljs';
 
 import * as React from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { SupplierActions } from '@/components/supplier/actions';
 import { SupplierEditPanel } from '@/components/supplier/edit';
-import { AddSupplierForm } from '@/components/supplier/form';
+import { SupplierAddPanel } from '@/components/supplier/form';
+import { SupplierDataTable } from '@/components/supplier/table-industrial';
 import { ModuleSettings } from '@/components/module-settings';
 import { SupplierViewPanel } from '@/components/supplier/view';
-import { ResponsiveDataTable } from '@/components/ui/responsive-table';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -36,16 +21,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import { formatText } from '@/lib/settings';
-import { useSettings } from '@/lib/use-settings';
-import type { Supplier } from '@/types/supplier';
-import { Input } from '@/components/ui/input';
-import {
   Table,
   TableBody,
   TableCell,
@@ -53,11 +28,16 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { Supplier } from '@/types/supplier';
+import { createSupplierColumns } from './supplier-columns';
 
 /** URL path for supplier view or edit (bookmarkable, browser back/forward). */
 export function supplierDetailPath(supplierId: string, mode: 'view' | 'edit') {
   return `/supplier/${encodeURIComponent(supplierId)}/${mode}`;
 }
+
+/** URL path for the new-supplier page view. */
+export const SUPPLIER_NEW_PATH = '/supplier/new';
 
 const PAGE_SIZE = 50;
 const SUPPLIER_IMPORT_HEADER =
@@ -108,7 +88,6 @@ const SupplierPage = () => {
   const location = useLocation();
   const { supplierId: supplierIdParam } = useParams<{ supplierId: string }>();
 
-  const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [suppliers, setSuppliers] = React.useState<Supplier[]>([]);
   const [deletedSuppliers, setDeletedSuppliers] = React.useState<Supplier[]>(
@@ -125,23 +104,9 @@ const SupplierPage = () => {
   const [totalSuppliersCount, setTotalSuppliersCount] = React.useState(0);
   const [searchText, setSearchText] = React.useState('');
   const [debouncedSearchText, setDebouncedSearchText] = React.useState('');
-  const [isSearching, setIsSearching] = React.useState(false);
   const [statusFilter, setStatusFilter] = React.useState<
     'all' | 'active' | 'inactive'
   >('all');
-
-  const isSearchDebouncing =
-    searchText.trim() !== debouncedSearchText.trim() &&
-    searchText.trim().length > 0;
-  const totalPages = Math.max(1, Math.ceil(totalSuppliersCount / PAGE_SIZE));
-  const startRecord =
-    totalSuppliersCount === 0
-      ? 0
-      : Math.min(currentPage * PAGE_SIZE + 1, totalSuppliersCount);
-  const endRecord =
-    totalSuppliersCount === 0
-      ? 0
-      : Math.min((currentPage + 1) * PAGE_SIZE, totalSuppliersCount);
 
   React.useEffect(() => {
     const timeoutId = window.setTimeout(() => {
@@ -154,7 +119,8 @@ const SupplierPage = () => {
     setCurrentPage(0);
   }, [debouncedSearchText]);
 
-  const supplierPanel = React.useMemo((): 'none' | 'view' | 'edit' => {
+  const supplierPanel = React.useMemo((): 'none' | 'new' | 'view' | 'edit' => {
+    if (location.pathname === SUPPLIER_NEW_PATH) return 'new';
     if (!supplierIdParam) return 'none';
     if (location.pathname.endsWith('/edit')) return 'edit';
     if (location.pathname.endsWith('/view')) return 'view';
@@ -181,37 +147,15 @@ const SupplierPage = () => {
     return suppliers.filter(supplier => supplier.isActive === showActive);
   }, [suppliers, statusFilter]);
 
-  const activeSuppliersOnPage = React.useMemo(
-    () => suppliers.filter(supplier => supplier.isActive).length,
-    [suppliers]
-  );
-
   const closeSupplierPanel = React.useCallback(() => {
     navigate('/supplier');
   }, [navigate]);
-
-  const handleView = React.useCallback(
-    (supplier: Supplier) => {
-      navigate(supplierDetailPath(supplier.id, 'view'));
-    },
-    [navigate]
-  );
-
-  const handleEdit = React.useCallback(
-    (supplier: Supplier) => {
-      navigate(supplierDetailPath(supplier.id, 'edit'));
-    },
-    [navigate]
-  );
 
   const fetchSuppliers = React.useCallback(async () => {
     const fetchStarted = performance.now();
     setIsLoadingSuppliers(true);
     const searchingActive = debouncedSearchText.trim().length > 0;
     const paginatingActive = currentPage > 0;
-    if (searchingActive) {
-      setIsSearching(true);
-    }
     try {
       const trimmedSearchText = debouncedSearchText.trim();
       const [fetchedSuppliers, fetchedCount] = await Promise.all([
@@ -231,9 +175,6 @@ const SupplierPage = () => {
       notifications.supplier.error('fetch', String(error));
     } finally {
       setIsLoadingSuppliers(false);
-      if (searchingActive) {
-        setIsSearching(false);
-      }
       const elapsedMs = (performance.now() - fetchStarted).toFixed(2);
       if (searchingActive) {
         console.log(`supplier_search execution time: ${elapsedMs} ms`);
@@ -247,6 +188,87 @@ const SupplierPage = () => {
     // every render and retriggered effects.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, debouncedSearchText]);
+
+  const handleView = React.useCallback(
+    (supplier: Supplier) => {
+      navigate(supplierDetailPath(supplier.id, 'view'));
+    },
+    [navigate]
+  );
+
+  const handleEdit = React.useCallback(
+    (supplier: Supplier) => {
+      navigate(supplierDetailPath(supplier.id, 'edit'));
+    },
+    [navigate]
+  );
+
+  const handleDelete = React.useCallback(
+    async (supplier: Supplier) => {
+      const confirmed = window.confirm(
+        `Delete "${supplier.supplierName}"?\n\nThe supplier will be soft-deleted and can be restored from the Deleted list.`
+      );
+      if (!confirmed) return;
+      try {
+        await invoke('delete_supplier', { supplierId: supplier.id });
+        notifications.success(
+          'Supplier Deleted',
+          `"${supplier.supplierName}" has been deleted.`
+        );
+        fetchSuppliers();
+      } catch (error) {
+        console.error('Failed to delete supplier:', error);
+        notifications.supplier.error('delete', String(error));
+      }
+    },
+    // notifications changes identity each render; listing it recreates this callback unnecessarily.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [fetchSuppliers]
+  );
+
+  const columns = React.useMemo(
+    () => createSupplierColumns(handleView, handleEdit, handleDelete),
+    [handleView, handleEdit, handleDelete]
+  );
+
+  const renderEmptyState = React.useCallback((): React.ReactNode => {
+    const isFiltered = !!debouncedSearchText || statusFilter !== 'all';
+    const title = isFiltered ? 'No matching suppliers' : 'No suppliers yet';
+    const body = debouncedSearchText
+      ? `No suppliers match "${debouncedSearchText}". Try a different search term.`
+      : statusFilter !== 'all'
+        ? 'No suppliers match the active status filter.'
+        : 'Add your first supplier manually or import a CSV file to get started.';
+    return (
+      <div className="im-empty-state">
+        <div className="im-empty-state__icon">
+          <Package2 size={40} strokeWidth={1} />
+        </div>
+        <div className="im-empty-state__title">{title}</div>
+        <div className="im-empty-state__body">{body}</div>
+        {!isFiltered && (
+          <div className="im-empty-state__actions">
+            <button
+              className="im-hdr-btn im-hdr-btn--primary"
+              onClick={() => navigate(SUPPLIER_NEW_PATH)}
+              disabled={isImportingSuppliers}
+            >
+              Add supplier
+            </button>
+            <button
+              className="im-hdr-btn"
+              onClick={handleImport}
+              disabled={isImportingSuppliers}
+            >
+              Import CSV
+            </button>
+          </div>
+        )}
+      </div>
+    );
+    // handleAdd and handleImport are stable; isImportingSuppliers intentionally in deps.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchText, statusFilter, isImportingSuppliers]);
 
   React.useEffect(() => {
     console.time('supplier_render');
@@ -303,31 +325,6 @@ const SupplierPage = () => {
       notifications.supplier.error('update', String(error));
     }
   };
-
-  const handleDelete = React.useCallback(
-    async (supplier: Supplier) => {
-      try {
-        await invoke('delete_supplier', { supplierId: supplier.id });
-        notifications.success(
-          'Supplier Deleted',
-          `"${supplier.supplierName}" has been removed from the list.`
-        );
-        fetchSuppliers();
-      } catch (error) {
-        const message = String(error);
-        if (message.includes('Supplier used in shipments — cannot delete')) {
-          notifications.warning(
-            'Cannot Delete Supplier',
-            'Supplier used in shipments — cannot delete'
-          );
-          return;
-        }
-        console.error('Failed to delete supplier:', error);
-        notifications.supplier.error('delete', message);
-      }
-    },
-    [fetchSuppliers, notifications]
-  );
 
   const handleRestoreSupplier = async (supplier: Supplier) => {
     const confirmed = window.confirm('Restore this supplier?');
@@ -569,214 +566,7 @@ const SupplierPage = () => {
     }
   };
 
-  const SortIndicator = ({ column }: { column: Column<Supplier, unknown> }) => {
-    const sorted = column.getIsSorted();
-    if (sorted === 'asc') return <ArrowUp className="ml-2 h-4 w-4" />;
-    if (sorted === 'desc') return <ArrowDown className="ml-2 h-4 w-4" />;
-    return <ArrowUpDown className="ml-2 h-4 w-4" />;
-  };
-
-  const columns = React.useMemo(() => {
-    const allColumns: ColumnDef<Supplier>[] = [
-      {
-        accessorKey: 'id',
-        header: ({ column }) => (
-          <Button
-            variant="default"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            useAccentColor
-            className="text-sm! font-semibold! h-auto bg-transparent p-0 text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
-          >
-            Supplier ID
-            <SortIndicator column={column} />
-          </Button>
-        ),
-        meta: { visible: settings.modules.supplier.fields.id?.visible ?? true },
-      },
-      {
-        accessorKey: 'supplierName',
-        header: ({ column }) => (
-          <Button
-            variant="default"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            useAccentColor
-            className="text-sm! font-semibold! h-auto bg-transparent p-0 text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
-          >
-            Supplier Name
-            <SortIndicator column={column} />
-          </Button>
-        ),
-        cell: ({ row }) =>
-          formatText(row.getValue('supplierName'), settings.textFormat),
-        meta: {
-          visible:
-            settings.modules.supplier.fields.supplierName?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'shortName',
-        header: 'Short Name',
-        cell: ({ row }) =>
-          formatText(row.getValue('shortName'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.shortName?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'country',
-        header: ({ column }) => (
-          <Button
-            variant="default"
-            onClick={() => column.toggleSorting(column.getIsSorted() === 'asc')}
-            useAccentColor
-            className="text-sm! font-semibold! h-auto bg-transparent p-0 text-accent-foreground hover:bg-transparent hover:text-accent-foreground"
-          >
-            Country
-            <SortIndicator column={column} />
-          </Button>
-        ),
-        cell: ({ row }) =>
-          formatText(row.getValue('country'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.country?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'phone',
-        header: 'Phone',
-        cell: ({ row }) =>
-          formatText(row.getValue('phone'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.phone?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'email',
-        header: 'Email',
-        cell: ({ row }) =>
-          formatText(row.getValue('email'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.email?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'beneficiaryName',
-        header: 'Beneficiary Name',
-        cell: ({ row }) =>
-          formatText(row.getValue('beneficiaryName'), settings.textFormat),
-        meta: {
-          visible:
-            settings.modules.supplier.fields.beneficiaryName?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'bankName',
-        header: 'Bank Name',
-        cell: ({ row }) =>
-          formatText(row.getValue('bankName'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.bankName?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'branch',
-        header: 'Branch',
-        cell: ({ row }) =>
-          formatText(row.getValue('branch'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.branch?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'bankAddress',
-        header: 'Bank Address',
-        cell: ({ row }) =>
-          formatText(row.getValue('bankAddress'), settings.textFormat),
-        meta: {
-          visible:
-            settings.modules.supplier.fields.bankAddress?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'accountNo',
-        header: 'Account No.',
-        cell: ({ row }) =>
-          formatText(row.getValue('accountNo'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.accountNo?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'iban',
-        header: 'IBAN',
-        cell: ({ row }) =>
-          formatText(row.getValue('iban'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.iban?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'swiftCode',
-        header: 'SWIFT Code',
-        cell: ({ row }) =>
-          formatText(row.getValue('swiftCode'), settings.textFormat),
-        meta: {
-          visible: settings.modules.supplier.fields.swiftCode?.visible ?? true,
-        },
-      },
-      {
-        accessorKey: 'isActive',
-        header: 'Status',
-        cell: ({ row }) => {
-          const isActive = row.getValue('isActive');
-          return (
-            <Badge variant={isActive ? 'success' : 'destructive'}>
-              {isActive ? 'Active' : 'Inactive'}
-            </Badge>
-          );
-        },
-        meta: {
-          visible: settings.modules.supplier.fields.isActive?.visible ?? true,
-        },
-      },
-      {
-        id: 'actions',
-        cell: ({ row }) => (
-          <SupplierActions
-            supplier={row.original}
-            onView={() => handleView(row.original)}
-            onEdit={() => handleEdit(row.original)}
-            onDelete={() => handleDelete(row.original)}
-          />
-        ),
-        meta: {
-          visible: settings.modules.supplier.fields.actions?.visible ?? true,
-        },
-      },
-    ];
-
-    // Sort columns based on settings order
-    return allColumns.sort((a, b) => {
-      // Keep actions column last (right side)
-      if (a.id === 'actions') return 1;
-      if (b.id === 'actions') return -1;
-
-      // Get order from settings
-      const aOrder =
-        settings.modules.supplier.fields[a.id as string]?.order ?? 999;
-      const bOrder =
-        settings.modules.supplier.fields[b.id as string]?.order ?? 999;
-
-      return aOrder - bOrder;
-    });
-  }, [
-    settings.modules.supplier,
-    settings.textFormat,
-    handleView,
-    handleEdit,
-    handleDelete,
-  ]);
-
+  // ── Settings dialog ──────────────────────────────────────────────
   const settingsDialog = (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
       <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-6xl flex-col overflow-hidden">
@@ -799,61 +589,168 @@ const SupplierPage = () => {
     </Dialog>
   );
 
+  // ── Add new supplier page view ────────────────────────────────────
+  if (supplierPanel === 'new') {
+    return (
+      <div className="im-page">
+        <div
+          style={{
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            background: 'var(--color-im-sub)',
+          }}
+        >
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={() => navigate('/supplier')}
+          >
+            ← Back to suppliers
+          </button>
+          <span style={{ color: 'var(--color-im-faint)', fontSize: 12 }}>
+            Adding new supplier
+          </span>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+          }}
+        >
+          <div
+            style={{
+              flex: 1,
+              minHeight: 0,
+              display: 'flex',
+              flexDirection: 'column',
+              overflow: 'hidden',
+            }}
+            role="main"
+            aria-label="Add new supplier form"
+          >
+            <SupplierAddPanel
+              onAdd={async newSupplierData => {
+                await handleAdd(newSupplierData);
+                navigate('/supplier');
+              }}
+              onCancel={() => navigate('/supplier')}
+              className="min-h-0 flex-1"
+            />
+          </div>
+        </div>
+        {settingsDialog}
+      </div>
+    );
+  }
+
+  // ── Supplier detail panel (view / edit) ──────────────────────────
   if (supplierPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
-        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={closeSupplierPanel}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to suppliers
-            </Button>
-            <span className="text-muted-foreground text-sm">
-              {supplierPanel === 'view'
-                ? 'Viewing supplier record'
-                : 'Editing supplier record'}
-            </span>
-          </div>
-
+      <div className="im-page">
+        <div
+          style={{
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            background: 'var(--color-im-sub)',
+          }}
+        >
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={closeSupplierPanel}
+          >
+            ← Back to suppliers
+          </button>
+          <span style={{ color: 'var(--color-im-faint)', fontSize: 12 }}>
+            {supplierPanel === 'view'
+              ? 'Viewing supplier record'
+              : 'Editing supplier record'}
+          </span>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+          }}
+        >
           {isLoadingSuppliers ? (
             <div
-              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-6xl flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-im-faint)',
+                fontSize: 13,
+                fontFamily: 'var(--font-im-mono)',
+              }}
               role="status"
               aria-live="polite"
             >
-              Loading supplier…
+              LOADING SUPPLIER…
             </div>
           ) : !selectedSupplier ? (
-            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-              <h2 className="text-card-foreground text-lg font-semibold">
-                Supplier not found
+            <div
+              style={{
+                maxWidth: 480,
+                margin: '32px auto',
+                padding: 24,
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 13,
+                  color: 'var(--color-im-text)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                SUPPLIER NOT FOUND
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
                 There is no supplier with ID{' '}
-                <span className="text-foreground font-mono">
+                <span style={{ fontFamily: 'var(--font-im-mono)' }}>
                   {decodedSupplierId ?? supplierIdParam}
                 </span>
                 . It may have been removed or the link may be incorrect.
               </p>
-              <Button
+              <button
                 type="button"
-                variant="default"
-                useAccentColor
+                className="im-btn"
                 onClick={closeSupplierPanel}
-                className="w-fit"
+                style={{ alignSelf: 'flex-start' }}
               >
-                Back to suppliers
-              </Button>
+                ← Back to suppliers
+              </button>
             </div>
           ) : (
             <div
-              className="border-border bg-card flex min-h-0 w-full max-w-6xl flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm"
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
               role="main"
               aria-label={
                 supplierPanel === 'view'
@@ -889,281 +786,149 @@ const SupplierPage = () => {
     );
   }
 
+  // ── Main list view ───────────────────────────────────────────────
   return (
-    <div className="from-background to-muted/20 bg-linear-to-br min-h-screen">
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-card mb-6 rounded-xl border p-5 shadow-sm">
-          <div className="flex flex-col gap-4 border-b pb-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex min-w-0 items-start gap-3">
-              <div className="bg-primary/10 mt-0.5 rounded-lg p-2.5">
-                <Settings className="text-primary h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <h1 className="text-card-foreground text-xl font-semibold tracking-tight">
-                  Suppliers
-                </h1>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Manage supplier identity, contact, and banking records.
-                </p>
-                <div className="text-muted-foreground mt-2 flex flex-wrap items-center gap-3 text-xs">
-                  <span className="bg-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1">
-                    <CircleDot className="text-success size-3" />
-                    {activeSuppliersOnPage} active on this page
-                  </span>
-                  <span className="bg-muted inline-flex items-center gap-1.5 rounded-md px-2 py-1">
-                    <CircleDot className="text-primary size-3" />
-                    Showing {startRecord}-{endRecord} of {totalSuppliersCount}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <AddSupplierForm
-                onAdd={handleAdd}
-                disabled={isImportingSuppliers}
-              />
-              <Button
-                variant="outline"
-                onClick={handleImport}
-                className="h-9 px-3"
-                useAccentColor
-                disabled={isImportingSuppliers}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {isImportingSuppliers ? 'Importing...' : 'Import'}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleExportExcel}
-                className="h-9 px-3"
-                useAccentColor
-                disabled={isImportingSuppliers}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                Export
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleOpenDeletedSuppliers}
-                className="h-9 px-3"
-                useAccentColor
-                disabled={isImportingSuppliers}
-              >
-                Deleted suppliers
-              </Button>
-              <Button
-                variant="outline"
-                onClick={handleDownloadTemplate}
-                className="h-9 px-3"
-                useAccentColor
-                disabled={isImportingSuppliers}
-              >
-                Template
-              </Button>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => setSettingsOpen(true)}
-                      className="h-9 w-9"
-                      useAccentColor
-                    >
-                      <Settings className="h-4 w-4" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>Module Settings</p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
+    <>
+      <div className="im-supplier-page">
+        {/* Page header */}
+        <div className="im-page-header">
+          <div className="im-page-header__title">
+            <h1>Suppliers</h1>
+            <span className="im-record-badge">
+              {totalSuppliersCount} RECORDS
+            </span>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-[minmax(280px,420px)_1fr] lg:items-center">
-            <div className="space-y-1.5">
-              <div className="relative">
-                <Search className="text-muted-foreground absolute left-3 top-1/2 size-4 -translate-y-1/2" />
-                <Input
-                  value={searchText}
-                  onChange={e => setSearchText(e.target.value)}
-                  placeholder="Search by supplier name, email, or country..."
-                  disabled={isLoadingSuppliers}
-                  className="h-9 pl-9 pr-10"
-                />
-                {isSearching || isSearchDebouncing ? (
-                  <Loader2 className="text-muted-foreground absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin" />
-                ) : null}
-              </div>
-              <p className="text-muted-foreground text-xs">
-                {isSearching || isSearchDebouncing
-                  ? 'Refreshing results...'
-                  : `Page ${Math.min(currentPage + 1, totalPages)} of ${totalPages}`}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center justify-start gap-2 lg:justify-end">
-              <span className="text-muted-foreground inline-flex items-center gap-1 text-xs font-medium uppercase tracking-wide">
-                <Filter className="size-3.5" />
-                Status
-              </span>
-              <Button
-                type="button"
-                variant={statusFilter === 'all' ? 'default' : 'outline'}
-                useAccentColor
-                className="h-8 px-3 text-xs"
-                onClick={() => setStatusFilter('all')}
-              >
-                All
-              </Button>
-              <Button
-                type="button"
-                variant={statusFilter === 'active' ? 'default' : 'outline'}
-                useAccentColor
-                className="h-8 px-3 text-xs"
-                onClick={() => setStatusFilter('active')}
-              >
-                Active
-              </Button>
-              <Button
-                type="button"
-                variant={statusFilter === 'inactive' ? 'default' : 'outline'}
-                useAccentColor
-                className="h-8 px-3 text-xs"
-                onClick={() => setStatusFilter('inactive')}
-              >
-                Inactive
-              </Button>
-            </div>
+          <div className="im-page-header__actions">
+            <button
+              className="im-hdr-btn im-hdr-btn--primary"
+              onClick={() => navigate(SUPPLIER_NEW_PATH)}
+              disabled={isImportingSuppliers}
+            >
+              <Plus
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Add supplier
+            </button>
+            <button
+              className="im-hdr-btn"
+              onClick={handleImport}
+              disabled={isImportingSuppliers}
+            >
+              {isImportingSuppliers ? 'Importing…' : 'Import CSV'}
+            </button>
+            <button
+              className="im-hdr-btn"
+              onClick={handleExportExcel}
+              disabled={isImportingSuppliers}
+            >
+              Export
+            </button>
+            <button
+              className="im-hdr-btn"
+              onClick={handleDownloadTemplate}
+              disabled={isImportingSuppliers}
+            >
+              Template
+            </button>
+            <button
+              className="im-hdr-btn"
+              onClick={() => void handleOpenDeletedSuppliers()}
+            >
+              Deleted
+            </button>
+            <button
+              className="im-hdr-btn"
+              onClick={() => setSettingsOpen(true)}
+            >
+              Settings
+            </button>
           </div>
         </div>
 
-        <div className="bg-card min-h-[280px] min-w-0 overflow-hidden rounded-xl border shadow-sm">
-          <ResponsiveDataTable
+        {/* Table — fills remaining height */}
+        <div style={{ flex: 1, minHeight: 0 }}>
+          <SupplierDataTable
             columns={columns}
             data={filteredSuppliers}
-            showSearch={false}
-            hideColumnsOnSmall={[
-              'phone',
-              'bankName',
-              'branch',
-              'bankAddress',
-              'accountNo',
-              'iban',
-              'swiftCode',
-            ]}
-            columnWidths={{
-              supplierName: { minWidth: '180px', maxWidth: '250px' },
-              email: { minWidth: '180px', maxWidth: '220px' },
-              bankAddress: { minWidth: '160px', maxWidth: '200px' },
-              country: { minWidth: '120px', maxWidth: '150px' },
-              phone: { minWidth: '130px', maxWidth: '160px' },
-            }}
-            className="border-0"
-            moduleName="supplier"
+            searchValue={searchText}
+            onSearchChange={setSearchText}
+            statusFilter={statusFilter}
+            onStatusFilterChange={setStatusFilter}
+            totalCount={totalSuppliersCount}
+            isLoading={isLoadingSuppliers}
+            getRowClassName={row => (row.isActive ? '' : 'is-inactive')}
+            renderEmptyState={renderEmptyState}
           />
-          {!isLoadingSuppliers && filteredSuppliers.length === 0 ? (
-            <div className="text-muted-foreground border-t p-4 text-sm">
-              {debouncedSearchText.trim().length > 0 || statusFilter !== 'all'
-                ? 'No suppliers match the current filters. Try widening search or status filter.'
-                : 'No suppliers found. Add your first supplier to get started.'}
-            </div>
-          ) : null}
         </div>
-
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
-          <span className="text-muted-foreground text-sm">
-            Showing {startRecord}-{endRecord} of {totalSuppliersCount} total
-            suppliers
-          </span>
-          <div className="flex items-center gap-2">
-            <span className="text-muted-foreground mr-1 text-xs">
-              Page {Math.min(currentPage + 1, totalPages)} of {totalPages}
-            </span>
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              className="h-8"
-              disabled={currentPage === 0}
-              onClick={() => setCurrentPage(p => p - 1)}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              className="h-8"
-              disabled={currentPage >= totalPages - 1}
-              onClick={() => setCurrentPage(p => p + 1)}
-            >
-              Next
-            </Button>
-          </div>
-        </div>
-
-        <Dialog
-          open={isDeletedSuppliersOpen}
-          onOpenChange={setDeletedSuppliersOpen}
-        >
-          <DialogContent className="max-h-[85vh] w-[95vw] max-w-5xl overflow-hidden">
-            <DialogHeader>
-              <DialogTitle>Deleted Suppliers</DialogTitle>
-            </DialogHeader>
-            <div className="mt-2 overflow-auto">
-              {isLoadingDeletedSuppliers ? (
-                <div className="text-muted-foreground py-8 text-center text-sm">
-                  Loading deleted suppliers...
-                </div>
-              ) : deletedSuppliers.length === 0 ? (
-                <div className="text-muted-foreground py-8 text-center text-sm">
-                  No deleted suppliers found to restore.
-                </div>
-              ) : (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Supplier name</TableHead>
-                      <TableHead>Country</TableHead>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Phone</TableHead>
-                      <TableHead className="w-[120px]">Action</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {deletedSuppliers.map(supplier => (
-                      <TableRow key={supplier.id}>
-                        <TableCell>{supplier.id}</TableCell>
-                        <TableCell className="font-medium">
-                          {supplier.supplierName}
-                        </TableCell>
-                        <TableCell>{supplier.country}</TableCell>
-                        <TableCell>{supplier.email}</TableCell>
-                        <TableCell>{supplier.phone || '-'}</TableCell>
-                        <TableCell>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            useAccentColor
-                            className="h-8"
-                            onClick={() => handleRestoreSupplier(supplier)}
-                          >
-                            Restore
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
-
-        {settingsDialog}
       </div>
-    </div>
+
+      {/* Deleted suppliers dialog */}
+      <Dialog
+        open={isDeletedSuppliersOpen}
+        onOpenChange={setDeletedSuppliersOpen}
+      >
+        <DialogContent className="max-h-[85vh] w-[95vw] max-w-5xl overflow-hidden">
+          <DialogHeader>
+            <DialogTitle>Deleted Suppliers</DialogTitle>
+          </DialogHeader>
+          <div className="mt-2 overflow-auto">
+            {isLoadingDeletedSuppliers ? (
+              <div className="text-muted-foreground py-8 text-center text-sm">
+                Loading deleted suppliers...
+              </div>
+            ) : deletedSuppliers.length === 0 ? (
+              <div className="text-muted-foreground py-8 text-center text-sm">
+                No deleted suppliers found to restore.
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead>Supplier name</TableHead>
+                    <TableHead>Country</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Phone</TableHead>
+                    <TableHead className="w-[120px]">Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {deletedSuppliers.map(supplier => (
+                    <TableRow key={supplier.id}>
+                      <TableCell>{supplier.id}</TableCell>
+                      <TableCell className="font-medium">
+                        {supplier.supplierName}
+                      </TableCell>
+                      <TableCell>{supplier.country}</TableCell>
+                      <TableCell>{supplier.email}</TableCell>
+                      <TableCell>{supplier.phone || '-'}</TableCell>
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          useAccentColor
+                          className="h-8"
+                          onClick={() => handleRestoreSupplier(supplier)}
+                        >
+                          Restore
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {settingsDialog}
+    </>
   );
 };
 

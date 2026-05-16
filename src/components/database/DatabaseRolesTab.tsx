@@ -2,15 +2,23 @@ import { memo } from 'react';
 import { Edit3, Plus, Trash2, Users } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import type { UserRole } from '@/components/database/types';
+
+const IM = {
+  panel: '#101010',
+  alt: '#0C0C0B',
+  header: '#0D0D0B',
+  text: '#EFEDE8',
+  muted: '#8C8A82',
+  rule: '#1F1E1A',
+  accent: '#E8A23A',
+  accentBg: 'rgba(232,162,58,0.10)',
+  accentBdr: 'rgba(232,162,58,0.25)',
+  blue: '#60A5FA',
+  blueBg: 'rgba(96,165,250,0.08)',
+  blueBdr: 'rgba(96,165,250,0.20)',
+  mono: "Consolas, 'Courier New', monospace",
+} as const;
 
 export interface DatabaseRolesTabProps {
   userRoles: UserRole[];
@@ -22,11 +30,40 @@ export const DatabaseRolesTab = memo(function DatabaseRolesTab({
   onDeleteRole,
 }: DatabaseRolesTabProps) {
   return (
-    <>
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-2xl font-bold">User Roles</h2>
-          <p className="text-muted-foreground">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Page header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '14px 0',
+          borderBottom: `1px solid ${IM.rule}`,
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <h2
+            style={{
+              fontFamily: IM.mono,
+              fontSize: 13,
+              fontWeight: 700,
+              color: IM.text,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+              margin: 0,
+            }}
+          >
+            User Roles
+          </h2>
+          <p
+            style={{
+              fontFamily: IM.mono,
+              fontSize: 10,
+              color: IM.muted,
+              margin: 0,
+              letterSpacing: '0.04em',
+            }}
+          >
             Manage user roles and permissions
           </p>
         </div>
@@ -39,48 +76,187 @@ export const DatabaseRolesTab = memo(function DatabaseRolesTab({
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>User Roles</CardTitle>
-          <CardDescription>
-            {userRoles.length} user roles configured
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+      {/* Roles panel */}
+      <div
+        style={{
+          border: `1px solid ${IM.rule}`,
+          background: IM.panel,
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        {/* Panel header */}
+        <div
+          style={{
+            background: IM.header,
+            borderBottom: `1px solid ${IM.rule}`,
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}
+        >
+          <span
+            style={{
+              fontFamily: IM.mono,
+              fontSize: 11,
+              fontWeight: 700,
+              color: IM.text,
+              textTransform: 'uppercase',
+              letterSpacing: '0.08em',
+            }}
+          >
+            User Roles
+          </span>
+          <span
+            style={{
+              fontFamily: IM.mono,
+              fontSize: 10,
+              fontWeight: 700,
+              color: IM.accent,
+              background: IM.accentBg,
+              border: `1px solid ${IM.accentBdr}`,
+              padding: '1px 6px',
+            }}
+          >
+            {userRoles.length}
+          </span>
+        </div>
+
+        {/* Panel body */}
+        <div>
           {userRoles.length === 0 ? (
-            <div className="text-muted-foreground py-8 text-center">
-              <Users className="mx-auto mb-4 h-12 w-12 opacity-50" />
-              <p>No user roles configured</p>
-              <p className="text-sm">Create roles to manage user permissions</p>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '48px 24px',
+                gap: 12,
+              }}
+            >
+              <Users
+                style={{ width: 36, height: 36, color: IM.muted, opacity: 0.5 }}
+              />
+              <p
+                style={{
+                  fontFamily: IM.mono,
+                  fontSize: 12,
+                  color: IM.muted,
+                  margin: 0,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                No user roles configured
+              </p>
+              <p
+                style={{
+                  fontFamily: IM.mono,
+                  fontSize: 10,
+                  color: IM.muted,
+                  margin: 0,
+                  opacity: 0.7,
+                }}
+              >
+                Create roles to manage user permissions
+              </p>
             </div>
           ) : (
-            <div className="space-y-4">
-              {userRoles.map(role => (
+            <div>
+              {userRoles.map((role, i) => (
                 <div
                   key={role.id}
-                  className="flex items-center justify-between rounded-lg border p-4"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '12px 16px',
+                    background: i % 2 === 0 ? IM.panel : IM.alt,
+                    borderBottom: `1px solid ${IM.rule}`,
+                    minHeight: 56,
+                    gap: 16,
+                  }}
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-medium">{role.user_id}</h3>
-                      <Badge variant="outline">{role.role}</Badge>
+                  {/* Role info */}
+                  <div
+                    style={{
+                      flex: 1,
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontFamily: IM.mono,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: IM.text,
+                          letterSpacing: '0.02em',
+                        }}
+                      >
+                        {role.user_id}
+                      </span>
+                      <span
+                        style={{
+                          fontFamily: IM.mono,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                          padding: '1px 6px',
+                          background: IM.blueBg,
+                          color: IM.blue,
+                          border: `1px solid ${IM.blueBdr}`,
+                        }}
+                      >
+                        {role.role}
+                      </span>
                     </div>
-                    <p className="text-muted-foreground mt-1 text-sm">
+                    <span
+                      style={{
+                        fontFamily: IM.mono,
+                        fontSize: 10,
+                        color: IM.muted,
+                        opacity: 0.8,
+                      }}
+                    >
                       Created: {new Date(role.created_at).toLocaleDateString()}
-                    </p>
+                    </span>
                     {role.permissions && (
-                      <p className="text-muted-foreground mt-1 text-xs">
+                      <span
+                        style={{
+                          fontFamily: IM.mono,
+                          fontSize: 10,
+                          color: IM.muted,
+                          opacity: 0.7,
+                        }}
+                      >
                         Custom permissions: {role.permissions}
-                      </p>
+                      </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-2">
+
+                  {/* Actions */}
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
                     <Button
                       size="sm"
                       variant="outline"
                       onClick={() =>
                         toast.info('Role editing feature coming soon')
                       }
+                      title="Edit role"
                     >
                       <Edit3 className="h-4 w-4" />
                     </Button>
@@ -88,6 +264,7 @@ export const DatabaseRolesTab = memo(function DatabaseRolesTab({
                       size="sm"
                       variant="destructive"
                       onClick={() => onDeleteRole(role.id!)}
+                      title="Delete role"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -96,8 +273,8 @@ export const DatabaseRolesTab = memo(function DatabaseRolesTab({
               ))}
             </div>
           )}
-        </CardContent>
-      </Card>
-    </>
+        </div>
+      </div>
+    </div>
   );
 });

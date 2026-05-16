@@ -17,15 +17,12 @@ import { useTheme } from '@/components/layout/theme-context';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { NotificationSheet } from '@/components/notifications/NotificationSheet';
 import { Breadcrumb } from '@/components/ui/breadcrumb';
-import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Separator } from '@/components/ui/separator';
-import { useSidebar } from '@/components/ui/use-sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { AboutDialog } from '@/components/about-dialog';
 import { CustomColorPicker } from '@/components/ui/custom-color-picker';
@@ -37,8 +34,11 @@ import {
 } from '@/lib/tauri-bridge';
 import { useUser } from '@/lib/user-context';
 
-export function SiteHeader() {
-  const { toggleSidebar } = useSidebar();
+export function SiteHeader({
+  onToggleSidebar,
+}: {
+  onToggleSidebar?: () => void;
+}) {
   const { theme, setTheme, toggleMode } = useTheme();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
@@ -167,41 +167,70 @@ export function SiteHeader() {
   };
 
   return (
-    <header className="bg-background/95 supports-backdrop-filter:bg-background/60 sticky top-0 z-40 flex w-full items-center border-b backdrop-blur">
-      <div className="flex h-14 w-full items-center gap-2 px-4">
-        <Button
-          className="h-8 w-8"
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
+    <header
+      style={{
+        height: 42,
+        flexShrink: 0,
+        display: 'flex',
+        alignItems: 'center',
+        padding: '0 16px',
+        gap: 8,
+        background: 'var(--color-im-sub)',
+        borderBottom: '1px solid var(--color-im-rule)',
+        position: 'sticky',
+        top: 0,
+        zIndex: 40,
+      }}
+    >
+      <div
+        style={{ display: 'flex', width: '100%', alignItems: 'center', gap: 8 }}
+      >
+        <button
+          className="im-btn-icon"
+          onClick={onToggleSidebar}
+          aria-label="Toggle Sidebar"
+          style={{ border: 'none', color: 'var(--color-im-faint)' }}
         >
-          <SidebarIcon className="size-5" />
-          <span className="sr-only">Toggle Sidebar</span>
-        </Button>
-        <Separator orientation="vertical" className="mr-2 h-6" />
+          <SidebarIcon size={16} />
+        </button>
+        <span style={{ color: 'var(--color-im-rule)', marginRight: 4 }}>|</span>
 
         {/* App Title */}
-        <div className="flex items-center gap-2">
-          <h1 className="text-lg font-semibold tracking-tight">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-im-mono)',
+              fontSize: 12,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              color: 'var(--color-im-text)',
+              textTransform: 'uppercase',
+            }}
+          >
             Import Manager
-          </h1>
-          <Separator orientation="vertical" className="h-4" />
+          </span>
+          <span style={{ color: 'var(--color-im-rule)', fontSize: 14 }}>|</span>
           <Breadcrumb className="hidden sm:flex" />
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+          }}
+        >
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+              <button
+                className="im-btn-icon"
+                style={{ border: 'none' }}
                 aria-label="Help"
                 title="Help"
               >
-                <CircleHelp className="h-4 w-4" />
-                <span className="sr-only">Help</span>
-              </Button>
+                <CircleHelp size={16} />
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -224,10 +253,10 @@ export function SiteHeader() {
           {/* Theme Toggle */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" className="h-8 w-8">
+              <button className="im-btn-icon" style={{ border: 'none' }}>
                 {getThemeIcon()}
                 <span className="sr-only">Toggle theme</span>
-              </Button>
+              </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem
@@ -254,57 +283,78 @@ export function SiteHeader() {
           {/* Color Palette */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-8 w-8"
+              <button
+                className="im-btn-icon"
+                style={{ border: 'none' }}
                 data-testid="theme-color-menu-trigger"
                 aria-label="Change theme color"
                 title={`Theme color: ${theme.color}`}
               >
-                <Palette className="h-4 w-4" />
+                <Palette size={16} />
                 <span className="sr-only">Change theme color</span>
-              </Button>
+              </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52 p-2">
-              <div className="grid grid-cols-5 gap-2">
-                {colorOptions.map(c => (
-                  <button
-                    key={c.key}
-                    type="button"
-                    onClick={() => setTheme({ ...theme, color: c.key })}
-                    className={`border-foreground/20 hover:border-foreground/60 ring-ring/50 focus-visible:ring-ring/50 relative flex h-7 w-7 items-center justify-center rounded-full border transition focus-visible:outline-none focus-visible:ring-2 ${c.swatchClass}`}
-                    title={c.label}
-                  >
-                    {theme.color === c.key ? (
-                      <span className="bg-background/80 block h-2 w-2 rounded-full" />
-                    ) : null}
-                  </button>
-                ))}
-                {/* Custom Color Option */}
+            <DropdownMenuContent
+              align="end"
+              style={{
+                padding: 10,
+                display: 'grid',
+                gridTemplateColumns: 'repeat(5,1fr)',
+                gap: 6,
+                width: 140,
+              }}
+            >
+              {colorOptions.map(c => (
                 <button
+                  key={c.key}
                   type="button"
-                  onClick={() => setCustomColorPickerOpen(true)}
-                  className="border-foreground/20 hover:border-foreground/60 ring-ring/50 focus-visible:ring-ring/50 bg-linear-to-br relative flex h-7 w-7 items-center justify-center rounded-full border from-purple-500 to-pink-500 transition focus-visible:outline-none focus-visible:ring-2"
-                  title="Custom Color"
-                >
-                  <Plus className="h-3 w-3 text-white" />
-                </button>
-              </div>
+                  onClick={() => setTheme({ ...theme, color: c.key })}
+                  style={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 0,
+                    border:
+                      theme.color === c.key
+                        ? '2px solid var(--color-im-accent)'
+                        : '1px solid var(--color-im-rule)',
+                    cursor: 'pointer',
+                  }}
+                  className={c.swatchClass}
+                  title={c.label}
+                />
+              ))}
+              {/* Custom Color Option */}
+              <button
+                type="button"
+                onClick={() => setCustomColorPickerOpen(true)}
+                style={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: 0,
+                  border: '1px solid var(--color-im-rule)',
+                  cursor: 'pointer',
+                  background: 'linear-gradient(135deg, #a855f7, #ec4899)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+                title="Custom Color"
+              >
+                <Plus style={{ width: 10, height: 10, color: 'white' }} />
+              </button>
             </DropdownMenuContent>
           </DropdownMenu>
 
           {/* Quick Theme Toggle for mobile */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 sm:hidden"
+          <button
+            className="im-btn-icon sm:hidden"
+            style={{ border: 'none' }}
             onClick={toggleMode}
             title={`Current: ${getThemeLabel()}`}
           >
             {getThemeIcon()}
             <span className="sr-only">Toggle theme</span>
-          </Button>
+          </button>
         </div>
       </div>
 

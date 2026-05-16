@@ -434,6 +434,7 @@ fn explain_job_failure(conn: &Connection) -> Result<ExplainGraph, String> {
     })
 }
 
+#[allow(clippy::too_many_arguments)] // audit helper bundles all per-turn fields; splitting would obscure the call site
 fn log_agent_audit(
     conn: &Connection,
     input: &SystemAgentTurnInput,

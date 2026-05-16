@@ -1,29 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
-import { RefreshCw, Search, Trash2 } from 'lucide-react';
+import { RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import {
   confirm as confirmDestructive,
   isTauriEnvironment,
@@ -448,192 +430,252 @@ function RecycleBinContent() {
   const items = response?.items ?? [];
 
   return (
-    <div className="container mx-auto max-w-6xl py-10">
-      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">Recycle Bin</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            View and restore soft-deleted records, or permanently remove them.
-          </p>
-        </div>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          onClick={() => setRefreshToken(x => x + 1)}
-        >
-          <RefreshCw className="mr-1 h-4 w-4" />
-          Refresh
-        </Button>
-      </div>
-
-      <Card className="mb-4">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-            <div className="min-w-0 flex-1">
-              <label className="text-muted-foreground mb-1 block text-sm">
-                Table
-              </label>
-              <Select
-                value={filterTable || 'all'}
-                onValueChange={v => {
-                  setFilterTable(v === 'all' ? '' : v);
-                  setPage(1);
-                }}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All tables" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All tables</SelectItem>
-                  {tables.map(t => (
-                    <SelectItem key={t} value={t}>
-                      {formatTableLabel(t)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="min-w-0 flex-1">
-              <label className="text-muted-foreground mb-1 block text-sm">
-                Search
-              </label>
-              <div className="relative">
-                <Search className="text-muted-foreground absolute left-2 top-2.5 h-4 w-4" />
-                <Input
-                  className="pl-8"
-                  placeholder="Name, id, or table"
-                  value={search}
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Recycle Bin']} />
+      <PageHeader
+        title="Recycle Bin"
+        subtitle="View and restore soft-deleted records, or permanently remove them."
+        actions={
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={() => setRefreshToken(x => x + 1)}
+          >
+            <RefreshCw style={{ width: 13, height: 13, marginRight: 6 }} />
+            Refresh
+          </button>
+        }
+      />
+      <div className="im-dashboard-body flex flex-col gap-4">
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Filters</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 12,
+              alignItems: 'flex-end',
+            }}
+          >
+            <div>
+              <label className="im-field-label">Table</label>
+              <div className="im-select-wrap" style={{ width: 180 }}>
+                <select
+                  className="im-select"
+                  value={filterTable || 'all'}
                   onChange={e => {
-                    setSearch(e.target.value);
+                    setFilterTable(
+                      e.target.value === 'all' ? '' : e.target.value
+                    );
                     setPage(1);
                   }}
-                />
+                >
+                  <option value="all">All tables</option>
+                  {tables.map(t => (
+                    <option key={t} value={t}>
+                      {formatTableLabel(t)}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
+            <div>
+              <label className="im-field-label">Search</label>
+              <input
+                className="im-input"
+                style={{ width: 260 }}
+                placeholder="Name, id, or table"
+                value={search}
+                onChange={e => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+              />
+            </div>
+            <button
+              className="im-btn im-btn--sm"
+              onClick={() => void loadRecords()}
+            >
+              <RefreshCw style={{ width: 13, height: 13, marginRight: 6 }} />
+              Refresh
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardContent className="p-0">
-          <div className="flex flex-wrap items-center gap-2 border-b p-3">
-            <Button
-              size="sm"
-              onClick={onRestore}
-              disabled={selected.size === 0}
-            >
-              Restore selected
-            </Button>
-            <Button
-              size="sm"
-              variant="destructive"
-              onClick={onPermanent}
-              disabled={selected.size === 0}
-            >
-              <Trash2 className="mr-1 h-4 w-4" />
-              Delete permanently
-            </Button>
-            {response && (
-              <span className="text-muted-foreground text-sm">
-                {response.total} total · Page {response.page} of {totalPages}
-              </span>
+        <div className="im-section" style={{ flex: 1 }}>
+          <div
+            className="im-section__header"
+            style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+          >
+            <span className="im-section__label">// Deleted records</span>
+            <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+              <button
+                className="im-btn im-btn--sm im-btn--primary"
+                onClick={onRestore}
+                disabled={selected.size === 0}
+              >
+                Restore selected
+              </button>
+              <button
+                className="im-btn im-btn--sm im-btn--danger"
+                onClick={onPermanent}
+                disabled={selected.size === 0}
+              >
+                <Trash2 style={{ width: 13, height: 13, marginRight: 6 }} />
+                Delete permanently
+              </button>
+              {response && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color: 'var(--color-im-faint)',
+                    display: 'flex',
+                    alignItems: 'center',
+                  }}
+                >
+                  {response.total} total · Page {response.page} of {totalPages}
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="im-table-scroll">
+            {loading ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: 32,
+                  color: 'var(--color-im-faint)',
+                  fontSize: 13,
+                }}
+              >
+                <RefreshCw
+                  style={{ width: 16, height: 16 }}
+                  className="animate-spin"
+                />
+                Loading…
+              </div>
+            ) : empty ? (
+              <p
+                style={{
+                  padding: 40,
+                  textAlign: 'center',
+                  color: 'var(--color-im-faint)',
+                  fontSize: 13,
+                }}
+              >
+                No deleted records found.
+              </p>
+            ) : (
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th" style={{ width: 44 }}>
+                      <input
+                        type="checkbox"
+                        checked={
+                          items.length > 0 &&
+                          items.every(it =>
+                            selected.has(rowKey(it.table, recordId(it.record)))
+                          )
+                        }
+                        onChange={toggleAllPage}
+                        aria-label="Select all on page"
+                      />
+                    </th>
+                    <th className="im-th">Table</th>
+                    <th className="im-th">Record</th>
+                    <th className="im-th">Id</th>
+                    <th className="im-th">Deleted</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it, i) => {
+                    const id = recordId(it.record);
+                    const k = rowKey(it.table, id);
+                    return (
+                      <tr
+                        key={k}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                      >
+                        <td className="im-td">
+                          <input
+                            type="checkbox"
+                            checked={selected.has(k)}
+                            onChange={() => toggle(k)}
+                          />
+                        </td>
+                        <td className="im-td" style={{ fontWeight: 500 }}>
+                          {formatTableLabel(it.table)}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 200,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                          title={recordDisplayName(it.record)}
+                        >
+                          {recordDisplayName(it.record)}
+                        </td>
+                        <td className="im-td is-mono" title={id}>
+                          {id || '—'}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            fontSize: 12,
+                          }}
+                        >
+                          {deletedAt(it.record)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
-          {loading ? (
-            <div className="text-muted-foreground flex items-center gap-2 p-8 text-sm">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              Loading…
-            </div>
-          ) : empty ? (
-            <p className="text-muted-foreground p-10 text-center text-sm">
-              No deleted records found.
-            </p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-10">
-                    <Checkbox
-                      checked={
-                        items.length > 0 &&
-                        items.every(it =>
-                          selected.has(rowKey(it.table, recordId(it.record)))
-                        )
-                      }
-                      onCheckedChange={toggleAllPage}
-                      aria-label="Select all on page"
-                    />
-                  </TableHead>
-                  <TableHead>Table</TableHead>
-                  <TableHead>Record</TableHead>
-                  <TableHead>Id</TableHead>
-                  <TableHead>Deleted</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map(it => {
-                  const id = recordId(it.record);
-                  const k = rowKey(it.table, id);
-                  return (
-                    <TableRow key={k}>
-                      <TableCell>
-                        <Checkbox
-                          checked={selected.has(k)}
-                          onCheckedChange={() => toggle(k)}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {formatTableLabel(it.table)}
-                      </TableCell>
-                      <TableCell
-                        className="max-w-[200px] truncate"
-                        title={recordDisplayName(it.record)}
-                      >
-                        {recordDisplayName(it.record)}
-                      </TableCell>
-                      <TableCell className="font-mono text-sm" title={id}>
-                        {id || '—'}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {deletedAt(it.record)}
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
           {response && response.total > 0 && (
-            <div className="flex items-center justify-between border-t p-3">
-              <Button
-                variant="outline"
-                size="sm"
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '8px 12px',
+                borderTop: '1px solid var(--color-im-border)',
+              }}
+            >
+              <button
+                className="im-btn im-btn--sm"
                 disabled={page <= 1}
                 onClick={() => setPage(p => Math.max(1, p - 1))}
               >
                 Previous
-              </Button>
-              <span className="text-sm">
+              </button>
+              <span style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
                 {response.total > 0
                   ? `${(page - 1) * PAGE_SIZE + 1}–${Math.min(page * PAGE_SIZE, response.total)} of ${response.total}`
                   : '0'}
               </span>
-              <Button
-                variant="outline"
-                size="sm"
+              <button
+                className="im-btn im-btn--sm"
                 disabled={page >= totalPages}
                 onClick={() => setPage(p => p + 1)}
               >
                 Next
-              </Button>
+              </button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

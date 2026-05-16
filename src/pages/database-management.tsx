@@ -7,28 +7,6 @@ import {
 } from 'react';
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Progress } from '@/components/ui/progress';
-import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -36,7 +14,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Switch } from '@/components/ui/switch';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import {
   Database,
   Download,
@@ -457,7 +435,7 @@ function DatabaseManagementContent() {
   >(DEFAULT_BULK_TABLE_OPTIONS);
   const [tableData, setTableData] = useState<TableData | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
   const [includeDeleted, setIncludeDeleted] = useState(false);
   const [editingRecord, setEditingRecord] = useState<{
     id: string;
@@ -2222,29 +2200,32 @@ function DatabaseManagementContent() {
 
   if (loading) {
     return (
-      <div className="flex h-96 items-center justify-center">
-        <RefreshCw className="h-8 w-8 animate-spin" />
-        <span className="ml-2">Loading database management...</span>
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'Database Management']} />
+        <PageHeader
+          title="Database Management"
+          subtitle="Loading database management..."
+        />
+        <div className="im-dashboard-body flex h-96 items-center justify-center">
+          <RefreshCw className="h-8 w-8 animate-spin" />
+          <span className="ml-2" style={{ color: 'var(--color-im-muted)' }}>
+            Loading database management...
+          </span>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">
-            Database Management
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Comprehensive database management, backup, and restore operations
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="default"
-            size="sm"
-            useAccentColor
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Database Management']} />
+      <PageHeader
+        title="Database Management"
+        subtitle="Comprehensive database management, backup, and restore operations"
+        actions={
+          <button
+            type="button"
+            className="im-btn im-btn--primary im-btn--sm"
             onClick={() => {
               loadDashboardData();
               loadBackupHistory();
@@ -2252,1286 +2233,1785 @@ function DatabaseManagementContent() {
               loadUserRoles();
             }}
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
+            <RefreshCw
+              style={{
+                marginRight: 6,
+                width: 14,
+                height: 14,
+                display: 'inline',
+              }}
+            />
             Refresh Data
-          </Button>
-        </div>
-      </div>
-
-      <DatabaseSummaryStrip
-        stats={stats}
-        formatBytes={formatBytes}
-        isTauriEnvironment={isTauriEnvironment}
-        onExportBackupKey={handleExportBackupKey}
-        onImportBackupKey={handleImportBackupKey}
+          </button>
+        }
       />
 
-      {/* Main Content Tabs */}
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className="space-y-4"
+      <div
+        className="im-dashboard-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
       >
-        <TabsList>
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="browse">Browse & Edit</TabsTrigger>
-          <TabsTrigger value="bulk">Bulk Operations</TabsTrigger>
-          <TabsTrigger value="backup">Backup & Restore</TabsTrigger>
-          <TabsTrigger value="schedules">Backup Schedules</TabsTrigger>
-          <TabsTrigger value="roles">User Roles</TabsTrigger>
-          <TabsTrigger value="audit">Audit Logs</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+        <DatabaseSummaryStrip
+          stats={stats}
+          formatBytes={formatBytes}
+          isTauriEnvironment={isTauriEnvironment}
+          onExportBackupKey={handleExportBackupKey}
+          onImportBackupKey={handleImportBackupKey}
+        />
 
-        <TabsContent value="overview" className="space-y-4">
-          <DatabaseOverviewTab
-            stats={stats}
-            auditLogs={auditLogs}
-            renderActionIcon={databaseAuditActionIcon}
-          />
-        </TabsContent>
+        {/* Main Content Tabs */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="im-tabs" style={{ flexShrink: 0 }}>
+            <button
+              type="button"
+              className={
+                'im-tab' + (activeTab === 'overview' ? ' is-active' : '')
+              }
+              onClick={() => setActiveTab('overview')}
+            >
+              Overview
+            </button>
+            <button
+              type="button"
+              className={
+                'im-tab' + (activeTab === 'browse' ? ' is-active' : '')
+              }
+              onClick={() => setActiveTab('browse')}
+            >
+              Browse &amp; Edit
+            </button>
+            <button
+              type="button"
+              className={'im-tab' + (activeTab === 'bulk' ? ' is-active' : '')}
+              onClick={() => setActiveTab('bulk')}
+            >
+              Bulk Operations
+            </button>
+            <button
+              type="button"
+              className={
+                'im-tab' + (activeTab === 'backup' ? ' is-active' : '')
+              }
+              onClick={() => setActiveTab('backup')}
+            >
+              Backup &amp; Restore
+            </button>
+            <button
+              type="button"
+              className={
+                'im-tab' + (activeTab === 'schedules' ? ' is-active' : '')
+              }
+              onClick={() => setActiveTab('schedules')}
+            >
+              Backup Schedules
+            </button>
+            <button
+              type="button"
+              className={'im-tab' + (activeTab === 'roles' ? ' is-active' : '')}
+              onClick={() => setActiveTab('roles')}
+            >
+              User Roles
+            </button>
+            <button
+              type="button"
+              className={'im-tab' + (activeTab === 'audit' ? ' is-active' : '')}
+              onClick={() => setActiveTab('audit')}
+            >
+              Audit Logs
+            </button>
+            <button
+              type="button"
+              className={
+                'im-tab' + (activeTab === 'settings' ? ' is-active' : '')
+              }
+              onClick={() => setActiveTab('settings')}
+            >
+              Settings
+            </button>
+          </div>
 
-        <TabsContent value="browse" className="space-y-4">
-          <DatabaseBrowseEditTab
-            selectedTable={selectedTable}
-            bulkTableOptions={bulkTableOptions}
-            pinDialogOpen={pinDialogOpen}
-            onTableChange={handleBrowseTableChange}
-            pageSize={pageSize}
-            onPageSizeChange={setPageSize}
-            includeDeleted={includeDeleted}
-            onIncludeDeletedChange={setIncludeDeleted}
-            onRefreshTable={loadTableData}
-            tableData={tableData}
-            currentPage={currentPage}
-            onPageChange={setCurrentPage}
-            onEditRecord={handleEditRecord}
-            onSoftDelete={handleSoftDelete}
-          />
-        </TabsContent>
+          {activeTab === 'overview' && (
+            <DatabaseOverviewTab
+              stats={stats}
+              auditLogs={auditLogs}
+              renderActionIcon={databaseAuditActionIcon}
+            />
+          )}
 
-        <TabsContent value="bulk" className="space-y-4">
-          <DatabaseBulkOperationsTab
-            selectedTable={selectedTable}
-            bulkTableOptions={bulkTableOptions}
-            bulkBulkControlsDisabled={bulkBulkControlsDisabled}
-            onBulkTableChange={handleBulkTableChange}
-            includeDeleted={includeDeleted}
-            onIncludeDeletedChange={setIncludeDeleted}
-            onBulkSearch={() => void handleBulkSearch()}
-            bulkOperationInProgress={bulkOperationInProgress}
-            bulkFilters={bulkFilters}
-            onBulkFiltersChange={setBulkFilters}
-            bulkSearchResults={bulkSearchResults}
-            totalSelectedRecords={totalSelectedRecords}
-            selectAllActive={selectAllActive}
-            excludedRecordIds={excludedRecordIds}
-            selectedRecords={selectedRecords}
-            bulkDeleteType={bulkDeleteType}
-            onBulkDeleteTypeChange={setBulkDeleteType}
-            onSelectAll={handleSelectAll}
-            onBulkDelete={handleBulkDelete}
-            onSelectRecord={handleSelectRecord}
-          />
-        </TabsContent>
+          {activeTab === 'browse' && (
+            <DatabaseBrowseEditTab
+              selectedTable={selectedTable}
+              bulkTableOptions={bulkTableOptions}
+              pinDialogOpen={pinDialogOpen}
+              onTableChange={handleBrowseTableChange}
+              pageSize={pageSize}
+              onPageSizeChange={setPageSize}
+              includeDeleted={includeDeleted}
+              onIncludeDeletedChange={setIncludeDeleted}
+              onRefreshTable={loadTableData}
+              tableData={tableData}
+              currentPage={currentPage}
+              onPageChange={setCurrentPage}
+              onEditRecord={handleEditRecord}
+              onSoftDelete={handleSoftDelete}
+            />
+          )}
 
-        <TabsContent value="backup" className="space-y-4">
-          <DatabaseBackupRestoreTab
-            isPlaywrightBuild={isPlaywrightBuild}
-            onPlaywrightRestoreFileChange={handlePlaywrightRestoreFileSelected}
-            backupHealth={backupHealth}
-            redundancyForm={redundancyForm}
-            setRedundancyForm={setRedundancyForm}
-            redundancySaving={redundancySaving}
-            onSaveRedundancySettings={handleSaveRedundancySettings}
-            backupInProgress={backupInProgress}
-            backupProgress={backupProgress}
-            backupForm={backupForm}
-            setBackupForm={setBackupForm}
-            googleDriveStatus={googleDriveStatus}
-            onRefreshGoogleProfile={handleRefreshGoogleProfile}
-            onDisconnectGoogleDrive={handleDisconnectGoogleDrive}
-            onConnectGoogleDrive={handleConnectGoogleDrive}
-            onBackupNow={handleBackupNow}
-            backupHistory={backupHistory}
-            formatBytes={formatBytes}
-            onRestorePreview={handleRestorePreview}
-            onDownloadPlaywrightSnapshot={downloadPlaywrightBackupSnapshot}
-          />
-        </TabsContent>
+          {activeTab === 'bulk' && (
+            <DatabaseBulkOperationsTab
+              selectedTable={selectedTable}
+              bulkTableOptions={bulkTableOptions}
+              bulkBulkControlsDisabled={bulkBulkControlsDisabled}
+              onBulkTableChange={handleBulkTableChange}
+              includeDeleted={includeDeleted}
+              onIncludeDeletedChange={setIncludeDeleted}
+              onBulkSearch={() => void handleBulkSearch()}
+              bulkOperationInProgress={bulkOperationInProgress}
+              bulkFilters={bulkFilters}
+              onBulkFiltersChange={setBulkFilters}
+              bulkSearchResults={bulkSearchResults}
+              totalSelectedRecords={totalSelectedRecords}
+              selectAllActive={selectAllActive}
+              excludedRecordIds={excludedRecordIds}
+              selectedRecords={selectedRecords}
+              bulkDeleteType={bulkDeleteType}
+              onBulkDeleteTypeChange={setBulkDeleteType}
+              onSelectAll={handleSelectAll}
+              onBulkDelete={handleBulkDelete}
+              onSelectRecord={handleSelectRecord}
+            />
+          )}
 
-        <TabsContent value="schedules" className="space-y-4">
-          <DatabaseSchedulesTab
-            backupSchedules={backupSchedules}
-            onCreateSchedule={openCreateSchedule}
-            onRunSchedule={handleRunSchedule}
-            onEditSchedule={openEditSchedule}
-            onDeleteSchedule={handleDeleteSchedule}
-          />
-        </TabsContent>
+          {activeTab === 'backup' && (
+            <DatabaseBackupRestoreTab
+              isPlaywrightBuild={isPlaywrightBuild}
+              onPlaywrightRestoreFileChange={
+                handlePlaywrightRestoreFileSelected
+              }
+              backupHealth={backupHealth}
+              redundancyForm={redundancyForm}
+              setRedundancyForm={setRedundancyForm}
+              redundancySaving={redundancySaving}
+              onSaveRedundancySettings={handleSaveRedundancySettings}
+              backupInProgress={backupInProgress}
+              backupProgress={backupProgress}
+              backupForm={backupForm}
+              setBackupForm={setBackupForm}
+              googleDriveStatus={googleDriveStatus}
+              onRefreshGoogleProfile={handleRefreshGoogleProfile}
+              onDisconnectGoogleDrive={handleDisconnectGoogleDrive}
+              onConnectGoogleDrive={handleConnectGoogleDrive}
+              onBackupNow={handleBackupNow}
+              backupHistory={backupHistory}
+              formatBytes={formatBytes}
+              onRestorePreview={handleRestorePreview}
+              onDownloadPlaywrightSnapshot={downloadPlaywrightBackupSnapshot}
+            />
+          )}
 
-        <TabsContent value="roles" className="space-y-4">
-          <DatabaseRolesTab
-            userRoles={userRoles}
-            onDeleteRole={handleDeleteRole}
-          />
-        </TabsContent>
+          {activeTab === 'schedules' && (
+            <DatabaseSchedulesTab
+              backupSchedules={backupSchedules}
+              onCreateSchedule={openCreateSchedule}
+              onRunSchedule={handleRunSchedule}
+              onEditSchedule={openEditSchedule}
+              onDeleteSchedule={handleDeleteSchedule}
+            />
+          )}
 
-        <TabsContent value="audit" className="space-y-4">
-          <DatabaseAuditTab
-            auditLogs={auditLogs}
-            renderActionIcon={databaseAuditActionIcon}
-          />
-        </TabsContent>
+          {activeTab === 'roles' && (
+            <DatabaseRolesTab
+              userRoles={userRoles}
+              onDeleteRole={handleDeleteRole}
+            />
+          )}
 
-        <TabsContent value="settings" className="space-y-4">
-          <DatabaseSettingsTab
-            pinSettings={pinSettings}
-            pinLockActive={pinLockActive}
-            pinLockRemainingSeconds={pinLockRemainingSeconds}
-            pinThresholdInput={pinThresholdInput}
-            onPinThresholdInputChange={setPinThresholdInput}
-            onPinThresholdBlur={() =>
-              void handleSaveHardDeletePinThreshold(pinThresholdInput)
-            }
-            onToggleHardDeletePinEnabled={handleToggleHardDeletePinEnabled}
-            onOpenSetPin={() => setSetPinDialogVisible(true)}
-            onOpenChangePin={() => setChangePinDialogOpen(true)}
-          />
-        </TabsContent>
-      </Tabs>
+          {activeTab === 'audit' && (
+            <DatabaseAuditTab
+              auditLogs={auditLogs}
+              renderActionIcon={databaseAuditActionIcon}
+            />
+          )}
 
-      {/* Restore Preview Dialog */}
-      {restorePreview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="restore-preview-title"
-            className="bg-background max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg p-6 shadow-lg"
-          >
-            <div className="mb-4 flex items-center justify-between">
-              <h2 id="restore-preview-title" className="text-2xl font-bold">
-                Restore Preview
-              </h2>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setRestorePreview(null);
-                  setSelectedBackup(null);
-                }}
-              >
-                Close
-              </Button>
-            </div>
+          {activeTab === 'settings' && (
+            <DatabaseSettingsTab
+              pinSettings={pinSettings}
+              pinLockActive={pinLockActive}
+              pinLockRemainingSeconds={pinLockRemainingSeconds}
+              pinThresholdInput={pinThresholdInput}
+              onPinThresholdInputChange={setPinThresholdInput}
+              onPinThresholdBlur={() =>
+                void handleSaveHardDeletePinThreshold(pinThresholdInput)
+              }
+              onToggleHardDeletePinEnabled={handleToggleHardDeletePinEnabled}
+              onOpenSetPin={() => setSetPinDialogVisible(true)}
+              onOpenChangePin={() => setChangePinDialogOpen(true)}
+            />
+          )}
+        </div>
 
-            <div className="space-y-6">
-              {/* Backup Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Backup Information</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <p className="text-sm font-medium">Filename</p>
-                      <p className="text-muted-foreground">
-                        {restorePreview.backup_info.filename}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Created</p>
-                      <p className="text-muted-foreground">
-                        {formatAppDateTime(
-                          restorePreview.backup_info.created_at
-                        )}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Size (recorded)</p>
-                      <p className="text-muted-foreground">
-                        {restorePreview.backup_info.size_bytes
-                          ? formatBytes(restorePreview.backup_info.size_bytes)
-                          : 'Unknown'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">
-                        Backup file size (on disk)
-                      </p>
-                      <p className="text-muted-foreground">
-                        {restorePreview.backup_file_size_bytes > 0
-                          ? formatBytes(restorePreview.backup_file_size_bytes)
-                          : 'Unknown'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">
-                        Estimated restore time
-                      </p>
-                      <p className="text-muted-foreground">
-                        ~{restorePreview.estimated_restore_seconds.toFixed(3)} s
-                        <span className="ml-1 text-xs">
-                          (informational: size in MB × 0.02 s)
-                        </span>
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Status</p>
-                      <Badge
-                        variant={
-                          restorePreview.backup_info.status === 'completed'
-                            ? 'default'
-                            : 'destructive'
-                        }
-                      >
-                        {restorePreview.backup_info.status}
-                      </Badge>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Checksum (database)</p>
-                      <p className="text-sm font-medium">
-                        {(() => {
-                          if (restorePreview.recorded_hash_match === false) {
-                            return (
-                              <span className="text-destructive">
-                                Checksum: FAILED
-                              </span>
-                            );
-                          }
-                          if (restorePreview.recorded_hash_match === true) {
-                            return (
-                              <span className="text-green-600">
-                                Checksum: Verified
-                              </span>
-                            );
-                          }
-                          if (
-                            restorePreview.backup_info.sha256 &&
-                            restorePreview.backup_info.sha256.trim() !== ''
-                          ) {
-                            return (
-                              <span className="text-muted-foreground text-sm font-normal">
-                                (Could not assess)
-                              </span>
-                            );
-                          }
-                          return (
-                            <span className="text-muted-foreground text-sm font-normal">
-                              No SHA-256 stored in library for this file
-                            </span>
-                          );
-                        })()}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-xs">
-                        Sidecar:{' '}
-                        {restorePreview.checksum_status === 'valid'
-                          ? 'file matches .sha256'
-                          : restorePreview.checksum_status === 'missing'
-                            ? 'no .sha256 file next to backup (older backups are OK if DB hash verified)'
-                            : 'sidecar does not match file'}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Backup type</p>
-                      <p className="text-muted-foreground">
-                        {backupTypeLabel(restorePreview.backup_info)}
-                      </p>
-                    </div>
-                    {backupTypeLabel(restorePreview.backup_info) ===
-                      'Google Drive' && (
-                      <div>
-                        <p className="text-sm font-medium">
-                          Google Drive file name
-                        </p>
-                        <p className="text-muted-foreground">
-                          {restorePreview.backup_info.filename}
-                        </p>
-                      </div>
-                    )}
-                    <div>
-                      <p className="text-sm font-medium">Stored validation</p>
-                      <p className="text-muted-foreground text-xs">
-                        {restorePreview.backup_info.validation_status ?? '—'}
-                        {restorePreview.backup_info.validation_checked_at
-                          ? ` • ${formatAppDateTime(
-                              restorePreview.backup_info.validation_checked_at
-                            )}`
-                          : ''}
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">Restore simulation</p>
-                      <p className="text-muted-foreground text-xs">
-                        {restorePreview.backup_info.restore_simulation_status ??
-                          '—'}
-                        {restorePreview.backup_info
-                          .restore_simulation_checked_at
-                          ? ` • ${formatAppDateTime(
-                              restorePreview.backup_info
-                                .restore_simulation_checked_at
-                            )}`
-                          : ''}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Integrity Check */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Integrity Check</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <Alert>
-                    <CheckCircle className="h-4 w-4" />
-                    <AlertDescription>
-                      {restorePreview.integrity_check}
-                    </AlertDescription>
-                  </Alert>
-                </CardContent>
-              </Card>
-
-              {/* Schema Compatibility */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Schema Compatibility</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="flex items-center space-x-2">
-                    {restorePreview.schema_compatibility ? (
-                      <CheckCircle className="h-4 w-4 text-green-500" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-red-500" />
-                    )}
-                    <span
-                      className={
-                        restorePreview.schema_compatibility
-                          ? 'text-green-600'
-                          : 'text-red-600'
-                      }
-                    >
-                      {restorePreview.schema_compatibility
-                        ? 'Schema is compatible'
-                        : 'Schema compatibility issues detected'}
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground mt-3 text-sm">
-                    This app migration head:{' '}
-                    {restorePreview.embedded_migration_head_version}
-                    {restorePreview.backup_migration_max_version != null
-                      ? ` — backup reports max version: ${restorePreview.backup_migration_max_version}`
-                      : ''}
-                  </p>
-                  {restorePreview.missing_core_tables.length > 0 ? (
-                    <p className="text-destructive mt-2 text-sm">
-                      Missing core tables:{' '}
-                      {restorePreview.missing_core_tables.join(', ')}
-                    </p>
-                  ) : null}
-                </CardContent>
-              </Card>
-
-              {/* Estimated Changes */}
-              {Object.keys(restorePreview.estimated_changes).length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Estimated Changes</CardTitle>
-                    <CardDescription>
-                      Records that will be added/removed by table
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {Object.entries(restorePreview.estimated_changes).map(
-                        ([table, change]) => (
-                          <div
-                            key={table}
-                            className="flex items-center justify-between"
-                          >
-                            <span className="text-sm font-medium capitalize">
-                              {table.replace(/_/g, ' ')}
-                            </span>
-                            <Badge
-                              variant={change > 0 ? 'default' : 'destructive'}
-                            >
-                              {change > 0 ? '+' : ''}
-                              {change.toLocaleString()}
-                            </Badge>
-                          </div>
-                        )
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Warnings */}
-              {restorePreview.warnings.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Warnings</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-2">
-                      {restorePreview.warnings.map((warning, index) => (
-                        <Alert key={index}>
-                          <AlertTriangle className="h-4 w-4" />
-                          <AlertDescription>{warning}</AlertDescription>
-                        </Alert>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-4">
-                <Button
-                  variant="outline"
+        {/* Restore Preview Dialog */}
+        {restorePreview && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="restore-preview-title"
+              className="bg-background max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg p-6 shadow-lg"
+            >
+              <div className="mb-4 flex items-center justify-between">
+                <h2 id="restore-preview-title" className="text-2xl font-bold">
+                  Restore Preview
+                </h2>
+                <button
+                  type="button"
+                  className="im-btn"
                   onClick={() => {
                     setRestorePreview(null);
                     setSelectedBackup(null);
                   }}
                 >
-                  Cancel
-                </Button>
-                <Button
-                  onClick={handleRestoreDatabase}
-                  disabled={
-                    restoreInProgress ||
-                    !restorePreview.schema_compatibility ||
-                    restorePreview.checksum_status === 'invalid' ||
-                    restorePreview.recorded_hash_match === false
-                  }
-                  className="bg-red-600 hover:bg-red-700"
-                  data-testid="restore-database-confirm-button"
-                >
-                  {restoreInProgress ? (
-                    <>
-                      <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      Restoring...
-                    </>
-                  ) : (
-                    <>
-                      <Upload className="mr-2 h-4 w-4" />
-                      Restore Database
-                    </>
-                  )}
-                </Button>
+                  Close
+                </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
-        <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingScheduleId != null
-                ? 'Edit backup schedule'
-                : 'New backup schedule'}
-            </DialogTitle>
-            <DialogDescription>
-              Times use six-field cron in{' '}
-              <strong>IST (Asia/Kolkata, UTC+05:30)</strong> (sec min hour day
-              month weekday). The app checks every minute and runs due schedules
-              automatically.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="space-y-2">
-              <Label htmlFor="sched-name">Name</Label>
-              <Input
-                id="sched-name"
-                value={scheduleForm.name}
-                onChange={e =>
-                  setScheduleForm(prev => ({ ...prev, name: e.target.value }))
-                }
-                placeholder="e.g. Nightly backup"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Destination</Label>
-              <Select
-                value={scheduleForm.destination}
-                onValueChange={v =>
-                  setScheduleForm(prev => ({
-                    ...prev,
-                    destination: v as 'local' | 'google_drive',
-                  }))
-                }
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="local">Local Storage</SelectItem>
-                  <SelectItem value="google_drive">Google Drive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Frequency</Label>
-              <Select
-                value={scheduleForm.preset}
-                onValueChange={v =>
-                  setScheduleForm(prev => ({
-                    ...prev,
-                    preset: v as SchedulePreset,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="daily">Daily</SelectItem>
-                  <SelectItem value="weekly">Weekly</SelectItem>
-                  <SelectItem value="monthly">Monthly</SelectItem>
-                  <SelectItem value="custom">Custom (cron)</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            {scheduleForm.preset !== 'custom' && (
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-2">
-                  <Label htmlFor="sched-hour">Hour (IST)</Label>
-                  <Input
-                    id="sched-hour"
-                    type="number"
-                    min={0}
-                    max={23}
-                    value={scheduleForm.hour}
-                    onChange={e =>
-                      setScheduleForm(prev => ({
-                        ...prev,
-                        hour: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="sched-min">Minute</Label>
-                  <Input
-                    id="sched-min"
-                    type="number"
-                    min={0}
-                    max={59}
-                    value={scheduleForm.minute}
-                    onChange={e =>
-                      setScheduleForm(prev => ({
-                        ...prev,
-                        minute: Number(e.target.value),
-                      }))
-                    }
-                  />
-                </div>
-              </div>
-            )}
-            {scheduleForm.preset === 'weekly' && (
-              <div className="space-y-2">
-                <Label>Weekday (IST)</Label>
-                <Select
-                  value={String(scheduleForm.dayOfWeek)}
-                  onValueChange={v =>
-                    setScheduleForm(prev => ({
-                      ...prev,
-                      dayOfWeek: Number(v),
-                    }))
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">Sunday</SelectItem>
-                    <SelectItem value="1">Monday</SelectItem>
-                    <SelectItem value="2">Tuesday</SelectItem>
-                    <SelectItem value="3">Wednesday</SelectItem>
-                    <SelectItem value="4">Thursday</SelectItem>
-                    <SelectItem value="5">Friday</SelectItem>
-                    <SelectItem value="6">Saturday</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-            {scheduleForm.preset === 'monthly' && (
-              <div className="space-y-2">
-                <Label htmlFor="sched-dom">Day of month (1–31)</Label>
-                <Input
-                  id="sched-dom"
-                  type="number"
-                  min={1}
-                  max={31}
-                  value={scheduleForm.dayOfMonth}
-                  onChange={e =>
-                    setScheduleForm(prev => ({
-                      ...prev,
-                      dayOfMonth: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-            )}
-            {scheduleForm.preset === 'custom' && (
-              <div className="space-y-2">
-                <Label htmlFor="sched-cron">Cron expression</Label>
-                <Input
-                  id="sched-cron"
-                  value={scheduleForm.customCron}
-                  onChange={e =>
-                    setScheduleForm(prev => ({
-                      ...prev,
-                      customCron: e.target.value,
-                    }))
-                  }
-                  placeholder="0 30 9 * * *"
-                />
-                <p className="text-muted-foreground text-xs">
-                  Six fields: second minute hour day-of-month month day-of-week.
-                  Times are in IST (Asia/Kolkata).
-                </p>
-              </div>
-            )}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-2">
-                <Label htmlFor="sched-ret-n">Keep last N backups</Label>
-                <Input
-                  id="sched-ret-n"
-                  type="number"
-                  min={1}
-                  value={scheduleForm.retention_count}
-                  onChange={e =>
-                    setScheduleForm(prev => ({
-                      ...prev,
-                      retention_count: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sched-ret-d">Retention (days)</Label>
-                <Input
-                  id="sched-ret-d"
-                  type="number"
-                  min={1}
-                  value={scheduleForm.retention_days}
-                  onChange={e =>
-                    setScheduleForm(prev => ({
-                      ...prev,
-                      retention_days: Number(e.target.value),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex items-center justify-between gap-4 rounded-lg border p-3">
-              <div>
-                <p className="text-sm font-medium">Enabled</p>
-                <p className="text-muted-foreground text-xs">
-                  Disabled schedules are skipped by the scheduler.
-                </p>
-              </div>
-              <Switch
-                checked={scheduleForm.enabled}
-                onCheckedChange={checked =>
-                  setScheduleForm(prev => ({ ...prev, enabled: checked }))
-                }
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="sched-notes">Notes</Label>
-              <Textarea
-                id="sched-notes"
-                value={scheduleForm.notes}
-                onChange={e =>
-                  setScheduleForm(prev => ({ ...prev, notes: e.target.value }))
-                }
-                rows={2}
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button
-              variant="outline"
-              type="button"
-              onClick={() => setScheduleDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void saveSchedule()}
-              useAccentColor
-            >
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Google Drive transfer progress (upload / download) */}
-      {isTauriEnvironment && (gdriveOpLabel || gdriveTransfer) && (
-        <div
-          className="z-60 fixed inset-0 flex items-center justify-center bg-black/60 p-4"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="gdrive-transfer-title"
-        >
-          <div className="bg-background w-full max-w-md rounded-lg border p-6 shadow-lg">
-            <h2 id="gdrive-transfer-title" className="text-lg font-semibold">
-              {gdriveOpLabel ?? 'Google Drive'}
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              {gdriveTransfer?.phase ?? 'Working…'}
-            </p>
-            {gdriveTransfer?.message ? (
-              <p className="text-muted-foreground mt-1 text-xs">
-                {gdriveTransfer.message}
-              </p>
-            ) : null}
-            <div className="mt-4 space-y-2">
-              <Progress value={Math.min(100, gdriveTransfer?.percent ?? 0)} />
-              <div className="text-muted-foreground flex justify-between text-xs">
-                <span>
-                  {gdriveTransfer?.percent ?? 0}%
-                  {gdriveTransfer?.attempt != null && gdriveTransfer.attempt > 1
-                    ? ` · Retry ${gdriveTransfer.attempt} of 3`
-                    : null}
-                </span>
-                <span>
-                  {formatBytes(Number(gdriveTransfer?.bytesTransferred ?? 0))}
-                  {Number(gdriveTransfer?.totalBytes ?? 0) > 0
-                    ? ` / ${formatBytes(Number(gdriveTransfer?.totalBytes ?? 0))}`
-                    : ''}
-                </span>
-              </div>
-            </div>
-            <div className="mt-6 flex justify-end gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleGdriveCancelTransfer}
-              >
-                Cancel transfer
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Edit Record Modal */}
-      {editingRecord && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-          <div className="bg-background max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-lg p-6 shadow-lg">
-            <div className="mb-4 flex items-center justify-between">
-              <h2 className="text-2xl font-bold">Edit Record</h2>
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setEditingRecord(null);
-                  setEditForm({});
-                }}
-              >
-                Close
-              </Button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {Object.entries(editForm).map(([key, value]) => {
-                  // Skip system fields
-                  if (
-                    ['id', 'created_at', 'updated_at', 'deleted_at'].includes(
-                      key
-                    )
-                  ) {
-                    return (
-                      <div key={key} className="space-y-2">
-                        <Label
-                          htmlFor={key}
-                          className="text-sm font-medium text-gray-500"
-                        >
-                          {key.replace(/_/g, ' ')} (Read-only)
-                        </Label>
-                        <Input
-                          id={key}
-                          value={value?.toString() || ''}
-                          disabled
-                          className="bg-gray-50"
-                        />
+                {/* Backup Information */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      Backup Information
+                    </span>
+                  </div>
+                  <div className="im-section__body">
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Filename
+                        </p>
+                        <p style={{ color: 'var(--color-im-muted)' }}>
+                          {restorePreview.backup_info.filename}
+                        </p>
                       </div>
-                    );
-                  }
-
-                  return (
-                    <div key={key} className="space-y-2">
-                      <Label htmlFor={key}>
-                        {key.replace(/_/g, ' ')}
-                        {editingRecord.data[key] !== value && (
-                          <span className="ml-2 text-xs text-blue-600">
-                            (Modified)
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>Created</p>
+                        <p style={{ color: 'var(--color-im-muted)' }}>
+                          {formatAppDateTime(
+                            restorePreview.backup_info.created_at
+                          )}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Size (recorded)
+                        </p>
+                        <p style={{ color: 'var(--color-im-muted)' }}>
+                          {restorePreview.backup_info.size_bytes
+                            ? formatBytes(restorePreview.backup_info.size_bytes)
+                            : 'Unknown'}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Backup file size (on disk)
+                        </p>
+                        <p style={{ color: 'var(--color-im-muted)' }}>
+                          {restorePreview.backup_file_size_bytes > 0
+                            ? formatBytes(restorePreview.backup_file_size_bytes)
+                            : 'Unknown'}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Estimated restore time
+                        </p>
+                        <p style={{ color: 'var(--color-im-muted)' }}>
+                          ~{restorePreview.estimated_restore_seconds.toFixed(3)}{' '}
+                          s
+                          <span style={{ marginLeft: 4, fontSize: 11 }}>
+                            (informational: size in MB × 0.02 s)
                           </span>
-                        )}
-                      </Label>
-                      {key.includes('description') ||
-                      key.includes('notes') ||
-                      key.includes('comment') ? (
-                        <Textarea
-                          id={key}
-                          value={value?.toString() || ''}
-                          onChange={e =>
-                            setEditForm(prev => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
-                          rows={3}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>Status</p>
+                        <span
+                          className={`im-badge ${restorePreview.backup_info.status === 'completed' ? 'is-good' : 'is-bad'}`}
+                        >
+                          {restorePreview.backup_info.status}
+                        </span>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Checksum (database)
+                        </p>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          {(() => {
+                            if (restorePreview.recorded_hash_match === false) {
+                              return (
+                                <span style={{ color: 'var(--color-im-bad)' }}>
+                                  Checksum: FAILED
+                                </span>
+                              );
+                            }
+                            if (restorePreview.recorded_hash_match === true) {
+                              return (
+                                <span style={{ color: 'var(--color-im-good)' }}>
+                                  Checksum: Verified
+                                </span>
+                              );
+                            }
+                            if (
+                              restorePreview.backup_info.sha256 &&
+                              restorePreview.backup_info.sha256.trim() !== ''
+                            ) {
+                              return (
+                                <span
+                                  style={{
+                                    color: 'var(--color-im-muted)',
+                                    fontSize: 13,
+                                    fontWeight: 'normal',
+                                  }}
+                                >
+                                  (Could not assess)
+                                </span>
+                              );
+                            }
+                            return (
+                              <span
+                                style={{
+                                  color: 'var(--color-im-muted)',
+                                  fontSize: 13,
+                                  fontWeight: 'normal',
+                                }}
+                              >
+                                No SHA-256 stored in library for this file
+                              </span>
+                            );
+                          })()}
+                        </p>
+                        <p
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            marginTop: 4,
+                            fontSize: 11,
+                          }}
+                        >
+                          Sidecar:{' '}
+                          {restorePreview.checksum_status === 'valid'
+                            ? 'file matches .sha256'
+                            : restorePreview.checksum_status === 'missing'
+                              ? 'no .sha256 file next to backup (older backups are OK if DB hash verified)'
+                              : 'sidecar does not match file'}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Backup type
+                        </p>
+                        <p style={{ color: 'var(--color-im-muted)' }}>
+                          {backupTypeLabel(restorePreview.backup_info)}
+                        </p>
+                      </div>
+                      {backupTypeLabel(restorePreview.backup_info) ===
+                        'Google Drive' && (
+                        <div>
+                          <p style={{ fontSize: 12, fontWeight: 500 }}>
+                            Google Drive file name
+                          </p>
+                          <p style={{ color: 'var(--color-im-muted)' }}>
+                            {restorePreview.backup_info.filename}
+                          </p>
+                        </div>
+                      )}
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Stored validation
+                        </p>
+                        <p
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            fontSize: 11,
+                          }}
+                        >
+                          {restorePreview.backup_info.validation_status ?? '—'}
+                          {restorePreview.backup_info.validation_checked_at
+                            ? ` • ${formatAppDateTime(
+                                restorePreview.backup_info.validation_checked_at
+                              )}`
+                            : ''}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 500 }}>
+                          Restore simulation
+                        </p>
+                        <p
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            fontSize: 11,
+                          }}
+                        >
+                          {restorePreview.backup_info
+                            .restore_simulation_status ?? '—'}
+                          {restorePreview.backup_info
+                            .restore_simulation_checked_at
+                            ? ` • ${formatAppDateTime(
+                                restorePreview.backup_info
+                                  .restore_simulation_checked_at
+                              )}`
+                            : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Integrity Check */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span className="im-section__label">Integrity Check</span>
+                  </div>
+                  <div className="im-section__body">
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid var(--color-im-rule)',
+                        background: 'var(--color-im-panel)',
+                        fontSize: 12,
+                        color: 'var(--color-im-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <CheckCircle className="h-4 w-4" />
+                      <span>{restorePreview.integrity_check}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Schema Compatibility */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      Schema Compatibility
+                    </span>
+                  </div>
+                  <div className="im-section__body">
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      {restorePreview.schema_compatibility ? (
+                        <CheckCircle
+                          className="h-4 w-4"
+                          style={{ color: 'var(--color-im-good)' }}
                         />
                       ) : (
-                        <Input
-                          id={key}
-                          value={value?.toString() || ''}
-                          onChange={e =>
-                            setEditForm(prev => ({
-                              ...prev,
-                              [key]: e.target.value,
-                            }))
-                          }
+                        <XCircle
+                          className="h-4 w-4"
+                          style={{ color: 'var(--color-im-bad)' }}
                         />
                       )}
+                      <span
+                        style={{
+                          color: restorePreview.schema_compatibility
+                            ? 'var(--color-im-good)'
+                            : 'var(--color-im-bad)',
+                        }}
+                      >
+                        {restorePreview.schema_compatibility
+                          ? 'Schema is compatible'
+                          : 'Schema compatibility issues detected'}
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        marginTop: 12,
+                        fontSize: 13,
+                      }}
+                    >
+                      This app migration head:{' '}
+                      {restorePreview.embedded_migration_head_version}
+                      {restorePreview.backup_migration_max_version != null
+                        ? ` — backup reports max version: ${restorePreview.backup_migration_max_version}`
+                        : ''}
+                    </p>
+                    {restorePreview.missing_core_tables.length > 0 ? (
+                      <p
+                        style={{
+                          color: 'var(--color-im-bad)',
+                          marginTop: 8,
+                          fontSize: 13,
+                        }}
+                      >
+                        Missing core tables:{' '}
+                        {restorePreview.missing_core_tables.join(', ')}
+                      </p>
+                    ) : null}
+                  </div>
+                </div>
 
-              <div className="flex justify-end space-x-4">
-                <Button
-                  variant="outline"
+                {/* Estimated Changes */}
+                {Object.keys(restorePreview.estimated_changes).length > 0 && (
+                  <div className="im-section">
+                    <div className="im-section__header">
+                      <span className="im-section__label">
+                        Estimated Changes
+                      </span>
+                      <span className="im-section__sub">
+                        Records that will be added/removed by table
+                      </span>
+                    </div>
+                    <div
+                      className="im-section__body"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      {Object.entries(restorePreview.estimated_changes).map(
+                        ([table, change]) => (
+                          <div
+                            key={table}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 500,
+                                textTransform: 'capitalize',
+                              }}
+                            >
+                              {table.replace(/_/g, ' ')}
+                            </span>
+                            <span
+                              className={`im-badge ${change > 0 ? 'is-good' : 'is-bad'}`}
+                            >
+                              {change > 0 ? '+' : ''}
+                              {change.toLocaleString()}
+                            </span>
+                          </div>
+                        )
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Warnings */}
+                {restorePreview.warnings.length > 0 && (
+                  <div className="im-section">
+                    <div className="im-section__header">
+                      <span className="im-section__label">Warnings</span>
+                    </div>
+                    <div
+                      className="im-section__body"
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      {restorePreview.warnings.map((warning, index) => (
+                        <div
+                          key={index}
+                          style={{
+                            padding: '8px 12px',
+                            border: '1px solid var(--color-im-rule)',
+                            background: 'var(--color-im-panel)',
+                            fontSize: 12,
+                            color: 'var(--color-im-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>{warning}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 16,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="im-btn"
+                    onClick={() => {
+                      setRestorePreview(null);
+                      setSelectedBackup(null);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="im-btn im-btn--danger"
+                    onClick={handleRestoreDatabase}
+                    disabled={
+                      restoreInProgress ||
+                      !restorePreview.schema_compatibility ||
+                      restorePreview.checksum_status === 'invalid' ||
+                      restorePreview.recorded_hash_match === false
+                    }
+                    data-testid="restore-database-confirm-button"
+                  >
+                    {restoreInProgress ? (
+                      <>
+                        <RefreshCw
+                          style={{
+                            marginRight: 6,
+                            width: 14,
+                            height: 14,
+                            display: 'inline',
+                          }}
+                          className="animate-spin"
+                        />
+                        Restoring...
+                      </>
+                    ) : (
+                      <>
+                        <Upload
+                          style={{
+                            marginRight: 6,
+                            width: 14,
+                            height: 14,
+                            display: 'inline',
+                          }}
+                        />
+                        Restore Database
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <Dialog open={scheduleDialogOpen} onOpenChange={setScheduleDialogOpen}>
+          <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>
+                {editingScheduleId != null
+                  ? 'Edit backup schedule'
+                  : 'New backup schedule'}
+              </DialogTitle>
+              <DialogDescription>
+                Times use six-field cron in{' '}
+                <strong>IST (Asia/Kolkata, UTC+05:30)</strong> (sec min hour day
+                month weekday). The app checks every minute and runs due
+                schedules automatically.
+              </DialogDescription>
+            </DialogHeader>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 16,
+                paddingTop: 8,
+                paddingBottom: 8,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Name</p>
+                <input
+                  id="sched-name"
+                  className="im-input"
+                  value={scheduleForm.name}
+                  onChange={e =>
+                    setScheduleForm(prev => ({ ...prev, name: e.target.value }))
+                  }
+                  placeholder="e.g. Nightly backup"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Destination</p>
+                <div className="im-select-wrap">
+                  <select
+                    className="im-select"
+                    value={scheduleForm.destination}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        destination: e.target.value as 'local' | 'google_drive',
+                      }))
+                    }
+                  >
+                    <option value="local">Local Storage</option>
+                    <option value="google_drive">Google Drive</option>
+                  </select>
+                </div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Frequency</p>
+                <div className="im-select-wrap">
+                  <select
+                    className="im-select"
+                    value={scheduleForm.preset}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        preset: e.target.value as SchedulePreset,
+                      }))
+                    }
+                  >
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="custom">Custom (cron)</option>
+                  </select>
+                </div>
+              </div>
+              {scheduleForm.preset !== 'custom' && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                  >
+                    <p className="im-field-label">Hour (IST)</p>
+                    <input
+                      id="sched-hour"
+                      className="im-input"
+                      type="number"
+                      min={0}
+                      max={23}
+                      value={scheduleForm.hour}
+                      onChange={e =>
+                        setScheduleForm(prev => ({
+                          ...prev,
+                          hour: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                  >
+                    <p className="im-field-label">Minute</p>
+                    <input
+                      id="sched-min"
+                      className="im-input"
+                      type="number"
+                      min={0}
+                      max={59}
+                      value={scheduleForm.minute}
+                      onChange={e =>
+                        setScheduleForm(prev => ({
+                          ...prev,
+                          minute: Number(e.target.value),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              )}
+              {scheduleForm.preset === 'weekly' && (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <p className="im-field-label">Weekday (IST)</p>
+                  <div className="im-select-wrap">
+                    <select
+                      className="im-select"
+                      value={String(scheduleForm.dayOfWeek)}
+                      onChange={e =>
+                        setScheduleForm(prev => ({
+                          ...prev,
+                          dayOfWeek: Number(e.target.value),
+                        }))
+                      }
+                    >
+                      <option value="0">Sunday</option>
+                      <option value="1">Monday</option>
+                      <option value="2">Tuesday</option>
+                      <option value="3">Wednesday</option>
+                      <option value="4">Thursday</option>
+                      <option value="5">Friday</option>
+                      <option value="6">Saturday</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+              {scheduleForm.preset === 'monthly' && (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <p className="im-field-label">Day of month (1–31)</p>
+                  <input
+                    id="sched-dom"
+                    className="im-input"
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={scheduleForm.dayOfMonth}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        dayOfMonth: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+              )}
+              {scheduleForm.preset === 'custom' && (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <p className="im-field-label">Cron expression</p>
+                  <input
+                    id="sched-cron"
+                    className="im-input"
+                    value={scheduleForm.customCron}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        customCron: e.target.value,
+                      }))
+                    }
+                    placeholder="0 30 9 * * *"
+                  />
+                  <p style={{ color: 'var(--color-im-muted)', fontSize: 11 }}>
+                    Six fields: second minute hour day-of-month month
+                    day-of-week. Times are in IST (Asia/Kolkata).
+                  </p>
+                </div>
+              )}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 12,
+                }}
+              >
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <p className="im-field-label">Keep last N backups</p>
+                  <input
+                    id="sched-ret-n"
+                    className="im-input"
+                    type="number"
+                    min={1}
+                    value={scheduleForm.retention_count}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        retention_count: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <p className="im-field-label">Retention (days)</p>
+                  <input
+                    id="sched-ret-d"
+                    className="im-input"
+                    type="number"
+                    min={1}
+                    value={scheduleForm.retention_days}
+                    onChange={e =>
+                      setScheduleForm(prev => ({
+                        ...prev,
+                        retention_days: Number(e.target.value),
+                      }))
+                    }
+                  />
+                </div>
+              </div>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 16,
+                  border: '1px solid var(--color-im-rule)',
+                  padding: 12,
+                }}
+              >
+                <div>
+                  <p style={{ fontSize: 12, fontWeight: 500 }}>Enabled</p>
+                  <p style={{ color: 'var(--color-im-muted)', fontSize: 11 }}>
+                    Disabled schedules are skipped by the scheduler.
+                  </p>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={scheduleForm.enabled}
+                  onChange={e =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      enabled: e.target.checked,
+                    }))
+                  }
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: 'var(--color-im-accent)',
+                  }}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Notes</p>
+                <textarea
+                  id="sched-notes"
+                  className="im-textarea"
+                  value={scheduleForm.notes}
+                  onChange={e =>
+                    setScheduleForm(prev => ({
+                      ...prev,
+                      notes: e.target.value,
+                    }))
+                  }
+                  rows={2}
+                />
+              </div>
+            </div>
+            <DialogFooter style={{ gap: 8 }}>
+              <button
+                type="button"
+                className="im-btn"
+                onClick={() => setScheduleDialogOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void saveSchedule()}
+              >
+                Save
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Google Drive transfer progress (upload / download) */}
+        {isTauriEnvironment && (gdriveOpLabel || gdriveTransfer) && (
+          <div
+            className="z-60 fixed inset-0 flex items-center justify-center bg-black/60 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="gdrive-transfer-title"
+          >
+            <div
+              style={{
+                background: 'var(--color-im-surface)',
+                width: '100%',
+                maxWidth: 448,
+                border: '1px solid var(--color-im-rule)',
+                padding: 24,
+                boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+              }}
+            >
+              <h2
+                id="gdrive-transfer-title"
+                style={{ fontSize: 16, fontWeight: 600 }}
+              >
+                {gdriveOpLabel ?? 'Google Drive'}
+              </h2>
+              <p
+                style={{
+                  color: 'var(--color-im-muted)',
+                  marginTop: 4,
+                  fontSize: 12,
+                }}
+              >
+                {gdriveTransfer?.phase ?? 'Working…'}
+              </p>
+              {gdriveTransfer?.message ? (
+                <p
+                  style={{
+                    color: 'var(--color-im-muted)',
+                    marginTop: 4,
+                    fontSize: 11,
+                  }}
+                >
+                  {gdriveTransfer.message}
+                </p>
+              ) : null}
+              <div
+                style={{
+                  marginTop: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <div style={{ height: 4, background: 'var(--color-im-rule)' }}>
+                  <div
+                    style={{
+                      height: '100%',
+                      width: `${Math.min(100, gdriveTransfer?.percent ?? 0)}%`,
+                      background: 'var(--color-im-accent)',
+                      transition: 'width 0.2s',
+                    }}
+                  />
+                </div>
+                <div
+                  style={{
+                    color: 'var(--color-im-muted)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    fontSize: 11,
+                  }}
+                >
+                  <span>
+                    {gdriveTransfer?.percent ?? 0}%
+                    {gdriveTransfer?.attempt != null &&
+                    gdriveTransfer.attempt > 1
+                      ? ` · Retry ${gdriveTransfer.attempt} of 3`
+                      : null}
+                  </span>
+                  <span>
+                    {formatBytes(Number(gdriveTransfer?.bytesTransferred ?? 0))}
+                    {Number(gdriveTransfer?.totalBytes ?? 0) > 0
+                      ? ` / ${formatBytes(Number(gdriveTransfer?.totalBytes ?? 0))}`
+                      : ''}
+                  </span>
+                </div>
+              </div>
+              <div
+                style={{
+                  marginTop: 24,
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  className="im-btn"
+                  onClick={handleGdriveCancelTransfer}
+                >
+                  Cancel transfer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Edit Record Modal */}
+        {editingRecord && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+            <div
+              style={{
+                background: 'var(--color-im-surface)',
+                maxHeight: '90vh',
+                width: '100%',
+                maxWidth: 896,
+                overflowY: 'auto',
+                padding: 24,
+                boxShadow: '0 4px 24px rgba(0,0,0,0.5)',
+              }}
+            >
+              <div
+                style={{
+                  marginBottom: 16,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <h2 style={{ fontSize: 20, fontWeight: 700 }}>Edit Record</h2>
+                <button
+                  type="button"
+                  className="im-btn"
                   onClick={() => {
                     setEditingRecord(null);
                     setEditForm({});
                   }}
                 >
-                  Cancel
-                </Button>
-                <Button onClick={handleUpdateRecord}>
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Save Changes
-                </Button>
+                  Close
+                </button>
               </div>
-            </div>
-          </div>
-        </div>
-      )}
 
-      <Dialog
-        open={setPinDialogVisible}
-        onOpenChange={open => {
-          setSetPinDialogVisible(open);
-          if (!open) {
-            setSetPinValue('');
-            setSetPinConfirmValue('');
-          }
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Set Hard Delete PIN</DialogTitle>
-            <DialogDescription>
-              PIN must be numeric and at least 4 digits.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="set-pin-new">New PIN</Label>
-              <Input
-                id="set-pin-new"
-                type="password"
-                inputMode="numeric"
-                value={setPinValue}
-                onChange={e => setSetPinValue(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="set-pin-confirm">Confirm PIN</Label>
-              <Input
-                id="set-pin-confirm"
-                type="password"
-                inputMode="numeric"
-                value={setPinConfirmValue}
-                onChange={e => setSetPinConfirmValue(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setSetPinDialogVisible(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={() => void handleSetHardDeletePin()}>
-              Save PIN
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <div
+                style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 16,
+                  }}
+                >
+                  {Object.entries(editForm).map(([key, value]) => {
+                    // Skip system fields
+                    if (
+                      ['id', 'created_at', 'updated_at', 'deleted_at'].includes(
+                        key
+                      )
+                    ) {
+                      return (
+                        <div
+                          key={key}
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4,
+                          }}
+                        >
+                          <p
+                            className="im-field-label"
+                            style={{ color: 'var(--color-im-muted)' }}
+                          >
+                            {key.replace(/_/g, ' ')} (Read-only)
+                          </p>
+                          <input
+                            id={key}
+                            className="im-input"
+                            value={value?.toString() || ''}
+                            disabled
+                          />
+                        </div>
+                      );
+                    }
 
-      <Dialog
-        open={changePinDialogOpen}
-        onOpenChange={open => {
-          setChangePinDialogOpen(open);
-          if (!open) {
-            setChangePinCurrent('');
-            setChangePinNew('');
-            setChangePinConfirm('');
-          }
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Change Hard Delete PIN</DialogTitle>
-            <DialogDescription>
-              Verify current PIN and set a new one.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="change-pin-current">Current PIN</Label>
-              <Input
-                id="change-pin-current"
-                type="password"
-                inputMode="numeric"
-                value={changePinCurrent}
-                onChange={e => setChangePinCurrent(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="change-pin-new">New PIN</Label>
-              <Input
-                id="change-pin-new"
-                type="password"
-                inputMode="numeric"
-                value={changePinNew}
-                onChange={e => setChangePinNew(e.target.value)}
-              />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="change-pin-confirm">Confirm New PIN</Label>
-              <Input
-                id="change-pin-confirm"
-                type="password"
-                inputMode="numeric"
-                value={changePinConfirm}
-                onChange={e => setChangePinConfirm(e.target.value)}
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setChangePinDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={() => void handleChangeHardDeletePin()}>
-              Update PIN
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={pinDialogOpen}
-        onOpenChange={open => {
-          setPinDialogOpen(open);
-          if (!open) {
-            setPinDialogValue('');
-            setPinDialogError(null);
-          }
-        }}
-      >
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Enter PIN to confirm hard delete</DialogTitle>
-            <DialogDescription>
-              This operation requires PIN verification.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-2">
-            <Label htmlFor="hard-delete-pin-input">PIN</Label>
-            <Input
-              id="hard-delete-pin-input"
-              type="password"
-              inputMode="numeric"
-              value={pinDialogValue}
-              onChange={e => setPinDialogValue(e.target.value)}
-            />
-            {pinDialogError && (
-              <p className="text-sm text-red-600">{pinDialogError}</p>
-            )}
-            {pinLockActive && (
-              <p className="text-muted-foreground text-xs">
-                Too many incorrect attempts. Try again in{' '}
-                {pinLockRemainingSeconds ?? 0} seconds.
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPinDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button
-              disabled={pinLockActive}
-              onClick={() => void handleVerifyPinForDelete()}
-            >
-              Confirm
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={deletePreviewOpen}
-        onOpenChange={open => {
-          setDeletePreviewOpen(open);
-          if (!open) {
-            setDeletePreview(null);
-            setDeleteImpactPreview(null);
-            setHardDeleteConfirmInput('');
-            setPinVerifiedForCurrentPreview(false);
-          }
-        }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Delete Preview</DialogTitle>
-            <DialogDescription>
-              {deletePreviewLoading
-                ? 'Checking references…'
-                : `Number of records selected: ${totalSelectedRecords}`}
-            </DialogDescription>
-          </DialogHeader>
-          {deletePreviewLoading ? (
-            <div className="text-muted-foreground flex items-center gap-2 py-4 text-sm">
-              <RefreshCw className="h-4 w-4 animate-spin" />
-              <span>Scanning foreign key references…</span>
-            </div>
-          ) : (
-            deletePreview && (
-              <div className="space-y-3">
-                <p className="text-sm font-medium">
-                  Blocked Records: {deletePreview.blocked_records} of{' '}
-                  {deletePreview.total_records}
-                </p>
-                {deletePreview.scan_timed_out && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      Reference scan did not finish in time. Hard delete is
-                      disabled for safety. Try fewer selected records or retry.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {!deletePreview.scan_timed_out &&
-                  !deletePreview.can_hard_delete && (
-                    <Alert>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>
-                        This data is referenced in other modules.
-                      </AlertDescription>
-                    </Alert>
-                  )}
-                {!deletePreview.scan_timed_out &&
-                deletePreview.dependency_summary.length > 0 ? (
-                  <div>
-                    <p className="text-sm font-medium">Referenced In:</p>
-                    <ul className="mt-1 list-inside list-disc text-sm">
-                      {deletePreview.dependency_summary.map(d => (
-                        <li key={d.table}>
-                          {formatTableLabel(d.table)}: {d.total_references}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : !deletePreview.scan_timed_out ? (
-                  <p className="text-muted-foreground text-sm">
-                    No foreign key references from other tables were found for
-                    the selected rows.
-                  </p>
-                ) : null}
-                {deleteImpactPreview && (
-                  <div className="rounded-md border p-3 text-sm">
-                    <p className="font-medium">
-                      Total records affected (including dependencies):{' '}
-                      {deleteImpactPreview.total_with_dependencies.toLocaleString()}
-                    </p>
-                    <ul className="text-muted-foreground mt-2 list-inside list-disc">
-                      {deleteImpactPreview.by_table.slice(0, 6).map(row => (
-                        <li key={row.table}>
-                          {formatTableLabel(row.table)}:{' '}
-                          {row.records.toLocaleString()}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-                {deleteImpactPreview &&
-                  deleteImpactPreview.total_with_dependencies > 5000 && (
-                    <div className="space-y-2">
-                      <Alert>
-                        <AlertTriangle className="h-4 w-4" />
-                        <AlertDescription>
-                          This operation will delete{' '}
-                          {deleteImpactPreview.total_with_dependencies.toLocaleString()}{' '}
-                          records including dependencies.
-                        </AlertDescription>
-                      </Alert>
-                      <div className="space-y-1">
-                        <Label htmlFor="hard-delete-confirm">
-                          Type DELETE to confirm
-                        </Label>
-                        <Input
-                          id="hard-delete-confirm"
-                          value={hardDeleteConfirmInput}
-                          onChange={e =>
-                            setHardDeleteConfirmInput(e.target.value)
-                          }
-                          placeholder="DELETE"
-                        />
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                        }}
+                      >
+                        <p className="im-field-label">
+                          {key.replace(/_/g, ' ')}
+                          {editingRecord.data[key] !== value && (
+                            <span
+                              style={{
+                                marginLeft: 8,
+                                fontSize: 11,
+                                color: 'var(--color-im-accent)',
+                              }}
+                            >
+                              (Modified)
+                            </span>
+                          )}
+                        </p>
+                        {key.includes('description') ||
+                        key.includes('notes') ||
+                        key.includes('comment') ? (
+                          <textarea
+                            id={key}
+                            className="im-textarea"
+                            value={value?.toString() || ''}
+                            onChange={e =>
+                              setEditForm(prev => ({
+                                ...prev,
+                                [key]: e.target.value,
+                              }))
+                            }
+                            rows={3}
+                          />
+                        ) : (
+                          <input
+                            id={key}
+                            className="im-input"
+                            value={value?.toString() || ''}
+                            onChange={e =>
+                              setEditForm(prev => ({
+                                ...prev,
+                                [key]: e.target.value,
+                              }))
+                            }
+                          />
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'flex-end',
+                    gap: 16,
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="im-btn"
+                    onClick={() => {
+                      setEditingRecord(null);
+                      setEditForm({});
+                    }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    className="im-btn im-btn--primary"
+                    onClick={handleUpdateRecord}
+                  >
+                    <CheckCircle
+                      style={{
+                        marginRight: 6,
+                        width: 14,
+                        height: 14,
+                        display: 'inline',
+                      }}
+                    />
+                    Save Changes
+                  </button>
+                </div>
               </div>
-            )
-          )}
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setDeletePreviewOpen(false);
-                setDeletePreview(null);
-                setDeleteImpactPreview(null);
-                setHardDeleteConfirmInput('');
-              }}
-            >
-              Cancel
-            </Button>
-            {deletePreview && !deletePreview.can_hard_delete && (
-              <Button
-                variant="default"
-                onClick={async () => {
-                  setDeletePreviewOpen(false);
-                  setDeletePreview(null);
-                  setBulkDeleteType('soft');
-                  const ok = await confirmDestructive(
-                    `Soft delete ${totalSelectedRecords} record(s)?`
-                  );
-                  if (ok) {
-                    void executeBulkDelete('soft');
-                  }
+            </div>
+          </div>
+        )}
+
+        <Dialog
+          open={setPinDialogVisible}
+          onOpenChange={open => {
+            setSetPinDialogVisible(open);
+            if (!open) {
+              setSetPinValue('');
+              setSetPinConfirmValue('');
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Set Hard Delete PIN</DialogTitle>
+              <DialogDescription>
+                PIN must be numeric and at least 4 digits.
+              </DialogDescription>
+            </DialogHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">New PIN</p>
+                <input
+                  id="set-pin-new"
+                  className="im-input"
+                  type="password"
+                  inputMode="numeric"
+                  value={setPinValue}
+                  onChange={e => setSetPinValue(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">Confirm PIN</p>
+                <input
+                  id="set-pin-confirm"
+                  className="im-input"
+                  type="password"
+                  inputMode="numeric"
+                  value={setPinConfirmValue}
+                  onChange={e => setSetPinConfirmValue(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                className="im-btn"
+                onClick={() => setSetPinDialogVisible(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void handleSetHardDeletePin()}
+              >
+                Save PIN
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={changePinDialogOpen}
+          onOpenChange={open => {
+            setChangePinDialogOpen(open);
+            if (!open) {
+              setChangePinCurrent('');
+              setChangePinNew('');
+              setChangePinConfirm('');
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Change Hard Delete PIN</DialogTitle>
+              <DialogDescription>
+                Verify current PIN and set a new one.
+              </DialogDescription>
+            </DialogHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">Current PIN</p>
+                <input
+                  id="change-pin-current"
+                  className="im-input"
+                  type="password"
+                  inputMode="numeric"
+                  value={changePinCurrent}
+                  onChange={e => setChangePinCurrent(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">New PIN</p>
+                <input
+                  id="change-pin-new"
+                  className="im-input"
+                  type="password"
+                  inputMode="numeric"
+                  value={changePinNew}
+                  onChange={e => setChangePinNew(e.target.value)}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">Confirm New PIN</p>
+                <input
+                  id="change-pin-confirm"
+                  className="im-input"
+                  type="password"
+                  inputMode="numeric"
+                  value={changePinConfirm}
+                  onChange={e => setChangePinConfirm(e.target.value)}
+                />
+              </div>
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                className="im-btn"
+                onClick={() => setChangePinDialogOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void handleChangeHardDeletePin()}
+              >
+                Update PIN
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={pinDialogOpen}
+          onOpenChange={open => {
+            setPinDialogOpen(open);
+            if (!open) {
+              setPinDialogValue('');
+              setPinDialogError(null);
+            }
+          }}
+        >
+          <DialogContent className="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Enter PIN to confirm hard delete</DialogTitle>
+              <DialogDescription>
+                This operation requires PIN verification.
+              </DialogDescription>
+            </DialogHeader>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">PIN</p>
+              <input
+                id="hard-delete-pin-input"
+                className="im-input"
+                type="password"
+                inputMode="numeric"
+                value={pinDialogValue}
+                onChange={e => setPinDialogValue(e.target.value)}
+              />
+              {pinDialogError && (
+                <p style={{ fontSize: 12, color: 'var(--color-im-bad)' }}>
+                  {pinDialogError}
+                </p>
+              )}
+              {pinLockActive && (
+                <p style={{ color: 'var(--color-im-muted)', fontSize: 11 }}>
+                  Too many incorrect attempts. Try again in{' '}
+                  {pinLockRemainingSeconds ?? 0} seconds.
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <button
+                type="button"
+                className="im-btn"
+                onClick={() => setPinDialogOpen(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                disabled={pinLockActive}
+                onClick={() => void handleVerifyPinForDelete()}
+              >
+                Confirm
+              </button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog
+          open={deletePreviewOpen}
+          onOpenChange={open => {
+            setDeletePreviewOpen(open);
+            if (!open) {
+              setDeletePreview(null);
+              setDeleteImpactPreview(null);
+              setHardDeleteConfirmInput('');
+              setPinVerifiedForCurrentPreview(false);
+            }
+          }}
+        >
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Delete Preview</DialogTitle>
+              <DialogDescription>
+                {deletePreviewLoading
+                  ? 'Checking references…'
+                  : `Number of records selected: ${totalSelectedRecords}`}
+              </DialogDescription>
+            </DialogHeader>
+            {deletePreviewLoading ? (
+              <div
+                style={{
+                  color: 'var(--color-im-muted)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  paddingTop: 16,
+                  paddingBottom: 16,
+                  fontSize: 12,
                 }}
               >
-                Soft Delete Instead
-              </Button>
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                <span>Scanning foreign key references…</span>
+              </div>
+            ) : (
+              deletePreview && (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  <p style={{ fontSize: 12, fontWeight: 500 }}>
+                    Blocked Records: {deletePreview.blocked_records} of{' '}
+                    {deletePreview.total_records}
+                  </p>
+                  {deletePreview.scan_timed_out && (
+                    <div
+                      style={{
+                        padding: '8px 12px',
+                        border: '1px solid var(--color-im-rule)',
+                        background: 'var(--color-im-panel)',
+                        fontSize: 12,
+                        color: 'var(--color-im-muted)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8,
+                      }}
+                    >
+                      <AlertTriangle className="h-4 w-4" />
+                      <span>
+                        Reference scan did not finish in time. Hard delete is
+                        disabled for safety. Try fewer selected records or
+                        retry.
+                      </span>
+                    </div>
+                  )}
+                  {!deletePreview.scan_timed_out &&
+                    !deletePreview.can_hard_delete && (
+                      <div
+                        style={{
+                          padding: '8px 12px',
+                          border: '1px solid var(--color-im-rule)',
+                          background: 'var(--color-im-panel)',
+                          fontSize: 12,
+                          color: 'var(--color-im-muted)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        <AlertTriangle className="h-4 w-4" />
+                        <span>This data is referenced in other modules.</span>
+                      </div>
+                    )}
+                  {!deletePreview.scan_timed_out &&
+                  deletePreview.dependency_summary.length > 0 ? (
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 500 }}>
+                        Referenced In:
+                      </p>
+                      <ul
+                        style={{ marginTop: 4, paddingLeft: 20, fontSize: 12 }}
+                      >
+                        {deletePreview.dependency_summary.map(d => (
+                          <li key={d.table}>
+                            {formatTableLabel(d.table)}: {d.total_references}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : !deletePreview.scan_timed_out ? (
+                    <p style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
+                      No foreign key references from other tables were found for
+                      the selected rows.
+                    </p>
+                  ) : null}
+                  {deleteImpactPreview && (
+                    <div
+                      style={{
+                        border: '1px solid var(--color-im-rule)',
+                        padding: 12,
+                        fontSize: 12,
+                      }}
+                    >
+                      <p style={{ fontWeight: 500 }}>
+                        Total records affected (including dependencies):{' '}
+                        {deleteImpactPreview.total_with_dependencies.toLocaleString()}
+                      </p>
+                      <ul
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 8,
+                          paddingLeft: 20,
+                        }}
+                      >
+                        {deleteImpactPreview.by_table.slice(0, 6).map(row => (
+                          <li key={row.table}>
+                            {formatTableLabel(row.table)}:{' '}
+                            {row.records.toLocaleString()}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                  {deleteImpactPreview &&
+                    deleteImpactPreview.total_with_dependencies > 5000 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            padding: '8px 12px',
+                            border: '1px solid var(--color-im-rule)',
+                            background: 'var(--color-im-panel)',
+                            fontSize: 12,
+                            color: 'var(--color-im-muted)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          <AlertTriangle className="h-4 w-4" />
+                          <span>
+                            This operation will delete{' '}
+                            {deleteImpactPreview.total_with_dependencies.toLocaleString()}{' '}
+                            records including dependencies.
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4,
+                          }}
+                        >
+                          <p className="im-field-label">
+                            Type DELETE to confirm
+                          </p>
+                          <input
+                            id="hard-delete-confirm"
+                            className="im-input"
+                            value={hardDeleteConfirmInput}
+                            onChange={e =>
+                              setHardDeleteConfirmInput(e.target.value)
+                            }
+                            placeholder="DELETE"
+                          />
+                        </div>
+                      </div>
+                    )}
+                </div>
+              )
             )}
-            {deletePreview && (
-              <Button
-                variant="destructive"
-                disabled={pinLockActive}
-                onClick={async () => {
-                  const totalAffected =
-                    deleteImpactPreview?.total_with_dependencies ??
-                    totalSelectedRecords;
-                  const requiresPin =
-                    !!pinSettings?.enabled &&
-                    !!pinSettings?.hasPin &&
-                    totalAffected >= (pinSettings?.threshold ?? 10);
-                  if (pinLockActive) {
-                    toast.error(
-                      'Too many incorrect attempts. Try again later.'
-                    );
-                    setPinDialogOpen(true);
-                    return;
-                  }
-                  if (requiresPin && !pinVerifiedForCurrentPreview) {
-                    setPinDialogOpen(true);
-                    return;
-                  }
-                  if (
-                    deleteImpactPreview &&
-                    deleteImpactPreview.total_with_dependencies > 5000 &&
-                    hardDeleteConfirmInput !== 'DELETE'
-                  ) {
-                    toast.error(
-                      'Type DELETE exactly to confirm this large hard delete operation.'
-                    );
-                    return;
-                  }
-                  const ok = await confirmDestructive(
-                    deleteImpactPreview &&
-                      deleteImpactPreview.total_with_dependencies > 5000
-                      ? `This operation will delete ${deleteImpactPreview.total_with_dependencies.toLocaleString()} records including dependencies. Continue?`
-                      : `Permanently delete ${totalSelectedRecords} record(s)? This cannot be undone.`
-                  );
-                  if (!ok) {
-                    return;
-                  }
-                  logInfo(
-                    `Hard delete confirmation accepted for table=${selectedTable} affected=${deleteImpactPreview?.total_with_dependencies ?? totalSelectedRecords}`,
-                    'delete'
-                  );
+            <DialogFooter style={{ flexDirection: 'column', gap: 8 }}>
+              <button
+                type="button"
+                className="im-btn"
+                onClick={() => {
                   setDeletePreviewOpen(false);
                   setDeletePreview(null);
                   setDeleteImpactPreview(null);
                   setHardDeleteConfirmInput('');
-                  setPinVerifiedForCurrentPreview(false);
-                  void executeBulkDelete('hard');
                 }}
               >
-                Hard Delete
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+                Cancel
+              </button>
+              {deletePreview && !deletePreview.can_hard_delete && (
+                <button
+                  type="button"
+                  className="im-btn im-btn--primary"
+                  onClick={async () => {
+                    setDeletePreviewOpen(false);
+                    setDeletePreview(null);
+                    setBulkDeleteType('soft');
+                    const ok = await confirmDestructive(
+                      `Soft delete ${totalSelectedRecords} record(s)?`
+                    );
+                    if (ok) {
+                      void executeBulkDelete('soft');
+                    }
+                  }}
+                >
+                  Soft Delete Instead
+                </button>
+              )}
+              {deletePreview && (
+                <button
+                  type="button"
+                  className="im-btn im-btn--danger"
+                  disabled={pinLockActive}
+                  onClick={async () => {
+                    const totalAffected =
+                      deleteImpactPreview?.total_with_dependencies ??
+                      totalSelectedRecords;
+                    const requiresPin =
+                      !!pinSettings?.enabled &&
+                      !!pinSettings?.hasPin &&
+                      totalAffected >= (pinSettings?.threshold ?? 10);
+                    if (pinLockActive) {
+                      toast.error(
+                        'Too many incorrect attempts. Try again later.'
+                      );
+                      setPinDialogOpen(true);
+                      return;
+                    }
+                    if (requiresPin && !pinVerifiedForCurrentPreview) {
+                      setPinDialogOpen(true);
+                      return;
+                    }
+                    if (
+                      deleteImpactPreview &&
+                      deleteImpactPreview.total_with_dependencies > 5000 &&
+                      hardDeleteConfirmInput !== 'DELETE'
+                    ) {
+                      toast.error(
+                        'Type DELETE exactly to confirm this large hard delete operation.'
+                      );
+                      return;
+                    }
+                    const ok = await confirmDestructive(
+                      deleteImpactPreview &&
+                        deleteImpactPreview.total_with_dependencies > 5000
+                        ? `This operation will delete ${deleteImpactPreview.total_with_dependencies.toLocaleString()} records including dependencies. Continue?`
+                        : `Permanently delete ${totalSelectedRecords} record(s)? This cannot be undone.`
+                    );
+                    if (!ok) {
+                      return;
+                    }
+                    logInfo(
+                      `Hard delete confirmation accepted for table=${selectedTable} affected=${deleteImpactPreview?.total_with_dependencies ?? totalSelectedRecords}`,
+                      'delete'
+                    );
+                    setDeletePreviewOpen(false);
+                    setDeletePreview(null);
+                    setDeleteImpactPreview(null);
+                    setHardDeleteConfirmInput('');
+                    setPinVerifiedForCurrentPreview(false);
+                    void executeBulkDelete('hard');
+                  }}
+                >
+                  Hard Delete
+                </button>
+              )}
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
-      {(bulkDeleteInProgress || bulkDeleteTotalCount > 0) && (
-        <div
-          className="bg-background/95 supports-backdrop-filter:bg-background/80 z-100 fixed inset-x-0 bottom-0 border-t p-3 shadow-lg backdrop-blur"
-          role="status"
-          aria-live="polite"
-        >
-          <div className="container mx-auto space-y-2">
-            <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
-              <span>
-                {bulkDeleteProcessedCount === 0
-                  ? 'Deleting records...'
-                  : `Deleting records: ${bulkDeleteProcessedCount.toLocaleString()} / ${bulkDeleteTotalCount.toLocaleString()} (Batch ${bulkDeleteCurrentBatch} of ${bulkDeleteTotalBatches})`}
-              </span>
-              {bulkDeleteRetryHint ? (
-                <span className="text-amber-600 dark:text-amber-500">
-                  {bulkDeleteRetryHint}
+        {(bulkDeleteInProgress || bulkDeleteTotalCount > 0) && (
+          <div
+            style={{
+              background: 'var(--color-im-panel)',
+              position: 'fixed',
+              inset: '0 0 auto 0',
+              borderTop: '1px solid var(--color-im-rule)',
+              padding: 12,
+              boxShadow: '0 -2px 8px rgba(0,0,0,0.4)',
+              zIndex: 100,
+            }}
+            role="status"
+            aria-live="polite"
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 8,
+                  fontSize: 12,
+                }}
+              >
+                <span>
+                  {bulkDeleteProcessedCount === 0
+                    ? 'Deleting records...'
+                    : `Deleting records: ${bulkDeleteProcessedCount.toLocaleString()} / ${bulkDeleteTotalCount.toLocaleString()} (Batch ${bulkDeleteCurrentBatch} of ${bulkDeleteTotalBatches})`}
                 </span>
-              ) : null}
+                {bulkDeleteRetryHint ? (
+                  <span style={{ color: 'var(--color-im-accent)' }}>
+                    {bulkDeleteRetryHint}
+                  </span>
+                ) : null}
+              </div>
+              <div style={{ height: 4, background: 'var(--color-im-rule)' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${bulkDeleteTotalCount > 0 ? Math.min(100, (bulkDeleteProcessedCount / bulkDeleteTotalCount) * 100) : 0}%`,
+                    background: 'var(--color-im-accent)',
+                    transition: 'width 0.2s',
+                  }}
+                />
+              </div>
             </div>
-            <Progress
-              value={
-                bulkDeleteTotalCount > 0
-                  ? Math.min(
-                      100,
-                      (bulkDeleteProcessedCount / bulkDeleteTotalCount) * 100
-                    )
-                  : 0
-              }
-            />
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

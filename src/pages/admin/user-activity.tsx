@@ -1,24 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   fetchUserActivityLogs,
   type UserActivityAuditLog,
 } from '@/lib/user-activity-audit';
 import { useUser, useHasPermission } from '@/lib/user-context';
+import { AppBar } from '@/components/shared/im';
 
 function UserActivityDetailsCell({ raw }: { raw: string | null }) {
   if (!raw) return <>—</>;
@@ -46,7 +34,7 @@ export default function AdminUserActivityPage() {
   const { user } = useUser();
   const isAdmin = useHasPermission('admin.user_activity');
 
-  const [pageSize, setPageSize] = useState(50);
+  const [pageSize, setPageSize] = useState(10);
   const [pageIndex, setPageIndex] = useState(0);
   const [rows, setRows] = useState<UserActivityAuditLog[]>([]);
   const [loading, setLoading] = useState(false);
@@ -82,138 +70,265 @@ export default function AdminUserActivityPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          User Activity Audit Log
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Audit trail from{' '}
-          <code className="text-xs">user_activity_audit_logs</code>— tracks
-          important user and system actions. Paged by newest first.
-        </p>
-      </div>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Administration', 'User Activity']} />
+      <div
+        className="im-dashboard-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+      >
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--color-im-text)',
+              fontFamily: 'var(--font-im-sans)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            User Activity Audit Log
+          </h1>
+          <p
+            style={{
+              margin: '3px 0 0',
+              fontSize: 11.5,
+              color: 'var(--color-im-faint)',
+            }}
+          >
+            Audit trail from{' '}
+            <code style={{ fontSize: 11 }}>user_activity_audit_logs</code> —
+            tracks important user and system actions. Paged by newest first.
+          </p>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Pagination</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="al-page-size">Page size</Label>
-            <Input
-              id="al-page-size"
-              type="number"
-              min={1}
-              max={2000}
-              value={pageSize}
-              onChange={e => {
-                setPageSize(
-                  Math.min(2000, Math.max(1, Number(e.target.value) || 50))
-                );
-                setPageIndex(0);
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Pagination</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label htmlFor="al-page-size" className="im-field-label">
+                Page size
+              </label>
+              <input
+                id="al-page-size"
+                className="im-input"
+                type="number"
+                min={1}
+                max={2000}
+                value={pageSize}
+                onChange={e => {
+                  setPageSize(
+                    Math.min(2000, Math.max(1, Number(e.target.value) || 50))
+                  );
+                  setPageIndex(0);
+                }}
+              />
+            </div>
+            <div
+              style={{
+                gridColumn: 'span 3',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 8,
               }}
-            />
+            >
+              <button
+                type="button"
+                className="im-btn im-btn--sm"
+                onClick={() => setPageIndex(i => Math.max(0, i - 1))}
+                disabled={loading || pageIndex === 0}
+              >
+                Previous
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--sm"
+                onClick={() => setPageIndex(i => i + 1)}
+                disabled={loading || rows.length < pageSize}
+              >
+                Next
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void load()}
+                disabled={loading}
+              >
+                {loading ? 'Loading…' : 'Refresh page'}
+              </button>
+              <span className="im-badge is-neutral">
+                Page {pageIndex + 1} · {rows.length} row(s) this page
+              </span>
+            </div>
           </div>
-          <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPageIndex(i => Math.max(0, i - 1))}
-              disabled={loading || pageIndex === 0}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPageIndex(i => i + 1)}
-              disabled={loading || rows.length < pageSize}
-            >
-              Next
-            </Button>
-            <Button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading}
-            >
-              {loading ? 'Loading…' : 'Refresh page'}
-            </Button>
-            <Badge variant="secondary">
-              Page {pageIndex + 1} · {rows.length} row(s) this page
-            </Badge>
+        </div>
+
+        {error && (
+          <p
+            style={{ color: 'var(--color-im-bad)', fontSize: 12.5 }}
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Log entries</span>
           </div>
-        </CardContent>
-      </Card>
-
-      {error && (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Log entries</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="whitespace-nowrap">Timestamp</TableHead>
-                <TableHead>User ID</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Entity Type</TableHead>
-                <TableHead>Entity ID</TableHead>
-                <TableHead>Details / correlation</TableHead>
-                <TableHead>Severity</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-muted-foreground text-center"
-                  >
-                    No rows. Adjust filters and apply.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs">
-                      {r.timestamp}
-                    </TableCell>
-                    <TableCell className="max-w-[140px] truncate text-xs">
-                      {r.userId || 'System'}
-                    </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-xs">
-                      {r.actionName}
-                    </TableCell>
-                    <TableCell className="max-w-[120px] truncate text-xs">
-                      {r.entityType || '-'}
-                    </TableCell>
-                    <TableCell className="max-w-[140px] truncate text-xs">
-                      {r.entityId || '-'}
-                    </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-xs">
-                      <UserActivityDetailsCell raw={r.detailsJson} />
-                    </TableCell>
-                    <TableCell className="max-w-[100px] truncate text-xs">
-                      {r.severity ?? 'INFO'}
-                    </TableCell>
-                    <TableCell className="max-w-[120px] truncate text-xs">
-                      {r.status}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+          <div className="im-section__body" style={{ padding: 0 }}>
+            <div className="im-table-scroll">
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th" style={{ whiteSpace: 'nowrap' }}>
+                      Timestamp
+                    </th>
+                    <th className="im-th">User ID</th>
+                    <th className="im-th">Action</th>
+                    <th className="im-th">Entity Type</th>
+                    <th className="im-th">Entity ID</th>
+                    <th className="im-th">Details / correlation</th>
+                    <th className="im-th">Severity</th>
+                    <th className="im-th">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr className="im-tr">
+                      <td
+                        className="im-td"
+                        colSpan={8}
+                        style={{
+                          textAlign: 'center',
+                          color: 'var(--color-im-muted)',
+                        }}
+                      >
+                        No rows. Adjust filters and apply.
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((r, i) => (
+                      <tr
+                        key={r.id}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                      >
+                        <td
+                          className="im-td"
+                          style={{ whiteSpace: 'nowrap', fontSize: 11.5 }}
+                        >
+                          {r.timestamp}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 140,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.userId || 'System'}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 160,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.actionName}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 120,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.entityType || '-'}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 140,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.entityId || '-'}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 280,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          <UserActivityDetailsCell raw={r.detailsJson} />
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 100,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.severity ?? 'INFO'}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 120,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.status}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

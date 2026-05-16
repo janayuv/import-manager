@@ -1,0 +1,357 @@
+/* src/components/layout/app-sidebar.css
+ * Industrial Console theme for AppSidebar.
+ * All variables are scoped to .im-sidebar so they don't leak into the rest of the app.
+ * If you prefer Tailwind 4 @theme tokens, lift these into your global stylesheet.
+ */
+
+.im-sidebar {
+  /* tokens */
+  --im-panel: #101010;
+  --im-text: #efede8;
+  --im-muted: #8c8a82;
+  --im-faint: #56544e;
+  --im-rule: #1f1e1a;
+  --im-hover: #181715;
+  --im-active: #1c1a14;
+  --im-subBg: #0c0b09;
+  --im-accent: #e8a23a;
+  --im-good: #5fcb7d;
+  --im-mono: ui-monospace, 'JetBrains Mono', 'Menlo', monospace;
+  --im-w-expanded: 240px;
+  --im-w-collapsed: 52px;
+
+  width: var(--im-w-expanded);
+  height: 100%;
+  background: var(--im-panel);
+  color: var(--im-text);
+  border-right: 1px solid var(--im-rule);
+  display: flex;
+  flex-direction: column;
+  font-family: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  transition: width 0.18s ease;
+  overflow: hidden;
+  user-select: none;
+}
+
+.im-sidebar[data-collapsed='true'] {
+  width: var(--im-w-collapsed);
+}
+
+/* ----- Header -------------------------------------------------------------- */
+.im-sb-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border-bottom: 1px solid var(--im-rule);
+}
+.im-sidebar[data-collapsed='true'] .im-sb-header {
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.im-sb-logo {
+  width: 30px;
+  height: 30px;
+  background: var(--im-accent);
+  color: #100c04;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--im-mono);
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  flex-shrink: 0;
+}
+.im-sb-title {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.15;
+}
+.im-sb-title-main {
+  font-family: var(--im-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.im-sb-title-sub {
+  font-family: var(--im-mono);
+  font-size: 10px;
+  color: var(--im-faint);
+  margin-top: 2px;
+}
+
+/* ----- Status strip -------------------------------------------------------- */
+.im-sb-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--im-rule);
+  font-family: var(--im-mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--im-muted);
+}
+.im-sidebar[data-collapsed='true'] .im-sb-status {
+  justify-content: center;
+  padding: 7px 0;
+}
+
+.im-sb-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--im-good);
+  box-shadow: 0 0 6px var(--im-good);
+}
+.im-sb-status-meta {
+  margin-left: auto;
+  color: var(--im-faint);
+}
+
+/* ----- Nav ----------------------------------------------------------------- */
+.im-sb-nav {
+  flex: 1;
+  overflow-y: auto;
+  padding-bottom: 8px;
+}
+
+.im-sb-group {
+  padding: 6px 0;
+  border-top: 1px solid var(--im-rule);
+  margin-top: 6px;
+}
+.im-sb-group[data-first='true'] {
+  border-top: none;
+  margin-top: 0;
+  padding-top: 8px;
+}
+
+.im-sb-group-label {
+  padding: 4px 14px 6px;
+  font-family: var(--im-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--im-faint);
+}
+
+.im-sb-row {
+  display: flex;
+  flex-direction: column;
+}
+
+.im-sb-link {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 10px 7px 12px;
+  border-left: 2px solid transparent;
+  color: var(--im-muted);
+  background: transparent;
+  text-decoration: none;
+  font-size: 12.5px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.12s;
+}
+.im-sidebar[data-collapsed='true'] .im-sb-link {
+  justify-content: center;
+  padding: 9px 0;
+}
+.im-sb-link:hover {
+  background: var(--im-hover);
+  color: var(--im-text);
+}
+.im-sb-link.is-active {
+  background: var(--im-active);
+  color: var(--im-text);
+  border-left-color: var(--im-accent);
+  font-weight: 600;
+}
+
+.im-sb-icon {
+  flex-shrink: 0;
+}
+.im-sb-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.im-sb-badge {
+  font-family: var(--im-mono);
+  font-size: 10px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 1px 5px;
+  background: var(--im-accent);
+  color: #1a1407;
+}
+
+.im-sb-chevron {
+  color: var(--im-faint);
+  transition: transform 0.18s ease;
+}
+.im-sb-chevron[data-open='true'] {
+  transform: rotate(90deg);
+}
+
+/* Prevent any submenu from being visible or interactive during the width
+ * transition or from any stale React render while the sidebar is collapsed. */
+.im-sidebar[data-collapsed='true'] .im-sb-submenu {
+  display: none;
+  pointer-events: none;
+}
+
+/* ----- Submenu ------------------------------------------------------------- */
+.im-sb-submenu {
+  background: var(--im-subBg);
+  border-top: 1px solid var(--im-rule);
+  border-bottom: 1px solid var(--im-rule);
+}
+
+.im-sb-sublink {
+  position: relative;
+  display: block;
+  padding: 6px 10px 6px 42px;
+  font-size: 12px;
+  color: var(--im-muted);
+  text-decoration: none;
+}
+.im-sb-sublink:hover {
+  color: var(--im-text);
+  background: var(--im-hover);
+}
+.im-sb-sublink.is-active {
+  color: var(--im-text);
+  font-weight: 500;
+}
+
+.im-sb-subdot {
+  position: absolute;
+  left: 30px;
+  top: 13px;
+  width: 4px;
+  height: 4px;
+  background: var(--im-faint);
+}
+.im-sb-sublink.is-active .im-sb-subdot {
+  background: var(--im-accent);
+}
+
+/* ----- Footer -------------------------------------------------------------- */
+.im-sb-footer {
+  border-top: 1px solid var(--im-rule);
+  background: var(--im-subBg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.im-sidebar[data-collapsed='true'] .im-sb-footer {
+  padding: 10px 0;
+  align-items: center;
+}
+
+.im-sb-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.im-sidebar[data-collapsed='true'] .im-sb-user {
+  justify-content: center;
+}
+
+.im-sb-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #1f1e1a;
+  color: var(--im-accent);
+  border: 1px solid var(--im-rule);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--im-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+}
+.im-sb-user-text {
+  flex: 1;
+  min-width: 0;
+  line-height: 1.2;
+}
+.im-sb-user-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--im-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.im-sb-user-email {
+  font-family: var(--im-mono);
+  font-size: 10.5px;
+  color: var(--im-muted);
+  letter-spacing: 0.02em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.im-sb-user-more {
+  background: transparent;
+  border: 1px solid var(--im-rule);
+  color: var(--im-muted);
+  padding: 4px 6px;
+  cursor: pointer;
+}
+.im-sb-user-more:hover {
+  color: var(--im-text);
+  border-color: var(--im-faint);
+}
+
+.im-sb-collapse-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--im-rule);
+  color: var(--im-muted);
+  padding: 5px 8px;
+  font-family: var(--im-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  cursor: pointer;
+}
+.im-sb-collapse-btn:hover {
+  color: var(--im-text);
+  border-color: var(--im-faint);
+}
+.im-sidebar[data-collapsed='true'] .im-sb-collapse-btn {
+  padding: 5px 7px;
+}
+
+/* ----- Scrollbar (Windows-friendly) --------------------------------------- */
+.im-sb-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.im-sb-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.im-sb-nav::-webkit-scrollbar-thumb {
+  background: var(--im-rule);
+  border-radius: 0;
+}
+.im-sb-nav::-webkit-scrollbar-thumb:hover {
+  background: var(--im-faint);
+}

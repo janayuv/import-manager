@@ -11,18 +11,6 @@ import {
   subMonths,
 } from 'date-fns';
 import {
-  AlertTriangle,
-  Calendar,
-  CheckCircle,
-  DollarSign,
-  Factory,
-  Inbox,
-  Package,
-  RefreshCw,
-  Ship,
-  TrendingUp,
-} from 'lucide-react';
-import {
   Bar,
   BarChart,
   Cell,
@@ -53,36 +41,10 @@ import { WorkflowHealthPanel } from '@/components/dashboard/WorkflowHealthPanel'
 import { WorkflowAlertSignalsPanel } from '@/components/dashboard/WorkflowAlertSignalsPanel';
 import { WorkflowObservabilityAdminCard } from '@/components/dashboard/WorkflowObservabilityAdminCard';
 import { getExceptionNavigationTarget } from '@/lib/exception-navigation';
-
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { KPICard } from '@/components/ui/kpi-card';
-import {
-  LayoutControls,
-  ResizableLayout,
-} from '@/components/ui/resizable-layout';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { AppBar, KpiTile } from '@/components/shared/im';
 import { formatDateForDisplay } from '@/lib/date-format';
 import { ipcErrorMessage } from '@/lib/ipc-error';
 import { useUser, useHasPermission } from '@/lib/user-context';
-import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type {
   DashboardMetricsFilters,
   DashboardMetricsResponse,
@@ -95,32 +57,18 @@ import type { Shipment as ShipmentTs } from '@/types/shipment';
 import type { Supplier } from '@/types/supplier';
 
 const LoadingSkeleton = () => (
-  <div className="space-y-6">
-    <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+  <div
+    className="im-dashboard-body"
+    style={{ gap: 16, display: 'flex', flexDirection: 'column' }}
+  >
+    <div className="im-kpi-grid">
       {Array.from({ length: 4 }).map((_, i) => (
-        <Card key={i}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-5 w-5" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-8 w-16" />
-          </CardContent>
-        </Card>
+        <div key={i} className="im-kpi" style={{ minHeight: 80 }} />
       ))}
     </div>
-    <div className="grid gap-6 md:grid-cols-2">
-      {Array.from({ length: 2 }).map((_, i) => (
-        <Card key={i}>
-          <CardHeader>
-            <Skeleton className="h-6 w-32" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-64 w-full" />
-          </CardContent>
-        </Card>
-      ))}
-    </div>
+    {Array.from({ length: 2 }).map((_, i) => (
+      <div key={i} className="im-section" style={{ height: 200 }} />
+    ))}
   </div>
 );
 
@@ -303,29 +251,6 @@ function toTrendLinePoints(points: KpiHistoryDayPoint[]): KpiTrendLinePoint[] {
   }));
 }
 
-function snapshotDirection(
-  values: number[],
-  eps: number
-): 'up' | 'down' | 'flat' {
-  if (values.length < 2) return 'flat';
-  const latest = values[values.length - 1];
-  const prev = values[values.length - 2];
-  if (latest > prev + eps) return 'up';
-  if (latest < prev - eps) return 'down';
-  return 'flat';
-}
-
-function trendLabel(dir: 'up' | 'down' | 'flat'): string {
-  switch (dir) {
-    case 'up':
-      return 'Increasing vs prior snapshot';
-    case 'down':
-      return 'Decreasing vs prior snapshot';
-    default:
-      return 'Stable vs prior snapshot';
-  }
-}
-
 function KpiHistoryChartTooltip({
   active,
   payload,
@@ -339,8 +264,20 @@ function KpiHistoryChartTooltip({
   const d = payload[0].payload;
   if (!d) return null;
   return (
-    <div className="bg-popover text-popover-foreground rounded-md border p-3 text-xs shadow-md">
-      <p className="mb-1 font-medium">{formatDateForDisplay(d.dateRaw)}</p>
+    <div
+      className="border p-3 text-xs"
+      style={{
+        background: '#101010',
+        borderColor: '#1F1E1A',
+        borderRadius: 0,
+        color: '#EFEDE8',
+        fontFamily: '"IBM Plex Sans","Inter",sans-serif',
+        fontSize: 12,
+      }}
+    >
+      <p className="mb-1 font-medium" style={{ color: '#8C8A82' }}>
+        {formatDateForDisplay(d.dateRaw)}
+      </p>
       <p>Shipments: {d.shipments.toLocaleString()}</p>
       <p>
         Duty: {sym}
@@ -356,6 +293,27 @@ function KpiHistoryChartTooltip({
 
 const DASHBOARD_EXPORT_ROW_CAP = 50_000;
 const DASHBOARD_FILTER_STORAGE_KEY = 'im.dashboard.filters.v1';
+
+/** Recharts + tooltip styling aligned with Industrial Console (MASTER_SPEC §3). */
+const IM_CHART = {
+  colors: {
+    primary: '#E8A23A',
+    secondary: '#5FCB7D',
+    tertiary: '#F87171',
+    info: '#60A5FA',
+    barShipments: '#E8A23A',
+    barValue: '#5FCB7D',
+    barDutySavings: '#FB923C',
+    pie: ['#E8A23A', '#5FCB7D', '#F87171', '#60A5FA', '#FB923C'],
+  },
+  axis: {
+    tick: {
+      fill: '#56544E',
+      fontSize: 11,
+      fontFamily: 'Consolas, Courier New, monospace',
+    },
+  },
+} as const;
 
 function exportDashboardCsv(
   m: DashboardMetricsResponse,
@@ -423,8 +381,6 @@ function exportDashboardCsv(
 }
 
 const DashboardPage = () => {
-  const { getTextClass, getSpacingClass, getGridColumns } =
-    useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const { user } = useUser();
   const canViewAdminPanels = useHasPermission('admin.activity_log');
@@ -433,10 +389,6 @@ const DashboardPage = () => {
   const [timeframe, setTimeframe] = useState<Timeframe>('monthly');
   /** Empty = all currencies in client-side charts; metrics API uses the same when unset. */
   const [chartCurrency, setChartCurrency] = useState('');
-  const [layoutDirection, setLayoutDirection] = useState<
-    'horizontal' | 'vertical'
-  >('horizontal');
-
   const queryClient = useQueryClient();
   const [historyTimeRange, setHistoryTimeRange] =
     useState<KpiHistoryTimeRange>('90d');
@@ -700,26 +652,6 @@ const DashboardPage = () => {
     [filteredHistoryPoints]
   );
 
-  const historyTrendShipments = useMemo(() => {
-    const v = filteredHistoryPoints.map(p => p.totalShipments ?? 0);
-    const d = snapshotDirection(v, 0.5);
-    return { direction: d, label: trendLabel(d) };
-  }, [filteredHistoryPoints]);
-
-  const historyTrendDuty = useMemo(() => {
-    const v = filteredHistoryPoints.map(p => p.dutyTotal ?? 0);
-    const d = snapshotDirection(v, 1);
-    return { direction: d, label: trendLabel(d) };
-  }, [filteredHistoryPoints]);
-
-  const historyTrendExpenses = useMemo(() => {
-    const v = filteredHistoryPoints.map(p => p.expenseTotal ?? 0);
-    const d = snapshotDirection(v, 1);
-    return { direction: d, label: trendLabel(d) };
-  }, [filteredHistoryPoints]);
-
-  const showHistoryTrend = filteredHistoryPoints.length >= 2;
-
   const freshness = useMemo(
     () => freshnessFromSnapshot(metrics?.snapshotAt),
     [metrics?.snapshotAt]
@@ -835,17 +767,6 @@ const DashboardPage = () => {
     }
   };
 
-  const logShipmentDrilldown = (target: string, label: string) => {
-    void logDashboardActivity({
-      userId: user?.id || 'anonymous',
-      actionType: 'shipment_drilldown_opened',
-      details: JSON.stringify({ label }),
-      moduleName: 'Dashboard',
-      navigationTarget: target,
-      recordReference: label,
-    });
-  };
-
   const lastActivitySummary = useMemo(() => {
     const byType = (t: string) =>
       activityRows.find(r => r.actionType === t)?.timestamp;
@@ -866,219 +787,299 @@ const DashboardPage = () => {
   const showExpenses = moduleFilter === 'all' || moduleFilter === 'expenses';
 
   if (loading || !metrics) {
-    return <LoadingSkeleton />;
+    return (
+      <div data-testid="dashboard-page" className="im-page">
+        <AppBar crumbs={['Import Manager', 'Dashboard']} />
+        <div className="im-dashboard-body">
+          <LoadingSkeleton />
+        </div>
+      </div>
+    );
   }
 
   const fyYears = [2023, 2024, 2025, 2026, 2027];
 
   return (
-    <div
-      data-testid="dashboard-page"
-      className={`container mx-auto space-y-6 p-6 ${getSpacingClass()}`}
-    >
+    <div data-testid="dashboard-page" className="im-page">
+      <AppBar crumbs={['Import Manager', 'Dashboard']} />
       <div
-        className={`flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between ${getSpacingClass()}`}
+        style={{
+          padding: '16px 24px 14px',
+          borderBottom: '1px solid var(--color-im-rule)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 16,
+          flexWrap: 'wrap',
+        }}
       >
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">Dashboard</h1>
-          <p className={`${getTextClass()} text-muted-foreground`}>
-            Operational overview across modules — aggregates match filtered
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--color-im-text)',
+            }}
+          >
+            Dashboard
+          </h1>
+          <p
+            style={{
+              margin: '3px 0 0',
+              fontSize: 11.5,
+              color: 'var(--color-im-faint)',
+            }}
+          >
+            Operational overview
+            {freshness ? ` · ${freshness}` : ''} — aggregates match filtered
             scope; duty totals align with the consolidated report view.
           </p>
-          {freshness && (
-            <p className="text-muted-foreground mt-1 text-sm">{freshness}</p>
-          )}
         </div>
         <div
-          className={`flex flex-wrap items-center gap-2 ${getSpacingClass()}`}
+          style={{
+            marginLeft: 'auto',
+            display: 'flex',
+            gap: 8,
+            flexWrap: 'wrap',
+            alignItems: 'center',
+          }}
         >
-          <Button variant="outline" size="sm" onClick={handleExportCsv}>
+          <div className="im-select-wrap" style={{ width: 220 }}>
+            <select
+              className="im-select"
+              value={moduleFilter}
+              onChange={e => setModuleFilter(e.target.value as ModuleFilter)}
+            >
+              <option value="all">Include all modules</option>
+              <option value="shipment-invoice">Shipment &amp; Invoice</option>
+              <option value="items">Items</option>
+              <option value="expenses">Expenses</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={handleExportCsv}
+          >
             Export CSV
-          </Button>
-          <Button
-            variant="default"
-            size="sm"
+          </button>
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
             onClick={handleRefresh}
-            useAccentColor
           >
-            <RefreshCw className="mr-2 h-4 w-4" />
-            Refresh
-          </Button>
-          <Select
-            value={moduleFilter}
-            onValueChange={(v: ModuleFilter) => setModuleFilter(v)}
-          >
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Module" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Include all modules</SelectItem>
-              <SelectItem value="shipment-invoice">
-                Shipment & Invoice
-              </SelectItem>
-              <SelectItem value="items">Items</SelectItem>
-              <SelectItem value="expenses">Expenses</SelectItem>
-            </SelectContent>
-          </Select>
+            ↺ Refresh
+          </button>
         </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 lg:flex-row lg:flex-wrap lg:items-end">
-          <div className="space-y-1">
-            <label className="text-muted-foreground text-xs">Start date</label>
-            <Input
-              type="date"
-              value={filterStart}
-              onChange={e => setFilterStart(e.target.value)}
-            />
+      <div
+        className="im-dashboard-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Filters</span>
           </div>
-          <div className="space-y-1">
-            <label className="text-muted-foreground text-xs">End date</label>
-            <Input
-              type="date"
-              value={filterEnd}
-              onChange={e => setFilterEnd(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <label className="text-muted-foreground text-xs">Supplier</label>
-            <Select
-              value={filterSupplierId || 'all'}
-              onValueChange={v => setFilterSupplierId(v === 'all' ? '' : v)}
+          <div
+            className="im-section__body"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '12px 20px',
+              alignItems: 'flex-end',
+            }}
+          >
+            <div>
+              <label className="im-field-label">Start date</label>
+              <input
+                type="date"
+                className="im-input"
+                value={filterStart}
+                onChange={e => setFilterStart(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">End date</label>
+              <input
+                type="date"
+                className="im-input"
+                value={filterEnd}
+                onChange={e => setFilterEnd(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">Supplier</label>
+              <div className="im-select-wrap" style={{ width: 200 }}>
+                <select
+                  className="im-select"
+                  value={filterSupplierId || 'all'}
+                  onChange={e =>
+                    setFilterSupplierId(
+                      e.target.value === 'all' ? '' : e.target.value
+                    )
+                  }
+                >
+                  <option value="all">All suppliers</option>
+                  {suppliers.map(s => (
+                    <option key={s.id} value={s.id}>
+                      {s.supplierName}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="im-field-label">Fiscal year</label>
+              <div className="im-select-wrap" style={{ width: 140 }}>
+                <select
+                  className="im-select"
+                  value={fiscalYear || 'none'}
+                  onChange={e =>
+                    setFiscalYear(
+                      e.target.value === 'none' ? '' : e.target.value
+                    )
+                  }
+                >
+                  <option value="none">Use dates above</option>
+                  {fyYears.map(y => (
+                    <option key={y} value={String(y)}>
+                      FY {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="im-field-label">FY start mo.</label>
+              <div className="im-select-wrap" style={{ width: 80 }}>
+                <select
+                  className="im-select"
+                  value={fiscalStartMonth}
+                  onChange={e => setFiscalStartMonth(e.target.value)}
+                >
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(
+                    m => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    )
+                  )}
+                </select>
+              </div>
+            </div>
+            <button
+              type="button"
+              className="im-btn im-btn--sm"
+              onClick={handleApplyFilters}
             >
-              <SelectTrigger className="w-[200px]">
-                <SelectValue placeholder="All suppliers" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All suppliers</SelectItem>
-                {suppliers.map(s => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.supplierName}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <label className="text-muted-foreground text-xs">Fiscal year</label>
-            <Select
-              value={fiscalYear || 'none'}
-              onValueChange={v => setFiscalYear(v === 'none' ? '' : v)}
+              Apply filters
+            </button>
+            <p
+              style={{
+                fontSize: 11.5,
+                color: 'var(--color-im-faint)',
+                maxWidth: 360,
+              }}
             >
-              <SelectTrigger className="w-[120px]">
-                <SelectValue placeholder="Calendar" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Use dates above</SelectItem>
-                {fyYears.map(y => (
-                  <SelectItem key={y} value={String(y)}>
-                    FY {y}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+              When a fiscal year is selected, leave start/end empty. Chart
+              currency scopes SQL metrics and client charts.
+            </p>
           </div>
-          <div className="space-y-1">
-            <label className="text-muted-foreground text-xs">
-              FY start mo.
-            </label>
-            <Select
-              value={fiscalStartMonth}
-              onValueChange={setFiscalStartMonth}
-            >
-              <SelectTrigger className="w-[100px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 12 }, (_, i) => String(i + 1)).map(m => (
-                  <SelectItem key={m} value={m}>
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <Button size="sm" variant="secondary" onClick={handleApplyFilters}>
-            Apply filters
-          </Button>
-          <p className="text-muted-foreground max-w-md text-xs">
-            When a fiscal year is selected, leave start/end empty so the FY
-            window applies. Chart currency (above) scopes SQL metrics and client
-            charts.
-          </p>
-        </CardContent>
-      </Card>
+        </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">
-            Your recent dashboard activity
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="text-muted-foreground space-y-1 text-sm">
-          <div>
-            Last dashboard view:{' '}
-            <span className="text-foreground font-medium">
-              {lastActivitySummary.lastDashboardView
-                ? formatDateForDisplay(
-                    lastActivitySummary.lastDashboardView.slice(0, 10)
-                  )
-                : '—'}
-            </span>
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Recent activity</span>
           </div>
-          <div>
-            Last CSV export:{' '}
-            <span className="text-foreground font-medium">
-              {lastActivitySummary.lastExport
-                ? formatDateForDisplay(
-                    lastActivitySummary.lastExport.slice(0, 10)
-                  )
-                : '—'}
-            </span>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+          >
+            <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+              Last dashboard view:{' '}
+              <span style={{ color: 'var(--color-im-text)', fontWeight: 500 }}>
+                {lastActivitySummary.lastDashboardView
+                  ? formatDateForDisplay(
+                      lastActivitySummary.lastDashboardView.slice(0, 10)
+                    )
+                  : '—'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+              Last CSV export:{' '}
+              <span style={{ color: 'var(--color-im-text)', fontWeight: 500 }}>
+                {lastActivitySummary.lastExport
+                  ? formatDateForDisplay(
+                      lastActivitySummary.lastExport.slice(0, 10)
+                    )
+                  : '—'}
+              </span>
+            </div>
+            <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+              Last exception opened:{' '}
+              <span style={{ color: 'var(--color-im-text)', fontWeight: 500 }}>
+                {lastActivitySummary.lastException
+                  ? formatDateForDisplay(
+                      lastActivitySummary.lastException.slice(0, 10)
+                    )
+                  : '—'}
+              </span>
+            </div>
           </div>
-          <div>
-            Last exception opened:{' '}
-            <span className="text-foreground font-medium">
-              {lastActivitySummary.lastException
-                ? formatDateForDisplay(
-                    lastActivitySummary.lastException.slice(0, 10)
-                  )
-                : '—'}
-            </span>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {(metrics.exceptions.length > 0 ||
-        metrics.documentCompliance.shipmentsMissingEta > 0) && (
-        <div className="grid gap-4 md:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Exceptions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-2">
-              {metrics.exceptions.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No open alerts.</p>
-              ) : (
-                metrics.exceptions.map(ex => (
-                  <div
-                    key={ex.exceptionType || ex.kind}
-                    className="flex items-center justify-between rounded-md border p-2 text-sm"
-                  >
-                    <div>
-                      <div className="font-medium">{ex.message}</div>
-                      <div className="text-muted-foreground text-xs">
-                        {ex.severity} · {ex.count} shipment(s)
-                        {ex.exceptionType ? ` · ${ex.exceptionType}` : ''}
+        {(metrics.exceptions.length > 0 ||
+          metrics.documentCompliance.shipmentsMissingEta > 0) && (
+          <div
+            style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
+          >
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Exceptions</span>
+              </div>
+              <div
+                className="im-section__body"
+                style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+              >
+                {metrics.exceptions.length === 0 ? (
+                  <p style={{ fontSize: 12.5, color: 'var(--color-im-faint)' }}>
+                    No open alerts.
+                  </p>
+                ) : (
+                  metrics.exceptions.map(ex => (
+                    <div
+                      key={ex.exceptionType || ex.kind}
+                      className="im-exception-row is-warning"
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <div
+                          style={{
+                            fontSize: 12.5,
+                            fontWeight: 500,
+                            color: 'var(--color-im-text)',
+                          }}
+                        >
+                          {ex.message}
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: 'var(--color-im-faint)',
+                          }}
+                        >
+                          {ex.severity} · {ex.count} shipment(s)
+                          {ex.exceptionType ? ` · ${ex.exceptionType}` : ''}
+                        </div>
                       </div>
-                    </div>
-                    <Button variant="outline" size="sm" asChild>
                       <Link
                         to={getExceptionNavigationTarget(ex)}
+                        className="im-btn im-btn--sm"
                         onClick={() => {
                           void logDashboardActivity({
                             userId: user?.id || 'anonymous',
@@ -1096,324 +1097,312 @@ const DashboardPage = () => {
                       >
                         Open
                       </Link>
-                    </Button>
-                  </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">
+                  // Document compliance
+                </span>
+              </div>
+              <div
+                className="im-section__body"
+                style={{ display: 'flex', flexDirection: 'column', gap: 6 }}
+              >
+                <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+                  Missing ETA:{' '}
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
+                    {metrics.documentCompliance.shipmentsMissingEta}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+                  Missing ETD:{' '}
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
+                    {metrics.documentCompliance.shipmentsMissingEtd}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+                  No BOE row:{' '}
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
+                    {metrics.documentCompliance.shipmentsWithoutBoeRow}
+                  </span>
+                </div>
+                <div style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+                  No expenses:{' '}
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
+                    {metrics.documentCompliance.shipmentsWithoutExpense}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Document compliance (preview)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground space-y-1 text-sm">
-              <div>
-                Missing ETA:{' '}
-                <span className="text-foreground font-medium">
-                  {metrics.documentCompliance.shipmentsMissingEta}
-                </span>
-              </div>
-              <div>
-                Missing ETD:{' '}
-                <span className="text-foreground font-medium">
-                  {metrics.documentCompliance.shipmentsMissingEtd}
-                </span>
-              </div>
-              <div>
-                No BOE row:{' '}
-                <span className="text-foreground font-medium">
-                  {metrics.documentCompliance.shipmentsWithoutBoeRow}
-                </span>
-              </div>
-              <div>
-                No expenses:{' '}
-                <span className="text-foreground font-medium">
-                  {metrics.documentCompliance.shipmentsWithoutExpense}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        {metrics && (
+          <div className="grid gap-4">
+            <WorkflowHealthPanel refreshKey={metrics.snapshotAt} />
+            <ExceptionOperationsPanel
+              workflow={metrics.erp?.exceptionWorkflow}
+              entityExceptions={metrics.erp?.entityExceptions ?? []}
+              userId={user?.id || 'anonymous'}
+              onRefresh={() => void dashboardQuery.refetch()}
+            />
+          </div>
+        )}
 
-      {metrics && (
-        <div className="grid gap-4">
-          <WorkflowHealthPanel refreshKey={metrics.snapshotAt} />
-          <ExceptionOperationsPanel
-            workflow={metrics.erp?.exceptionWorkflow}
-            entityExceptions={metrics.erp?.entityExceptions ?? []}
-            userId={user?.id || 'anonymous'}
-            onRefresh={() => void dashboardQuery.refetch()}
-          />
-        </div>
-      )}
-
-      {canViewAdminPanels && (
-        <div className="grid gap-4">
-          <WorkflowObservabilityAdminCard refreshKey={metrics?.snapshotAt} />
-          <WorkflowAlertSignalsPanel
-            callerRole={user?.role ?? 'Admin'}
-            refreshKey={metrics?.snapshotAt}
-          />
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
-              <AlertTriangle className="text-muted-foreground h-5 w-5" />
-              <CardTitle className="text-base">Operations center</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              <p className="text-muted-foreground mb-2">
-                Incident lifecycle, recovery correlation, and audit export live
-                in the dedicated operations view.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/admin/operations-center">
+        {canViewAdminPanels && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <WorkflowObservabilityAdminCard refreshKey={metrics?.snapshotAt} />
+            <WorkflowAlertSignalsPanel
+              callerRole={user?.role ?? 'Admin'}
+              refreshKey={metrics?.snapshotAt}
+            />
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Operations center</span>
+              </div>
+              <div className="im-section__body" style={{ fontSize: 12.5 }}>
+                <p style={{ color: 'var(--color-im-muted)', marginBottom: 8 }}>
+                  Incident lifecycle, recovery correlation, and audit export
+                  live in the dedicated operations view.
+                </p>
+                <Link
+                  to="/admin/operations-center"
+                  className="im-btn im-btn--sm"
+                >
                   Open operations center
                 </Link>
-              </Button>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader className="flex flex-row items-center gap-2 space-y-0 pb-2">
-              <Inbox className="text-muted-foreground h-5 w-5" />
-              <CardTitle className="text-base">Workflow inbox</CardTitle>
-            </CardHeader>
-            <CardContent className="text-sm">
-              <p className="text-muted-foreground mb-2">
-                As an admin, review consolidated duty / landed cost in reports.
-              </p>
-              <Button variant="outline" size="sm" asChild>
-                <Link to="/report">Open consolidated report</Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+              </div>
+            </div>
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Workflow inbox</span>
+              </div>
+              <div className="im-section__body" style={{ fontSize: 12.5 }}>
+                <p style={{ color: 'var(--color-im-muted)', marginBottom: 8 }}>
+                  As an admin, review consolidated duty / landed cost in
+                  reports.
+                </p>
+                <Link to="/report" className="im-btn im-btn--sm">
+                  Open consolidated report
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
 
-      {overdueCount > 0 && (
-        <Card className="border-amber-200 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/20">
-          <CardHeader>
-            <CardTitle className="text-base">Delay risk (preview)</CardTitle>
-          </CardHeader>
-          <CardContent className="text-sm">
-            {overdueCount} shipment(s) have ETA in the past and are not marked
-            delivered. Review ETAs and statuses on the shipment board.
-          </CardContent>
-        </Card>
-      )}
+        {overdueCount > 0 && (
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Delay risk</span>
+            </div>
+            <div className="im-section__body">
+              <div className="im-exception-row is-warning">
+                {overdueCount} shipment(s) have ETA in the past and are not
+                marked delivered. Review ETAs and statuses on the shipment
+                board.
+              </div>
+            </div>
+          </div>
+        )}
 
-      <div className={`grid gap-4 ${getGridColumns()}`}>
-        {showShipment && (
-          <Link to="/shipment" className="block">
-            <KPICard
-              title="Total Shipments"
+        <div className="im-kpi-grid">
+          {showShipment && (
+            <KpiTile
+              label="TOTAL SHIPMENTS"
               value={metrics.totalShipments}
-              description={kpiDesc('total_shipments')}
-              freshnessLabel={freshness}
-              historyTrend={
-                showHistoryTrend ? historyTrendShipments : undefined
-              }
-              icon={Ship}
-              variant="default"
+              sub={kpiDesc('total_shipments')}
+              link="/shipment"
             />
-          </Link>
-        )}
-        {showItems && (
-          <Link to="/invoice" className="block">
-            <KPICard
-              title="Total Items"
+          )}
+          {showItems && (
+            <KpiTile
+              label="TOTAL ITEMS"
               value={metrics.totalItems}
-              description={kpiDesc('total_items')}
-              freshnessLabel={freshness}
-              icon={Package}
-              variant="default"
+              sub={kpiDesc('total_items')}
+              link="/invoice"
             />
-          </Link>
-        )}
-        {(moduleFilter === 'all' || moduleFilter === 'shipment-invoice') && (
-          <Link to="/supplier" className="block">
-            <KPICard
-              title="Suppliers"
+          )}
+          {(moduleFilter === 'all' || moduleFilter === 'shipment-invoice') && (
+            <KpiTile
+              label="SUPPLIERS"
               value={metrics.totalSuppliers}
-              description={kpiDesc('total_suppliers')}
-              freshnessLabel={freshness}
-              icon={Factory}
-              variant="default"
+              sub={kpiDesc('total_suppliers')}
+              link="/supplier"
             />
-          </Link>
-        )}
-        {showShipment && (
-          <Link to="/boe" className="block">
-            <KPICard
-              title="Reconciled BOEs"
+          )}
+          {showShipment && (
+            <KpiTile
+              label="RECONCILED BOEs"
               value={metrics.reconciledBoes}
-              description={kpiDesc('reconciled_boes')}
-              freshnessLabel={freshness}
-              icon={TrendingUp}
-              variant="success"
+              sub={kpiDesc('reconciled_boes')}
+              variant="good"
+              link="/boe"
             />
-          </Link>
-        )}
-        {showShipment && (
-          <KPICard
-            title="Total invoice value"
-            value={`${sym}${metrics.totalInvoiceValue.toLocaleString()}`}
-            description={kpiDesc('total_invoice_value')}
-            freshnessLabel={freshness}
-            icon={DollarSign}
-            variant="default"
-          />
-        )}
-        {showShipment && (
-          <Link
-            to="/shipment?status=docu-received"
-            className="block"
-            onClick={() =>
-              logShipmentDrilldown(
-                '/shipment?status=docu-received',
-                'pending_shipments'
-              )
-            }
-          >
-            <KPICard
-              title="Pending Shipments"
+          )}
+          {showShipment && (
+            <KpiTile
+              label="TOTAL INVOICE VALUE"
+              value={`${sym}${metrics.totalInvoiceValue.toLocaleString()}`}
+              sub={kpiDesc('total_invoice_value')}
+            />
+          )}
+          {showShipment && (
+            <KpiTile
+              label="PENDING SHIPMENTS"
               value={metrics.pendingShipments}
-              description={kpiDesc('pending_shipments')}
-              freshnessLabel={freshness}
-              icon={AlertTriangle}
+              sub={kpiDesc('pending_shipments')}
               variant="warning"
+              link="/shipment?status=docu-received"
             />
-          </Link>
-        )}
-        {showShipment && (
-          <Link
-            to="/shipment?status=delivered"
-            className="block"
-            onClick={() =>
-              logShipmentDrilldown('/shipment?status=delivered', 'delivered')
-            }
-          >
-            <KPICard
-              title="Delivered"
+          )}
+          {showShipment && (
+            <KpiTile
+              label="DELIVERED"
               value={metrics.deliveredShipments}
-              description={kpiDesc('delivered_shipments')}
-              freshnessLabel={freshness}
-              icon={CheckCircle}
-              variant="success"
+              sub={kpiDesc('delivered_shipments')}
+              variant="good"
+              link="/shipment?status=delivered"
             />
-          </Link>
-        )}
-        {showShipment && (
-          <KPICard
-            title="Avg transit days"
-            value={
-              metrics.avgTransitDays === null
-                ? '—'
-                : metrics.avgTransitDays.toFixed(1)
-            }
-            description={kpiDesc('avg_transit_days')}
-            freshnessLabel={freshness}
-            icon={Calendar}
-            variant="default"
-          />
-        )}
-        {showShipment && (
-          <KPICard
-            title="Duty savings (estimate)"
-            value={`${sym}${Math.round(metrics.totalDutySavingsEstimate).toLocaleString()}`}
-            description={kpiDesc('total_duty_savings_estimate')}
-            freshnessLabel={freshness}
-            icon={TrendingUp}
-            variant="success"
-          />
-        )}
-        {showShipment && (
-          <KPICard
-            title="Duty (report scope)"
-            value={`${sym}${Math.round(metrics.dutyTotal).toLocaleString()}`}
-            description={kpiDesc('duty_total')}
-            freshnessLabel={freshness}
-            historyTrend={showHistoryTrend ? historyTrendDuty : undefined}
-            icon={DollarSign}
-            variant="default"
-          />
-        )}
-        {showExpenses && (
-          <Link to="/expenses" className="block">
-            <KPICard
-              title="Expense total (scope)"
+          )}
+          {showShipment && (
+            <KpiTile
+              label="AVG TRANSIT DAYS"
+              value={
+                metrics.avgTransitDays === null
+                  ? '—'
+                  : metrics.avgTransitDays.toFixed(1)
+              }
+              sub={kpiDesc('avg_transit_days')}
+            />
+          )}
+          {showShipment && (
+            <KpiTile
+              label="DUTY SAVINGS (EST.)"
+              value={`${sym}${Math.round(metrics.totalDutySavingsEstimate).toLocaleString()}`}
+              sub={kpiDesc('total_duty_savings_estimate')}
+              variant="good"
+            />
+          )}
+          {showShipment && (
+            <KpiTile
+              label="DUTY (REPORT SCOPE)"
+              value={`${sym}${Math.round(metrics.dutyTotal).toLocaleString()}`}
+              sub={kpiDesc('duty_total')}
+            />
+          )}
+          {showExpenses && (
+            <KpiTile
+              label="EXPENSE TOTAL"
               value={`${sym}${Math.round(metrics.expenseTotal).toLocaleString()}`}
-              description={kpiDesc('expense_total')}
-              freshnessLabel={freshness}
-              historyTrend={showHistoryTrend ? historyTrendExpenses : undefined}
-              icon={DollarSign}
-              variant="default"
+              sub={kpiDesc('expense_total')}
+              link="/expenses"
             />
-          </Link>
-        )}
-        {showShipment && (
-          <KPICard
-            title="Landed cost (naive)"
-            value={`${sym}${Math.round(metrics.landedCostTotal).toLocaleString()}`}
-            description={kpiDesc('landed_cost_total')}
-            freshnessLabel={freshness}
-            icon={TrendingUp}
-            variant="default"
-          />
-        )}
-      </div>
+          )}
+          {showShipment && (
+            <KpiTile
+              label="LANDED COST (NAIVE)"
+              value={`${sym}${Math.round(metrics.landedCostTotal).toLocaleString()}`}
+              sub={kpiDesc('landed_cost_total')}
+            />
+          )}
+        </div>
 
-      {showShipment && (
-        <Card className="flex min-h-0 flex-col">
-          <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div>
-              <CardTitle>KPI trends</CardTitle>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Daily snapshot history — executive view of shipments, duty, and
-                expenses.
-              </p>
+        {showShipment && (
+          <div className="im-chart-card">
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                marginBottom: 12,
+              }}
+            >
+              <div>
+                <div className="im-chart-card__title">KPI TRENDS</div>
+                <p
+                  style={{
+                    fontSize: 11.5,
+                    color: 'var(--color-im-faint)',
+                    marginTop: 2,
+                  }}
+                >
+                  Daily snapshot history — executive view of shipments, duty,
+                  and expenses.
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span
+                  style={{
+                    fontSize: 11.5,
+                    color: 'var(--color-im-faint)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  Range
+                </span>
+                <div className="im-select-wrap" style={{ width: 160 }}>
+                  <select
+                    className="im-select"
+                    value={historyTimeRange}
+                    onChange={e =>
+                      setHistoryTimeRange(e.target.value as KpiHistoryTimeRange)
+                    }
+                  >
+                    <option value="7d">Last 7 days</option>
+                    <option value="30d">Last 30 days</option>
+                    <option value="90d">Last 90 days</option>
+                    <option value="12m">Last 12 months</option>
+                    <option value="all">All</option>
+                  </select>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground whitespace-nowrap text-xs">
-                Range
-              </span>
-              <Select
-                value={historyTimeRange}
-                onValueChange={v =>
-                  setHistoryTimeRange(v as KpiHistoryTimeRange)
-                }
-              >
-                <SelectTrigger className="w-[160px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7d">Last 7 days</SelectItem>
-                  <SelectItem value="30d">Last 30 days</SelectItem>
-                  <SelectItem value="90d">Last 90 days</SelectItem>
-                  <SelectItem value="12m">Last 12 months</SelectItem>
-                  <SelectItem value="all">All</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent className="min-h-0 space-y-6">
             {kpiHistory.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
+              <p style={{ fontSize: 12.5, color: 'var(--color-im-faint)' }}>
                 No historical KPI data available yet. Snapshots will appear
                 automatically over time.
               </p>
             ) : trendLinePoints.length === 0 ? (
-              <p className="text-muted-foreground text-sm">
-                No snapshot rows in this time range. Try &quot;All&quot; or a
-                wider window.
+              <p style={{ fontSize: 12.5, color: 'var(--color-im-faint)' }}>
+                No snapshot rows in this time range. Try "All" or a wider
+                window.
               </p>
             ) : (
-              <div className="grid min-h-0 gap-6 lg:grid-cols-3">
-                <div className="flex min-h-0 flex-col space-y-2">
-                  <h3 className="text-sm font-medium">Total shipments trend</h3>
-                  <div className="h-[220px] min-h-0 w-full">
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 24,
+                }}
+              >
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: 'var(--color-im-muted)',
+                      fontFamily: 'Consolas, monospace',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Total shipments trend
+                  </div>
+                  <div style={{ height: 220 }}>
                     <ResponsiveContainer
                       width="100%"
                       height="100%"
@@ -1422,10 +1411,10 @@ const DashboardPage = () => {
                       <LineChart data={trendLinePoints}>
                         <XAxis
                           dataKey="dateLabel"
-                          tick={{ fontSize: 11 }}
+                          tick={IM_CHART.axis.tick}
                           interval="preserveStartEnd"
                         />
-                        <YAxis tick={{ fontSize: 11 }} width={40} />
+                        <YAxis tick={IM_CHART.axis.tick} width={40} />
                         <Tooltip
                           content={props => (
                             <KpiHistoryChartTooltip {...props} sym={sym} />
@@ -1435,7 +1424,7 @@ const DashboardPage = () => {
                           type="monotone"
                           dataKey="shipments"
                           name="Shipments"
-                          stroke="#6366f1"
+                          stroke={IM_CHART.colors.primary}
                           strokeWidth={2}
                           dot={false}
                           isAnimationActive={false}
@@ -1444,9 +1433,20 @@ const DashboardPage = () => {
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="flex min-h-0 flex-col space-y-2">
-                  <h3 className="text-sm font-medium">Duty trend</h3>
-                  <div className="h-[220px] min-h-0 w-full">
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: 'var(--color-im-muted)',
+                      fontFamily: 'Consolas, monospace',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Duty trend
+                  </div>
+                  <div style={{ height: 220 }}>
                     <ResponsiveContainer
                       width="100%"
                       height="100%"
@@ -1455,10 +1455,10 @@ const DashboardPage = () => {
                       <LineChart data={trendLinePoints}>
                         <XAxis
                           dataKey="dateLabel"
-                          tick={{ fontSize: 11 }}
+                          tick={IM_CHART.axis.tick}
                           interval="preserveStartEnd"
                         />
-                        <YAxis tick={{ fontSize: 11 }} width={44} />
+                        <YAxis tick={IM_CHART.axis.tick} width={44} />
                         <Tooltip
                           content={props => (
                             <KpiHistoryChartTooltip {...props} sym={sym} />
@@ -1468,7 +1468,7 @@ const DashboardPage = () => {
                           type="monotone"
                           dataKey="duty"
                           name="Duty"
-                          stroke="#0d9488"
+                          stroke={IM_CHART.colors.secondary}
                           strokeWidth={2}
                           dot={false}
                           isAnimationActive={false}
@@ -1477,9 +1477,20 @@ const DashboardPage = () => {
                     </ResponsiveContainer>
                   </div>
                 </div>
-                <div className="flex min-h-0 flex-col space-y-2">
-                  <h3 className="text-sm font-medium">Expense trend</h3>
-                  <div className="h-[220px] min-h-0 w-full">
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                >
+                  <div
+                    style={{
+                      fontSize: 11.5,
+                      color: 'var(--color-im-muted)',
+                      fontFamily: 'Consolas, monospace',
+                      textTransform: 'uppercase',
+                    }}
+                  >
+                    Expense trend
+                  </div>
+                  <div style={{ height: 220 }}>
                     <ResponsiveContainer
                       width="100%"
                       height="100%"
@@ -1488,10 +1499,10 @@ const DashboardPage = () => {
                       <LineChart data={trendLinePoints}>
                         <XAxis
                           dataKey="dateLabel"
-                          tick={{ fontSize: 11 }}
+                          tick={IM_CHART.axis.tick}
                           interval="preserveStartEnd"
                         />
-                        <YAxis tick={{ fontSize: 11 }} width={44} />
+                        <YAxis tick={IM_CHART.axis.tick} width={44} />
                         <Tooltip
                           content={props => (
                             <KpiHistoryChartTooltip {...props} sym={sym} />
@@ -1501,7 +1512,7 @@ const DashboardPage = () => {
                           type="monotone"
                           dataKey="expenses"
                           name="Expenses"
-                          stroke="#c2410c"
+                          stroke={IM_CHART.colors.tertiary}
                           strokeWidth={2}
                           dot={false}
                           isAnimationActive={false}
@@ -1512,49 +1523,52 @@ const DashboardPage = () => {
                 </div>
               </div>
             )}
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
 
-      {showShipment && (
-        <ResizableLayout
-          storageKey="dashboard-analytics-layout"
-          defaultSizes={[60, 40]}
-          minSizes={[30, 20]}
-          maxSizes={[80, 70]}
-          direction={layoutDirection}
-        >
-          <Card className="flex min-h-0 flex-col">
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <CardTitle>Shipment Analytics</CardTitle>
-                <div className="flex items-center gap-2">
-                  <LayoutControls
-                    onReset={() => {}}
-                    onToggleDirection={() =>
-                      setLayoutDirection(prev =>
-                        prev === 'horizontal' ? 'vertical' : 'horizontal'
-                      )
-                    }
-                    direction={layoutDirection}
-                  />
-                  <Select
-                    value={chartCurrency || 'ALL'}
-                    onValueChange={v => setChartCurrency(v === 'ALL' ? '' : v)}
-                  >
-                    <SelectTrigger className="w-[120px]">
-                      <SelectValue placeholder="Currency" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="ALL">All</SelectItem>
+        {showShipment && (
+          <div
+            style={{ display: 'grid', gridTemplateColumns: '3fr 2fr', gap: 16 }}
+          >
+            <div className="im-chart-card">
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <div className="im-chart-card__title">SHIPMENT ANALYTICS</div>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <div className="im-select-wrap" style={{ width: 120 }}>
+                    <select
+                      className="im-select"
+                      value={chartCurrency || 'ALL'}
+                      onChange={e =>
+                        setChartCurrency(
+                          e.target.value === 'ALL' ? '' : e.target.value
+                        )
+                      }
+                    >
+                      <option value="ALL">All</option>
                       {['INR', 'USD', 'EUR', 'GBP'].map(c => (
-                        <SelectItem key={c} value={c}>
+                        <option key={c} value={c}>
                           {c}
-                        </SelectItem>
+                        </option>
                       ))}
-                    </SelectContent>
-                  </Select>
-                  <div className="flex rounded-md border">
+                    </select>
+                  </div>
+                  <div className="im-filter-group">
                     {(
                       [
                         'weekly',
@@ -1564,12 +1578,10 @@ const DashboardPage = () => {
                         'yearly',
                       ] as const
                     ).map(tf => (
-                      <Button
+                      <button
                         key={tf}
-                        variant={timeframe === tf ? 'default' : 'ghost'}
-                        size="sm"
+                        className={`im-filter-btn${timeframe === tf ? 'is-active' : ''}`}
                         onClick={() => setTimeframe(tf)}
-                        className="rounded-none first:rounded-l-md last:rounded-r-md"
                       >
                         {tf === '3-month'
                           ? '3M'
@@ -1578,26 +1590,24 @@ const DashboardPage = () => {
                             : tf === 'yearly'
                               ? '1Y'
                               : tf.charAt(0).toUpperCase() + tf.slice(1)}
-                      </Button>
+                      </button>
                     ))}
                   </div>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent className="min-h-0 flex-1 p-4 pt-0">
-              <div className="h-[360px] min-h-0 w-full">
+              <div style={{ height: 360 }}>
                 <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                   <BarChart data={chartData}>
                     <XAxis
                       dataKey="name"
-                      stroke="#888888"
-                      fontSize={12}
+                      stroke="#1F1E1A"
+                      tick={IM_CHART.axis.tick}
                       tickLine={false}
                       axisLine={false}
                     />
                     <YAxis
-                      stroke="#888888"
-                      fontSize={12}
+                      stroke="#1F1E1A"
+                      tick={IM_CHART.axis.tick}
                       tickLine={false}
                       axisLine={false}
                       tickFormatter={v => `${v >= 100000 ? sym : ''}${v}`}
@@ -1606,32 +1616,33 @@ const DashboardPage = () => {
                     <Legend />
                     <Bar
                       dataKey="shipments"
-                      fill="#8884d8"
+                      fill={IM_CHART.colors.barShipments}
                       name="# Shipments"
                     />
                     <Bar
                       dataKey="value"
-                      fill="#82ca9d"
+                      fill={IM_CHART.colors.barValue}
                       name={`Total value (${chartCurrency})`}
                     />
                     <Bar
                       dataKey="dutySavings"
-                      fill="#ffc658"
+                      fill={IM_CHART.colors.barDutySavings}
                       name="Duty savings (est.)"
                     />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <div className="flex min-h-0 flex-col space-y-4">
-            <Card className="flex min-h-0 flex-col">
-              <CardHeader>
-                <CardTitle>Shipment Status</CardTitle>
-              </CardHeader>
-              <CardContent className="min-h-0 flex-1 p-4 pt-0">
-                <div className="h-[160px] min-h-0 w-full">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="im-chart-card">
+                <div
+                  className="im-chart-card__title"
+                  style={{ marginBottom: 8 }}
+                >
+                  SHIPMENT STATUS
+                </div>
+                <div style={{ height: 160 }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <PieChart>
                       <Pie
@@ -1644,13 +1655,9 @@ const DashboardPage = () => {
                           <Cell
                             key={idx}
                             fill={
-                              [
-                                '#8884d8',
-                                '#82ca9d',
-                                '#ffc658',
-                                '#FF8042',
-                                '#00C49F',
-                              ][idx % 5]
+                              IM_CHART.colors.pie[
+                                idx % IM_CHART.colors.pie.length
+                              ]!
                             }
                           />
                         ))}
@@ -1659,161 +1666,207 @@ const DashboardPage = () => {
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card className="flex min-h-0 flex-col">
-              <CardHeader>
-                <CardTitle>Invoice Trend</CardTitle>
-              </CardHeader>
-              <CardContent className="min-h-0 flex-1 p-4 pt-0">
-                <div className="h-[160px] min-h-0 w-full">
+              <div className="im-chart-card">
+                <div
+                  className="im-chart-card__title"
+                  style={{ marginBottom: 8 }}
+                >
+                  INVOICE TREND
+                </div>
+                <div style={{ height: 160 }}>
                   <ResponsiveContainer width="100%" height="100%" minWidth={0}>
                     <LineChart data={invoiceTrend}>
                       <XAxis dataKey="date" hide />
-                      <YAxis />
+                      <YAxis tick={IM_CHART.axis.tick} />
                       <Tooltip />
                       <Line
                         type="monotone"
                         dataKey="value"
-                        stroke="#8884d8"
+                        stroke={IM_CHART.colors.primary}
                         strokeWidth={2}
                         dot={false}
                       />
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </div>
-        </ResizableLayout>
-      )}
+        )}
 
-      {showItems && (
-        <div className="text-muted-foreground text-center text-sm lg:hidden">
-          Module filter: charts above follow shipment scope; tables below follow
-          the same currency filter where applicable.
+        <div
+          style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}
+        >
+          {showShipment && (
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Upcoming shipments</span>
+              </div>
+              <div className="im-section__body" style={{ padding: 0 }}>
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Invoice #</th>
+                        <th className="im-th">ETA</th>
+                        <th className="im-th">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {upcomingShipments.length > 0 ? (
+                        upcomingShipments.map((s, i) => (
+                          <tr
+                            key={s.id}
+                            className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                          >
+                            <td className="im-td">
+                              <Link
+                                to={`/shipment/${encodeURIComponent(s.id)}/view`}
+                                style={{
+                                  color: 'var(--color-im-accent)',
+                                  textDecoration: 'none',
+                                }}
+                              >
+                                {s.invoiceNumber}
+                              </Link>
+                            </td>
+                            <td className="im-td">
+                              {s.eta ? formatDateForDisplay(s.eta) : 'N/A'}
+                            </td>
+                            <td className="im-td">
+                              <span
+                                className={`im-status-pill${s.status === 'delivered' ? 'is-active' : 'is-neutral'}`}
+                              >
+                                {s.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={3}
+                            className="im-td"
+                            style={{
+                              textAlign: 'center',
+                              color: 'var(--color-im-faint)',
+                              fontSize: 12,
+                            }}
+                          >
+                            No upcoming shipments.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {showItems && (
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Recent items</span>
+              </div>
+              <div className="im-section__body" style={{ padding: 0 }}>
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Part Number</th>
+                        <th className="im-th">Description</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {recentItems.length > 0 ? (
+                        recentItems.map((item, i) => (
+                          <tr
+                            key={item.id}
+                            className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                          >
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily: 'Consolas, monospace',
+                                fontWeight: 600,
+                              }}
+                            >
+                              {item.partNumber}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                maxWidth: 200,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {item.itemDescription}
+                            </td>
+                          </tr>
+                        ))
+                      ) : (
+                        <tr>
+                          <td
+                            colSpan={2}
+                            className="im-td"
+                            style={{
+                              textAlign: 'center',
+                              color: 'var(--color-im-faint)',
+                              fontSize: 12,
+                            }}
+                          >
+                            No items found.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
-      )}
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {showShipment && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Shipments</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice #</TableHead>
-                    <TableHead>ETA</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {upcomingShipments.length > 0 ? (
-                    upcomingShipments.map(s => (
-                      <TableRow key={s.id}>
-                        <TableCell className="font-medium">
-                          <Link
-                            to={`/shipment/${encodeURIComponent(s.id)}/view`}
-                            className="text-primary hover:underline"
-                          >
-                            {s.invoiceNumber}
-                          </Link>
-                        </TableCell>
-                        <TableCell>
-                          {s.eta ? formatDateForDisplay(s.eta) : 'N/A'}
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={
-                              s.status === 'delivered' ? 'default' : 'secondary'
-                            }
-                          >
-                            {s.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={3}
-                        className="text-muted-foreground text-center"
-                      >
-                        No upcoming shipments.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-
-        {showItems && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Recent Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Part Number</TableHead>
-                    <TableHead>Description</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentItems.length > 0 ? (
-                    recentItems.map(item => (
-                      <TableRow key={item.id}>
-                        <TableCell className="font-medium">
-                          {item.partNumber}
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate">
-                          {item.itemDescription}
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={2}
-                        className="text-muted-foreground text-center"
-                      >
-                        No items found.
-                      </TableCell>
-                    </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {showExpenses && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Expenses Overview</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap items-center gap-6">
-              <div className="text-2xl font-semibold">
+        {showExpenses && (
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Expenses overview</span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 16,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 700,
+                  color: 'var(--color-im-text)',
+                  fontFamily: 'Consolas, monospace',
+                }}
+              >
                 Total: {sym}
                 {Math.round(metrics.expenseTotal).toLocaleString()}
               </div>
-              <Badge variant="secondary">SQL scope: filtered shipments</Badge>
-              <Button variant="link" asChild className="h-auto p-0">
-                <Link to="/expenses">Open expenses</Link>
-              </Button>
+              <span className="im-status-pill is-neutral">
+                SQL scope: filtered shipments
+              </span>
+              <Link to="/expenses" className="im-btn im-btn--sm">
+                Open expenses
+              </Link>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 };

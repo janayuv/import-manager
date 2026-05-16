@@ -25,7 +25,7 @@ pub const PASSWORD_HISTORY_DEPTH_MIN: usize = 1;
 pub const PASSWORD_HISTORY_DEPTH_MAX: usize = 24;
 
 /// Minimum password length enforced by [`enforce_password_policy`].
-pub const PASSWORD_MIN_LEN: usize = 12;
+pub const PASSWORD_MIN_LEN: usize = 6;
 
 /// Password policy violations returned by [`enforce_password_policy`]. Surfaced
 /// to the UI verbatim so users know which rule failed.
@@ -43,7 +43,7 @@ impl std::fmt::Display for PasswordPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
             PasswordPolicyError::TooShort => {
-                "Password must be at least 12 characters long."
+                "Password must be at least 6 characters long."
             }
             PasswordPolicyError::MissingUppercase => {
                 "Password must contain at least one uppercase letter."
@@ -288,12 +288,12 @@ pub fn new_password_reuses_history(
             "SELECT password_hash FROM auth_password_history WHERE user_id = ?1 ORDER BY id DESC LIMIT ?2",
         )
         .map_err(|e| e.to_string())?;
-    let mut rows = stmt
+    let rows = stmt
         .query_map(params![user_id.trim(), depth_i], |row| {
             row.get::<_, String>(0)
         })
         .map_err(|e| e.to_string())?;
-    while let Some(row) = rows.next() {
+    for row in rows {
         let hash = row.map_err(|e| e.to_string())?;
         if verify_password(candidate_password, &hash).unwrap_or(false) {
             return Ok(true);

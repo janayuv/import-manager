@@ -4,15 +4,7 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import { getCurrentUser, setAuthenticated } from '@/lib/auth';
 import type { User } from '@/lib/auth';
 import { ipcErrorMessage } from '@/lib/ipc-error';
@@ -27,34 +19,29 @@ export const AccountDetailsPage = () => {
 
   if (!user) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-xl font-semibold text-blue-600">
-              Account Details
-            </CardTitle>
-            <CardDescription>
-              User information not found. Please log in again.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'Account']} />
+        <PageHeader
+          title="Account Details"
+          subtitle="User information not found. Please log in again."
+        />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-blue-600">
-            Account Details
-          </CardTitle>
-          <CardDescription>
-            Manage your user account information and preferences
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Account']} />
+      <PageHeader
+        title="Account Details"
+        subtitle="Manage your user account information and preferences"
+      />
+      <div className="im-dashboard-body">
+        <div className="im-section">
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+          >
             <div>
               <strong>Name:</strong> {user.name}
             </div>
@@ -68,8 +55,8 @@ export const AccountDetailsPage = () => {
               <strong>Role:</strong> {user.role}
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
@@ -120,34 +107,47 @@ export const AccountUpdatePage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Update Profile</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm">Name</label>
-            <Input
-              value={name}
-              onChange={e => setName(e.target.value)}
-              disabled={isLoading}
-            />
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Account', 'Update Profile']} />
+      <PageHeader title="Update Profile" />
+      <div className="im-dashboard-body">
+        <div className="im-section">
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div>
+              <label className="im-field-label">Name</label>
+              <input
+                className="im-input"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">Email</label>
+              <input
+                className="im-input"
+                type="email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+            <div>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void save()}
+                disabled={isLoading}
+              >
+                {isLoading ? 'Saving...' : 'Save'}
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="text-sm">Email</label>
-            <Input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              disabled={isLoading}
-            />
-          </div>
-          <Button onClick={save} disabled={isLoading}>
-            {isLoading ? 'Saving...' : 'Save'}
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
@@ -162,8 +162,8 @@ export const AccountPasswordPage = () => {
   const canChangePassword = useHasPermission('security.change_password');
 
   const change = async () => {
-    if (next.length < 12) {
-      toast.error('Password must be at least 12 characters');
+    if (next.length < 6) {
+      toast.error('Password must be at least 6 characters');
       return;
     }
     if (next !== confirm) {
@@ -190,72 +190,93 @@ export const AccountPasswordPage = () => {
 
   if (!canChangePassword) {
     return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
-            <CardDescription>
-              Your role does not include `security.change_password`.
-            </CardDescription>
-          </CardHeader>
-        </Card>
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'Account', 'Change Password']} />
+        <PageHeader
+          title="Change Password"
+          subtitle="Your role does not include security.change_password."
+        />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Change Password</CardTitle>
-          <CardDescription>
-            Open the{' '}
-            <button
-              type="button"
-              className="text-primary underline-offset-2 hover:underline"
-              onClick={() => navigate('/admin/security-center')}
-            >
-              security center
-            </button>{' '}
-            for the full session, lockout, and audit view.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <label className="text-sm">Current Password</label>
-            <Input
-              type="password"
-              value={current}
-              onChange={e => setCurrent(e.target.value)}
-              autoComplete="current-password"
-              disabled={busy}
-            />
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Account', 'Change Password']} />
+      <PageHeader
+        title="Change Password"
+        subtitle="Open the security center for the full session, lockout, and audit view."
+      />
+      <div className="im-dashboard-body">
+        <div className="im-section">
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <p style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
+              Open the{' '}
+              <button
+                type="button"
+                style={{
+                  color: 'var(--color-im-accent)',
+                  textDecoration: 'underline',
+                  background: 'none',
+                  border: 'none',
+                  cursor: 'pointer',
+                  padding: 0,
+                }}
+                onClick={() => navigate('/admin/security-center')}
+              >
+                security center
+              </button>{' '}
+              for the full session, lockout, and audit view.
+            </p>
+            <div>
+              <label className="im-field-label">Current Password</label>
+              <input
+                className="im-input"
+                type="password"
+                value={current}
+                onChange={e => setCurrent(e.target.value)}
+                autoComplete="current-password"
+                disabled={busy}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">New Password</label>
+              <input
+                className="im-input"
+                type="password"
+                value={next}
+                onChange={e => setNext(e.target.value)}
+                autoComplete="new-password"
+                disabled={busy}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">Confirm Password</label>
+              <input
+                className="im-input"
+                type="password"
+                value={confirm}
+                onChange={e => setConfirm(e.target.value)}
+                autoComplete="new-password"
+                disabled={busy}
+              />
+            </div>
+            <div>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void change()}
+                disabled={busy}
+              >
+                {busy ? 'Updating…' : 'Update Password'}
+              </button>
+            </div>
           </div>
-          <div>
-            <label className="text-sm">New Password</label>
-            <Input
-              type="password"
-              value={next}
-              onChange={e => setNext(e.target.value)}
-              autoComplete="new-password"
-              disabled={busy}
-            />
-          </div>
-          <div>
-            <label className="text-sm">Confirm Password</label>
-            <Input
-              type="password"
-              value={confirm}
-              onChange={e => setConfirm(e.target.value)}
-              autoComplete="new-password"
-              disabled={busy}
-            />
-          </div>
-          <Button onClick={() => void change()} disabled={busy}>
-            {busy ? 'Updating…' : 'Update Password'}
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

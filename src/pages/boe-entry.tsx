@@ -1,7 +1,6 @@
 'use client';
 
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
-import { ArrowLeft } from 'lucide-react';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
@@ -12,16 +11,42 @@ import { BoeEntryForm } from '@/components/boe-entry/form';
 import { SavedBoeList } from '@/components/boe-entry/saved-boe-list';
 import { ViewBoeDialog } from '@/components/boe-entry/view-boe-dialog';
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+  AppBar,
+  BreadcrumbBar,
+  IdentityHeader,
+  ImSection,
+  ImStatusPill,
+  PageHeader,
+  StatusBar,
+  ViewField,
+} from '@/components/shared/im';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { BoeDetails } from '@/types/boe';
-import type { SavedBoe, Shipment } from '@/types/boe-entry';
+import type { BoeStatus, SavedBoe, Shipment } from '@/types/boe-entry';
+
+type StatusPillVariant =
+  | 'active'
+  | 'inactive'
+  | 'warning'
+  | 'info'
+  | 'neutral'
+  | 'accent';
+
+function boeStatusPillVariant(status: BoeStatus): StatusPillVariant {
+  switch (status) {
+    case 'Reconciled':
+    case 'Closed':
+      return 'active';
+    case 'Discrepancy Found':
+    case 'Investigation':
+      return 'warning';
+    case 'Awaiting BOE Data':
+      return 'info';
+    default:
+      return 'neutral';
+  }
+}
 
 export function boeEntryDetailPath(savedBoeId: string, mode: 'view' | 'edit') {
   return `/boe-entry/${encodeURIComponent(savedBoeId)}/${mode}`;
@@ -68,13 +93,15 @@ export default function BoeEntryPage() {
     return savedBoes.find(b => b.id === decodedSavedBoeId) ?? null;
   }, [savedBoes, decodedSavedBoeId]);
 
+  const savedBoeTotalPages = Math.max(1, Math.ceil(savedBoeTotal / pageSize));
+
   const closeEntryPanel = React.useCallback(() => {
     navigate('/boe-entry');
   }, [navigate]);
 
   const fetchData = React.useCallback(async () => {
     try {
-      const [shipmentsData, savedBoesData, allBoesData] = await Promise.all([
+      const [shipmentsData, savedBoesData, allBoesRows] = await Promise.all([
         invoke<PaginatedResult<Shipment>>(
           'get_shipments_for_boe_entry_paginated',
           {
@@ -86,10 +113,7 @@ export default function BoeEntryPage() {
           page: savedBoePage,
           pageSize,
         }),
-        invoke<PaginatedResult<BoeDetails>>('get_boes_paginated', {
-          page: 1,
-          pageSize: 100,
-        }),
+        invoke<BoeDetails[]>('get_boes'),
       ]);
       const safeShipments = Array.isArray(shipmentsData?.data)
         ? shipmentsData.data
@@ -97,9 +121,7 @@ export default function BoeEntryPage() {
       const safeSavedBoes = Array.isArray(savedBoesData?.data)
         ? savedBoesData.data
         : [];
-      const safeAllBoes = Array.isArray(allBoesData?.data)
-        ? allBoesData.data
-        : [];
+      const safeAllBoes = Array.isArray(allBoesRows) ? allBoesRows : [];
       const safeSavedBoeTotal = Number.isFinite(savedBoesData?.totalCount)
         ? savedBoesData.totalCount
         : safeSavedBoes.length;
@@ -199,96 +221,215 @@ export default function BoeEntryPage() {
   ) : null;
 
   if (entryPanel !== 'none') {
-    return (
-      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
-        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={closeEntryPanel}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to BOE entry
-            </Button>
-            <span className="text-muted-foreground text-sm">
-              {entryPanel === 'view'
-                ? 'Viewing saved calculation'
-                : entryPanel === 'edit'
-                  ? 'Editing saved calculation'
-                  : 'New BOE calculation'}
-            </span>
-          </div>
+    const panelCrumb =
+      entryPanel === 'add' ? 'New' : entryPanel === 'view' ? 'View' : 'Edit';
+    const panelContext =
+      entryPanel === 'view' ? 'VIEW' : entryPanel === 'edit' ? 'EDIT' : 'NEW';
 
-          {isLoading ? (
-            <div
-              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
-              role="status"
-              aria-live="polite"
-            >
-              Loading…
-            </div>
-          ) : entryPanel === 'add' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border p-6 shadow-sm">
-              <BoeEntryForm
-                shipments={shipments}
-                allBoes={allBoes}
-                savedBoes={savedBoes}
-                onSaveOrUpdate={handleSaveOrUpdateBoe}
-                initialData={null}
-                onCancelEdit={handleCancelEdit}
-              />
-            </div>
-          ) : !selectedSavedBoeFromUrl ? (
-            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-              <h2 className="text-card-foreground text-lg font-semibold">
-                Record not found
-              </h2>
-              <p className="text-muted-foreground text-sm">
-                No saved BOE calculation with ID{' '}
-                <span className="text-foreground font-mono">
-                  {decodedSavedBoeId ?? savedBoeIdParam}
-                </span>
-                .
-              </p>
-              <Button
-                type="button"
-                variant="default"
-                useAccentColor
-                onClick={closeEntryPanel}
-                className="w-fit"
+    return (
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'BOE Entry', panelCrumb]} />
+        <div className="flex min-h-0 flex-1 flex-col px-3 py-3 md:px-5 md:py-4">
+          <BreadcrumbBar
+            backLabel="BOE entry"
+            current={panelCrumb}
+            context={panelContext}
+            onBack={closeEntryPanel}
+          />
+
+          <div className="mx-auto mt-3 flex min-h-0 w-full max-w-[min(calc(100vw-1.5rem),120rem)] flex-1 flex-col">
+            {isLoading ? (
+              <div
+                className="border-im-rule bg-im-panel text-im-muted flex min-h-[220px] flex-1 items-center justify-center border font-mono text-xs tracking-wide"
+                role="status"
+                aria-live="polite"
               >
-                Back to BOE entry
-              </Button>
-            </div>
-          ) : entryPanel === 'view' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
-              <ViewBoeDialog
-                boe={selectedSavedBoeFromUrl}
-                onClose={closeEntryPanel}
-                presentation="page"
-                className="min-h-0 flex-1"
-                onEdit={() =>
-                  navigate(
-                    boeEntryDetailPath(selectedSavedBoeFromUrl.id, 'edit')
-                  )
-                }
-              />
-            </div>
-          ) : (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border p-6 shadow-sm">
-              <BoeEntryForm
-                shipments={shipments}
-                allBoes={allBoes}
-                savedBoes={savedBoes}
-                onSaveOrUpdate={handleSaveOrUpdateBoe}
-                initialData={selectedSavedBoeFromUrl}
-                onCancelEdit={handleCancelEdit}
-              />
-            </div>
-          )}
+                LOADING…
+              </div>
+            ) : entryPanel === 'add' ? (
+              <>
+                <div className="im-page-title-block mb-3 shrink-0">
+                  <h1>NEW BOE CALCULATION</h1>
+                  <p>
+                    Select a shipment, link to a BOE, and enter details to
+                    calculate customs duties.
+                  </p>
+                </div>
+                <ImSection
+                  label="RECORD CONTEXT"
+                  sub="Snapshot fields — live inputs follow in the form below."
+                >
+                  <div className="im-grid im-grid__4">
+                    <ViewField label="SUPPLIER" />
+                    <ViewField label="INVOICE" />
+                    <ViewField label="LINKED BOE" />
+                    <ViewField label="STATUS" />
+                  </div>
+                </ImSection>
+                <div className="border-im-rule bg-im-panel mt-3 flex min-h-0 flex-1 flex-col border">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 md:px-4 md:py-3">
+                    <BoeEntryForm
+                      shipments={shipments}
+                      allBoes={allBoes}
+                      savedBoes={savedBoes}
+                      onSaveOrUpdate={handleSaveOrUpdateBoe}
+                      initialData={null}
+                      onCancelEdit={handleCancelEdit}
+                    />
+                  </div>
+                </div>
+              </>
+            ) : !selectedSavedBoeFromUrl ? (
+              <div className="border-im-rule bg-im-panel mx-auto flex w-full max-w-lg flex-col gap-3 border p-6">
+                <h2 className="text-im-text text-sm font-semibold tracking-wide">
+                  RECORD NOT FOUND
+                </h2>
+                <p className="text-im-muted text-xs leading-relaxed">
+                  No saved BOE calculation with ID{' '}
+                  <span className="text-im-text font-mono text-[11px]">
+                    {decodedSavedBoeId ?? savedBoeIdParam}
+                  </span>
+                  .
+                </p>
+                <Button
+                  type="button"
+                  variant="default"
+                  useAccentColor
+                  onClick={closeEntryPanel}
+                  className="im-hdr-btn w-fit"
+                >
+                  Back to BOE entry
+                </Button>
+              </div>
+            ) : entryPanel === 'view' ? (
+              <>
+                <IdentityHeader
+                  name={selectedSavedBoeFromUrl.invoiceNumber}
+                  sub={`${selectedSavedBoeFromUrl.supplierName} · Read-only saved calculation.`}
+                  id={selectedSavedBoeFromUrl.id}
+                  tags={
+                    <ImStatusPill
+                      label={selectedSavedBoeFromUrl.status}
+                      variant={boeStatusPillVariant(
+                        selectedSavedBoeFromUrl.status
+                      )}
+                    />
+                  }
+                />
+                <ImSection
+                  label="RECORD CONTEXT"
+                  sub="Key fields from the saved run."
+                >
+                  <div className="im-grid im-grid__4">
+                    <ViewField
+                      label="SUPPLIER"
+                      value={selectedSavedBoeFromUrl.supplierName}
+                    />
+                    <ViewField
+                      label="INVOICE"
+                      value={selectedSavedBoeFromUrl.invoiceNumber}
+                      mono
+                    />
+                    <ViewField
+                      label="LINKED BOE"
+                      value={
+                        selectedSavedBoeFromUrl.boeId
+                          ? (allBoes.find(
+                              be => be.id === selectedSavedBoeFromUrl.boeId
+                            )?.beNumber ?? selectedSavedBoeFromUrl.boeId)
+                          : undefined
+                      }
+                      mono
+                    />
+                    <ViewField
+                      label="EXCHANGE RATE"
+                      value={
+                        selectedSavedBoeFromUrl.formValues.exchangeRate ??
+                        undefined
+                      }
+                      mono
+                    />
+                  </div>
+                </ImSection>
+                <div className="border-im-rule bg-im-panel mt-3 flex min-h-0 flex-1 flex-col border">
+                  <ViewBoeDialog
+                    boe={selectedSavedBoeFromUrl}
+                    onClose={closeEntryPanel}
+                    presentation="page"
+                    className="min-h-0 flex-1"
+                    onEdit={() =>
+                      navigate(
+                        boeEntryDetailPath(selectedSavedBoeFromUrl.id, 'edit')
+                      )
+                    }
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                <IdentityHeader
+                  name={selectedSavedBoeFromUrl.invoiceNumber}
+                  sub={`${selectedSavedBoeFromUrl.supplierName} · Adjust inputs and recalculate duties.`}
+                  id={selectedSavedBoeFromUrl.id}
+                  tags={
+                    <ImStatusPill
+                      label={selectedSavedBoeFromUrl.status}
+                      variant={boeStatusPillVariant(
+                        selectedSavedBoeFromUrl.status
+                      )}
+                    />
+                  }
+                />
+                <ImSection
+                  label="RECORD CONTEXT"
+                  sub="Key fields from the saved run — edit in the form below."
+                >
+                  <div className="im-grid im-grid__4">
+                    <ViewField
+                      label="SUPPLIER"
+                      value={selectedSavedBoeFromUrl.supplierName}
+                    />
+                    <ViewField
+                      label="INVOICE"
+                      value={selectedSavedBoeFromUrl.invoiceNumber}
+                      mono
+                    />
+                    <ViewField
+                      label="LINKED BOE"
+                      value={
+                        selectedSavedBoeFromUrl.boeId
+                          ? (allBoes.find(
+                              be => be.id === selectedSavedBoeFromUrl.boeId
+                            )?.beNumber ?? selectedSavedBoeFromUrl.boeId)
+                          : undefined
+                      }
+                      mono
+                    />
+                    <ViewField
+                      label="EXCHANGE RATE"
+                      value={
+                        selectedSavedBoeFromUrl.formValues.exchangeRate ??
+                        undefined
+                      }
+                      mono
+                    />
+                  </div>
+                </ImSection>
+                <div className="border-im-rule bg-im-panel mt-3 flex min-h-0 flex-1 flex-col border">
+                  <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2 md:px-4 md:py-3">
+                    <BoeEntryForm
+                      shipments={shipments}
+                      allBoes={allBoes}
+                      savedBoes={savedBoes}
+                      onSaveOrUpdate={handleSaveOrUpdateBoe}
+                      initialData={selectedSavedBoeFromUrl}
+                      onCancelEdit={handleCancelEdit}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </div>
         {deleteDialog}
       </div>
@@ -297,72 +438,67 @@ export default function BoeEntryPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 p-4 md:p-8">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-64" />
-            <Skeleton className="mt-2 h-4 w-96" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'BOE Entry']} />
+        <PageHeader
+          title="BOE ENTRY & CALCULATION"
+          subtitle="Loading workspace…"
+        />
+        <div className="im-dashboard-body flex flex-col gap-3">
+          <div className="im-section">
+            <div className="im-section__header">
+              <Skeleton className="bg-im-rule h-3 w-40" />
+              <Skeleton className="bg-im-rule mt-2 h-3 w-64" />
+            </div>
+            <div className="im-section__body space-y-3">
+              <div className="im-grid im-grid__3">
+                <Skeleton className="bg-im-rule h-9 w-full" />
+                <Skeleton className="bg-im-rule h-9 w-full" />
+                <Skeleton className="bg-im-rule h-9 w-full" />
               </div>
-              <div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-3 lg:grid-cols-6">
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
-                <Skeleton className="h-10 w-full" />
+              <div className="im-grid im-grid__4">
+                <Skeleton className="bg-im-rule h-9 w-full" />
+                <Skeleton className="bg-im-rule h-9 w-full" />
+                <Skeleton className="bg-im-rule h-9 w-full" />
+                <Skeleton className="bg-im-rule h-9 w-full" />
               </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-72" />
-            <Skeleton className="mt-2 h-4 w-80" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Skeleton className="h-12 w-full" />
-              <Skeleton className="h-12 w-full" />
+          </div>
+          <div className="im-section">
+            <div className="im-section__header">
+              <Skeleton className="bg-im-rule h-3 w-48" />
+              <Skeleton className="bg-im-rule mt-2 h-3 w-56" />
             </div>
-          </CardContent>
-        </Card>
+            <div className="im-section__body space-y-2">
+              <Skeleton className="bg-im-rule h-10 w-full" />
+              <Skeleton className="bg-im-rule h-10 w-full" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-4 md:p-8">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="text-xl font-semibold text-blue-600">
-                BOE Entry & Calculation
-              </CardTitle>
-              <CardDescription>
-                Select a shipment, link to a BOE, and enter details to calculate
-                customs duties.
-              </CardDescription>
-            </div>
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              className="shrink-0 self-start"
-              onClick={() => navigate(boeEntryNewPath)}
-            >
-              Open full-page new calculation
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'BOE Entry']} />
+      <PageHeader
+        title="BOE ENTRY & CALCULATION"
+        count={savedBoeTotal}
+        subtitle="Select a shipment, link to a BOE, and enter details to calculate customs duties."
+        actions={
+          <button
+            type="button"
+            className="im-hdr-btn im-hdr-btn--primary"
+            onClick={() => navigate(boeEntryNewPath)}
+          >
+            Open full-page new calculation
+          </button>
+        }
+      />
+
+      <div className="im-dashboard-body flex flex-col gap-3 pb-2">
+        <div className="border-im-rule bg-im-panel border">
           <BoeEntryForm
             shipments={shipments}
             allBoes={allBoes}
@@ -371,41 +507,35 @@ export default function BoeEntryPage() {
             initialData={null}
             onCancelEdit={handleCancelEdit}
           />
-        </CardContent>
-      </Card>
+        </div>
 
-      <SavedBoeList
-        savedBoes={savedBoes}
-        onView={handleViewBoe}
-        onEdit={handleEditBoe}
-        onDelete={handleDeleteBoe}
-      />
-      <div className="flex items-center justify-between">
-        <div className="text-muted-foreground text-sm">
-          Showing {(savedBoePage - 1) * pageSize + 1}-
-          {Math.min(savedBoePage * pageSize, savedBoeTotal)} of {savedBoeTotal}
-        </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            disabled={savedBoePage <= 1}
-            onClick={() => setSavedBoePage(prev => Math.max(1, prev - 1))}
-          >
-            Previous
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            disabled={savedBoePage * pageSize >= savedBoeTotal}
-            onClick={() => setSavedBoePage(prev => prev + 1)}
-          >
-            Next
-          </Button>
-        </div>
+        <SavedBoeList
+          savedBoes={savedBoes}
+          onView={handleViewBoe}
+          onEdit={handleEditBoe}
+          onDelete={handleDeleteBoe}
+        />
       </div>
+
+      <StatusBar
+        total={savedBoeTotal}
+        selected={0}
+        page={savedBoePage}
+        pages={savedBoeTotalPages}
+        onPrev={() => setSavedBoePage(prev => Math.max(1, prev - 1))}
+        onNext={() => setSavedBoePage(prev => prev + 1)}
+        canPrev={savedBoePage > 1}
+        canNext={savedBoePage * pageSize < savedBoeTotal}
+        extra={
+          <>
+            <span className="im-status-bar__sep">·</span>
+            <span>
+              Showing {(savedBoePage - 1) * pageSize + 1}-
+              {Math.min(savedBoePage * pageSize, savedBoeTotal)} loaded
+            </span>
+          </>
+        }
+      />
 
       {deleteDialog}
     </div>

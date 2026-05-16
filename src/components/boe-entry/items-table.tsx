@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import type { Dispatch, SetStateAction } from 'react';
 import React from 'react';
 
-import { Input } from '@/components/ui/input';
+import { ImInput } from '@/components/shared/im';
+import { cn } from '@/lib/utils';
 import {
   Select,
   SelectContent,
@@ -26,6 +27,9 @@ import type {
   CalculationMethod,
   InvoiceItem,
 } from '@/types/boe-entry';
+
+const IM_SELECT_TRIGGER =
+  'im-select !h-[34px] w-full min-w-0 rounded-none px-2 text-left text-xs shadow-none focus:ring-0 focus-visible:ring-0 data-[size=default]:!h-[34px]';
 
 interface ItemsTableProps {
   items: InvoiceItem[];
@@ -112,27 +116,51 @@ export function ItemsTable({
   }, [items, itemInputs]);
 
   return (
-    <div className="rounded-md border">
+    <div className="border-im-rule bg-im-panel border">
       <div
         ref={containerRef}
-        className="max-h-[520px] overflow-auto"
+        className="im-table-scroll max-h-[520px]"
         onScroll={e => setScrollTop(e.currentTarget.scrollTop)}
       >
-        <Table>
+        <Table className="im-table text-xs">
           <TableHeader>
-            <TableRow className="bg-primary text-primary-foreground">
-              <TableHead className="w-[150px]">Part No</TableHead>
-              <TableHead>Description</TableHead>
-              <TableHead className="text-right">Qty</TableHead>
-              <TableHead className="text-right">Unit Price</TableHead>
-              <TableHead className="text-right">HS Code</TableHead>
-              <TableHead className="text-right">Actual BCD %</TableHead>
-              <TableHead className="text-right">Actual SWS %</TableHead>
-              <TableHead className="text-right">Actual IGST %</TableHead>
-              <TableHead className="w-[150px]">Calc Method</TableHead>
-              <TableHead className="w-[120px] text-right">BOE BCD %</TableHead>
-              <TableHead className="w-[120px] text-right">BOE SWS %</TableHead>
-              <TableHead className="w-[120px] text-right">BOE IGST %</TableHead>
+            <TableRow className="border-0 hover:bg-transparent">
+              <TableHead className="im-th !h-9 w-[140px] rounded-none">
+                Part no
+              </TableHead>
+              <TableHead className="im-th !h-9 min-w-[120px] rounded-none">
+                Description
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right">
+                Qty
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right">
+                Unit price
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right">
+                HS code
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right">
+                Act. BCD %
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right">
+                Act. SWS %
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right">
+                Act. IGST %
+              </TableHead>
+              <TableHead className="im-th !h-9 w-[130px] rounded-none">
+                Calc method
+              </TableHead>
+              <TableHead className="im-th !h-9 w-[110px] rounded-none text-right">
+                BOE BCD %
+              </TableHead>
+              <TableHead className="im-th !h-9 w-[110px] rounded-none text-right">
+                BOE SWS %
+              </TableHead>
+              <TableHead className="im-th !h-9 w-[110px] rounded-none text-right">
+                BOE IGST %
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -176,34 +204,39 @@ export function ItemsTable({
                     return (
                       <TableRow
                         key={item.partNo}
-                        className={hasBcdDiscrepancy ? 'bg-destructive/10' : ''}
+                        className={cn(
+                          'im-tr hover:bg-im-hover border-0',
+                          index % 2 === 1 && 'is-alt',
+                          hasBcdDiscrepancy && 'bg-im-bad-bg'
+                        )}
                       >
-                        <TableCell className="font-medium">
+                        <TableCell className="im-td im-td-id !max-w-none">
                           {item.partNo}
                         </TableCell>
-                        <TableCell>{item.description}</TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="im-td text-im-text !max-w-[min(220px,28vw)]">
+                          {item.description}
+                        </TableCell>
+                        <TableCell className="im-td im-td-mono text-right">
                           {item.qty ?? '-'}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="im-td im-td-mono text-right">
                           {item.unitPrice != null
                             ? item.unitPrice.toFixed(2)
                             : '-'}
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="im-td im-td-mono text-right">
                           {item.hsCode ?? '-'}
                         </TableCell>
-                        {/* --- NEW: Display actual rates from shipment --- */}
-                        <TableCell className="text-right">
+                        <TableCell className="im-td im-td-mono text-right">
                           {item.actualBcdRate.toFixed(2)}%
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="im-td im-td-mono text-right">
                           {item.actualSwsRate.toFixed(2)}%
                         </TableCell>
-                        <TableCell className="text-right">
+                        <TableCell className="im-td im-td-mono text-right">
                           {item.actualIgstRate.toFixed(2)}%
                         </TableCell>
-                        <TableCell>
+                        <TableCell className="im-td !max-w-none py-1">
                           <Select
                             value={
                               itemInputs[index]?.calculationMethod || 'Standard'
@@ -216,20 +249,22 @@ export function ItemsTable({
                               )
                             }
                           >
-                            <SelectTrigger>
+                            <SelectTrigger className={IM_SELECT_TRIGGER}>
                               <SelectValue placeholder="Select method" />
                             </SelectTrigger>
-                            <SelectContent>
+                            <SelectContent className="border-im-rule bg-im-panel text-im-text">
                               <SelectItem value="Standard">Standard</SelectItem>
                               <SelectItem value="CEPA">CEPA</SelectItem>
                               <SelectItem value="Rodtep">Rodtep</SelectItem>
                             </SelectContent>
                           </Select>
                         </TableCell>
-                        <TableCell>
-                          <Input
+                        <TableCell className="im-td py-1">
+                          <ImInput
                             type="number"
-                            className={`text-right ${hasBcdDiscrepancy ? 'border-destructive bg-destructive/10' : ''}`}
+                            mono
+                            hasError={hasBcdDiscrepancy}
+                            className="text-right"
                             value={itemInputs[index]?.boeBcdRate ?? ''}
                             onChange={e =>
                               handleInputChange(
@@ -245,9 +280,10 @@ export function ItemsTable({
                             }
                           />
                         </TableCell>
-                        <TableCell>
-                          <Input
+                        <TableCell className="im-td py-1">
+                          <ImInput
                             type="number"
+                            mono
                             className="text-right"
                             value={itemInputs[index]?.boeSwsRate ?? ''}
                             onChange={e =>
@@ -259,12 +295,13 @@ export function ItemsTable({
                             }
                           />
                         </TableCell>
-                        <TableCell>
-                          <Input
+                        <TableCell className="im-td py-1">
+                          <ImInput
                             type="number"
-                            className="bg-muted text-right"
+                            mono
+                            readOnly
+                            className="text-right"
                             value={itemInputs[index]?.boeIgstRate ?? ''}
-                            readOnly // IGST should not be user-editable here
                           />
                         </TableCell>
                       </TableRow>
@@ -296,18 +333,22 @@ export function ItemsTable({
         const boeBcd = itemInputs[index]?.boeBcdRate || 0;
         return boeBcd > 0 && boeBcd > actualBcd;
       }) && (
-        <div className="border-destructive/20 bg-destructive/5 border-t p-4">
-          <div className="text-destructive flex items-center gap-2">
-            <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+        <div className="border-im-bad-bdr bg-im-bad-bg border-t px-3 py-2">
+          <div className="text-im-bad flex items-center gap-2 font-mono text-xs font-semibold tracking-wide">
+            <svg
+              className="h-4 w-4 shrink-0"
+              fill="currentColor"
+              viewBox="0 0 20 20"
+            >
               <path
                 fillRule="evenodd"
                 d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
                 clipRule="evenodd"
               />
             </svg>
-            <span className="font-medium">BCD Discrepancy Alert</span>
+            <span>BCD Discrepancy Alert</span>
           </div>
-          <p className="text-destructive mt-1 text-sm">
+          <p className="text-im-muted mt-1 font-sans text-[11px] leading-snug">
             BOE BCD rates are higher than Actual BCD rates for some items.
             Please review and correct the rates.
           </p>

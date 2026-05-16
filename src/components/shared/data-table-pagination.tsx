@@ -9,21 +9,26 @@ import {
 
 import * as React from 'react';
 
-import { Button } from '@/components/ui/button';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { getModuleSettings } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
+
+const IM = {
+  alt: '#0C0C0B',
+  header: '#0D0D0B',
+  text: '#EFEDE8',
+  muted: '#8C8A82',
+  rule: '#1F1E1A',
+  accent: '#E8A23A',
+  accentBg: 'rgba(232,162,58,0.10)',
+  mono: "Consolas, 'Courier New', monospace",
+} as const;
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   storageKey?: string; // Optional key to persist page size
 }
+
+const PAGE_SIZES = [10, 20, 30, 40, 50];
 
 export function DataTablePagination<TData>({
   table,
@@ -70,74 +75,144 @@ export function DataTablePagination<TData>({
     localStorage.setItem(storageKey, pageSize.toString());
   }, [pageSize, storageKey]);
 
+  const pageIndex = table.getState().pagination.pageIndex;
+  const pageCount = table.getPageCount();
+  const selectedCount = table.getFilteredSelectedRowModel().rows.length;
+  const totalCount = table.getFilteredRowModel().rows.length;
+
+  const btnBase: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    background: IM.header,
+    border: `1px solid ${IM.rule}`,
+    color: IM.muted,
+    cursor: 'pointer',
+    padding: 0,
+  };
+
+  const btnDisabled: React.CSSProperties = {
+    ...btnBase,
+    opacity: 0.35,
+    cursor: 'not-allowed',
+  };
+
   return (
-    <div className="flex items-center justify-between px-2">
-      <div className="text-muted-foreground flex-1 text-sm">
-        {table.getFilteredSelectedRowModel().rows.length} of{' '}
-        {table.getFilteredRowModel().rows.length} row(s) selected.
-      </div>
-      <div className="flex items-center space-x-6 lg:space-x-8">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Rows per page</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={value => {
-              table.setPageSize(Number(value));
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        padding: '6px 2px',
+        borderTop: `1px solid ${IM.rule}`,
+      }}
+    >
+      {/* Left: selection info */}
+      <span
+        style={{
+          fontFamily: IM.mono,
+          fontSize: 10,
+          color: IM.muted,
+          letterSpacing: '0.04em',
+        }}
+      >
+        {selectedCount > 0 ? (
+          <span style={{ color: IM.accent }}>{selectedCount} selected · </span>
+        ) : null}
+        {totalCount} row{totalCount !== 1 ? 's' : ''}
+      </span>
+
+      {/* Right: rows-per-page + nav */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        {/* Rows per page */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span
+            style={{
+              fontFamily: IM.mono,
+              fontSize: 10,
+              color: IM.muted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
             }}
           >
-            <SelectTrigger className="h-8 w-[90px]">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map(pageSize => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+            Rows
+          </span>
+          <select
+            value={pageSize}
+            onChange={e => table.setPageSize(Number(e.target.value))}
+            style={{
+              background: IM.alt,
+              border: `1px solid ${IM.rule}`,
+              color: IM.text,
+              fontFamily: IM.mono,
+              fontSize: 11,
+              padding: '2px 6px',
+              outline: 'none',
+              height: 26,
+            }}
+          >
+            {PAGE_SIZES.map(s => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
         </div>
-        <div className="flex w-[100px] items-center justify-center text-sm font-medium">
-          Page {table.getState().pagination.pageIndex + 1} of{' '}
-          {table.getPageCount()}
-        </div>
-        <div className="flex items-center space-x-2">
-          <Button
-            variant="outline"
-            className="hidden h-8 w-8 p-0 lg:flex"
+
+        {/* Page indicator */}
+        <span
+          style={{
+            fontFamily: IM.mono,
+            fontSize: 10,
+            color: IM.muted,
+            letterSpacing: '0.04em',
+            minWidth: 70,
+            textAlign: 'center',
+          }}
+        >
+          Page{' '}
+          <span style={{ color: IM.text, fontWeight: 700 }}>
+            {pageIndex + 1}
+          </span>{' '}
+          / {pageCount || 1}
+        </span>
+
+        {/* Nav buttons */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+          <button
+            style={!table.getCanPreviousPage() ? btnDisabled : btnBase}
             onClick={() => table.setPageIndex(0)}
             disabled={!table.getCanPreviousPage()}
+            title="First page"
           >
-            <span className="sr-only">Go to first page</span>
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            className="h-8 w-8 p-0"
+            <ChevronsLeft size={13} />
+          </button>
+          <button
+            style={!table.getCanPreviousPage() ? btnDisabled : btnBase}
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
+            title="Previous page"
           >
-            <span className="sr-only">Go to previous page</span>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            className="h-8 w-8 p-0"
+            <ChevronLeft size={13} />
+          </button>
+          <button
+            style={!table.getCanNextPage() ? btnDisabled : btnBase}
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
+            title="Next page"
           >
-            <span className="sr-only">Go to next page</span>
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            variant="outline"
-            className="hidden h-8 w-8 p-0 lg:flex"
+            <ChevronRight size={13} />
+          </button>
+          <button
+            style={!table.getCanNextPage() ? btnDisabled : btnBase}
             onClick={() => table.setPageIndex(table.getPageCount() - 1)}
             disabled={!table.getCanNextPage()}
+            title="Last page"
           >
-            <span className="sr-only">Go to last page</span>
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
+            <ChevronsRight size={13} />
+          </button>
         </div>
       </div>
     </div>

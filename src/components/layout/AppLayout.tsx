@@ -1,34 +1,28 @@
+import * as React from 'react';
 import { Outlet } from 'react-router-dom';
 
 import { BugTrackerRoot } from '@/components/bug-tracker/BugTrackerRoot';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { useIsMobile } from '@/hooks/use-mobile';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 
 import { AppSidebar } from './app-sidebar';
 import { SiteHeader } from './site-header';
 
 export function AppLayout() {
-  const isMobile = useIsMobile();
-  const { getPaddingClass, shouldShowSidebar } = useResponsiveContext();
-
-  // Set defaultOpen to false on mobile to have it closed initially
-  const defaultOpen = !isMobile && shouldShowSidebar;
+  const { shouldShowSidebar } = useResponsiveContext();
+  const [collapsed, setCollapsed] = React.useState(false);
 
   return (
-    // SidebarProvider manages the open/closed state
-    <SidebarProvider defaultOpen={defaultOpen}>
-      {/* AppSidebar is your main navigation component */}
-      <AppSidebar />
-
-      {/* SidebarInset pushes your main content to the right */}
-      <SidebarInset>
-        <SiteHeader />
-        <main className={`flex-1 overflow-y-auto ${getPaddingClass()}`}>
+    <div className="flex h-screen overflow-hidden">
+      {shouldShowSidebar && (
+        <AppSidebar collapsed={collapsed} onCollapsedChange={setCollapsed} />
+      )}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        <SiteHeader onToggleSidebar={() => setCollapsed(c => !c)} />
+        <main className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <Outlet />
         </main>
         <BugTrackerRoot />
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </div>
   );
 }

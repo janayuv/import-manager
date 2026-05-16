@@ -9,27 +9,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   acknowledgeAutomationStabilityAlert,
   applyAdaptiveSlaDecision,
@@ -132,6 +111,7 @@ import {
   DeploymentActivityDrawer,
   openDeploymentActivitySearchParams,
 } from '@/components/admin/DeploymentActivityDrawer';
+import { AppBar, ImToggle } from '@/components/shared/im';
 import {
   AutomationChangeHistoryPanel,
   AutomationCostBenefitPanel,
@@ -877,938 +857,1375 @@ export default function AutomationRulesAdminPage() {
 
   return (
     <>
-      <div className="container mx-auto max-w-7xl space-y-6 p-6">
-        <AutomationShellHeader
-          loading={loading}
-          mutateOk={mutateOk}
-          onRefresh={loadCore}
-          onRunCycle={onRunCycle}
+      <div className="im-page">
+        <AppBar
+          crumbs={['Import Manager', 'Administration', 'Automation Rules']}
         />
+        <div
+          className="im-dashboard-body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+        >
+          <AutomationShellHeader
+            loading={loading}
+            mutateOk={mutateOk}
+            onRefresh={loadCore}
+            onRunCycle={onRunCycle}
+          />
 
-        <AutomationMasterHealthPanel
-          health={health}
-          masterOn={masterOn}
-          mutateOk={mutateOk}
-          onMasterChange={onMaster}
-        />
+          <AutomationMasterHealthPanel
+            health={health}
+            masterOn={masterOn}
+            mutateOk={mutateOk}
+            onMasterChange={onMaster}
+          />
 
-        <AutomationJobObservabilityPanel
-          jobHealth={jobHealth}
-          missedSchedule={missedSchedule}
-          loading={loading}
-          mutateOk={mutateOk}
-          onScanMissedRuns={onScanMissedRuns}
-          onRecoverMissedJob={onRecoverMissedJob}
-        />
+          <AutomationJobObservabilityPanel
+            jobHealth={jobHealth}
+            missedSchedule={missedSchedule}
+            loading={loading}
+            mutateOk={mutateOk}
+            onScanMissedRuns={onScanMissedRuns}
+            onRecoverMissedJob={onRecoverMissedJob}
+          />
 
-        <AutomationGovernancePanel
-          callerRole={callerRole}
-          mutateOk={mutateOk}
-          isAdminRole={isAdminRole}
-          loading={loading}
-          loadCore={loadCore}
-          govRegistry={govRegistry}
-          govPanelJobId={govPanelJobId}
-          setGovPanelJobId={setGovPanelJobId}
-          govRetryExecId={govRetryExecId}
-          setGovRetryExecId={setGovRetryExecId}
-          govOverrideReason={govOverrideReason}
-          setGovOverrideReason={setGovOverrideReason}
-          govTuneGrace={govTuneGrace}
-          setGovTuneGrace={setGovTuneGrace}
-          govTuneDelay={govTuneDelay}
-          setGovTuneDelay={setGovTuneDelay}
-          govTuneMax={govTuneMax}
-          setGovTuneMax={setGovTuneMax}
-          govOverrideLog={govOverrideLog}
-          govDependencies={govDependencies}
-          govFailureInsights={govFailureInsights}
-          govTimeline={govTimeline}
-          govExecLog={govExecLog}
-        />
+          <AutomationGovernancePanel
+            callerRole={callerRole}
+            mutateOk={mutateOk}
+            isAdminRole={isAdminRole}
+            loading={loading}
+            loadCore={loadCore}
+            govRegistry={govRegistry}
+            govPanelJobId={govPanelJobId}
+            setGovPanelJobId={setGovPanelJobId}
+            govRetryExecId={govRetryExecId}
+            setGovRetryExecId={setGovRetryExecId}
+            govOverrideReason={govOverrideReason}
+            setGovOverrideReason={setGovOverrideReason}
+            govTuneGrace={govTuneGrace}
+            setGovTuneGrace={setGovTuneGrace}
+            govTuneDelay={govTuneDelay}
+            setGovTuneDelay={setGovTuneDelay}
+            govTuneMax={govTuneMax}
+            setGovTuneMax={setGovTuneMax}
+            govOverrideLog={govOverrideLog}
+            govDependencies={govDependencies}
+            govFailureInsights={govFailureInsights}
+            govTimeline={govTimeline}
+            govExecLog={govExecLog}
+          />
 
-        {lastRun && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Last manual cycle result
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground grid gap-1 text-sm sm:grid-cols-2 lg:grid-cols-3">
-              <div>Skipped: {String(lastRun.skippedPaused)}</div>
-              <div>Auto-resolved: {lastRun.autoResolved}</div>
-              <div>Auto-assigned: {lastRun.autoAssigned}</div>
-              <div>Priority adjusts: {lastRun.priorityAdjusted}</div>
-              <div>Repairs: {lastRun.repairs}</div>
-              <div>Adaptive SLA rows: {lastRun.adaptiveSlaRows}</div>
-            </CardContent>
-          </Card>
-        )}
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Automation guardrails</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Max auto-resolve / hour</Label>
-              <Input
-                value={maxResolve}
-                onChange={e => setMaxResolve(e.target.value)}
-                disabled={!mutateOk}
-                inputMode="numeric"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Max priority adjusts / cycle</Label>
-              <Input
-                value={maxPrio}
-                onChange={e => setMaxPrio(e.target.value)}
-                disabled={!mutateOk}
-                inputMode="numeric"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Pause duration (minutes)</Label>
-              <Input
-                value={pauseMin}
-                onChange={e => setPauseMin(e.target.value)}
-                disabled={!mutateOk}
-                inputMode="numeric"
-              />
-            </div>
-            {mutateOk && (
-              <Button type="button" onClick={() => void saveGuardrails()}>
-                Save guardrails
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Adaptive SLA</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p className="text-muted-foreground text-sm">
-                  Snapshots are computed daily. “Apply” writes adjusted
-                  deadlines when enabled.
-                </p>
+          {lastRun && (
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">
+                  // Last manual cycle result
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm">Apply to open cases</span>
-                <Switch
-                  checked={adaptiveApply}
-                  onCheckedChange={v => void onAdaptiveToggle(v)}
+              <div
+                className="im-section__body"
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 8,
+                  fontSize: 12.5,
+                  color: 'var(--color-im-muted)',
+                }}
+              >
+                <div>Skipped: {String(lastRun.skippedPaused)}</div>
+                <div>Auto-resolved: {lastRun.autoResolved}</div>
+                <div>Auto-assigned: {lastRun.autoAssigned}</div>
+                <div>Priority adjusts: {lastRun.priorityAdjusted}</div>
+                <div>Repairs: {lastRun.repairs}</div>
+                <div>Adaptive SLA rows: {lastRun.adaptiveSlaRows}</div>
+              </div>
+            </div>
+          )}
+
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">
+                // Automation guardrails
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+              }}
+            >
+              <div>
+                <label className="im-field-label">
+                  Max auto-resolve / hour
+                </label>
+                <input
+                  className="im-input"
+                  value={maxResolve}
+                  onChange={e => setMaxResolve(e.target.value)}
                   disabled={!mutateOk}
+                  inputMode="numeric"
                 />
               </div>
-            </div>
-            {mutateOk && (
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void onAdaptiveDecision(true)}
-                >
-                  Accept &amp; apply now
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void onAdaptiveDecision(false)}
-                >
-                  Reject apply
-                </Button>
-              </div>
-            )}
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Prev h</TableHead>
-                  <TableHead>Adj h</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {slaRows.map(row => (
-                  <TableRow key={row.id}>
-                    <TableCell>{row.exceptionType}</TableCell>
-                    <TableCell>{row.snapshotDate}</TableCell>
-                    <TableCell>{row.previousHours}</TableCell>
-                    <TableCell>{row.adjustedHours}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-end justify-between gap-4">
-            <CardTitle className="text-base">Workflow decision rules</CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <Input
-                placeholder="Search rule name"
-                value={ruleSearch}
-                onChange={e => setRuleSearch(e.target.value)}
-                className="w-48"
-              />
-              <Select value={ruleTypeFilter} onValueChange={setRuleTypeFilter}>
-                <SelectTrigger className="w-44">
-                  <SelectValue placeholder="Rule type" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ruleTypes.map(t => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Tenant</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Action</TableHead>
-                  <TableHead>Priority</TableHead>
-                  <TableHead>Enabled</TableHead>
-                  <TableHead>Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredRules.map(r => (
-                  <TableRow key={r.ruleId}>
-                    <TableCell className="font-medium">{r.ruleName}</TableCell>
-                    <TableCell className="text-muted-foreground max-w-[120px] truncate text-xs">
-                      {r.tenantId}
-                    </TableCell>
-                    <TableCell>{r.ruleType}</TableCell>
-                    <TableCell>{r.actionType}</TableCell>
-                    <TableCell>{r.priority}</TableCell>
-                    <TableCell>
-                      <Switch
-                        checked={r.enabled === 1}
-                        onCheckedChange={v => void onToggleRule(r.ruleId, v)}
-                        disabled={!mutateOk}
-                      />
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-xs">
-                      {r.updatedAt}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <LayoutDashboard className="h-4 w-4" />
-              Rule performance dashboard
-            </CardTitle>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => void onLoadOptRecs()}
-              >
-                <Sparkles className="mr-1 h-4 w-4" />
-                Optimization
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                onClick={() => void onLoadLearn()}
-              >
-                Learning
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid gap-4 lg:grid-cols-2">
-              {(
-                [
-                  ['topPerformingRules', 'Top performing (14d)'],
-                  ['lowPerformingRules', 'Low performing (14d)'],
-                  ['unusedRules', 'Unused (enabled, no volume)'],
-                  ['highFailureRateRules', 'High failure rate'],
-                ] as const
-              ).map(([key, label]) => {
-                const rows =
-                  (perfDash?.[key] as Record<string, unknown>[]) ?? [];
-                return (
-                  <div key={key} className="space-y-2">
-                    <p className="text-sm font-medium">{label}</p>
-                    <div className="bg-muted max-h-48 overflow-auto rounded-md p-2 text-xs">
-                      {rows.length === 0 ? (
-                        <span className="text-muted-foreground">
-                          No data yet.
-                        </span>
-                      ) : (
-                        <ul className="space-y-1">
-                          {rows.slice(0, 8).map((x, i) => (
-                            <li key={i}>
-                              <span className="font-medium">
-                                {String(x.ruleName ?? x.ruleId ?? '—')}
-                              </span>
-                              {typeof x.actions14d === 'number' ? (
-                                <span className="text-muted-foreground">
-                                  {' '}
-                                  · actions {x.actions14d}
-                                </span>
-                              ) : null}
-                              {typeof x.failureRate === 'number' ? (
-                                <span className="text-muted-foreground">
-                                  {' '}
-                                  · fail {(x.failureRate * 100).toFixed(0)}%
-                                </span>
-                              ) : null}
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <p className="mb-2 text-sm font-medium">
-                  ROI snapshot (recent)
-                </p>
-                {roiRows[0] ? (
-                  <ul className="text-muted-foreground space-y-1 text-sm">
-                    <li>
-                      Est. time saved (30d roll-up):{' '}
-                      <span className="text-foreground font-medium">
-                        {roiRows[0].timeSavedHoursEstimate.toFixed(1)} h
-                      </span>
-                    </li>
-                    <li>
-                      Manual share reduction (proxy):{' '}
-                      <span className="text-foreground font-medium">
-                        {roiRows[0].manualWorkloadReductionPct.toFixed(1)}%
-                      </span>
-                    </li>
-                    <li>
-                      Resolved on-time share (30d proxy):{' '}
-                      <span className="text-foreground font-medium">
-                        {roiRows[0].slaComplianceImprovementPct.toFixed(1)}%
-                      </span>
-                    </li>
-                    <li>
-                      Automation vs manual resolution speed delta:{' '}
-                      <span className="text-foreground font-medium">
-                        {roiRows[0].resolutionSpeedIncreasePct.toFixed(1)}%
-                      </span>
-                    </li>
-                  </ul>
-                ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Run an automation cycle to seed ROI metrics.
-                  </p>
+                <label className="im-field-label">
+                  Max priority adjusts / cycle
+                </label>
+                <input
+                  className="im-input"
+                  value={maxPrio}
+                  onChange={e => setMaxPrio(e.target.value)}
+                  disabled={!mutateOk}
+                  inputMode="numeric"
+                />
+              </div>
+              <div>
+                <label className="im-field-label">
+                  Pause duration (minutes)
+                </label>
+                <input
+                  className="im-input"
+                  value={pauseMin}
+                  onChange={e => setPauseMin(e.target.value)}
+                  disabled={!mutateOk}
+                  inputMode="numeric"
+                />
+              </div>
+              {mutateOk && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <button
+                    type="button"
+                    className="im-btn im-btn--primary"
+                    onClick={() => void saveGuardrails()}
+                  >
+                    Save guardrails
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Adaptive SLA</span>
+              <span className="im-section__sub">
+                Snapshots are computed daily. "Apply" writes adjusted deadlines
+                when enabled.
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span
+                    style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}
+                  >
+                    Apply to open cases
+                  </span>
+                  <ImToggle
+                    checked={adaptiveApply}
+                    onChange={v => void onAdaptiveToggle(v)}
+                  />
+                </div>
+                {mutateOk && (
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    <button
+                      type="button"
+                      className="im-btn im-btn--sm"
+                      onClick={() => void onAdaptiveDecision(true)}
+                    >
+                      Accept &amp; apply now
+                    </button>
+                    <button
+                      type="button"
+                      className="im-btn im-btn--sm"
+                      onClick={() => void onAdaptiveDecision(false)}
+                    >
+                      Reject apply
+                    </button>
+                  </div>
                 )}
               </div>
-              <div>
-                <p className="mb-2 text-sm font-medium">Stability alerts</p>
-                {stabilityAlerts.length === 0 ? (
-                  <p className="text-muted-foreground text-sm">None open.</p>
-                ) : (
-                  <ul className="space-y-2 text-sm">
-                    {stabilityAlerts.map(a => (
-                      <li
-                        key={a.id}
-                        className="border-border/60 flex flex-wrap items-start justify-between gap-2 border-b pb-2"
+              <div className="im-table-scroll">
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th">Type</th>
+                      <th className="im-th">Date</th>
+                      <th className="im-th">Prev h</th>
+                      <th className="im-th">Adj h</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {slaRows.map((row, i) => (
+                      <tr
+                        key={row.id}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
                       >
-                        <div>
-                          <Badge variant="outline">{a.severity}</Badge>{' '}
-                          <span className="font-medium">{a.alertType}</span>
-                          <p className="text-muted-foreground text-xs">
-                            {a.createdAt}
-                          </p>
-                        </div>
-                        {mutateOk && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => void onAckAlert(a.id)}
+                        <td className="im-td">{row.exceptionType}</td>
+                        <td className="im-td">{row.snapshotDate}</td>
+                        <td className="im-td">{row.previousHours}</td>
+                        <td className="im-td">{row.adjustedHours}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">
+                // Workflow decision rules
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <input
+                  className="im-input"
+                  placeholder="Search rule name"
+                  value={ruleSearch}
+                  onChange={e => setRuleSearch(e.target.value)}
+                  style={{ width: 192 }}
+                />
+                <div className="im-select-wrap" style={{ width: 176 }}>
+                  <select
+                    className="im-select"
+                    value={ruleTypeFilter}
+                    onChange={e => setRuleTypeFilter(e.target.value)}
+                  >
+                    {ruleTypes.map(t => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+            <div className="im-section__body" style={{ padding: 0 }}>
+              <div className="im-table-scroll">
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th">Name</th>
+                      <th className="im-th">Tenant</th>
+                      <th className="im-th">Type</th>
+                      <th className="im-th">Action</th>
+                      <th className="im-th">Priority</th>
+                      <th className="im-th">Enabled</th>
+                      <th className="im-th">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredRules.map((r, i) => (
+                      <tr
+                        key={r.ruleId}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                      >
+                        <td className="im-td" style={{ fontWeight: 600 }}>
+                          {r.ruleName}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 120,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                            color: 'var(--color-im-muted)',
+                          }}
+                        >
+                          {r.tenantId}
+                        </td>
+                        <td className="im-td">{r.ruleType}</td>
+                        <td className="im-td">{r.actionType}</td>
+                        <td className="im-td">{r.priority}</td>
+                        <td className="im-td">
+                          <ImToggle
+                            checked={r.enabled === 1}
+                            onChange={v => void onToggleRule(r.ruleId, v)}
+                          />
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            fontSize: 11.5,
+                            color: 'var(--color-im-muted)',
+                          }}
+                        >
+                          {r.updatedAt}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">
+                <LayoutDashboard
+                  style={{
+                    display: 'inline',
+                    width: 13,
+                    height: 13,
+                    marginRight: 4,
+                  }}
+                />
+                // Rule performance dashboard
+              </span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  onClick={() => void onLoadOptRecs()}
+                >
+                  <Sparkles
+                    style={{
+                      display: 'inline',
+                      width: 12,
+                      height: 12,
+                      marginRight: 4,
+                    }}
+                  />
+                  Optimization
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  onClick={() => void onLoadLearn()}
+                >
+                  Learning
+                </button>
+              </div>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ display: 'flex', flexDirection: 'column', gap: 20 }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 16,
+                }}
+              >
+                {(
+                  [
+                    ['topPerformingRules', 'Top performing (14d)'],
+                    ['lowPerformingRules', 'Low performing (14d)'],
+                    ['unusedRules', 'Unused (enabled, no volume)'],
+                    ['highFailureRateRules', 'High failure rate'],
+                  ] as const
+                ).map(([key, label]) => {
+                  const rows =
+                    (perfDash?.[key] as Record<string, unknown>[]) ?? [];
+                  return (
+                    <div key={key}>
+                      <p
+                        style={{
+                          margin: '0 0 6px',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: 'var(--color-im-text)',
+                        }}
+                      >
+                        {label}
+                      </p>
+                      <div
+                        style={{
+                          maxHeight: 192,
+                          overflowY: 'auto',
+                          padding: 8,
+                          background: 'var(--color-im-panel)',
+                          borderRadius: 2,
+                          fontSize: 11.5,
+                        }}
+                      >
+                        {rows.length === 0 ? (
+                          <span style={{ color: 'var(--color-im-faint)' }}>
+                            No data yet.
+                          </span>
+                        ) : (
+                          <ul
+                            style={{
+                              margin: 0,
+                              padding: 0,
+                              listStyle: 'none',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                            }}
                           >
-                            Ack
-                          </Button>
+                            {rows.slice(0, 8).map((x, i) => (
+                              <li key={i}>
+                                <span style={{ fontWeight: 600 }}>
+                                  {String(x.ruleName ?? x.ruleId ?? '—')}
+                                </span>
+                                {typeof x.actions14d === 'number' ? (
+                                  <span
+                                    style={{ color: 'var(--color-im-muted)' }}
+                                  >
+                                    {' '}
+                                    · actions {x.actions14d}
+                                  </span>
+                                ) : null}
+                                {typeof x.failureRate === 'number' ? (
+                                  <span
+                                    style={{ color: 'var(--color-im-muted)' }}
+                                  >
+                                    {' '}
+                                    · fail {(x.failureRate * 100).toFixed(0)}%
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
                         )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 16,
+                }}
+              >
+                <div>
+                  <p
+                    style={{
+                      margin: '0 0 6px',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: 'var(--color-im-text)',
+                    }}
+                  >
+                    ROI snapshot (recent)
+                  </p>
+                  {roiRows[0] ? (
+                    <ul
+                      style={{
+                        margin: 0,
+                        padding: 0,
+                        listStyle: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 4,
+                        fontSize: 12.5,
+                        color: 'var(--color-im-muted)',
+                      }}
+                    >
+                      <li>
+                        Est. time saved (30d roll-up):{' '}
+                        <strong style={{ color: 'var(--color-im-text)' }}>
+                          {roiRows[0].timeSavedHoursEstimate.toFixed(1)} h
+                        </strong>
+                      </li>
+                      <li>
+                        Manual share reduction (proxy):{' '}
+                        <strong style={{ color: 'var(--color-im-text)' }}>
+                          {roiRows[0].manualWorkloadReductionPct.toFixed(1)}%
+                        </strong>
+                      </li>
+                      <li>
+                        Resolved on-time share (30d proxy):{' '}
+                        <strong style={{ color: 'var(--color-im-text)' }}>
+                          {roiRows[0].slaComplianceImprovementPct.toFixed(1)}%
+                        </strong>
+                      </li>
+                      <li>
+                        Resolution speed delta:{' '}
+                        <strong style={{ color: 'var(--color-im-text)' }}>
+                          {roiRows[0].resolutionSpeedIncreasePct.toFixed(1)}%
+                        </strong>
+                      </li>
+                    </ul>
+                  ) : (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 12.5,
+                        color: 'var(--color-im-muted)',
+                      }}
+                    >
+                      Run an automation cycle to seed ROI metrics.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p
+                    style={{
+                      margin: '0 0 6px',
+                      fontSize: 12.5,
+                      fontWeight: 600,
+                      color: 'var(--color-im-text)',
+                    }}
+                  >
+                    Stability alerts
+                  </p>
+                  {stabilityAlerts.length === 0 ? (
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: 12.5,
+                        color: 'var(--color-im-muted)',
+                      }}
+                    >
+                      None open.
+                    </p>
+                  ) : (
+                    <ul
+                      style={{
+                        margin: 0,
+                        padding: 0,
+                        listStyle: 'none',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      {stabilityAlerts.map(a => (
+                        <li
+                          key={a.id}
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                            paddingBottom: 8,
+                            borderBottom: '1px solid var(--color-im-rule)',
+                            fontSize: 12.5,
+                          }}
+                        >
+                          <div>
+                            <span className="im-badge is-neutral">
+                              {a.severity}
+                            </span>{' '}
+                            <span style={{ fontWeight: 600 }}>
+                              {a.alertType}
+                            </span>
+                            <p
+                              style={{
+                                margin: '2px 0 0',
+                                fontSize: 11,
+                                color: 'var(--color-im-muted)',
+                              }}
+                            >
+                              {a.createdAt}
+                            </p>
+                          </div>
+                          {mutateOk && (
+                            <button
+                              type="button"
+                              className="im-btn im-btn--sm"
+                              onClick={() => void onAckAlert(a.id)}
+                            >
+                              Ack
+                            </button>
+                          )}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <p
+                  style={{
+                    margin: '0 0 6px',
+                    fontSize: 12.5,
+                    fontWeight: 600,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
+                  Automation benchmarks
+                </p>
+                {benchmarks.length === 0 ? (
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 12.5,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
+                    Weekly/monthly snapshots appear after automation cycles roll
+                    benchmarks forward.
+                  </p>
+                ) : (
+                  <ul
+                    style={{
+                      margin: 0,
+                      padding: 0,
+                      listStyle: 'none',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 8,
+                      fontSize: 11.5,
+                    }}
+                  >
+                    {benchmarks.slice(0, 8).map(b => (
+                      <li
+                        key={b.id}
+                        style={{
+                          padding: 8,
+                          background: 'var(--color-im-panel)',
+                          borderRadius: 2,
+                        }}
+                      >
+                        <span style={{ fontWeight: 600 }}>{b.periodType}</span>{' '}
+                        <span style={{ color: 'var(--color-im-muted)' }}>
+                          {b.periodStart} → {b.periodEnd}
+                        </span>
+                        <pre
+                          style={{
+                            margin: '4px 0 0',
+                            maxHeight: 96,
+                            overflowY: 'auto',
+                            whiteSpace: 'pre-wrap',
+                            fontSize: 11,
+                          }}
+                        >
+                          {b.metricsJson}
+                        </pre>
                       </li>
                     ))}
                   </ul>
                 )}
               </div>
-            </div>
 
-            <div>
-              <p className="mb-2 text-sm font-medium">Automation benchmarks</p>
-              {benchmarks.length === 0 ? (
-                <p className="text-muted-foreground text-sm">
-                  Weekly/monthly snapshots appear after automation cycles roll
-                  benchmarks forward.
-                </p>
-              ) : (
-                <ul className="space-y-2 text-xs">
-                  {benchmarks.slice(0, 8).map(b => (
-                    <li key={b.id} className="bg-muted rounded-md p-2">
-                      <span className="font-medium">{b.periodType}</span>{' '}
-                      <span className="text-muted-foreground">
-                        {b.periodStart} → {b.periodEnd}
-                      </span>
-                      <pre className="mt-1 max-h-24 overflow-auto whitespace-pre-wrap">
-                        {b.metricsJson}
+              {(optRecs || learnSug) && (
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 16,
+                  }}
+                >
+                  {optRecs && (
+                    <div>
+                      <p
+                        style={{
+                          margin: '0 0 6px',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: 'var(--color-im-text)',
+                        }}
+                      >
+                        Optimization recommendations
+                      </p>
+                      <pre
+                        style={{
+                          maxHeight: 224,
+                          overflowY: 'auto',
+                          padding: 12,
+                          background: 'var(--color-im-panel)',
+                          fontSize: 11,
+                        }}
+                      >
+                        {JSON.stringify(optRecs, null, 2)}
                       </pre>
-                    </li>
-                  ))}
-                </ul>
+                    </div>
+                  )}
+                  {learnSug && (
+                    <div>
+                      <p
+                        style={{
+                          margin: '0 0 6px',
+                          fontSize: 12.5,
+                          fontWeight: 600,
+                          color: 'var(--color-im-text)',
+                        }}
+                      >
+                        Automation learning suggestions
+                      </p>
+                      <pre
+                        style={{
+                          maxHeight: 224,
+                          overflowY: 'auto',
+                          padding: 12,
+                          background: 'var(--color-im-panel)',
+                          fontSize: 11,
+                        }}
+                      >
+                        {JSON.stringify(learnSug, null, 2)}
+                      </pre>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {mutateOk && (
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    paddingTop: 16,
+                    borderTop: '1px solid var(--color-im-rule)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(3, 1fr)',
+                      gap: 12,
+                    }}
+                  >
+                    <div>
+                      <label className="im-field-label">
+                        Rollback automation ID
+                      </label>
+                      <input
+                        className="im-input"
+                        value={rollbackId}
+                        onChange={e => setRollbackId(e.target.value)}
+                        placeholder="automation_id from log"
+                      />
+                    </div>
+                    <div>
+                      <label className="im-field-label">Type</label>
+                      <div className="im-select-wrap">
+                        <select
+                          className="im-select"
+                          value={rollbackType}
+                          onChange={e =>
+                            setRollbackType(
+                              e.target.value as
+                                | 'AUTO_RESOLVE'
+                                | 'AUTO_ASSIGN'
+                                | 'PRIORITY_ADJUST'
+                            )
+                          }
+                        >
+                          <option value="AUTO_RESOLVE">AUTO_RESOLVE</option>
+                          <option value="AUTO_ASSIGN">AUTO_ASSIGN</option>
+                          <option value="PRIORITY_ADJUST">
+                            PRIORITY_ADJUST
+                          </option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                  <div>
+                    <button
+                      type="button"
+                      className="im-btn"
+                      style={{
+                        color: 'var(--color-im-bad)',
+                        borderColor: 'var(--color-im-bad)',
+                      }}
+                      onClick={() => void onRollback()}
+                    >
+                      Roll back action
+                    </button>
+                  </div>
+                </div>
               )}
             </div>
+          </div>
 
-            {(optRecs || learnSug) && (
-              <div className="grid gap-4 md:grid-cols-2">
-                {optRecs && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">
-                      Optimization recommendations
-                    </p>
-                    <pre className="bg-muted max-h-56 overflow-auto rounded-md p-3 text-xs">
-                      {JSON.stringify(optRecs, null, 2)}
-                    </pre>
-                  </div>
-                )}
-                {learnSug && (
-                  <div>
-                    <p className="mb-2 text-sm font-medium">
-                      Automation learning suggestions
-                    </p>
-                    <pre className="bg-muted max-h-56 overflow-auto rounded-md p-3 text-xs">
-                      {JSON.stringify(learnSug, null, 2)}
-                    </pre>
-                  </div>
-                )}
+          <AutomationCostBenefitPanel
+            costDash={costDash}
+            capLoad={capLoad}
+            econTrend={econTrend}
+            ineffRules={ineffRules}
+            capForecast={capForecast}
+            costSug={costSug}
+            limMaxCu={limMaxCu}
+            setLimMaxCu={setLimMaxCu}
+            limMaxMs={limMaxMs}
+            setLimMaxMs={setLimMaxMs}
+            limMaxRec={limMaxRec}
+            setLimMaxRec={setLimMaxRec}
+            mutateOk={mutateOk}
+            onDetectIneff={onDetectIneff}
+            onCapForecast={onCapForecast}
+            onCostSug={onCostSug}
+            onSaveCostLimits={onSaveCostLimits}
+          />
+
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">
+                // Environments, tenants &amp; promotion
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                fontSize: 12.5,
+              }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  disabled={!viewOk}
+                  onClick={async () => {
+                    try {
+                      const [ctx, envs, tenants] = await Promise.all([
+                        getWorkflowExecutionContext(callerRole),
+                        listWorkflowEnvironments(callerRole),
+                        listWorkflowTenants(callerRole),
+                      ]);
+                      setMeCtx(ctx as Record<string, unknown>);
+                      setMeEnvs(envs);
+                      setMeTenants(tenants);
+                    } catch (e) {
+                      toast.error(String(e));
+                    }
+                  }}
+                >
+                  Load registry &amp; context
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  disabled={!viewOk}
+                  onClick={async () => {
+                    try {
+                      setMeHealth(
+                        await getEnvironmentHealthDashboard(callerRole)
+                      );
+                    } catch (e) {
+                      toast.error(String(e));
+                    }
+                  }}
+                >
+                  Environment health
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  disabled={!viewOk}
+                  onClick={async () => {
+                    try {
+                      setMeTenantDash(
+                        await getTenantPerformanceDashboard(
+                          callerRole,
+                          (
+                            meCtx?.activeTenantId as string | undefined
+                          )?.trim() || null
+                        )
+                      );
+                    } catch (e) {
+                      toast.error(String(e));
+                    }
+                  }}
+                >
+                  Tenant performance
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  disabled={!viewOk}
+                  onClick={openDeploymentActivityDrawer}
+                >
+                  <Activity
+                    style={{
+                      display: 'inline',
+                      width: 12,
+                      height: 12,
+                      marginRight: 4,
+                    }}
+                  />
+                  Deployment activity
+                </button>
               </div>
-            )}
+              {meCtx ? (
+                <pre
+                  style={{
+                    maxHeight: 112,
+                    overflowY: 'auto',
+                    padding: 8,
+                    background: 'var(--color-im-panel)',
+                    fontSize: 11,
+                  }}
+                >
+                  {JSON.stringify(meCtx, null, 2)}
+                </pre>
+              ) : null}
+              {meEnvs.length > 0 ? (
+                <pre style={{ maxHeight: 96, overflowY: 'auto', fontSize: 11 }}>
+                  {JSON.stringify(meEnvs, null, 2)}
+                </pre>
+              ) : null}
+              {meHealth ? (
+                <pre
+                  style={{ maxHeight: 160, overflowY: 'auto', fontSize: 11 }}
+                >
+                  {JSON.stringify(meHealth, null, 2)}
+                </pre>
+              ) : null}
+              {meTenantDash ? (
+                <pre
+                  style={{ maxHeight: 160, overflowY: 'auto', fontSize: 11 }}
+                >
+                  {JSON.stringify(meTenantDash, null, 2)}
+                </pre>
+              ) : null}
+              {mutateOk ? (
+                <div
+                  style={{
+                    paddingTop: 12,
+                    borderTop: '1px solid var(--color-im-rule)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 11.5,
+                      fontWeight: 600,
+                      color: 'var(--color-im-text)',
+                    }}
+                  >
+                    Active context (metadata)
+                  </p>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, 1fr)',
+                      gap: 12,
+                    }}
+                  >
+                    <div>
+                      <label className="im-field-label">Tenant id</label>
+                      <div className="im-select-wrap">
+                        <select
+                          className="im-select"
+                          value={
+                            (meCtx?.activeTenantId as string | undefined) || ''
+                          }
+                          onChange={async e => {
+                            const v = e.target.value;
+                            if (!v) return;
+                            try {
+                              await setWorkflowActiveTenant(v, callerRole);
+                              toast.success('Active tenant updated');
+                              const ctx =
+                                await getWorkflowExecutionContext(callerRole);
+                              setMeCtx(ctx as Record<string, unknown>);
+                              await loadCore();
+                            } catch (e) {
+                              toast.error(String(e));
+                            }
+                          }}
+                        >
+                          <option value="">tenant</option>
+                          {meTenants.map(t => (
+                            <option key={t.tenantId} value={t.tenantId}>
+                              {t.tenantName}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="im-field-label">
+                        Execution environment
+                      </label>
+                      <div className="im-select-wrap">
+                        <select
+                          className="im-select"
+                          value={
+                            (meCtx?.executionEnvironmentId as
+                              | string
+                              | undefined) || ''
+                          }
+                          onChange={async e => {
+                            const v = e.target.value;
+                            if (!v) return;
+                            try {
+                              await setWorkflowExecutionEnvironment(
+                                v,
+                                callerRole
+                              );
+                              toast.success('Execution environment updated');
+                              const ctx =
+                                await getWorkflowExecutionContext(callerRole);
+                              setMeCtx(ctx as Record<string, unknown>);
+                            } catch (e) {
+                              toast.error(String(e));
+                            }
+                          }}
+                        >
+                          <option value="">environment</option>
+                          {meEnvs.map(e => (
+                            <option
+                              key={e.environmentId}
+                              value={e.environmentId}
+                            >
+                              {e.environmentName} ({e.environmentType})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+              <div
+                style={{
+                  paddingTop: 12,
+                  borderTop: '1px solid var(--color-im-rule)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}
+              >
+                <label className="im-field-label">
+                  Promote version (DEV → TEST → PROD)
+                </label>
+                <input
+                  className="im-input"
+                  placeholder="source version_id"
+                  value={lcPromoteFrom}
+                  onChange={e => setLcPromoteFrom(e.target.value)}
+                />
+                <div className="im-select-wrap">
+                  <select
+                    className="im-select"
+                    value={lcPromoteToEnv}
+                    onChange={e => setLcPromoteToEnv(e.target.value)}
+                  >
+                    <option value="env-test">env-test</option>
+                    <option value="env-prod">env-prod</option>
+                  </select>
+                </div>
+                <div>
+                  <button
+                    type="button"
+                    className="im-btn im-btn--sm"
+                    disabled={!mutateOk}
+                    onClick={async () => {
+                      try {
+                        const nv = await promoteRuleVersion(
+                          lcPromoteFrom.trim(),
+                          lcPromoteToEnv,
+                          changedBy,
+                          callerRole
+                        );
+                        toast.success(`Promoted → ${nv}`);
+                        setLcPromoteFrom('');
+                        await loadLifecycle();
+                      } catch (e) {
+                        toast.error(String(e));
+                      }
+                    }}
+                  >
+                    Promote
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
-            {mutateOk && (
-              <div className="flex flex-col gap-2 border-t pt-4 md:flex-row md:items-end">
-                <div className="grid flex-1 gap-2 sm:grid-cols-3">
-                  <div className="space-y-1">
-                    <Label>Rollback automation ID</Label>
-                    <Input
-                      value={rollbackId}
-                      onChange={e => setRollbackId(e.target.value)}
-                      placeholder="automation_id from log"
+          <AutomationRuleLifecyclePanel
+            depGov={depGov}
+            lcLoading={lcLoading}
+            viewOk={viewOk}
+            mutateOk={mutateOk}
+            isAdminRole={isAdminRole}
+            callerRole={callerRole}
+            changedBy={changedBy}
+            loadCore={loadCore}
+            loadLifecycle={loadLifecycle}
+            onRefreshLifecycle={onRefreshLifecycle}
+            rules={rules}
+            filteredRules={filteredRules}
+            lcRuleId={lcRuleId}
+            setLcRuleId={setLcRuleId}
+            lcVersionTenantFilter={lcVersionTenantFilter}
+            setLcVersionTenantFilter={setLcVersionTenantFilter}
+            lcVersionEnvFilter={lcVersionEnvFilter}
+            setLcVersionEnvFilter={setLcVersionEnvFilter}
+            lcSnapTenant={lcSnapTenant}
+            setLcSnapTenant={setLcSnapTenant}
+            lcSnapEnv={lcSnapEnv}
+            setLcSnapEnv={setLcSnapEnv}
+            lcChangeReason={lcChangeReason}
+            setLcChangeReason={setLcChangeReason}
+            lcCompareA={lcCompareA}
+            setLcCompareA={setLcCompareA}
+            lcCompareB={lcCompareB}
+            setLcCompareB={setLcCompareB}
+            lcCompareResult={lcCompareResult}
+            setLcCompareResult={setLcCompareResult}
+            lcVersionForStaging={lcVersionForStaging}
+            setLcVersionForStaging={setLcVersionForStaging}
+            lcStagingEnv={lcStagingEnv}
+            setLcStagingEnv={setLcStagingEnv}
+            lcStagingId={lcStagingId}
+            setLcStagingId={setLcStagingId}
+            lcStagingStatus={lcStagingStatus}
+            setLcStagingStatus={setLcStagingStatus}
+            lcDeployVid={lcDeployVid}
+            setLcDeployVid={setLcDeployVid}
+            lcApprovalId={lcApprovalId}
+            setLcApprovalId={setLcApprovalId}
+            lcValidateResult={lcValidateResult}
+            setLcValidateResult={setLcValidateResult}
+            lcSafetyOverride={lcSafetyOverride}
+            setLcSafetyOverride={setLcSafetyOverride}
+            lcRollbackVid={lcRollbackVid}
+            setLcRollbackVid={setLcRollbackVid}
+            lcRollbackEnv={lcRollbackEnv}
+            setLcRollbackEnv={setLcRollbackEnv}
+            lcCanaryVid={lcCanaryVid}
+            setLcCanaryVid={setLcCanaryVid}
+            lcCanaryPct={lcCanaryPct}
+            setLcCanaryPct={setLcCanaryPct}
+            lcVersions={lcVersions}
+            lcStaging={lcStaging}
+            lcApprovals={lcApprovals}
+            lcDeployLog={lcDeployLog}
+            lcCanary={lcCanary}
+            lcImpact={lcImpact}
+          />
+
+          <AutomationDeploymentSafetyPanel
+            viewOk={viewOk}
+            mutateOk={mutateOk}
+            lcRuleId={lcRuleId}
+            lcDeployVid={lcDeployVid}
+            depSafetyDash={depSafetyDash}
+            depSafetyReco={depSafetyReco}
+            depSafetyEval={depSafetyEval}
+            depDryRun={depDryRun}
+            depSafetyAudit={depSafetyAudit}
+            onLoadDashboard={onDeploymentSafetyLoadDashboard}
+            onLoadRecommendations={onDeploymentSafetyLoadRecommendations}
+            onEvaluateSafety={onDeploymentSafetyEvaluate}
+            onDryRun={onDeploymentSafetyDryRun}
+            onAuditReport={onDeploymentSafetyAuditReport}
+            onEnableProdSafetyGate={onDeploymentSafetyEnableProdGate}
+            onDisableProdSafetyGate={onDeploymentSafetyDisableProdGate}
+          />
+
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Rule simulation</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    type="button"
+                    className="im-btn im-btn--sm"
+                    onClick={() => void onSimulate()}
+                  >
+                    <FlaskConical
+                      style={{
+                        display: 'inline',
+                        width: 12,
+                        height: 12,
+                        marginRight: 4,
+                      }}
+                    />
+                    Run simulation
+                  </button>
+                  <button
+                    type="button"
+                    className="im-btn im-btn--sm"
+                    onClick={() => void onMultiSim()}
+                  >
+                    <GitCompare
+                      style={{
+                        display: 'inline',
+                        width: 12,
+                        height: 12,
+                        marginRight: 4,
+                      }}
+                    />
+                    Compare rule sets
+                  </button>
+                </div>
+              </div>
+              <div
+                className="im-section__body"
+                style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+              >
+                <div>
+                  <label className="im-field-label">
+                    Staged version id (optional)
+                  </label>
+                  <input
+                    className="im-input"
+                    value={stagedVersionForSim}
+                    onChange={e => setStagedVersionForSim(e.target.value)}
+                    placeholder="e.g. rule-auto-resolve-overdue-delivered:v:2"
+                  />
+                </div>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 8,
+                  }}
+                >
+                  <div>
+                    <label className="im-field-label">
+                      Simulation tenant id (optional)
+                    </label>
+                    <input
+                      className="im-input"
+                      value={simTenantId}
+                      onChange={e => setSimTenantId(e.target.value)}
+                      placeholder="tenant-default"
                     />
                   </div>
-                  <div className="space-y-1">
-                    <Label>Type</Label>
-                    <Select
-                      value={rollbackType}
-                      onValueChange={v =>
-                        setRollbackType(
-                          v as
-                            | 'AUTO_RESOLVE'
-                            | 'AUTO_ASSIGN'
-                            | 'PRIORITY_ADJUST'
-                        )
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="AUTO_RESOLVE">
-                          AUTO_RESOLVE
-                        </SelectItem>
-                        <SelectItem value="AUTO_ASSIGN">AUTO_ASSIGN</SelectItem>
-                        <SelectItem value="PRIORITY_ADJUST">
-                          PRIORITY_ADJUST
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
+                  <div>
+                    <label className="im-field-label">
+                      Simulation environment id (optional)
+                    </label>
+                    <input
+                      className="im-input"
+                      value={simEnvironmentId}
+                      onChange={e => setSimEnvironmentId(e.target.value)}
+                      placeholder="env-dev"
+                    />
                   </div>
                 </div>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  onClick={() => void onRollback()}
-                >
-                  Roll back action
-                </Button>
+                <div>
+                  <p
+                    style={{
+                      margin: '0 0 4px',
+                      fontSize: 11,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
+                    Single pass
+                  </p>
+                  <pre
+                    style={{
+                      maxHeight: 192,
+                      overflowY: 'auto',
+                      padding: 12,
+                      background: 'var(--color-im-panel)',
+                      fontSize: 11,
+                    }}
+                  >
+                    {simResult
+                      ? JSON.stringify(simResult, null, 2)
+                      : 'No simulation run yet.'}
+                  </pre>
+                </div>
+                <div>
+                  <p
+                    style={{
+                      margin: '0 0 4px',
+                      fontSize: 11,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
+                    Current vs all-off vs auto-resolve-only
+                  </p>
+                  <pre
+                    style={{
+                      maxHeight: 192,
+                      overflowY: 'auto',
+                      padding: 12,
+                      background: 'var(--color-im-panel)',
+                      fontSize: 11,
+                    }}
+                  >
+                    {multiSim
+                      ? JSON.stringify(multiSim, null, 2)
+                      : 'Run "Compare rule sets" for projections.'}
+                  </pre>
+                </div>
               </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <AutomationCostBenefitPanel
-          costDash={costDash}
-          capLoad={capLoad}
-          econTrend={econTrend}
-          ineffRules={ineffRules}
-          capForecast={capForecast}
-          costSug={costSug}
-          limMaxCu={limMaxCu}
-          setLimMaxCu={setLimMaxCu}
-          limMaxMs={limMaxMs}
-          setLimMaxMs={setLimMaxMs}
-          limMaxRec={limMaxRec}
-          setLimMaxRec={setLimMaxRec}
-          mutateOk={mutateOk}
-          onDetectIneff={onDetectIneff}
-          onCapForecast={onCapForecast}
-          onCostSug={onCostSug}
-          onSaveCostLimits={onSaveCostLimits}
-        />
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              Environments, tenants & promotion
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 text-sm">
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!viewOk}
-                onClick={async () => {
-                  try {
-                    const [ctx, envs, tenants] = await Promise.all([
-                      getWorkflowExecutionContext(callerRole),
-                      listWorkflowEnvironments(callerRole),
-                      listWorkflowTenants(callerRole),
-                    ]);
-                    setMeCtx(ctx as Record<string, unknown>);
-                    setMeEnvs(envs);
-                    setMeTenants(tenants);
-                  } catch (e) {
-                    toast.error(String(e));
-                  }
-                }}
-              >
-                Load registry & context
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!viewOk}
-                onClick={async () => {
-                  try {
-                    setMeHealth(
-                      await getEnvironmentHealthDashboard(callerRole)
-                    );
-                  } catch (e) {
-                    toast.error(String(e));
-                  }
-                }}
-              >
-                Environment health
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!viewOk}
-                onClick={async () => {
-                  try {
-                    setMeTenantDash(
-                      await getTenantPerformanceDashboard(
-                        callerRole,
-                        (meCtx?.activeTenantId as string | undefined)?.trim() ||
-                          null
-                      )
-                    );
-                  } catch (e) {
-                    toast.error(String(e));
-                  }
-                }}
-              >
-                Tenant performance
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={!viewOk}
-                onClick={openDeploymentActivityDrawer}
-              >
-                <Activity className="mr-1 h-4 w-4" />
-                Deployment activity
-              </Button>
             </div>
-            {meCtx ? (
-              <pre className="bg-muted max-h-28 overflow-auto rounded-md p-2 text-xs">
-                {JSON.stringify(meCtx, null, 2)}
-              </pre>
-            ) : null}
-            {meEnvs.length > 0 ? (
-              <pre className="bg-muted max-h-24 overflow-auto text-xs">
-                {JSON.stringify(meEnvs, null, 2)}
-              </pre>
-            ) : null}
-            {meHealth ? (
-              <pre className="bg-muted max-h-40 overflow-auto text-xs">
-                {JSON.stringify(meHealth, null, 2)}
-              </pre>
-            ) : null}
-            {meTenantDash ? (
-              <pre className="bg-muted max-h-40 overflow-auto text-xs">
-                {JSON.stringify(meTenantDash, null, 2)}
-              </pre>
-            ) : null}
-            {mutateOk ? (
-              <div className="space-y-2 border-t pt-3">
-                <p className="text-xs font-medium">Active context (metadata)</p>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <div className="space-y-1">
-                    <Label className="text-xs">Tenant id</Label>
-                    <Select
-                      value={
-                        (meCtx?.activeTenantId as string | undefined) ||
-                        undefined
-                      }
-                      onValueChange={async v => {
-                        try {
-                          await setWorkflowActiveTenant(v, callerRole);
-                          toast.success('Active tenant updated');
-                          const ctx =
-                            await getWorkflowExecutionContext(callerRole);
-                          setMeCtx(ctx as Record<string, unknown>);
-                          await loadCore();
-                        } catch (e) {
-                          toast.error(String(e));
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="tenant" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {meTenants.map(t => (
-                          <SelectItem key={t.tenantId} value={t.tenantId}>
-                            {t.tenantName}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1">
-                    <Label className="text-xs">Execution environment</Label>
-                    <Select
-                      value={
-                        (meCtx?.executionEnvironmentId as string | undefined) ||
-                        undefined
-                      }
-                      onValueChange={async v => {
-                        try {
-                          await setWorkflowExecutionEnvironment(v, callerRole);
-                          toast.success('Execution environment updated');
-                          const ctx =
-                            await getWorkflowExecutionContext(callerRole);
-                          setMeCtx(ctx as Record<string, unknown>);
-                        } catch (e) {
-                          toast.error(String(e));
-                        }
-                      }}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="environment" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {meEnvs.map(e => (
-                          <SelectItem
-                            key={e.environmentId}
-                            value={e.environmentId}
-                          >
-                            {e.environmentName} ({e.environmentType})
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
+
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">
+                  // Automation impact (7 days)
+                </span>
               </div>
-            ) : null}
-            <div className="space-y-2 border-t pt-3">
-              <Label className="text-xs">
-                Promote version (DEV → TEST → PROD)
-              </Label>
-              <Input
-                placeholder="source version_id"
-                value={lcPromoteFrom}
-                onChange={e => setLcPromoteFrom(e.target.value)}
-              />
-              <Select value={lcPromoteToEnv} onValueChange={setLcPromoteToEnv}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="env-test">env-test</SelectItem>
-                  <SelectItem value="env-prod">env-prod</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                size="sm"
-                disabled={!mutateOk}
-                onClick={async () => {
-                  try {
-                    const nv = await promoteRuleVersion(
-                      lcPromoteFrom.trim(),
-                      lcPromoteToEnv,
-                      changedBy,
-                      callerRole
-                    );
-                    toast.success(`Promoted → ${nv}`);
-                    setLcPromoteFrom('');
-                    await loadLifecycle();
-                  } catch (e) {
-                    toast.error(String(e));
-                  }
+              <div
+                className="im-section__body"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  fontSize: 12.5,
+                  color: 'var(--color-im-muted)',
                 }}
               >
-                Promote
-              </Button>
+                {impact ? (
+                  <>
+                    <div>Auto-resolve: {impact.autoResolve7d}</div>
+                    <div>Auto-assign: {impact.autoAssign7d}</div>
+                    <div>Priority adjust: {impact.priorityAdjust7d}</div>
+                    <div>Auto-repair: {impact.autoRepair7d}</div>
+                    <div>
+                      SLA escalations (log): {impact.escalationsLogged7d}
+                    </div>
+                    <div>Cycle summaries: {impact.cycleSummaries7d}</div>
+                  </>
+                ) : (
+                  <span>Loading…</span>
+                )}
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <AutomationRuleLifecyclePanel
-          depGov={depGov}
-          lcLoading={lcLoading}
-          viewOk={viewOk}
-          mutateOk={mutateOk}
-          isAdminRole={isAdminRole}
-          callerRole={callerRole}
-          changedBy={changedBy}
-          loadCore={loadCore}
-          loadLifecycle={loadLifecycle}
-          onRefreshLifecycle={onRefreshLifecycle}
-          rules={rules}
-          filteredRules={filteredRules}
-          lcRuleId={lcRuleId}
-          setLcRuleId={setLcRuleId}
-          lcVersionTenantFilter={lcVersionTenantFilter}
-          setLcVersionTenantFilter={setLcVersionTenantFilter}
-          lcVersionEnvFilter={lcVersionEnvFilter}
-          setLcVersionEnvFilter={setLcVersionEnvFilter}
-          lcSnapTenant={lcSnapTenant}
-          setLcSnapTenant={setLcSnapTenant}
-          lcSnapEnv={lcSnapEnv}
-          setLcSnapEnv={setLcSnapEnv}
-          lcChangeReason={lcChangeReason}
-          setLcChangeReason={setLcChangeReason}
-          lcCompareA={lcCompareA}
-          setLcCompareA={setLcCompareA}
-          lcCompareB={lcCompareB}
-          setLcCompareB={setLcCompareB}
-          lcCompareResult={lcCompareResult}
-          setLcCompareResult={setLcCompareResult}
-          lcVersionForStaging={lcVersionForStaging}
-          setLcVersionForStaging={setLcVersionForStaging}
-          lcStagingEnv={lcStagingEnv}
-          setLcStagingEnv={setLcStagingEnv}
-          lcStagingId={lcStagingId}
-          setLcStagingId={setLcStagingId}
-          lcStagingStatus={lcStagingStatus}
-          setLcStagingStatus={setLcStagingStatus}
-          lcDeployVid={lcDeployVid}
-          setLcDeployVid={setLcDeployVid}
-          lcApprovalId={lcApprovalId}
-          setLcApprovalId={setLcApprovalId}
-          lcValidateResult={lcValidateResult}
-          setLcValidateResult={setLcValidateResult}
-          lcSafetyOverride={lcSafetyOverride}
-          setLcSafetyOverride={setLcSafetyOverride}
-          lcRollbackVid={lcRollbackVid}
-          setLcRollbackVid={setLcRollbackVid}
-          lcRollbackEnv={lcRollbackEnv}
-          setLcRollbackEnv={setLcRollbackEnv}
-          lcCanaryVid={lcCanaryVid}
-          setLcCanaryVid={setLcCanaryVid}
-          lcCanaryPct={lcCanaryPct}
-          setLcCanaryPct={setLcCanaryPct}
-          lcVersions={lcVersions}
-          lcStaging={lcStaging}
-          lcApprovals={lcApprovals}
-          lcDeployLog={lcDeployLog}
-          lcCanary={lcCanary}
-          lcImpact={lcImpact}
-        />
+          <AutomationExecutionLogPanel
+            logRuleId={logRuleId}
+            logAction={logAction}
+            logFrom={logFrom}
+            logTo={logTo}
+            logStatus={logStatus}
+            logSearch={logSearch}
+            logRows={logRows}
+            onLogRuleIdChange={setLogRuleId}
+            onLogActionChange={setLogAction}
+            onLogFromChange={setLogFrom}
+            onLogToChange={setLogTo}
+            onLogStatusChange={setLogStatus}
+            onLogSearchChange={setLogSearch}
+            onApplyFilters={loadLogs}
+          />
 
-        <AutomationDeploymentSafetyPanel
-          viewOk={viewOk}
-          mutateOk={mutateOk}
-          lcRuleId={lcRuleId}
-          lcDeployVid={lcDeployVid}
-          depSafetyDash={depSafetyDash}
-          depSafetyReco={depSafetyReco}
-          depSafetyEval={depSafetyEval}
-          depDryRun={depDryRun}
-          depSafetyAudit={depSafetyAudit}
-          onLoadDashboard={onDeploymentSafetyLoadDashboard}
-          onLoadRecommendations={onDeploymentSafetyLoadRecommendations}
-          onEvaluateSafety={onDeploymentSafetyEvaluate}
-          onDryRun={onDeploymentSafetyDryRun}
-          onAuditReport={onDeploymentSafetyAuditReport}
-          onEnableProdSafetyGate={onDeploymentSafetyEnableProdGate}
-          onDisableProdSafetyGate={onDeploymentSafetyDisableProdGate}
-        />
+          <AutomationChangeHistoryPanel changes={changes} />
 
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-base">Rule simulation</CardTitle>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void onSimulate()}
-                >
-                  <FlaskConical className="mr-1 h-4 w-4" />
-                  Run simulation
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void onMultiSim()}
-                >
-                  <GitCompare className="mr-1 h-4 w-4" />
-                  Compare rule sets
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label className="text-xs">
-                  Staged version id (optional — attaches active vs staged diff
-                  to comparison)
-                </Label>
-                <Input
-                  value={stagedVersionForSim}
-                  onChange={e => setStagedVersionForSim(e.target.value)}
-                  placeholder="e.g. rule-auto-resolve-overdue-delivered:v:2"
-                />
-              </div>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Simulation tenant id (optional)
-                  </Label>
-                  <Input
-                    value={simTenantId}
-                    onChange={e => setSimTenantId(e.target.value)}
-                    placeholder="tenant-default"
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">
-                    Simulation environment id (optional)
-                  </Label>
-                  <Input
-                    value={simEnvironmentId}
-                    onChange={e => setSimEnvironmentId(e.target.value)}
-                    placeholder="env-dev"
-                  />
-                </div>
-              </div>
-              <div>
-                <p className="text-muted-foreground mb-1 text-xs">
-                  Single pass
-                </p>
-                <pre className="bg-muted max-h-48 overflow-auto rounded-md p-3 text-xs">
-                  {simResult
-                    ? JSON.stringify(simResult, null, 2)
-                    : 'No simulation run yet.'}
-                </pre>
-              </div>
-              <div>
-                <p className="text-muted-foreground mb-1 text-xs">
-                  Current vs all-off vs auto-resolve-only
-                </p>
-                <pre className="bg-muted max-h-48 overflow-auto rounded-md p-3 text-xs">
-                  {multiSim
-                    ? JSON.stringify(multiSim, null, 2)
-                    : 'Run “Compare rule sets” for projections.'}
-                </pre>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">
-                Automation impact (7 days)
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="text-muted-foreground space-y-1 text-sm">
-              {impact ? (
-                <>
-                  <div>Auto-resolve: {impact.autoResolve7d}</div>
-                  <div>Auto-assign: {impact.autoAssign7d}</div>
-                  <div>Priority adjust: {impact.priorityAdjust7d}</div>
-                  <div>Auto-repair: {impact.autoRepair7d}</div>
-                  <div>SLA escalations (log): {impact.escalationsLogged7d}</div>
-                  <div>Cycle summaries: {impact.cycleSummaries7d}</div>
-                </>
-              ) : (
-                <span>Loading…</span>
-              )}
-            </CardContent>
-          </Card>
+          {!mutateOk && (
+            <p style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}>
+              Your role is read-only (viewer). Rule toggles and guardrails are
+              disabled.
+            </p>
+          )}
         </div>
-
-        <AutomationExecutionLogPanel
-          logRuleId={logRuleId}
-          logAction={logAction}
-          logFrom={logFrom}
-          logTo={logTo}
-          logStatus={logStatus}
-          logSearch={logSearch}
-          logRows={logRows}
-          onLogRuleIdChange={setLogRuleId}
-          onLogActionChange={setLogAction}
-          onLogFromChange={setLogFrom}
-          onLogToChange={setLogTo}
-          onLogStatusChange={setLogStatus}
-          onLogSearchChange={setLogSearch}
-          onApplyFilters={loadLogs}
-        />
-
-        <AutomationChangeHistoryPanel changes={changes} />
-
-        {!mutateOk && (
-          <p className="text-muted-foreground text-sm">
-            Your role is read-only (viewer). Rule toggles and guardrails are
-            disabled.
-          </p>
-        )}
       </div>
       <DeploymentActivityDrawer
         callerRole={callerRole}

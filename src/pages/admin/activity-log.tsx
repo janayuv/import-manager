@@ -1,24 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Navigate } from 'react-router-dom';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   queryDashboardActivityLog,
   type DashboardActivityRow,
 } from '@/lib/dashboard-activity';
 import { useCurrentUserId, useHasPermission } from '@/lib/user-context';
+import { AppBar } from '@/components/shared/im';
 
 export default function AdminActivityLogPage() {
   const isAdmin = useHasPermission('admin.activity_log');
@@ -28,7 +16,7 @@ export default function AdminActivityLogPage() {
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [search, setSearch] = useState('');
-  const [pageSize, setPageSize] = useState(100);
+  const [pageSize, setPageSize] = useState(10);
   const [pageIndex, setPageIndex] = useState(0);
   const callerUserId = useCurrentUserId();
   const [rows, setRows] = useState<DashboardActivityRow[]>([]);
@@ -78,183 +66,334 @@ export default function AdminActivityLogPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Activity log</h1>
-        <p className="text-muted-foreground text-sm">
-          Application and ERP-style events from{' '}
-          <code className="text-xs">dashboard_activity_log</code> (paginated).
-          Security-sensitive auth and operator actions are also listed under{' '}
-          <strong>User activity</strong>.
-        </p>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Administration', 'Activity Log']} />
+      <div
+        className="im-dashboard-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+      >
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--color-im-text)',
+              fontFamily: 'var(--font-im-sans)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Activity Log
+          </h1>
+          <p
+            style={{
+              margin: '3px 0 0',
+              fontSize: 11.5,
+              color: 'var(--color-im-faint)',
+            }}
+          >
+            Application and ERP-style events from{' '}
+            <code style={{ fontSize: 11 }}>dashboard_activity_log</code>{' '}
+            (paginated). Security-sensitive auth and operator actions are also
+            listed under <strong>User activity</strong>.
+          </p>
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Filters</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label htmlFor="al-user" className="im-field-label">
+                User ID
+              </label>
+              <input
+                id="al-user"
+                className="im-input"
+                value={userId}
+                onChange={e => setUserId(e.target.value)}
+                placeholder="Exact match"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label htmlFor="al-action" className="im-field-label">
+                Action type
+              </label>
+              <input
+                id="al-action"
+                className="im-input"
+                value={actionType}
+                onChange={e => setActionType(e.target.value)}
+                placeholder="e.g. dashboard_viewed"
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label htmlFor="al-limit" className="im-field-label">
+                Page size
+              </label>
+              <input
+                id="al-limit"
+                className="im-input"
+                type="number"
+                min={1}
+                max={2000}
+                value={pageSize}
+                onChange={e => {
+                  setPageSize(Number(e.target.value) || 100);
+                  setPageIndex(0);
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label htmlFor="al-from" className="im-field-label">
+                Date from
+              </label>
+              <input
+                id="al-from"
+                className="im-input"
+                type="date"
+                value={dateFrom}
+                onChange={e => setDateFrom(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label htmlFor="al-to" className="im-field-label">
+                Date to
+              </label>
+              <input
+                id="al-to"
+                className="im-input"
+                type="date"
+                value={dateTo}
+                onChange={e => setDateTo(e.target.value)}
+              />
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                gridColumn: 'span 3',
+              }}
+            >
+              <label htmlFor="al-search" className="im-field-label">
+                Search
+              </label>
+              <input
+                id="al-search"
+                className="im-input"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Matches details, module, record ref, navigation, context"
+              />
+            </div>
+            <div
+              style={{
+                gridColumn: 'span 3',
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <button
+                type="button"
+                className="im-btn im-btn--sm"
+                onClick={() => setPageIndex(i => Math.max(0, i - 1))}
+                disabled={loading || pageIndex === 0}
+              >
+                Previous page
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--sm"
+                onClick={() => setPageIndex(i => i + 1)}
+                disabled={loading || rows.length < pageSize}
+              >
+                Next page
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => {
+                  setPageIndex(0);
+                  void runQuery(0);
+                }}
+                disabled={loading}
+              >
+                {loading ? 'Loading…' : 'Apply filters'}
+              </button>
+              <span className="im-badge is-neutral">
+                Page {pageIndex + 1} · {rows.length} row(s)
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {error && (
+          <p
+            style={{ color: 'var(--color-im-bad)', fontSize: 12.5 }}
+            role="alert"
+          >
+            {error}
+          </p>
+        )}
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Log entries</span>
+          </div>
+          <div className="im-section__body" style={{ padding: 0 }}>
+            <div className="im-table-scroll">
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th" style={{ whiteSpace: 'nowrap' }}>
+                      Timestamp
+                    </th>
+                    <th className="im-th">User</th>
+                    <th className="im-th">Action</th>
+                    <th className="im-th">Module</th>
+                    <th className="im-th">Record ref</th>
+                    <th className="im-th">Navigation</th>
+                    <th className="im-th">Context</th>
+                    <th className="im-th">Details</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.length === 0 ? (
+                    <tr className="im-tr">
+                      <td
+                        className="im-td"
+                        colSpan={8}
+                        style={{
+                          textAlign: 'center',
+                          color: 'var(--color-im-muted)',
+                        }}
+                      >
+                        No rows. Adjust filters and apply.
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((r, i) => (
+                      <tr
+                        key={r.id}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                      >
+                        <td
+                          className="im-td"
+                          style={{ whiteSpace: 'nowrap', fontSize: 11.5 }}
+                        >
+                          {r.timestamp}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 140,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.userId}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 160,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.actionType}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 120,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.moduleName}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 140,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.recordReference}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 160,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.navigationTarget}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 200,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.actionContext}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 280,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {r.details}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-2">
-            <Label htmlFor="al-user">User ID</Label>
-            <Input
-              id="al-user"
-              value={userId}
-              onChange={e => setUserId(e.target.value)}
-              placeholder="Exact match"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="al-action">Action type</Label>
-            <Input
-              id="al-action"
-              value={actionType}
-              onChange={e => setActionType(e.target.value)}
-              placeholder="e.g. dashboard_viewed"
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="al-limit">Page size</Label>
-            <Input
-              id="al-limit"
-              type="number"
-              min={1}
-              max={2000}
-              value={pageSize}
-              onChange={e => {
-                setPageSize(Number(e.target.value) || 100);
-                setPageIndex(0);
-              }}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="al-from">Date from</Label>
-            <Input
-              id="al-from"
-              type="date"
-              value={dateFrom}
-              onChange={e => setDateFrom(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="al-to">Date to</Label>
-            <Input
-              id="al-to"
-              type="date"
-              value={dateTo}
-              onChange={e => setDateTo(e.target.value)}
-            />
-          </div>
-          <div className="space-y-2 md:col-span-2 lg:col-span-3">
-            <Label htmlFor="al-search">Search</Label>
-            <Input
-              id="al-search"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Matches details, module, record ref, navigation, context"
-            />
-          </div>
-          <div className="flex flex-wrap items-end gap-2 md:col-span-2 lg:col-span-3">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPageIndex(i => Math.max(0, i - 1))}
-              disabled={loading || pageIndex === 0}
-            >
-              Previous page
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setPageIndex(i => i + 1)}
-              disabled={loading || rows.length < pageSize}
-            >
-              Next page
-            </Button>
-            <Button
-              type="button"
-              onClick={() => {
-                setPageIndex(0);
-                void runQuery(0);
-              }}
-              disabled={loading}
-            >
-              {loading ? 'Loading…' : 'Apply filters'}
-            </Button>
-            <Badge variant="secondary">
-              Page {pageIndex + 1} · {rows.length} row(s)
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
-
-      {error && (
-        <p className="text-destructive text-sm" role="alert">
-          {error}
-        </p>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Log entries</CardTitle>
-        </CardHeader>
-        <CardContent className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="whitespace-nowrap">Timestamp</TableHead>
-                <TableHead>User</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead>Module</TableHead>
-                <TableHead>Record ref</TableHead>
-                <TableHead>Navigation</TableHead>
-                <TableHead>Context</TableHead>
-                <TableHead>Details</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={8}
-                    className="text-muted-foreground text-center"
-                  >
-                    No rows. Adjust filters and apply.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map(r => (
-                  <TableRow key={r.id}>
-                    <TableCell className="whitespace-nowrap text-xs">
-                      {r.timestamp}
-                    </TableCell>
-                    <TableCell className="max-w-[140px] truncate text-xs">
-                      {r.userId}
-                    </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-xs">
-                      {r.actionType}
-                    </TableCell>
-                    <TableCell className="max-w-[120px] truncate text-xs">
-                      {r.moduleName}
-                    </TableCell>
-                    <TableCell className="max-w-[140px] truncate text-xs">
-                      {r.recordReference}
-                    </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-xs">
-                      {r.navigationTarget}
-                    </TableCell>
-                    <TableCell className="max-w-[200px] truncate text-xs">
-                      {r.actionContext}
-                    </TableCell>
-                    <TableCell className="max-w-[280px] truncate text-xs">
-                      {r.details}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
     </div>
   );
 }

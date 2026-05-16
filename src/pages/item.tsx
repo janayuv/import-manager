@@ -1,34 +1,24 @@
 // src/pages/item/index.tsx
-// react-table imports were unused in this refactored page
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { openTextFile, save, writeTextFile } from '@/lib/tauri-bridge';
-import {
-  ArrowLeft,
-  Download,
-  FileOutput,
-  Loader2,
-  Plus,
-  Upload,
-  Settings,
-} from 'lucide-react';
+import { Download, Loader2, Plus, Upload, Settings } from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import * as React from 'react';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
-import { getItemColumns } from '@/components/item/columns';
+import { ItemDataTable } from '@/components/item/table-item';
 import { ItemForm } from '@/components/item/form';
 import { ItemViewDialog } from '@/components/item/view';
 import { ModuleSettings } from '@/components/module-settings';
-import { ResponsiveDataTable } from '@/components/ui/responsive-table';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { createItemColumns } from '@/pages/item-columns';
 import { exportItemsToCsv, importItemsFromCsv } from '@/lib/csv-helpers';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
@@ -99,6 +89,13 @@ export function ItemMasterPage() {
   const [items, setItems] = React.useState<Item[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [isSettingsOpen, setSettingsOpen] = React.useState(false);
+
+  // List view filter/pagination state
+  const [searchValue, setSearchValue] = React.useState('');
+  const [categoryFilter, setCategoryFilter] = React.useState('');
+  const [supplierFilter, setSupplierFilter] = React.useState('');
+  const [currentPage, setCurrentPage] = React.useState(1);
+  const PAGE_SIZE = 50;
 
   const itemPanel = React.useMemo((): 'none' | 'view' | 'edit' | 'add' => {
     if (location.pathname === itemMasterNewPath) return 'add';
@@ -439,10 +436,43 @@ export function ItemMasterPage() {
   };
 
   const columns = React.useMemo(
-    () =>
-      getItemColumns(suppliers, handleView, handleOpenFormForEdit, settings),
-    [suppliers, handleView, handleOpenFormForEdit, settings]
+    () => createItemColumns(suppliers, handleView, handleOpenFormForEdit),
+    [suppliers, handleView, handleOpenFormForEdit]
   );
+
+  const filteredItems = React.useMemo(() => {
+    const q = searchValue.trim().toLowerCase();
+    return items.filter(item => {
+      if (q) {
+        const match =
+          item.partNumber.toLowerCase().includes(q) ||
+          item.itemDescription.toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      if (categoryFilter && item.category !== categoryFilter) return false;
+      if (supplierFilter && item.supplierId !== supplierFilter) return false;
+      return true;
+    });
+  }, [items, searchValue, categoryFilter, supplierFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredItems.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages);
+  const pagedItems = filteredItems.slice(
+    (safePage - 1) * PAGE_SIZE,
+    safePage * PAGE_SIZE
+  );
+
+  const handleClearFilters = () => {
+    setSearchValue('');
+    setCategoryFilter('');
+    setSupplierFilter('');
+    setCurrentPage(1);
+  };
+
+  // Reset to page 1 when filters change
+  React.useEffect(() => {
+    setCurrentPage(1);
+  }, [searchValue, categoryFilter, supplierFilter]);
 
   const settingsDialog = (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
@@ -463,38 +493,68 @@ export function ItemMasterPage() {
 
   if (itemPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
-        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={closeItemPanel}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to items
-            </Button>
-            <span className="text-muted-foreground text-sm">
-              {itemPanel === 'view'
-                ? 'Viewing item record'
-                : itemPanel === 'edit'
-                  ? 'Editing item record'
-                  : 'Adding new item'}
-            </span>
-          </div>
-
+      <div className="im-page">
+        <div
+          style={{
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            background: 'var(--color-im-sub)',
+          }}
+        >
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={closeItemPanel}
+          >
+            ← Back to items
+          </button>
+          <span style={{ color: 'var(--color-im-faint)', fontSize: 12 }}>
+            {itemPanel === 'view'
+              ? 'Viewing item record'
+              : itemPanel === 'edit'
+                ? 'Editing item record'
+                : 'Adding new item'}
+          </span>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+          }}
+        >
           {loading ? (
             <div
-              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-im-faint)',
+                fontSize: 13,
+                fontFamily: 'var(--font-im-mono)',
+              }}
               role="status"
               aria-live="polite"
             >
-              Loading…
+              LOADING…
             </div>
           ) : itemPanel === 'add' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <ItemForm
                 isOpen={true}
                 presentation="page"
@@ -518,29 +578,54 @@ export function ItemMasterPage() {
               />
             </div>
           ) : !selectedItemFromUrl ? (
-            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-              <h2 className="text-card-foreground text-lg font-semibold">
-                Item not found
+            <div
+              style={{
+                maxWidth: 480,
+                margin: '32px auto',
+                padding: 24,
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 13,
+                  color: 'var(--color-im-text)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                ITEM NOT FOUND
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
                 No item with ID{' '}
-                <span className="text-foreground font-mono">
+                <span style={{ fontFamily: 'var(--font-im-mono)' }}>
                   {decodedItemId ?? itemIdParam}
                 </span>
                 .
               </p>
-              <Button
+              <button
                 type="button"
-                variant="default"
-                useAccentColor
+                className="im-btn"
                 onClick={closeItemPanel}
-                className="w-fit"
+                style={{ alignSelf: 'flex-start' }}
               >
-                Back to items
-              </Button>
+                ← Back to items
+              </button>
             </div>
           ) : itemPanel === 'view' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <ItemViewDialog
                 isOpen={true}
                 onOpenChange={open => {
@@ -556,7 +641,15 @@ export function ItemMasterPage() {
               />
             </div>
           ) : (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <ItemForm
                 isOpen={true}
                 presentation="page"
@@ -588,104 +681,111 @@ export function ItemMasterPage() {
 
   if (loading && itemPanel === 'none') {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin" />
+      <div
+        className="im-page"
+        style={{ alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Loader2
+          style={{ width: 32, height: 32, color: 'var(--color-im-accent)' }}
+          className="animate-spin"
+        />
       </div>
     );
   }
 
-  const statusActions = (
-    <div className="flex items-center gap-2">
-      <Button
-        onClick={() => handleExport()}
-        variant="default"
-        useAccentColor
-        disabled={true}
-      >
-        <FileOutput className="mr-2 h-4 w-4" />
-        Export Selected
-      </Button>
-      <Button onClick={() => handleExport()} variant="default" useAccentColor>
-        <Download className="mr-2 h-4 w-4" />
-        Export All
-      </Button>
-    </div>
-  );
-
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">Item Master</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage product catalog and item specifications
-          </p>
+    <div className="im-supplier-page">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>Item Master</h1>
+          <span className="im-record-badge">{items.length}</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="default"
-            size="icon"
+        <div className="im-page-header__actions">
+          <button
+            className="im-hdr-btn"
             onClick={() => setSettingsOpen(true)}
-            className="h-10 w-10"
-            useAccentColor
+            title="Module settings"
           >
-            <Settings className="h-4 w-4" />
-          </Button>
-          <Button
-            onClick={handleOpenFormForAdd}
-            variant="default"
-            useAccentColor
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Add New
-          </Button>
-          <Button
-            onClick={handleDownloadTemplate}
-            variant="default"
-            useAccentColor
-          >
-            <Download className="mr-2 h-4 w-4" />
+            <Settings
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 4,
+              }}
+            />
+            Settings
+          </button>
+          <button className="im-hdr-btn" onClick={handleDownloadTemplate}>
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 4,
+              }}
+            />
             Template
-          </Button>
-          <Button onClick={handleImport} variant="default" useAccentColor>
-            <Upload className="mr-2 h-4 w-4" />
+          </button>
+          <button className="im-hdr-btn" onClick={handleImport}>
+            <Upload
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 4,
+              }}
+            />
             Import
-          </Button>
+          </button>
+          <button className="im-hdr-btn" onClick={handleExport}>
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 4,
+              }}
+            />
+            Export
+          </button>
+          <button
+            className="im-hdr-btn im-hdr-btn--primary"
+            onClick={handleOpenFormForAdd}
+          >
+            <Plus
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 4,
+              }}
+            />
+            Add Item
+          </button>
         </div>
       </div>
 
-      <ResponsiveDataTable
+      <ItemDataTable
         columns={columns}
-        data={items}
-        searchPlaceholder="Search all items..."
-        showSearch={true}
-        showPagination={true}
-        pageSize={settings.modules?.itemMaster?.itemsPerPage || 10}
-        className=""
-        hideColumnsOnSmall={[
-          'unit',
-          'currency',
-          'countryOfOrigin',
-          'category',
-          'endUse',
-        ]}
-        columnWidths={{
-          partNumber: { minWidth: '120px', maxWidth: '150px' },
-          itemDescription: { minWidth: '200px', maxWidth: '300px' },
-          unit: { minWidth: '80px', maxWidth: '100px' },
-          currency: { minWidth: '80px', maxWidth: '100px' },
-          unitPrice: { minWidth: '100px', maxWidth: '120px' },
-          hsnCode: { minWidth: '100px', maxWidth: '120px' },
-          supplierId: { minWidth: '120px', maxWidth: '150px' },
-          countryOfOrigin: { minWidth: '120px', maxWidth: '150px' },
-          bcd: { minWidth: '80px', maxWidth: '100px' },
-          sws: { minWidth: '80px', maxWidth: '100px' },
-          igst: { minWidth: '80px', maxWidth: '100px' },
-          category: { minWidth: '100px', maxWidth: '120px' },
-          endUse: { minWidth: '100px', maxWidth: '120px' },
-          actions: { minWidth: '120px', maxWidth: '150px' },
-        }}
-        statusActions={statusActions}
+        data={pagedItems}
+        searchValue={searchValue}
+        onSearchChange={setSearchValue}
+        categoryFilter={categoryFilter}
+        onCategoryFilterChange={setCategoryFilter}
+        supplierFilter={supplierFilter}
+        onSupplierFilterChange={setSupplierFilter}
+        categoryOptions={categories}
+        supplierOptions={suppliers}
+        totalCount={filteredItems.length}
+        isLoading={loading}
+        onClearFilters={handleClearFilters}
+        serverPage={safePage}
+        serverTotalPages={totalPages}
+        onServerPrevPage={() => setCurrentPage(p => Math.max(1, p - 1))}
+        onServerNextPage={() =>
+          setCurrentPage(p => Math.min(totalPages, p + 1))
+        }
       />
 
       {settingsDialog}

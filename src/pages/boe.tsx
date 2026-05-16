@@ -1,4 +1,4 @@
-// src/pages/boe/index.tsx (MODIFIED)
+// src/pages/boe.tsx
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
   useNativeFileDialogs,
@@ -6,7 +6,7 @@ import {
   save,
   writeTextFile,
 } from '@/lib/tauri-bridge';
-import { ArrowLeft, Download, Loader2, Plus, Upload } from 'lucide-react';
+import { Download, FileText, Plus, Upload } from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
@@ -15,8 +15,8 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { getBoeColumns } from '@/components/boe/columns';
 import { BoeForm } from '@/components/boe/form';
+import { BoeDataTable } from '@/components/boe/table-boe';
 import { BoeViewDialog } from '@/components/boe/view';
-import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useSettings } from '@/lib/use-settings';
 import type { BoeDetails } from '@/types/boe';
+import type { SavedBoe } from '@/types/boe-entry';
 
 /** URL path for BOE view or edit (bookmarkable, browser back/forward). */
 export function boeDetailPath(boeId: string, mode: 'view' | 'edit') {
@@ -39,6 +40,11 @@ export function boeDetailPath(boeId: string, mode: 'view' | 'edit') {
 /** URL path to create a new BOE (full page). */
 export const boeNewPath = '/boe/new';
 
+type PaginatedResult<T> = {
+  data: T[];
+  totalCount: number;
+};
+
 const BoePage = () => {
   const navigate = useNavigate();
   const location = useLocation();
@@ -47,6 +53,10 @@ const BoePage = () => {
   const { settings } = useSettings();
   const notifications = useUnifiedNotifications();
   const [boes, setBoes] = React.useState<BoeDetails[]>([]);
+  const [allBoesForMetrics, setAllBoesForMetrics] = React.useState<
+    BoeDetails[]
+  >([]);
+  const [savedBoes, setSavedBoes] = React.useState<SavedBoe[]>([]);
   const [totalCount, setTotalCount] = React.useState(0);
   const [page, setPage] = React.useState(1);
   const [pageSize] = React.useState(settings.modules?.boe?.itemsPerPage || 50);
@@ -56,6 +66,19 @@ const BoePage = () => {
     id: string;
     number: string;
   } | null>(null);
+
+  const [searchInput, setSearchInput] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+  const [statusFilter, setStatusFilter] = React.useState('All');
+
+  React.useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
+
+  React.useEffect(() => {
+    setPage(1);
+  }, [debouncedSearch, statusFilter]);
 
   const boePanel = React.useMemo((): 'none' | 'view' | 'edit' | 'add' => {
     if (location.pathname === boeNewPath) return 'add';
@@ -76,31 +99,32 @@ const BoePage = () => {
 
   const selectedBoeFromUrl = React.useMemo(() => {
     if (!decodedBoeId) return null;
-    return boes.find(b => b.id === decodedBoeId) ?? null;
-  }, [boes, decodedBoeId]);
+    return allBoesForMetrics.find(b => b.id === decodedBoeId) ?? null;
+  }, [allBoesForMetrics, decodedBoeId]);
 
   const closeBoePanel = React.useCallback(() => {
     navigate('/boe');
   }, [navigate]);
 
-  type PaginatedResult<T> = {
-    data: T[];
-    totalCount: number;
-  };
-
   const fetchData = React.useCallback(async () => {
     setLoading(true);
     try {
-      const result = await invoke<PaginatedResult<BoeDetails>>(
-        'get_boes_paginated',
-        { page, pageSize }
-      );
+      const [result, allRows, savedRows] = await Promise.all([
+        invoke<PaginatedResult<BoeDetails>>('get_boes_paginated', {
+          page,
+          pageSize,
+        }),
+        invoke<BoeDetails[]>('get_boes'),
+        invoke<SavedBoe[]>('get_boe_calculations'),
+      ]);
       const safeData = Array.isArray(result?.data) ? result.data : [];
       const safeTotalCount = Number.isFinite(result?.totalCount)
         ? result.totalCount
         : safeData.length;
       setBoes(safeData);
       setTotalCount(safeTotalCount);
+      setAllBoesForMetrics(Array.isArray(allRows) ? allRows : []);
+      setSavedBoes(Array.isArray(savedRows) ? savedRows : []);
     } catch (error) {
       console.error('Failed to fetch BOE data:', error);
       notifications.boe.error('load data', String(error));
@@ -113,9 +137,83 @@ const BoePage = () => {
     fetchData();
   }, [fetchData]);
 
-  const handleOpenFormForAdd = () => {
+  const workflowStatusByBoeId = React.useMemo(() => {
+    const map = new Map<string, SavedBoe['status']>();
+    for (const s of savedBoes) {
+      if (!s.boeId) continue;
+      map.set(s.boeId, s.status);
+    }
+    return map;
+  }, [savedBoes]);
+
+  const getWorkflowStatus = React.useCallback(
+    (boe: BoeDetails): SavedBoe['status'] =>
+      workflowStatusByBoeId.get(boe.id) ?? 'Awaiting BOE Data',
+    [workflowStatusByBoeId]
+  );
+
+  const boeMetrics = React.useMemo(() => {
+    let closed = 0;
+    let reconciled = 0;
+    let discrepancyOrInvestigation = 0;
+    for (const b of allBoesForMetrics) {
+      const s = getWorkflowStatus(b);
+      if (s === 'Closed') closed++;
+      else if (s === 'Reconciled') reconciled++;
+      else if (s === 'Discrepancy Found' || s === 'Investigation') {
+        discrepancyOrInvestigation++;
+      }
+    }
+    return {
+      total: allBoesForMetrics.length,
+      closed,
+      reconciled,
+      discrepancyOrInvestigation,
+    };
+  }, [allBoesForMetrics, getWorkflowStatus]);
+
+  const filteredAllBoes = React.useMemo(() => {
+    let rows = allBoesForMetrics;
+    const q = debouncedSearch.trim().toLowerCase();
+    if (q) {
+      rows = rows.filter(b => {
+        const hay = [
+          b.beNumber,
+          b.location,
+          b.challanNumber,
+          b.refId,
+          b.transactionId,
+          b.id,
+        ]
+          .filter(Boolean)
+          .map(s => String(s).toLowerCase());
+        return hay.some(s => s.includes(q));
+      });
+    }
+    if (statusFilter !== 'All') {
+      rows = rows.filter(b => getWorkflowStatus(b) === statusFilter);
+    }
+    return rows;
+  }, [allBoesForMetrics, debouncedSearch, statusFilter, getWorkflowStatus]);
+
+  const filteredTotal = filteredAllBoes.length;
+  const serverTotalPages = Math.max(1, Math.ceil(filteredTotal / pageSize));
+
+  React.useEffect(() => {
+    const maxP = Math.max(1, Math.ceil(filteredTotal / pageSize));
+    setPage(p => (p > maxP ? maxP : p));
+  }, [filteredTotal, pageSize]);
+
+  const tableRows = React.useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filteredAllBoes.slice(start, start + pageSize);
+  }, [filteredAllBoes, page, pageSize]);
+
+  const hasActiveFilters = !!debouncedSearch.trim() || statusFilter !== 'All';
+
+  const handleOpenFormForAdd = React.useCallback(() => {
     navigate(boeNewPath);
-  };
+  }, [navigate]);
 
   const handleOpenFormForEdit = React.useCallback(
     (boe: BoeDetails) => {
@@ -175,7 +273,7 @@ const BoePage = () => {
 
   type BoeCsvRow = { [key: string]: string };
 
-  const handleImport = async () => {
+  const handleImport = React.useCallback(async () => {
     try {
       const selectedFile = await openTextFile({
         multiple: false,
@@ -277,9 +375,9 @@ const BoePage = () => {
       console.error('Failed to import BOEs:', error);
       notifications.boe.error('import', String(error));
     }
-  };
+  }, [notifications, fetchData]);
 
-  const handleExport = async () => {
+  const handleExport = React.useCallback(async () => {
     try {
       const csv = Papa.unparse(
         boes.map(boe => ({
@@ -328,9 +426,9 @@ const BoePage = () => {
       console.error('Failed to export BOEs:', error);
       notifications.boe.error('export', String(error));
     }
-  };
+  }, [boes, notifications]);
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = React.useCallback(async () => {
     const templateData = [
       {
         beNumber: 'BE123456789',
@@ -360,7 +458,7 @@ const BoePage = () => {
       'Template Downloaded',
       'BOE import template downloaded successfully!'
     );
-  };
+  }, [notifications]);
 
   const columns = React.useMemo(
     () =>
@@ -369,9 +467,87 @@ const BoePage = () => {
         onEdit: handleOpenFormForEdit,
         onDelete: handleDeleteRequest,
         settings,
+        getWorkflowStatus,
       }),
-    [handleView, handleOpenFormForEdit, handleDeleteRequest, settings]
+    [
+      handleView,
+      handleOpenFormForEdit,
+      handleDeleteRequest,
+      settings,
+      getWorkflowStatus,
+    ]
   );
+
+  const renderEmptyState = React.useCallback((): React.ReactNode => {
+    const isFiltered = hasActiveFilters;
+    const title = isFiltered ? 'No matching BOEs' : 'No BOEs on this page';
+    const body = debouncedSearch.trim()
+      ? `No rows match "${debouncedSearch.trim()}". Try a different search.`
+      : statusFilter !== 'All'
+        ? 'No rows for the current status filter on this page.'
+        : 'Add a BOE, import a CSV, or go to another page.';
+    return (
+      <div className="im-empty-state">
+        <div className="im-empty-state__icon">
+          <FileText size={40} strokeWidth={1} />
+        </div>
+        <div className="im-empty-state__title">{title}</div>
+        <div className="im-empty-state__body">{body}</div>
+        {!isFiltered && (
+          <div className="im-empty-state__actions">
+            <button
+              type="button"
+              className="im-hdr-btn im-hdr-btn--primary"
+              onClick={handleOpenFormForAdd}
+            >
+              <Plus
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Add New BOE
+            </button>
+            <button
+              type="button"
+              className="im-hdr-btn"
+              onClick={handleDownloadTemplate}
+            >
+              <Download
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Template
+            </button>
+            <button type="button" className="im-hdr-btn" onClick={handleImport}>
+              <Upload
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Import
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }, [
+    hasActiveFilters,
+    debouncedSearch,
+    statusFilter,
+    handleOpenFormForAdd,
+    handleDownloadTemplate,
+    handleImport,
+  ]);
 
   const deleteDialog = (
     <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
@@ -405,38 +581,68 @@ const BoePage = () => {
 
   if (boePanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
-        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={closeBoePanel}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to all BOE
-            </Button>
-            <span className="text-muted-foreground text-sm">
-              {boePanel === 'view'
-                ? 'Viewing BOE record'
-                : boePanel === 'edit'
-                  ? 'Editing BOE record'
-                  : 'Adding new BOE'}
-            </span>
-          </div>
-
+      <div className="im-page">
+        <div
+          style={{
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            background: 'var(--color-im-sub)',
+          }}
+        >
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={closeBoePanel}
+          >
+            ← Back to all BOE
+          </button>
+          <span style={{ color: 'var(--color-im-faint)', fontSize: 12 }}>
+            {boePanel === 'view'
+              ? 'Viewing BOE record'
+              : boePanel === 'edit'
+                ? 'Editing BOE record'
+                : 'Adding new BOE'}
+          </span>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+          }}
+        >
           {loading ? (
             <div
-              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-im-faint)',
+                fontSize: 13,
+                fontFamily: 'var(--font-im-mono)',
+              }}
               role="status"
               aria-live="polite"
             >
-              Loading…
+              LOADING…
             </div>
           ) : boePanel === 'add' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <BoeForm
                 isOpen={true}
                 presentation="page"
@@ -446,33 +652,58 @@ const BoePage = () => {
                 }}
                 onSubmit={handleSubmit}
                 boeToEdit={null}
-                existingBoes={boes}
+                existingBoes={allBoesForMetrics}
               />
             </div>
           ) : !selectedBoeFromUrl ? (
-            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-              <h2 className="text-card-foreground text-lg font-semibold">
-                BOE not found
+            <div
+              style={{
+                maxWidth: 480,
+                margin: '32px auto',
+                padding: 24,
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 13,
+                  color: 'var(--color-im-text)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                BOE NOT FOUND
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
                 No BOE with ID{' '}
-                <span className="text-foreground font-mono">
+                <span style={{ fontFamily: 'var(--font-im-mono)' }}>
                   {decodedBoeId ?? boeIdParam}
                 </span>
                 .
               </p>
-              <Button
+              <button
                 type="button"
-                variant="default"
-                useAccentColor
+                className="im-btn"
                 onClick={closeBoePanel}
-                className="w-fit"
+                style={{ alignSelf: 'flex-start' }}
               >
-                Back to all BOE
-              </Button>
+                ← Back to all BOE
+              </button>
             </div>
           ) : boePanel === 'view' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <BoeViewDialog
                 isOpen={true}
                 onOpenChange={open => {
@@ -487,7 +718,15 @@ const BoePage = () => {
               />
             </div>
           ) : (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <BoeForm
                 isOpen={true}
                 presentation="page"
@@ -497,7 +736,7 @@ const BoePage = () => {
                 }}
                 onSubmit={handleSubmit}
                 boeToEdit={selectedBoeFromUrl}
-                existingBoes={boes}
+                existingBoes={allBoesForMetrics}
               />
             </div>
           )}
@@ -507,95 +746,125 @@ const BoePage = () => {
     );
   }
 
-  if (loading && boePanel === 'none') {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin" />
-      </div>
-    );
-  }
-
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-4 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">
-            Bill of Entry Details
+    <div className="im-supplier-page">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>
+            Bill of Entry
+            <span className="sr-only">Bill of Entry Details</span>
           </h1>
-          <p className="text-muted-foreground mt-1">
-            Manage customs declarations and duty calculations
-          </p>
+          <span className="im-record-badge">{totalCount} RECORDS</span>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
+        <div className="im-page-header__actions">
+          <button
+            type="button"
+            className="im-hdr-btn"
             onClick={handleDownloadTemplate}
-            variant="default"
-            useAccentColor
           >
-            <Download className="mr-2 h-4 w-4" /> Template
-          </Button>
-          <Button onClick={handleImport} variant="default" useAccentColor>
-            <Upload className="mr-2 h-4 w-4" /> Import
-          </Button>
-          <Button onClick={handleExport} variant="default" useAccentColor>
-            <Download className="mr-2 h-4 w-4" /> Export
-          </Button>
-          <Button
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Template
+          </button>
+          <button type="button" className="im-hdr-btn" onClick={handleImport}>
+            <Upload
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Import
+          </button>
+          <button type="button" className="im-hdr-btn" onClick={handleExport}>
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Export
+          </button>
+          <button
+            type="button"
+            className="im-hdr-btn im-hdr-btn--primary"
             onClick={handleOpenFormForAdd}
-            variant="default"
-            useAccentColor
           >
-            <Plus className="mr-2 h-4 w-4" /> Add New BOE
-          </Button>
+            <Plus
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Add New BOE
+          </button>
         </div>
       </div>
 
-      <ResponsiveDataTable
-        columns={columns}
-        data={boes}
-        searchPlaceholder="Search all BOEs..."
-        showSearch={true}
-        showPagination={false}
-        pageSize={pageSize}
-        className=""
-        hideColumnsOnSmall={['paymentDate', 'dutyPaid']}
-        columnWidths={{
-          beNumber: { minWidth: '120px', maxWidth: '150px' },
-          beDate: { minWidth: '100px', maxWidth: '120px' },
-          location: { minWidth: '120px', maxWidth: '180px' },
-          totalAssessmentValue: { minWidth: '140px', maxWidth: '160px' },
-          dutyAmount: { minWidth: '120px', maxWidth: '140px' },
-          paymentDate: { minWidth: '100px', maxWidth: '120px' },
-          dutyPaid: { minWidth: '100px', maxWidth: '120px' },
-          actions: { minWidth: '120px', maxWidth: '150px' },
-        }}
-        moduleName="boe"
-      />
-      <div className="mt-4 flex items-center justify-between">
-        <div className="text-muted-foreground text-sm">
-          Showing {(page - 1) * pageSize + 1}-
-          {Math.min(page * pageSize, totalCount)} of {totalCount}
+      <div className="im-boe-metrics">
+        <div className="im-boe-metric im-boe-metric--accent">
+          <div className="im-boe-metric__label">Total BOE</div>
+          <div className="im-boe-metric__value">{boeMetrics.total}</div>
         </div>
-        <div className="flex gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            disabled={page <= 1}
-            onClick={() => setPage(prev => Math.max(1, prev - 1))}
-          >
-            Previous
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            disabled={page * pageSize >= totalCount}
-            onClick={() => setPage(prev => prev + 1)}
-          >
-            Next
-          </Button>
+        <div className="im-boe-metric im-boe-metric--good">
+          <div className="im-boe-metric__label">Cleared</div>
+          <div className="im-boe-metric__value">{boeMetrics.closed}</div>
         </div>
+        <div className="im-boe-metric im-boe-metric--warn">
+          <div className="im-boe-metric__label">Reconciled</div>
+          <div className="im-boe-metric__value">{boeMetrics.reconciled}</div>
+        </div>
+        <div className="im-boe-metric im-boe-metric--bad">
+          <div className="im-boe-metric__label">Needs Attention</div>
+          <div className="im-boe-metric__value">
+            {boeMetrics.discrepancyOrInvestigation}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex min-h-0 flex-1 flex-col">
+        <BoeDataTable
+          columns={columns}
+          data={tableRows}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          totalCount={filteredTotal}
+          isLoading={loading}
+          getRowClassName={boe => {
+            const status = getWorkflowStatus(boe);
+            if (status === 'Discrepancy Found' || status === 'Investigation') {
+              return 'is-boe-hold';
+            }
+            if (status === 'Reconciled') return 'is-boe-pending-overdue';
+            return '';
+          }}
+          renderEmptyState={renderEmptyState}
+          serverPage={page}
+          serverTotalPages={serverTotalPages}
+          onServerPrevPage={() => setPage(p => Math.max(1, p - 1))}
+          onServerNextPage={() =>
+            setPage(p => Math.min(serverTotalPages, p + 1))
+          }
+          onClearFilters={() => {
+            setSearchInput('');
+            setDebouncedSearch('');
+            setStatusFilter('All');
+          }}
+          hasActiveFilters={hasActiveFilters}
+        />
       </div>
 
       {deleteDialog}

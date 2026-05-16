@@ -57,6 +57,7 @@ pub fn log_activity(
     );
 }
 
+#[allow(clippy::too_many_arguments)] // all args are required for a single atomic audit row; splitting would fragment the call sites
 pub fn log_activity_with_severity(
     conn: &Connection,
     user_id: Option<&str>,

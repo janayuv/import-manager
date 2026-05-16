@@ -1,15 +1,6 @@
 // src/components/invoice/actions.tsx (MODIFIED - Added Delete action)
-import { MoreHorizontal, Pencil, Trash2, View, Zap } from 'lucide-react';
+import { Eye, Pencil, Trash2, Zap } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import type { FlattenedInvoiceLine } from '@/types/invoice';
 
 interface InvoiceLineActionsProps {
@@ -28,45 +19,63 @@ export function InvoiceLineActions({
   onQuickFinalize,
 }: InvoiceLineActionsProps) {
   const isFinalized = lineItem.status === 'Finalized';
+  const invoiceTotalDecimals = lineItem.invoiceTotalDecimals === 0 ? 0 : 2;
+  const tolerance = invoiceTotalDecimals === 0 ? 0.5 : 0.01;
+  const roundedShipmentTotal =
+    Math.round(lineItem.shipmentTotal * 10 ** invoiceTotalDecimals) /
+    10 ** invoiceTotalDecimals;
   const isMatched =
-    Math.abs(lineItem.shipmentTotal - lineItem.invoiceTotal) < 0.01;
+    Math.abs(roundedShipmentTotal - lineItem.invoiceTotal) < tolerance;
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" className="h-8 w-8 p-0">
-          <span className="sr-only">Open menu</span>
-          <MoreHorizontal className="h-4 w-4" />
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end">
-        <DropdownMenuLabel>Actions</DropdownMenuLabel>
-        <DropdownMenuItem onClick={() => onView(lineItem.invoiceId)}>
-          <View className="mr-2 h-4 w-4" /> View
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onEdit(lineItem.invoiceId)}
-          disabled={isFinalized}
+    <div className="im-row-actions">
+      <button
+        type="button"
+        className="im-row-act-btn"
+        title="View"
+        onClick={e => {
+          e.stopPropagation();
+          onView(lineItem.invoiceId);
+        }}
+      >
+        <Eye size={11} />
+      </button>
+      <button
+        type="button"
+        className="im-row-act-btn"
+        title="Edit"
+        disabled={isFinalized}
+        onClick={e => {
+          e.stopPropagation();
+          if (!isFinalized) onEdit(lineItem.invoiceId);
+        }}
+      >
+        <Pencil size={11} />
+      </button>
+      {!isFinalized && isMatched && (
+        <button
+          type="button"
+          className="im-row-act-btn im-row-act-btn--finalize"
+          title="Quick finalize"
+          onClick={e => {
+            e.stopPropagation();
+            onQuickFinalize(lineItem.invoiceId, lineItem.invoiceNumber);
+          }}
         >
-          <Pencil className="mr-2 h-4 w-4" /> Edit
-        </DropdownMenuItem>
-        {!isFinalized && isMatched && (
-          <DropdownMenuItem
-            onClick={() =>
-              onQuickFinalize(lineItem.invoiceId, lineItem.invoiceNumber)
-            }
-            className="text-success"
-          >
-            <Zap className="mr-2 h-4 w-4" /> Quick Finalize
-          </DropdownMenuItem>
-        )}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={() => onDelete(lineItem.invoiceId, lineItem.invoiceNumber)}
-          className="text-destructive"
-        >
-          <Trash2 className="mr-2 h-4 w-4" /> Delete
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+          <Zap size={11} />
+        </button>
+      )}
+      <button
+        type="button"
+        className="im-row-act-btn im-row-act-btn--danger"
+        title="Delete"
+        onClick={e => {
+          e.stopPropagation();
+          onDelete(lineItem.invoiceId, lineItem.invoiceNumber);
+        }}
+      >
+        <Trash2 size={11} />
+      </button>
+    </div>
   );
 }

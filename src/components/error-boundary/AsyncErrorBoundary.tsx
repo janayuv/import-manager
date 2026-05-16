@@ -30,6 +30,17 @@ interface State {
   showDetails: boolean;
 }
 
+/**
+ * ResizeObserver fires this when it can't deliver all callbacks in one frame.
+ * It is a browser scheduling notice, not an application error — suppress it.
+ */
+function isResizeObserverLoopError(message: string): boolean {
+  return (
+    message.includes('ResizeObserver loop completed with undelivered') ||
+    message.includes('ResizeObserver loop limit exceeded')
+  );
+}
+
 /** Dialog plugin IPC can reject before/after bridge fallback; never take down the whole app for that. */
 function isBenignDialogPluginRejection(reason: unknown): boolean {
   const text =
@@ -119,6 +130,11 @@ export function AsyncErrorBoundary({
 
     // Handle unhandled errors
     const handleError = (event: ErrorEvent) => {
+      if (isResizeObserverLoopError(event.message)) {
+        event.preventDefault();
+        return;
+      }
+
       if (isBenignDialogPluginRejection(event.error ?? event.message)) {
         console.warn(
           'Suppressed dialog-related window error (see tauri-bridge / capabilities):',

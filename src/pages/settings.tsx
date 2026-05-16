@@ -7,19 +7,13 @@ import { toast } from 'sonner';
 import * as React from 'react';
 
 import { ModuleSettings } from '@/components/module-settings';
-import { ModuleSettingsDemo } from '@/components/module-settings-demo';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
+  AppBar,
+  PageHeader,
+  SettingsSection,
+  SettingRow,
+  ImToggle,
+} from '@/components/shared/im';
 import {
   type AppSettings,
   clearSettings,
@@ -124,279 +118,280 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="container mx-auto space-y-6 py-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">Settings</h1>
-          <p className="text-muted-foreground mt-1">
-            Configure application preferences and module settings
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" useAccentColor onClick={handleReset}>
-            Reset
-          </Button>
-          <Button variant="destructive" onClick={handleClearSettings}>
-            Clear All Settings
-          </Button>
-          <Button onClick={handleSave} variant="default" useAccentColor>
-            Save Settings
-          </Button>
-        </div>
-      </div>
-
-      {/* Module Settings Demo */}
-      <ModuleSettingsDemo />
-
-      {/* Module Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Module Settings</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-            {modules.map(module => (
-              <Button
-                key={module.key}
-                variant={selectedModule === module.key ? 'default' : 'outline'}
-                useAccentColor
-                onClick={() => setSelectedModule(module.key)}
-                className="flex h-20 flex-col items-center justify-center"
-              >
-                <span className="font-medium">{module.title}</span>
-                <span className="text-muted-foreground text-xs">
-                  Configure Fields
-                </span>
-              </Button>
-            ))}
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Settings']} />
+      <PageHeader
+        title="Settings"
+        subtitle="Configure application preferences and module settings"
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button className="im-btn" onClick={handleReset}>
+              Reset
+            </button>
+            <button
+              className="im-btn im-btn--danger"
+              onClick={handleClearSettings}
+            >
+              Clear All Settings
+            </button>
+            <button className="im-btn im-btn--primary" onClick={handleSave}>
+              Save Settings
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        }
+      />
 
-      {/* Module Specific Settings */}
-      {selectedModule && (
-        <Card>
-          <CardContent className="pt-6">
-            <ModuleSettings
-              moduleName={selectedModule as keyof AppSettings['modules']}
-              moduleTitle={
-                modules.find(m => m.key === selectedModule)?.title || ''
-              }
-              onClose={() => setSelectedModule(null)}
-            />
-          </CardContent>
-        </Card>
-      )}
+      <div
+        className="im-settings-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
+        {/* Module Selection */}
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Module Settings</span>
+          </div>
+          <div className="im-section__body">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 8,
+              }}
+            >
+              {modules.map(module => (
+                <button
+                  key={module.key}
+                  className={`im-btn${selectedModule === module.key ? 'im-btn--primary' : ''}`}
+                  onClick={() => setSelectedModule(module.key)}
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    height: 64,
+                    justifyContent: 'center',
+                  }}
+                >
+                  <span style={{ fontWeight: 500 }}>{module.title}</span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      color:
+                        selectedModule === module.key
+                          ? 'inherit'
+                          : 'var(--color-im-faint)',
+                    }}
+                  >
+                    Configure Fields
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Calculation Settings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label>Line Total Precision</Label>
-                <Select
+        {/* Module Specific Settings */}
+        {selectedModule && (
+          <div className="im-section">
+            <div className="im-section__body">
+              <ModuleSettings
+                moduleName={selectedModule as keyof AppSettings['modules']}
+                moduleTitle={
+                  modules.find(m => m.key === selectedModule)?.title || ''
+                }
+                onClose={() => setSelectedModule(null)}
+              />
+            </div>
+          </div>
+        )}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 16,
+          }}
+        >
+          <SettingsSection title="Invoice Calculation Settings">
+            <SettingRow
+              label="Line Total Precision"
+              desc="Decimal places for line item totals"
+            >
+              <div className="im-select-wrap" style={{ width: 160 }}>
+                <select
+                  className="im-select"
                   value={lineTotalDecimals.toString()}
-                  onValueChange={value =>
+                  onChange={e =>
                     void persistInvoiceCalculationSettings(
-                      value === '0' ? 0 : 2,
+                      e.target.value === '0' ? 0 : 2,
                       invoiceTotalDecimals
                     )
                   }
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2">2 decimals</SelectItem>
-                    <SelectItem value="0">0 decimals</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="2">2 decimals</option>
+                  <option value="0">0 decimals</option>
+                </select>
               </div>
-              <div>
-                <Label>Invoice Total Precision</Label>
-                <Select
+            </SettingRow>
+            <SettingRow
+              label="Invoice Total Precision"
+              desc="Decimal places for invoice totals"
+            >
+              <div className="im-select-wrap" style={{ width: 160 }}>
+                <select
+                  className="im-select"
                   value={invoiceTotalDecimals.toString()}
-                  onValueChange={value =>
+                  onChange={e =>
                     void persistInvoiceCalculationSettings(
                       lineTotalDecimals,
-                      value === '0' ? 0 : 2
+                      e.target.value === '0' ? 0 : 2
                     )
                   }
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="2">2 decimals</SelectItem>
-                    <SelectItem value="0">0 decimals</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="2">2 decimals</option>
+                  <option value="0">0 decimals</option>
+                </select>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </SettingRow>
+          </SettingsSection>
 
-        {/* Number Format Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Number Formatting</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <Label>Decimal Places</Label>
-                <Select
+          {/* Number Format Settings */}
+          <SettingsSection title="Number Formatting">
+            <SettingRow label="Decimal Places">
+              <div className="im-select-wrap" style={{ width: 100 }}>
+                <select
+                  className="im-select"
                   value={settings.numberFormat.decimalPlaces.toString()}
-                  onValueChange={value =>
-                    updateNumberSettings({ decimalPlaces: parseInt(value) })
+                  onChange={e =>
+                    updateNumberSettings({
+                      decimalPlaces: parseInt(e.target.value),
+                    })
                   }
                 >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="0">0</SelectItem>
-                    <SelectItem value="1">1</SelectItem>
-                    <SelectItem value="2">2</SelectItem>
-                    <SelectItem value="3">3</SelectItem>
-                  </SelectContent>
-                </Select>
+                  <option value="0">0</option>
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                </select>
               </div>
-              <div>
-                <Label>Currency Symbol</Label>
-                <Input
-                  value={settings.numberFormat.currencySymbol}
-                  onChange={e =>
-                    updateNumberSettings({ currencySymbol: e.target.value })
-                  }
-                  placeholder="₹"
-                />
-              </div>
-            </div>
-
-            <div className="flex items-center space-x-2">
-              <Switch
+            </SettingRow>
+            <SettingRow label="Currency Symbol">
+              <input
+                className="im-input"
+                style={{ width: 80 }}
+                value={settings.numberFormat.currencySymbol}
+                onChange={e =>
+                  updateNumberSettings({ currencySymbol: e.target.value })
+                }
+                placeholder="₹"
+              />
+            </SettingRow>
+            <SettingRow label="Use Thousands Separator">
+              <ImToggle
                 checked={settings.numberFormat.useThousandsSeparator}
-                onCheckedChange={checked =>
+                onChange={checked =>
                   updateNumberSettings({ useThousandsSeparator: checked })
                 }
               />
-              <Label>Use Thousands Separator</Label>
-            </div>
-
-            {/* Preview */}
-            <div className="bg-muted rounded-lg p-4">
-              <h4 className="mb-2 font-medium">Preview:</h4>
-              <div className="space-y-1 text-sm">
-                <div>
-                  Number: {formatNumber(1234567.89, settings.numberFormat)}
-                </div>
-                <div>
-                  Currency: {formatCurrency(987654.32, settings.numberFormat)}
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Date Format Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Date Formatting</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Date Format</Label>
-              <Select
-                value={settings.dateFormat.format}
-                onValueChange={value =>
-                  updateDateSettings({
-                    format: value as AppSettings['dateFormat']['format'],
-                  })
-                }
+            </SettingRow>
+            <SettingRow label="Preview">
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                  fontSize: 12.5,
+                  fontFamily: 'var(--font-im-mono)',
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="DD/MM/YYYY">DD/MM/YYYY</SelectItem>
-                  <SelectItem value="MM/DD/YYYY">MM/DD/YYYY</SelectItem>
-                  <SelectItem value="YYYY-MM-DD">YYYY-MM-DD</SelectItem>
-                  <SelectItem value="DD-MM-YYYY">DD-MM-YYYY</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                <div>{formatNumber(1234567.89, settings.numberFormat)}</div>
+                <div>{formatCurrency(987654.32, settings.numberFormat)}</div>
+              </div>
+            </SettingRow>
+          </SettingsSection>
 
-            <div className="flex items-center space-x-2">
-              <Switch
+          {/* Date Format Settings */}
+          <SettingsSection title="Date Formatting">
+            <SettingRow label="Date Format">
+              <div className="im-select-wrap" style={{ width: 160 }}>
+                <select
+                  className="im-select"
+                  value={settings.dateFormat.format}
+                  onChange={e =>
+                    updateDateSettings({
+                      format: e.target
+                        .value as AppSettings['dateFormat']['format'],
+                    })
+                  }
+                >
+                  <option value="DD/MM/YYYY">DD/MM/YYYY</option>
+                  <option value="MM/DD/YYYY">MM/DD/YYYY</option>
+                  <option value="YYYY-MM-DD">YYYY-MM-DD</option>
+                  <option value="DD-MM-YYYY">DD-MM-YYYY</option>
+                </select>
+              </div>
+            </SettingRow>
+            <SettingRow label="Include Time">
+              <ImToggle
                 checked={settings.dateFormat.includeTime}
-                onCheckedChange={checked =>
+                onChange={checked =>
                   updateDateSettings({ includeTime: checked })
                 }
               />
-              <Label>Include Time</Label>
-            </div>
-
-            {/* Preview */}
-            <div className="bg-muted rounded-lg p-4">
-              <h4 className="mb-2 font-medium">Preview:</h4>
-              <div className="text-sm">
-                {formatDate(new Date(), settings.dateFormat)}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Text Format Settings */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Text Formatting</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label>Text Case</Label>
-              <Select
-                value={settings.textFormat.case}
-                onValueChange={value =>
-                  updateTextSettings({
-                    case: value as AppSettings['textFormat']['case'],
-                  })
-                }
+            </SettingRow>
+            <SettingRow label="Preview">
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontFamily: 'var(--font-im-mono)',
+                  color: 'var(--color-im-muted)',
+                }}
               >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sentencecase">Sentence case</SelectItem>
-                  <SelectItem value="lowercase">lowercase</SelectItem>
-                  <SelectItem value="uppercase">UPPERCASE</SelectItem>
-                  <SelectItem value="titlecase">Title Case</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+                {formatDate(new Date(), settings.dateFormat)}
+              </span>
+            </SettingRow>
+          </SettingsSection>
 
-            <div className="flex items-center space-x-2">
-              <Switch
+          {/* Text Format Settings */}
+          <SettingsSection title="Text Formatting">
+            <SettingRow label="Text Case">
+              <div className="im-select-wrap" style={{ width: 160 }}>
+                <select
+                  className="im-select"
+                  value={settings.textFormat.case}
+                  onChange={e =>
+                    updateTextSettings({
+                      case: e.target.value as AppSettings['textFormat']['case'],
+                    })
+                  }
+                >
+                  <option value="sentencecase">Sentence case</option>
+                  <option value="lowercase">lowercase</option>
+                  <option value="uppercase">UPPERCASE</option>
+                  <option value="titlecase">Title Case</option>
+                </select>
+              </div>
+            </SettingRow>
+            <SettingRow label="Trim Whitespace">
+              <ImToggle
                 checked={settings.textFormat.trimWhitespace}
-                onCheckedChange={checked =>
+                onChange={checked =>
                   updateTextSettings({ trimWhitespace: checked })
                 }
               />
-              <Label>Trim Whitespace</Label>
-            </div>
-
-            {/* Preview */}
-            <div className="bg-muted rounded-lg p-4">
-              <h4 className="mb-2 font-medium">Preview:</h4>
-              <div className="text-sm">
+            </SettingRow>
+            <SettingRow label="Preview">
+              <span
+                style={{
+                  fontSize: 12.5,
+                  fontFamily: 'var(--font-im-mono)',
+                  color: 'var(--color-im-muted)',
+                }}
+              >
                 {formatText('hello world example text', settings.textFormat)}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+              </span>
+            </SettingRow>
+          </SettingsSection>
+        </div>
       </div>
     </div>
   );

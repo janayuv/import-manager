@@ -1,6 +1,4 @@
 import { memo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Switch } from '@/components/ui/switch';
 import { automationHealthBadge } from '@/components/admin/automation-rules/health-badge';
 import type { AutomationHealthSnapshot } from '@/lib/automation-console';
 
@@ -19,61 +17,107 @@ export const AutomationMasterHealthPanel = memo(
     onMasterChange,
   }: AutomationMasterHealthPanelProps) {
     return (
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Automation master</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-wrap items-center justify-between gap-4">
-            <div className="space-y-1">
-              <p className="text-muted-foreground text-sm">
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(2,1fr)',
+          gap: 16,
+        }}
+      >
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Automation Master</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <p style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
                 When off, the daily automation cycle does not execute actions.
               </p>
               {health && (
-                <div className="flex flex-wrap items-center gap-2 text-sm">
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'center',
+                    gap: 8,
+                    fontSize: 12,
+                  }}
+                >
                   <span>Status:</span>
                   {automationHealthBadge(health.status)}
                   {health.lastCycleAt && (
-                    <span className="text-muted-foreground">
+                    <span style={{ color: 'var(--color-im-muted)' }}>
                       Last cycle: {health.lastCycleAt}
                     </span>
                   )}
                 </div>
               )}
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm">{masterOn ? 'ACTIVE' : 'PAUSED'}</span>
-              <Switch
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 12 }}>
+                {masterOn ? 'ACTIVE' : 'PAUSED'}
+              </span>
+              <input
+                type="checkbox"
                 checked={masterOn}
-                onCheckedChange={v => void onMasterChange(v)}
+                onChange={e => void onMasterChange(e.target.checked)}
                 disabled={!mutateOk}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: 'var(--color-im-accent)',
+                }}
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Automation health</CardTitle>
-          </CardHeader>
-          <CardContent className="text-muted-foreground space-y-2 text-sm">
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Automation Health</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              fontSize: 12,
+              color: 'var(--color-im-muted)',
+            }}
+          >
             {health ? (
               <>
                 <div>
                   Actions (24h):{' '}
-                  <span className="text-foreground font-medium">
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
                     {health.actionsLast24h}
                   </span>
                 </div>
                 <div>
                   Alerts / pauses (24h):{' '}
-                  <span className="text-foreground font-medium">
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
                     {health.errorsLast24h}
                   </span>
                 </div>
                 <div>
                   Guardrail state:{' '}
-                  <span className="text-foreground font-medium">
+                  <span
+                    style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                  >
                     {health.paused ? 'Cooldown active' : 'Clear'}
                   </span>
                 </div>
@@ -81,8 +125,8 @@ export const AutomationMasterHealthPanel = memo(
             ) : (
               <span>Loading…</span>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     );
   }

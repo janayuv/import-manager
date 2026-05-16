@@ -5,7 +5,6 @@ import { toast } from 'sonner';
 
 import * as React from 'react';
 
-import { Button } from '@/components/ui/button';
 import { CreatableCombobox } from '@/components/ui/combobox-creatable';
 import {
   Dialog,
@@ -16,12 +15,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import type { Item } from '@/types/item';
 import type { Option } from '@/types/options';
 
@@ -88,6 +81,7 @@ export function ItemForm({
   const isPage = presentation === 'page';
   const visible = isOpen || isPage;
 
+  const [activeFormTab, setActiveFormTab] = React.useState('general');
   const [formData, setFormData] = React.useState<Partial<Item>>(
     itemToEdit || defaultInitialData
   );
@@ -169,11 +163,18 @@ export function ItemForm({
     <>
       <h2
         id="item-form-title"
-        className="text-lg font-semibold tracking-tight sm:text-xl"
+        style={{
+          fontFamily: 'var(--font-im-mono)',
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: '0.05em',
+          color: 'var(--color-im-text)',
+          textTransform: 'uppercase',
+        }}
       >
         {itemToEdit ? `Edit item: ${itemToEdit.partNumber}` : 'Create new item'}
       </h2>
-      <p className="text-muted-foreground text-sm">
+      <p style={{ fontSize: 12, color: 'var(--color-im-faint)', marginTop: 4 }}>
         Manage item details across all tabs.
       </p>
     </>
@@ -187,48 +188,66 @@ export function ItemForm({
   );
 
   const tabsBlock = (
-    <Tabs defaultValue="general">
-      <TabsList className="grid w-full grid-cols-3">
-        <TabsTrigger
-          value="general"
-          className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
+    <div>
+      <div className="im-tabs">
+        <button
+          type="button"
+          className={
+            'im-tab' + (activeFormTab === 'general' ? ' is-active' : '')
+          }
+          onClick={() => setActiveFormTab('general')}
         >
           General Details
-        </TabsTrigger>
-        <TabsTrigger
-          value="customs"
-          className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
+        </button>
+        <button
+          type="button"
+          className={
+            'im-tab' + (activeFormTab === 'customs' ? ' is-active' : '')
+          }
+          onClick={() => setActiveFormTab('customs')}
         >
           Commercial & Customs
-        </TabsTrigger>
-        <TabsTrigger
-          value="specs"
-          className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
+        </button>
+        <button
+          type="button"
+          className={'im-tab' + (activeFormTab === 'specs' ? ' is-active' : '')}
+          onClick={() => setActiveFormTab('specs')}
         >
           Specifications
-        </TabsTrigger>
-      </TabsList>
-      <div className="py-4">
-        <TabsContent value="general">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Part Number *</Label>
-              <Input
+        </button>
+      </div>
+      <div style={{ padding: '16px 0' }}>
+        {activeFormTab === 'general' && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Part Number *</p>
+              <input
+                className="im-input"
                 id="partNumber"
                 value={formData.partNumber || ''}
                 onChange={handleChange}
               />
             </div>
-            <div className="col-span-2 space-y-2">
-              <Label>Item Description *</Label>
-              <Input
+            <div
+              className="col-span-2"
+              style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+            >
+              <p className="im-field-label">Item Description *</p>
+              <input
+                className="im-input"
                 id="itemDescription"
                 value={formData.itemDescription || ''}
                 onChange={handleChange}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Unit *</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Unit *</p>
               <CreatableCombobox
                 options={units}
                 value={formData.unit || ''}
@@ -237,8 +256,8 @@ export function ItemForm({
                 placeholder="e.g., PCS"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Currency *</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Currency *</p>
               <CreatableCombobox
                 options={currencies}
                 value={formData.currency || ''}
@@ -247,9 +266,10 @@ export function ItemForm({
                 placeholder="e.g., USD"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Unit Price *</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Unit Price *</p>
+              <input
+                className="im-input"
                 id="unitPrice"
                 type="number"
                 value={formData.unitPrice ?? ''}
@@ -257,16 +277,17 @@ export function ItemForm({
                 step="0.01"
               />
             </div>
-            <div className="space-y-2">
-              <Label>HSN Code *</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">HSN Code *</p>
+              <input
+                className="im-input"
                 id="hsnCode"
                 value={formData.hsnCode || ''}
                 onChange={handleChange}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Supplier</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Supplier</p>
               <CreatableCombobox
                 options={suppliers}
                 value={formData.supplierId || ''}
@@ -279,189 +300,268 @@ export function ItemForm({
                 placeholder="Select Supplier"
               />
             </div>
-            <div className="flex items-center space-x-2 pt-6">
-              <Switch
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                paddingTop: 24,
+              }}
+            >
+              <input
+                type="checkbox"
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={handleSwitchChange}
+                onChange={e => handleSwitchChange(e.target.checked)}
+                style={{
+                  width: 16,
+                  height: 16,
+                  accentColor: 'var(--color-im-accent)',
+                }}
               />
-              <Label>Is Active</Label>
+              <p className="im-field-label">Is Active</p>
             </div>
           </div>
-        </TabsContent>
-        <TabsContent value="customs">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>BCD</Label>
-              <CreatableCombobox
-                options={bcdRates}
-                value={String(formData.bcd || '')}
-                onChange={v => handleSelectChange('bcd', v)}
-                onOptionCreate={opt => onOptionCreate('bcd', opt)}
-                placeholder="e.g., 10%"
-              />
+        )}
+        {activeFormTab === 'customs' && (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">BCD</p>
+                <CreatableCombobox
+                  options={bcdRates}
+                  value={String(formData.bcd || '')}
+                  onChange={v => handleSelectChange('bcd', v)}
+                  onOptionCreate={opt => onOptionCreate('bcd', opt)}
+                  placeholder="e.g., 10%"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">SWS</p>
+                <CreatableCombobox
+                  options={swsRates}
+                  value={String(formData.sws || '')}
+                  onChange={v => handleSelectChange('sws', v)}
+                  onOptionCreate={opt => onOptionCreate('sws', opt)}
+                  placeholder="e.g., 10%"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">IGST</p>
+                <CreatableCombobox
+                  options={igstRates}
+                  value={String(formData.igst || '')}
+                  onChange={v => handleSelectChange('igst', v)}
+                  onOptionCreate={opt => onOptionCreate('igst', opt)}
+                  placeholder="e.g., 18%"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Country of Origin</p>
+                <CreatableCombobox
+                  options={countries}
+                  value={formData.countryOfOrigin || ''}
+                  onChange={v => handleSelectChange('countryOfOrigin', v)}
+                  onOptionCreate={opt => onOptionCreate('country', opt)}
+                  placeholder="Select Country"
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>SWS</Label>
-              <CreatableCombobox
-                options={swsRates}
-                value={String(formData.sws || '')}
-                onChange={v => handleSelectChange('sws', v)}
-                onOptionCreate={opt => onOptionCreate('sws', opt)}
-                placeholder="e.g., 10%"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>IGST</Label>
-              <CreatableCombobox
-                options={igstRates}
-                value={String(formData.igst || '')}
-                onChange={v => handleSelectChange('igst', v)}
-                onOptionCreate={opt => onOptionCreate('igst', opt)}
-                placeholder="e.g., 18%"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Country of Origin</Label>
-              <CreatableCombobox
-                options={countries}
-                value={formData.countryOfOrigin || ''}
-                onChange={v => handleSelectChange('countryOfOrigin', v)}
-                onOptionCreate={opt => onOptionCreate('country', opt)}
-                placeholder="Select Country"
-              />
-            </div>
-          </div>
-          <div className="mt-4 space-y-2">
-            <Label>Technical Write-up</Label>
-            <Textarea
-              id="technicalWriteUp"
-              value={formData.technicalWriteUp || ''}
-              onChange={handleChange}
-              rows={10}
-            />
-          </div>
-        </TabsContent>
-        <TabsContent value="specs">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <CreatableCombobox
-                options={categories}
-                value={formData.category || ''}
-                onChange={v => handleSelectChange('category', v)}
-                onOptionCreate={opt => onOptionCreate('category', opt)}
-                placeholder="Select Category"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>End Use</Label>
-              <CreatableCombobox
-                options={endUses}
-                value={formData.endUse || ''}
-                onChange={v => handleSelectChange('endUse', v)}
-                onOptionCreate={opt => onOptionCreate('endUse', opt)}
-                placeholder="Select End Use"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label>Net Weight (Kg)</Label>
-              <Input
-                id="netWeightKg"
-                type="number"
-                value={formData.netWeightKg || ''}
+            <div
+              style={{
+                marginTop: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <p className="im-field-label">Technical Write-up</p>
+              <textarea
+                className="im-textarea"
+                id="technicalWriteUp"
+                value={formData.technicalWriteUp || ''}
                 onChange={handleChange}
+                rows={10}
               />
             </div>
-            <div className="space-y-2">
-              <Label>Purchase UOM</Label>
-              <CreatableCombobox
-                options={purchaseUoms}
-                value={formData.purchaseUom || ''}
-                onChange={v => handleSelectChange('purchaseUom', v)}
-                onOptionCreate={opt => onOptionCreate('purchaseUom', opt)}
-                placeholder="e.g., Box"
-              />
+          </>
+        )}
+        {activeFormTab === 'specs' && (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Category</p>
+                <CreatableCombobox
+                  options={categories}
+                  value={formData.category || ''}
+                  onChange={v => handleSelectChange('category', v)}
+                  onOptionCreate={opt => onOptionCreate('category', opt)}
+                  placeholder="Select Category"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">End Use</p>
+                <CreatableCombobox
+                  options={endUses}
+                  value={formData.endUse || ''}
+                  onChange={v => handleSelectChange('endUse', v)}
+                  onOptionCreate={opt => onOptionCreate('endUse', opt)}
+                  placeholder="Select End Use"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Net Weight (Kg)</p>
+                <input
+                  className="im-input"
+                  id="netWeightKg"
+                  type="number"
+                  value={formData.netWeightKg || ''}
+                  onChange={handleChange}
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Purchase UOM</p>
+                <CreatableCombobox
+                  options={purchaseUoms}
+                  value={formData.purchaseUom || ''}
+                  onChange={v => handleSelectChange('purchaseUom', v)}
+                  onOptionCreate={opt => onOptionCreate('purchaseUom', opt)}
+                  placeholder="e.g., Box"
+                />
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Gross Weight per UOM (Kg)</p>
+                <input
+                  className="im-input"
+                  id="grossWeightPerUomKg"
+                  type="number"
+                  value={formData.grossWeightPerUomKg || ''}
+                  onChange={handleChange}
+                />
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label>Gross Weight per UOM (Kg)</Label>
-              <Input
-                id="grossWeightPerUomKg"
-                type="number"
-                value={formData.grossWeightPerUomKg || ''}
-                onChange={handleChange}
-              />
+            <div
+              style={{
+                marginTop: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <p className="im-field-label">Photo</p>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                <img
+                  src={
+                    photoPreview ||
+                    'https://placehold.co/100x100/eee/ccc?text=No+Image'
+                  }
+                  alt="Item Preview"
+                  style={{
+                    width: 96,
+                    height: 96,
+                    objectFit: 'cover',
+                    border: '1px solid var(--color-im-rule)',
+                  }}
+                />
+                <button
+                  type="button"
+                  className="im-btn"
+                  onClick={handlePhotoUpload}
+                >
+                  Upload Photo
+                </button>
+              </div>
             </div>
-          </div>
-          <div className="mt-4 space-y-2">
-            <Label>Photo</Label>
-            <div className="flex items-center gap-4">
-              <img
-                src={
-                  photoPreview ||
-                  'https://placehold.co/100x100/eee/ccc?text=No+Image'
-                }
-                alt="Item Preview"
-                className="h-24 w-24 rounded-md border object-cover"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                useAccentColor
-                onClick={handlePhotoUpload}
-              >
-                Upload Photo
-              </Button>
-            </div>
-          </div>
-        </TabsContent>
+          </>
+        )}
       </div>
-    </Tabs>
+    </div>
   );
 
   const footerActions = (
     <>
       {isPage ? (
-        <Button
+        <button
           type="button"
-          variant="outline"
-          useAccentColor
+          className="im-btn"
           onClick={() => onOpenChange(false)}
         >
           Cancel
-        </Button>
+        </button>
       ) : (
         <DialogClose asChild>
-          <Button type="button" variant="outline" useAccentColor>
+          <button type="button" className="im-btn">
             Cancel
-          </Button>
+          </button>
         </DialogClose>
       )}
-      <Button onClick={handleSubmit} variant="default" useAccentColor>
+      <button
+        type="button"
+        className="im-btn im-btn--primary"
+        onClick={handleSubmit}
+      >
         Save Item
-      </Button>
+      </button>
     </>
   );
 
   if (isPage) {
     return (
       <section
-        className={cn(
-          'bg-card text-card-foreground flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-xl border shadow-sm',
-          className
-        )}
+        className={className}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'var(--color-im-bg)',
+        }}
         aria-labelledby="item-form-title"
       >
-        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+        <header
+          style={{
+            flexShrink: 0,
+            borderBottom: '1px solid var(--color-im-rule)',
+            padding: '16px 24px',
+            background: 'var(--color-im-sub)',
+          }}
+        >
           {headerBlock}
         </header>
-        <div className="min-h-0 flex-1 overflow-y-auto px-6 py-4 [scrollbar-gutter:stable]">
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            padding: '16px 24px',
+          }}
+        >
           {tabsBlock}
         </div>
-        <footer className="border-border shrink-0 border-t px-6 py-4">
-          <div className="flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-2">
-            {footerActions}
-          </div>
+        <footer
+          style={{
+            flexShrink: 0,
+            borderTop: '1px solid var(--color-im-rule)',
+            padding: '16px 24px',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: 8,
+          }}
+        >
+          {footerActions}
         </footer>
       </section>
     );

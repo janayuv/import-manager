@@ -1,14 +1,4 @@
 import { memo } from 'react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import type {
   BackgroundJobHealthDashboard,
   MissedScheduleDashboard,
@@ -34,137 +24,215 @@ export const AutomationJobObservabilityPanel = memo(
   }: AutomationJobObservabilityPanelProps) {
     return (
       <>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Background job health</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-muted-foreground text-sm">
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Background Job Health</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            <p style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
               Scheduled workflow jobs (retention, observability, automation,
               cost rollups, safety signals). Data comes from execution logs and
               reliability scores.
             </p>
             {!jobHealth ? (
-              <span className="text-muted-foreground text-sm">Loading…</span>
+              <span style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
+                Loading…
+              </span>
             ) : jobHealth.jobs.length === 0 ? (
-              <span className="text-muted-foreground text-sm">
+              <span style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
                 No registered jobs yet.
               </span>
             ) : (
-              <div className="overflow-x-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Job</TableHead>
-                      <TableHead>Last status</TableHead>
-                      <TableHead className="text-right">
+              <div className="im-table-scroll">
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th">Job</th>
+                      <th className="im-th">Last status</th>
+                      <th className="im-th" style={{ textAlign: 'right' }}>
                         Failures (7d)
-                      </TableHead>
-                      <TableHead className="text-right">Avg ms (7d)</TableHead>
-                      <TableHead className="text-right">Retry rows</TableHead>
-                      <TableHead className="text-right">Reliability</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+                      </th>
+                      <th className="im-th" style={{ textAlign: 'right' }}>
+                        Avg ms (7d)
+                      </th>
+                      <th className="im-th" style={{ textAlign: 'right' }}>
+                        Retry rows
+                      </th>
+                      <th className="im-th" style={{ textAlign: 'right' }}>
+                        Reliability
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {jobHealth.jobs.map(j => (
-                      <TableRow key={j.jobId}>
-                        <TableCell className="font-mono text-xs">
+                      <tr className="im-tr" key={j.jobId}>
+                        <td
+                          className="im-td"
+                          style={{
+                            fontFamily: 'var(--font-im-mono)',
+                            fontSize: 11,
+                          }}
+                        >
                           {j.jobId}
-                        </TableCell>
-                        <TableCell className="text-sm">
+                        </td>
+                        <td className="im-td" style={{ fontSize: 12 }}>
                           {j.lastExecution ? (
-                            <span className="inline-flex flex-col gap-0.5">
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                flexDirection: 'column',
+                                gap: 2,
+                              }}
+                            >
                               <span>{j.lastExecution.status}</span>
                               {j.lastExecution.completedAt && (
-                                <span className="text-muted-foreground text-xs">
+                                <span
+                                  style={{
+                                    color: 'var(--color-im-muted)',
+                                    fontSize: 11,
+                                  }}
+                                >
                                   {j.lastExecution.completedAt}
                                 </span>
                               )}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">—</span>
+                            <span style={{ color: 'var(--color-im-muted)' }}>
+                              —
+                            </span>
                           )}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ textAlign: 'right', fontSize: 12 }}
+                        >
                           {j.failures7d}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ textAlign: 'right', fontSize: 12 }}
+                        >
                           {Math.round(j.avgExecutionMs7d)}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ textAlign: 'right', fontSize: 12 }}
+                        >
                           {j.retryRows}
-                        </TableCell>
-                        <TableCell className="text-right text-sm">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ textAlign: 'right', fontSize: 12 }}
+                        >
                           {j.reliability != null
                             ? j.reliability.score.toFixed(2)
                             : '—'}
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
 
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-            <CardTitle className="text-base">
-              Missed schedule and recovery
-            </CardTitle>
+        <div className="im-section">
+          <div
+            className="im-section__header"
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 8,
+            }}
+          >
+            <span className="im-section__label">
+              // Missed Schedule and Recovery
+            </span>
             {mutateOk && (
-              <Button
+              <button
                 type="button"
-                variant="secondary"
-                size="sm"
+                className="im-btn im-btn--sm"
                 onClick={() => void onScanMissedRuns()}
                 disabled={loading}
               >
                 Scan for missed runs
-              </Button>
+              </button>
             )}
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-muted-foreground text-sm">
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <p style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
               Tracks jobs that passed their expected interval without a
               successful run, auto-recovery after the daily pipeline, and
               recovery scores. Use Recover for a pending alert when you need an
               immediate retry.
             </p>
             {!missedSchedule ? (
-              <span className="text-muted-foreground text-sm">Loading…</span>
+              <span style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
+                Loading…
+              </span>
             ) : (
               <>
-                <div className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-4">
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4,1fr)',
+                    gap: 8,
+                    fontSize: 12,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
                   <div>
                     Pending missed:{' '}
-                    <span className="text-foreground font-medium">
+                    <span
+                      style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                    >
                       {missedSchedule.pendingMissed}
                     </span>
                   </div>
                   <div>
                     Recovered (7d):{' '}
-                    <span className="text-foreground font-medium">
+                    <span
+                      style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                    >
                       {missedSchedule.recovered7d}
                     </span>
                   </div>
                   <div>
                     Missed exec rows (7d):{' '}
-                    <span className="text-foreground font-medium">
+                    <span
+                      style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                    >
                       {missedSchedule.missedExecutions7d}
                     </span>
                   </div>
                   <div>
                     Recovery success (30d):{' '}
-                    <span className="text-foreground font-medium">
+                    <span
+                      style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                    >
                       {(missedSchedule.recoverySuccessRate30d * 100).toFixed(0)}
                       %
                     </span>
                   </div>
                 </div>
                 {missedSchedule.todayMetrics && (
-                  <div className="text-muted-foreground border-t pt-3 text-xs">
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--color-im-rule)',
+                      paddingTop: 12,
+                      fontSize: 11,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
                     Today: missed {missedSchedule.todayMetrics.missedRuns},
                     recovery ok {missedSchedule.todayMetrics.recoverySuccess},
                     failures {missedSchedule.todayMetrics.recoveryFailures},
@@ -172,7 +240,14 @@ export const AutomationJobObservabilityPanel = memo(
                   </div>
                 )}
                 {missedSchedule.recoveryScores.length > 0 && (
-                  <div className="text-muted-foreground border-t pt-3 text-xs">
+                  <div
+                    style={{
+                      borderTop: '1px solid var(--color-im-rule)',
+                      paddingTop: 12,
+                      fontSize: 11,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
                     Recovery scores (30d):{' '}
                     {missedSchedule.recoveryScores
                       .map(
@@ -182,49 +257,66 @@ export const AutomationJobObservabilityPanel = memo(
                       .join(' · ')}
                   </div>
                 )}
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Job</TableHead>
-                        <TableHead>Expected</TableHead>
-                        <TableHead>Detected</TableHead>
-                        <TableHead>Status</TableHead>
-                        {mutateOk && <TableHead className="text-right" />}
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Job</th>
+                        <th className="im-th">Expected</th>
+                        <th className="im-th">Detected</th>
+                        <th className="im-th">Status</th>
+                        {mutateOk && (
+                          <th
+                            className="im-th"
+                            style={{ textAlign: 'right' }}
+                          />
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
                       {missedSchedule.recentMissedAlerts.length === 0 ? (
-                        <TableRow>
-                          <TableCell
+                        <tr className="im-tr">
+                          <td
                             colSpan={mutateOk ? 5 : 4}
-                            className="text-muted-foreground text-sm"
+                            className="im-td"
+                            style={{
+                              color: 'var(--color-im-muted)',
+                              fontSize: 12,
+                            }}
                           >
                             No recent missed alerts.
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       ) : (
                         missedSchedule.recentMissedAlerts.map(row => (
-                          <TableRow key={row.alertId}>
-                            <TableCell className="font-mono text-xs">
+                          <tr className="im-tr" key={row.alertId}>
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily: 'var(--font-im-mono)',
+                                fontSize: 11,
+                              }}
+                            >
                               {row.jobId}
-                            </TableCell>
-                            <TableCell className="text-xs">
+                            </td>
+                            <td className="im-td" style={{ fontSize: 11 }}>
                               {row.expectedTime}
-                            </TableCell>
-                            <TableCell className="text-xs">
+                            </td>
+                            <td className="im-td" style={{ fontSize: 11 }}>
                               {row.detectedTime}
-                            </TableCell>
-                            <TableCell className="text-xs">
+                            </td>
+                            <td className="im-td" style={{ fontSize: 11 }}>
                               {row.status}
-                            </TableCell>
+                            </td>
                             {mutateOk && (
-                              <TableCell className="text-right">
+                              <td
+                                className="im-td"
+                                style={{ textAlign: 'right' }}
+                              >
                                 {row.status === 'PENDING' ? (
-                                  <Button
+                                  <button
                                     type="button"
-                                    variant="outline"
-                                    size="sm"
+                                    className="im-btn im-btn--sm"
                                     onClick={() =>
                                       void onRecoverMissedJob(
                                         row.jobId,
@@ -234,20 +326,20 @@ export const AutomationJobObservabilityPanel = memo(
                                     disabled={loading}
                                   >
                                     Recover missed job
-                                  </Button>
+                                  </button>
                                 ) : null}
-                              </TableCell>
+                              </td>
                             )}
-                          </TableRow>
+                          </tr>
                         ))
                       )}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
               </>
             )}
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </>
     );
   }

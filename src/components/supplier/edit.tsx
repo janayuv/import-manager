@@ -1,51 +1,23 @@
 // Supplier edit panel (embedded on the supplier page).
 import { useEffect, useState } from 'react';
-
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
-import { X } from 'lucide-react';
+import { Save, X } from 'lucide-react';
 import type { Supplier } from '@/types/supplier';
+import { cn } from '@/lib/utils';
+
+import {
+  ActiveToggle,
+  FieldLabel,
+  FormFooter,
+  FormInput,
+  IdentityHeader,
+  Section,
+} from '@/components/supplier/form-primitives';
 
 export interface SupplierEditPanelProps {
   supplier: Supplier;
   onSave: (updatedSupplier: Supplier) => void;
   onCancel: () => void;
   className?: string;
-}
-
-function FieldLabel({
-  htmlFor,
-  children,
-  required,
-}: {
-  htmlFor: string;
-  children: React.ReactNode;
-  required?: boolean;
-}) {
-  return (
-    <Label
-      htmlFor={htmlFor}
-      className="text-foreground/90 text-xs font-medium uppercase tracking-wide"
-    >
-      {children}
-      {required ? (
-        <span className="text-destructive normal-case" aria-hidden>
-          {' '}
-          *
-        </span>
-      ) : null}
-    </Label>
-  );
 }
 
 export function SupplierEditPanel({
@@ -64,11 +36,8 @@ export function SupplierEditPanel({
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!formData) return;
-    const { id, value, type, checked } = e.target;
-    setFormData(prev => ({
-      ...prev!,
-      [id]: type === 'checkbox' ? checked : value,
-    }));
+    const { id, value } = e.target;
+    setFormData(prev => ({ ...prev!, [id]: value }));
   };
 
   const handleSubmit = () => {
@@ -102,248 +71,193 @@ export function SupplierEditPanel({
 
   return (
     <section
-      className={cn(
-        'bg-card text-card-foreground flex h-full min-h-0 flex-col',
-        className
-      )}
+      className={cn('im-form-page', className)}
       aria-labelledby="supplier-edit-title"
     >
-      <header className="bg-muted/25 relative shrink-0 border-b px-4 py-4 pr-12 sm:px-5 sm:pr-14">
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="absolute right-3 top-3 h-9 w-9 sm:right-4 sm:top-4"
-          onClick={handleCancel}
-          aria-label="Cancel editing"
-        >
-          <X className="size-4" />
-        </Button>
-        <h2
-          id="supplier-edit-title"
-          className="text-lg font-semibold tracking-tight sm:text-xl"
-        >
-          {formData.supplierName}
-        </h2>
-        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-          Update contact and bank information, then save to apply changes.
-        </p>
-      </header>
+      <IdentityHeader
+        name={formData.supplierName || 'Unnamed Supplier'}
+        sub="Update contact and bank information, then save to apply changes."
+        id={formData.id}
+        isActive={formData.isActive}
+        country={formData.country}
+        actions={
+          <button
+            type="button"
+            className="im-btn-icon"
+            onClick={handleCancel}
+            aria-label="Cancel editing"
+          >
+            <X size={13} />
+          </button>
+        }
+      />
 
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-5 sm:py-5">
-        <Card className="gap-0 py-0 shadow-sm">
-          <CardHeader className="border-border/80 bg-muted/20 border-b px-4 py-3 sm:px-5">
-            <CardTitle className="text-base font-semibold">
-              General information
-            </CardTitle>
-            <CardDescription>
-              Primary supplier identity and contact fields.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-4 py-4 sm:px-5 sm:py-5">
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <FieldLabel htmlFor="supplierName" required>
-                  Supplier name
-                </FieldLabel>
-                <Input
-                  id="supplierName"
-                  value={formData.supplierName || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="shortName">Short name</FieldLabel>
-                <Input
-                  id="shortName"
-                  value={formData.shortName || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="country" required>
-                  Country
-                </FieldLabel>
-                <Input
-                  id="country"
-                  value={formData.country || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="email" required>
-                  Email
-                </FieldLabel>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
+      <div className="im-form-body">
+        <Section
+          label="General Information"
+          sub="Primary supplier identity and contact fields."
+        >
+          <div className="im-grid">
+            <div>
+              <FieldLabel htmlFor="supplierName" required>
+                Supplier Name
+              </FieldLabel>
+              <FormInput
+                id="supplierName"
+                value={formData.supplierName || ''}
+                onChange={handleChange}
+              />
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-              <div className="space-y-2">
-                <FieldLabel htmlFor="phone">Phone</FieldLabel>
-                <Input
-                  id="phone"
-                  value={formData.phone || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="border-border/80 bg-muted/15 flex flex-wrap items-center gap-3 rounded-lg border px-4 py-3 sm:justify-between">
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    id="isActive"
-                    checked={formData.isActive || false}
-                    onCheckedChange={checked =>
-                      setFormData(prev => ({ ...prev!, isActive: !!checked }))
-                    }
-                    className={
-                      formData.isActive
-                        ? 'border-success bg-success'
-                        : 'border-destructive bg-destructive'
-                    }
-                  />
-                  <Label
-                    htmlFor="isActive"
-                    className="cursor-pointer font-medium"
-                  >
-                    Active supplier
-                  </Label>
-                </div>
-                <span
-                  className={cn(
-                    'text-sm font-medium',
-                    formData.isActive ? 'text-success' : 'text-destructive'
-                  )}
-                >
-                  {formData.isActive
-                    ? 'Listed as active'
-                    : 'Listed as inactive'}
-                </span>
-              </div>
+            <div>
+              <FieldLabel htmlFor="shortName">Short Name</FieldLabel>
+              <FormInput
+                id="shortName"
+                value={formData.shortName || ''}
+                onChange={handleChange}
+              />
             </div>
-          </CardContent>
-        </Card>
 
-        <Card className="gap-0 py-0 shadow-sm">
-          <CardHeader className="border-border/80 bg-muted/20 border-b px-4 py-3 sm:px-5">
-            <CardTitle className="text-base font-semibold">
-              Bank details
-            </CardTitle>
-            <CardDescription>
-              Payment and remittance information for this supplier.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="px-4 py-4 sm:px-5 sm:py-5">
-            <div className="grid grid-cols-1 gap-x-4 gap-y-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <FieldLabel htmlFor="beneficiaryName">
-                  Beneficiary name
-                </FieldLabel>
-                <Input
-                  id="beneficiaryName"
-                  value={formData.beneficiaryName || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="bankName">Bank name</FieldLabel>
-                <Input
-                  id="bankName"
-                  value={formData.bankName || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="branch">Branch</FieldLabel>
-                <Input
-                  id="branch"
-                  value={formData.branch || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="bankAddress">Bank address</FieldLabel>
-                <Input
-                  id="bankAddress"
-                  value={formData.bankAddress || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="accountNo">Account no.</FieldLabel>
-                <Input
-                  id="accountNo"
-                  value={formData.accountNo || ''}
-                  onChange={handleChange}
-                  className="h-10"
-                />
-              </div>
-              <div className="space-y-2">
-                <FieldLabel htmlFor="iban">IBAN</FieldLabel>
-                <Input
-                  id="iban"
-                  value={formData.iban || ''}
-                  onChange={handleChange}
-                  className="h-10 font-mono text-sm"
-                />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <FieldLabel htmlFor="swiftCode">SWIFT / BIC code</FieldLabel>
-                <Input
+            <div>
+              <FieldLabel htmlFor="country" required>
+                Country
+              </FieldLabel>
+              <FormInput
+                id="country"
+                value={formData.country || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="email" required>
+                Email
+              </FieldLabel>
+              <FormInput
+                id="email"
+                type="email"
+                value={formData.email || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="phone">Phone</FieldLabel>
+              <FormInput
+                id="phone"
+                value={formData.phone || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="im-grid__align-end">
+              <FieldLabel>Status</FieldLabel>
+              <ActiveToggle
+                checked={formData.isActive || false}
+                onChange={v => setFormData(prev => ({ ...prev!, isActive: v }))}
+              />
+            </div>
+          </div>
+        </Section>
+
+        <Section
+          label="Bank Details"
+          sub="Payment and remittance information for this supplier."
+        >
+          <div className="im-grid">
+            <div>
+              <FieldLabel htmlFor="beneficiaryName">
+                Beneficiary Name
+              </FieldLabel>
+              <FormInput
+                id="beneficiaryName"
+                value={formData.beneficiaryName || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="bankName">Bank Name</FieldLabel>
+              <FormInput
+                id="bankName"
+                value={formData.bankName || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="branch">Branch</FieldLabel>
+              <FormInput
+                id="branch"
+                value={formData.branch || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="bankAddress">Bank Address</FieldLabel>
+              <FormInput
+                id="bankAddress"
+                value={formData.bankAddress || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="accountNo">Account No.</FieldLabel>
+              <FormInput
+                id="accountNo"
+                mono
+                value={formData.accountNo || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <FieldLabel htmlFor="iban">IBAN</FieldLabel>
+              <FormInput
+                id="iban"
+                mono
+                value={formData.iban || ''}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="im-grid__full">
+              <FieldLabel htmlFor="swiftCode">SWIFT / BIC Code</FieldLabel>
+              <div style={{ maxWidth: 320 }}>
+                <FormInput
                   id="swiftCode"
+                  mono
                   value={formData.swiftCode || ''}
                   onChange={handleChange}
-                  className="h-10 max-w-full font-mono text-sm sm:max-w-md"
                 />
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </Section>
       </div>
 
-      <footer className="bg-muted/25 border-border shrink-0 border-t px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-center justify-end gap-2">
-          {isDirty ? (
-            <span className="mr-auto text-xs font-medium text-orange-600">
-              Unsaved changes
-            </span>
-          ) : (
-            <span className="text-muted-foreground mr-auto text-xs">
-              No unsaved changes
-            </span>
-          )}
-          <Button
-            type="button"
-            variant="outline"
-            useAccentColor
-            onClick={handleCancel}
-          >
-            Cancel
-          </Button>
-          <Button
-            type="button"
-            variant="default"
-            useAccentColor
-            onClick={handleSubmit}
-            disabled={!isDirty || !canSave}
-          >
-            Save supplier
-          </Button>
-        </div>
-      </footer>
+      <FormFooter
+        note={
+          isDirty
+            ? 'Unsaved changes — save or cancel to discard.'
+            : 'No unsaved changes.'
+        }
+        noteType={isDirty ? 'warn' : 'info'}
+      >
+        <button type="button" className="im-btn" onClick={handleCancel}>
+          Cancel
+        </button>
+        <button
+          type="button"
+          className="im-btn im-btn--primary"
+          disabled={!isDirty || !canSave}
+          onClick={handleSubmit}
+        >
+          <Save size={13} /> Save Supplier
+        </button>
+      </FormFooter>
     </section>
   );
 }

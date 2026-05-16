@@ -1,19 +1,17 @@
 import ExpenseReports from '@/components/expenses/expense-reports';
+import { AppBar, PageHeader } from '@/components/shared/im';
 
 const ExpenseReportsPage = () => {
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">
-            Expense Reports
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Generate detailed expense reports and summaries
-          </p>
-        </div>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Expenses', 'Reports']} />
+      <PageHeader
+        title="Expense Reports"
+        subtitle="Generate detailed expense reports and summaries"
+      />
+      <div className="im-dashboard-body">
+        <ExpenseReports />
       </div>
-      <ExpenseReports />
     </div>
   );
 };

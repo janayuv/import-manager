@@ -1,4 +1,4 @@
-// src/pages/invoice/index.tsx
+// src/pages/invoice.tsx
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
   confirm,
@@ -7,15 +7,7 @@ import {
   save,
   writeTextFile,
 } from '@/lib/tauri-bridge';
-import {
-  ArrowLeft,
-  Download,
-  Loader2,
-  Plus,
-  Settings,
-  Upload,
-  Zap,
-} from 'lucide-react';
+import { Download, FileText, Plus, Settings, Upload, Zap } from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
@@ -24,9 +16,9 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { getInvoiceColumns } from '@/components/invoice/columns';
 import { InvoiceForm } from '@/components/invoice/form';
+import { InvoiceDataTable } from '@/components/invoice/table-invoice';
 import { InvoiceViewDialog } from '@/components/invoice/view';
 import { ModuleSettings } from '@/components/module-settings';
-import { ResponsiveDataTable } from '@/components/ui/responsive-table';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,7 +29,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -45,24 +36,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   invoiceTaxSnapshotFromItem,
   parsePercentage,
 } from '@/lib/parse-percentage';
 import { useSettings } from '@/lib/use-settings';
-import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type { FlattenedInvoiceLine, Invoice } from '@/types/invoice';
 import type { Item } from '@/types/item';
 import type { Shipment } from '@/types/shipment';
@@ -71,6 +48,27 @@ import type { Supplier } from '@/types/supplier';
 /** URL path for invoice view or edit (bookmarkable). */
 export function invoiceDetailPath(invoiceId: string, mode: 'view' | 'edit') {
   return `/invoice/${encodeURIComponent(invoiceId)}/${mode}`;
+}
+
+function dominantInvoiceCurrency(
+  list: Invoice[],
+  shipments: Map<string, Shipment>
+): string {
+  const tally = new Map<string, number>();
+  for (const inv of list) {
+    const raw = shipments.get(inv.shipmentId)?.invoiceCurrency || 'USD';
+    const c = raw.toUpperCase() === 'EURO' ? 'EUR' : raw.toUpperCase();
+    tally.set(c, (tally.get(c) ?? 0) + 1);
+  }
+  let best = 'USD';
+  let max = 0;
+  for (const [code, n] of tally) {
+    if (n > max) {
+      max = n;
+      best = code;
+    }
+  }
+  return best;
 }
 
 type BulkImportRow = {
@@ -86,7 +84,6 @@ const InvoicePage = () => {
   const { invoiceId: invoiceIdParam } = useParams<{ invoiceId: string }>();
 
   const { settings } = useSettings();
-  const { getButtonClass, getSpacingClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const [invoices, setInvoices] = React.useState<Invoice[]>([]);
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
@@ -130,6 +127,13 @@ const InvoicePage = () => {
   } | null>(null);
 
   const [statusFilter, setStatusFilter] = React.useState('All');
+  const [searchInput, setSearchInput] = React.useState('');
+  const [debouncedSearch, setDebouncedSearch] = React.useState('');
+
+  React.useEffect(() => {
+    const id = window.setTimeout(() => setDebouncedSearch(searchInput), 300);
+    return () => window.clearTimeout(id);
+  }, [searchInput]);
   const itemMap = React.useMemo(
     () => new Map(items.map(i => [i.id, i])),
     [items]
@@ -218,7 +222,6 @@ const InvoicePage = () => {
   };
 
   const flattenedData = React.useMemo(() => {
-    console.time('flattenedData');
     const data: FlattenedInvoiceLine[] = [];
     const filteredInvoices =
       statusFilter === 'All'
@@ -287,7 +290,6 @@ const InvoicePage = () => {
         }
       }
     });
-    console.timeEnd('flattenedData');
     return data;
   }, [
     invoices,
@@ -298,10 +300,45 @@ const InvoicePage = () => {
     roundToPrecision,
   ]);
 
-  const handleOpenFormForAdd = () => {
+  const tableRows = React.useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase();
+    if (!q) return flattenedData;
+    return flattenedData.filter(row => {
+      return (
+        row.supplierName.toLowerCase().includes(q) ||
+        row.invoiceNumber.toLowerCase().includes(q) ||
+        row.partNumber.toLowerCase().includes(q) ||
+        row.itemDescription.toLowerCase().includes(q) ||
+        row.hsnCode.toLowerCase().includes(q) ||
+        row.currency.toLowerCase().includes(q)
+      );
+    });
+  }, [flattenedData, debouncedSearch]);
+
+  const invoiceMetrics = React.useMemo(() => {
+    const currency = dominantInvoiceCurrency(invoices, shipmentMap);
+    const sum = (pred: (i: Invoice) => boolean) =>
+      invoices.filter(pred).reduce((s, i) => s + i.calculatedTotal, 0);
+    return {
+      currency,
+      totalValue: sum(() => true),
+      paid: sum(i => i.status === 'Finalized'),
+      outstanding: sum(i => i.status === 'Draft'),
+      overdue: sum(i => i.status === 'Mismatch'),
+    };
+  }, [invoices, shipmentMap]);
+
+  const showingSummary = React.useMemo(() => {
+    const n = tableRows.length;
+    const statusBit =
+      statusFilter !== 'All' ? ` with status "${statusFilter}"` : '';
+    return `Showing ${n} invoice${n !== 1 ? 's' : ''}${statusBit}`;
+  }, [tableRows.length, statusFilter]);
+
+  const handleOpenFormForAdd = React.useCallback(() => {
     setInvoiceToEdit(null);
     setFormOpen(true);
-  };
+  }, []);
 
   const handleOpenFormForEdit = React.useCallback(
     (invoiceId: string) => {
@@ -531,7 +568,7 @@ const InvoicePage = () => {
     }
   };
 
-  const handleDownloadTemplate = async () => {
+  const handleDownloadTemplate = React.useCallback(async () => {
     const headers = 'shipmentInvoiceNumber,itemPartNumber,quantity,unitPrice';
     try {
       if (!useNativeFileDialogs) {
@@ -566,9 +603,9 @@ const InvoicePage = () => {
         `Failed to download template: ${(err as Error).message}`
       );
     }
-  };
+  }, [notifications]);
 
-  const handleBulkImport = async () => {
+  const handleBulkImport = React.useCallback(async () => {
     try {
       const selectedFile = await openTextFile({
         multiple: false,
@@ -666,7 +703,7 @@ const InvoicePage = () => {
     } catch (err) {
       notifications.invoice.error('import', (err as Error).message);
     }
-  };
+  }, [notifications, fetchData]);
 
   // Calculate auto-finalizable invoices
   const autoFinalizableInvoices = React.useMemo(() => {
@@ -699,6 +736,96 @@ const InvoicePage = () => {
     ]
   );
 
+  const renderEmptyState = React.useCallback((): React.ReactNode => {
+    const isFiltered = !!debouncedSearch.trim() || statusFilter !== 'All';
+    const title = isFiltered ? 'No matching lines' : 'No invoice lines yet';
+    const body = debouncedSearch.trim()
+      ? `No rows match "${debouncedSearch.trim()}". Try a different search.`
+      : statusFilter !== 'All'
+        ? 'No lines for the current status filter.'
+        : 'Create invoices with the wizard, add manually, or import a CSV template.';
+    return (
+      <div className="im-empty-state">
+        <div className="im-empty-state__icon">
+          <FileText size={40} strokeWidth={1} />
+        </div>
+        <div className="im-empty-state__title">{title}</div>
+        <div className="im-empty-state__body">{body}</div>
+        {!isFiltered && (
+          <div className="im-empty-state__actions">
+            <button
+              type="button"
+              className="im-hdr-btn im-hdr-btn--primary"
+              onClick={() => navigate('/invoice-wizard')}
+            >
+              <Zap
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Invoice Wizard
+            </button>
+            <button
+              type="button"
+              className="im-hdr-btn"
+              onClick={handleOpenFormForAdd}
+            >
+              <Plus
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Add New
+            </button>
+            <button
+              type="button"
+              className="im-hdr-btn"
+              onClick={handleDownloadTemplate}
+            >
+              <Download
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Template
+            </button>
+            <button
+              type="button"
+              className="im-hdr-btn"
+              onClick={handleBulkImport}
+            >
+              <Upload
+                style={{
+                  width: 12,
+                  height: 12,
+                  display: 'inline',
+                  marginRight: 5,
+                }}
+              />
+              Import Bulk
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }, [
+    debouncedSearch,
+    statusFilter,
+    navigate,
+    handleOpenFormForAdd,
+    handleDownloadTemplate,
+    handleBulkImport,
+  ]);
+
   const settingsDialog = (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
       <DialogContent className="flex max-h-[90vh] w-[95vw] max-w-5xl flex-col overflow-hidden">
@@ -718,58 +845,105 @@ const InvoicePage = () => {
 
   if (invoicePanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
-        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={closeInvoicePanel}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to invoices
-            </Button>
-            <span className="text-muted-foreground text-sm">
-              {invoicePanel === 'view'
-                ? 'Viewing invoice record'
-                : 'Editing invoice record'}
-            </span>
-          </div>
-
+      <div className="im-page">
+        <div
+          style={{
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            background: 'var(--color-im-sub)',
+          }}
+        >
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={closeInvoicePanel}
+          >
+            ← Back to invoices
+          </button>
+          <span style={{ color: 'var(--color-im-faint)', fontSize: 12 }}>
+            {invoicePanel === 'view'
+              ? 'Viewing invoice record'
+              : 'Editing invoice record'}
+          </span>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+          }}
+        >
           {loading ? (
             <div
-              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-im-faint)',
+                fontSize: 13,
+                fontFamily: 'var(--font-im-mono)',
+              }}
               role="status"
               aria-live="polite"
             >
-              Loading invoice…
+              LOADING INVOICE…
             </div>
           ) : !selectedInvoiceFromUrl ? (
-            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-              <h2 className="text-card-foreground text-lg font-semibold">
-                Invoice not found
+            <div
+              style={{
+                maxWidth: 480,
+                margin: '32px auto',
+                padding: 24,
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 13,
+                  color: 'var(--color-im-text)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                INVOICE NOT FOUND
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
                 No invoice with ID{' '}
-                <span className="text-foreground font-mono">
+                <span style={{ fontFamily: 'var(--font-im-mono)' }}>
                   {decodedInvoiceId ?? invoiceIdParam}
                 </span>
                 .
               </p>
-              <Button
+              <button
                 type="button"
-                variant="default"
-                useAccentColor
+                className="im-btn"
                 onClick={closeInvoicePanel}
-                className="w-fit"
+                style={{ alignSelf: 'flex-start' }}
               >
-                Back to invoices
-              </Button>
+                ← Back to invoices
+              </button>
             </div>
           ) : invoicePanel === 'view' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <InvoiceViewDialog
                 isOpen={true}
                 onOpenChange={open => {
@@ -787,7 +961,15 @@ const InvoicePage = () => {
               />
             </div>
           ) : (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-[min(calc(100vw-2rem),120rem)] flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <InvoiceForm
                 isOpen={true}
                 presentation="page"
@@ -808,181 +990,138 @@ const InvoicePage = () => {
     );
   }
 
-  if (loading && invoicePanel === 'none') {
-    return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin" />
-      </div>
-    );
-  }
-
-  // Status filter UI
-  const statusFilterControl = (
-    <Select value={statusFilter} onValueChange={setStatusFilter}>
-      <SelectTrigger className="w-[180px]">
-        <SelectValue placeholder="Filter by status" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="All">All</SelectItem>
-        <SelectItem value="Draft">Draft</SelectItem>
-        <SelectItem value="Finalized">Finalized</SelectItem>
-        <SelectItem value="Mismatch">Mismatch</SelectItem>
-      </SelectContent>
-    </Select>
-  );
-
   return (
-    <div className="container mx-auto py-10">
-      <div
-        className={`mb-4 flex items-center justify-between ${getSpacingClass()}`}
-      >
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">
-            Invoice Details
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Process and manage commercial invoices and billing
-          </p>
+    <div className="im-supplier-page">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>Invoices</h1>
+          <span className="sr-only">Invoice Details</span>
+          <span className="im-record-badge">{invoices.length} RECORDS</span>
         </div>
-        <div className={`flex items-center ${getSpacingClass()}`}>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="default"
-                  size="icon"
-                  onClick={() => setSettingsOpen(true)}
-                  className={getButtonClass()}
-                  useAccentColor
-                >
-                  <Settings className="h-4 w-4" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Module Settings</p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          <Button
-            variant="default"
-            onClick={handleOpenFormForAdd}
-            className={getButtonClass()}
-            useAccentColor
-          >
-            <Plus className="mr-2 h-4 w-4" /> Add New Invoice
-          </Button>
-          <Button
+        <div className="im-page-header__actions">
+          <button
+            type="button"
+            className="im-hdr-btn"
             onClick={handleDownloadTemplate}
-            variant="default"
-            className={getButtonClass()}
-            useAccentColor
           >
-            <Download className="mr-2 h-4 w-4" /> Template
-          </Button>
-          <Button
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Template
+          </button>
+          <button
+            type="button"
+            className="im-hdr-btn"
             onClick={handleBulkImport}
-            variant="default"
-            className={getButtonClass()}
-            useAccentColor
           >
-            <Upload className="mr-2 h-4 w-4" /> Import Bulk
-          </Button>
+            <Upload
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Import Bulk
+          </button>
+          <button
+            type="button"
+            className="im-hdr-btn"
+            onClick={handleOpenFormForAdd}
+          >
+            <Plus
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Add New
+          </button>
+          <button
+            type="button"
+            className="im-hdr-btn"
+            onClick={() => setSettingsOpen(true)}
+          >
+            <Settings
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Settings
+          </button>
+          <button
+            type="button"
+            className="im-hdr-btn im-hdr-btn--primary"
+            onClick={() => navigate('/invoice-wizard')}
+          >
+            <Zap
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Invoice Wizard
+          </button>
         </div>
       </div>
-      {/* Status Filter and Auto-Finalize */}
-      <div className="mb-4 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Status:</span>
-            {statusFilterControl}
-          </div>
-          <div className="text-muted-foreground text-sm">
-            Showing {flattenedData.length} invoice
-            {flattenedData.length !== 1 ? 's' : ''}
-            {statusFilter !== 'All' && ` with status "${statusFilter}"`}
+
+      <div className="im-invoice-metrics">
+        <div className="im-invoice-metric im-invoice-metric--accent">
+          <div className="im-invoice-metric__label">Total value</div>
+          <div className="im-invoice-metric__value">
+            {formatCurrency(invoiceMetrics.totalValue, invoiceMetrics.currency)}
           </div>
         </div>
-
-        {/* Auto-Finalize Section */}
-        <div className="flex items-center gap-3">
-          {autoFinalizableInvoices.length > 0 ? (
-            <>
-              <div className="text-muted-foreground text-sm">
-                {autoFinalizableInvoices.length} invoice
-                {autoFinalizableInvoices.length !== 1 ? 's' : ''} ready for
-                auto-finalize
-              </div>
-              <Button
-                onClick={handleBulkAutoFinalize}
-                variant="outline"
-                size="sm"
-                className="border-green-200 bg-green-50 text-green-700 hover:bg-green-100"
-              >
-                <Zap className="mr-2 h-4 w-4" />
-                Auto-Finalize All
-              </Button>
-            </>
-          ) : (
-            <div className="text-muted-foreground text-sm">
-              No invoices ready for auto-finalize
-            </div>
-          )}
+        <div className="im-invoice-metric im-invoice-metric--good">
+          <div className="im-invoice-metric__label">Paid</div>
+          <div className="im-invoice-metric__value">
+            {formatCurrency(invoiceMetrics.paid, invoiceMetrics.currency)}
+          </div>
+        </div>
+        <div className="im-invoice-metric">
+          <div className="im-invoice-metric__label">Outstanding</div>
+          <div className="im-invoice-metric__value">
+            {formatCurrency(
+              invoiceMetrics.outstanding,
+              invoiceMetrics.currency
+            )}
+          </div>
+        </div>
+        <div className="im-invoice-metric im-invoice-metric--bad">
+          <div className="im-invoice-metric__label">Overdue</div>
+          <div className="im-invoice-metric__value">
+            {formatCurrency(invoiceMetrics.overdue, invoiceMetrics.currency)}
+          </div>
         </div>
       </div>
 
-      {/* Auto-Finalize Summary Card */}
-      {autoFinalizableInvoices.length > 0 && (
-        <div className="mb-4 rounded-lg border border-green-200 bg-green-50 p-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-green-800">
-                Auto-Finalize Ready
-              </h3>
-              <p className="mt-1 text-xs text-green-600">
-                {autoFinalizableInvoices.length} draft invoice
-                {autoFinalizableInvoices.length !== 1 ? 's' : ''} have matching
-                shipment and invoice values
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="text-sm font-medium text-green-800">
-                Total Value:{' '}
-                {formatCurrency(
-                  autoFinalizableInvoices.reduce(
-                    (sum, inv) => sum + inv.calculatedTotal,
-                    0
-                  ),
-                  'USD'
-                )}
-              </div>
-              <div className="text-xs text-green-600">
-                Ready for bulk finalization
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <ResponsiveDataTable
-        columns={columns}
-        data={flattenedData}
-        searchPlaceholder="Search invoices..."
-        hideColumnsOnSmall={[
-          'supplierName',
-          'shipmentInvoiceNumber',
-          'totalAmount',
-          'totalTax',
-          'totalDiscount',
-          'finalAmount',
-        ]}
-        columnWidths={{
-          invoiceNumber: { minWidth: '150px', maxWidth: '200px' },
-          supplierName: { minWidth: '200px', maxWidth: '300px' },
-          shipmentInvoiceNumber: { minWidth: '150px', maxWidth: '200px' },
-          itemPartNumber: { minWidth: '120px', maxWidth: '150px' },
-          itemDescription: { minWidth: '200px', maxWidth: '300px' },
-        }}
-      />
+      <div className="flex min-h-0 flex-1 flex-col">
+        <InvoiceDataTable
+          columns={columns}
+          data={tableRows}
+          searchValue={searchInput}
+          onSearchChange={setSearchInput}
+          statusFilter={statusFilter}
+          onStatusFilterChange={setStatusFilter}
+          isLoading={loading}
+          showingSummary={showingSummary}
+          autoFinalizableCount={autoFinalizableInvoices.length}
+          onBulkAutoFinalize={handleBulkAutoFinalize}
+          renderEmptyState={renderEmptyState}
+        />
+      </div>
 
       <InvoiceForm
         isOpen={isFormOpen}

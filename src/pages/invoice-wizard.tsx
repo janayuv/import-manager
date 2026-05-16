@@ -58,29 +58,55 @@ export default function InvoiceWizardPage() {
 
   if (loading) {
     return (
-      <div className="flex h-screen items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin" />
+      <div
+        className="im-page"
+        style={{ alignItems: 'center', justifyContent: 'center' }}
+      >
+        <Loader2
+          style={{ width: 32, height: 32, color: 'var(--color-im-accent)' }}
+          className="animate-spin"
+        />
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto py-10">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-blue-600">
+    <div className="im-page">
+      <div
+        style={{
+          padding: '12px 20px',
+          borderBottom: '1px solid var(--color-im-rule)',
+          flexShrink: 0,
+          background: 'var(--color-im-sub)',
+        }}
+      >
+        <h1
+          style={{
+            fontFamily: 'var(--font-im-mono)',
+            fontSize: 13,
+            fontWeight: 700,
+            letterSpacing: '0.1em',
+            color: 'var(--color-im-accent)',
+            textTransform: 'uppercase',
+          }}
+        >
           Invoice Entry Wizard
         </h1>
-        <p className="text-muted-foreground mt-1">
+        <p
+          style={{ fontSize: 12, color: 'var(--color-im-faint)', marginTop: 2 }}
+        >
           Step-by-step invoice creation and processing workflow
         </p>
       </div>
-      <InvoiceWizard
-        shipments={shipments}
-        items={items}
-        suppliers={suppliers}
-        invoices={invoices}
-        onSubmit={handleSubmit}
-      />
+      <div style={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        <InvoiceWizard
+          shipments={shipments}
+          items={items}
+          suppliers={suppliers}
+          invoices={invoices}
+          onSubmit={handleSubmit}
+        />
+      </div>
     </div>
   );
 }

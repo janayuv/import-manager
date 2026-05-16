@@ -3,23 +3,6 @@ import { Check } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { ipcErrorMessage } from '@/lib/ipc-error';
 import {
   PERMISSIONS,
@@ -28,6 +11,7 @@ import {
   type Role,
 } from '@/lib/permissions';
 import { useCurrentUserId, useUser } from '@/lib/user-context';
+import { AppBar } from '@/components/shared/im';
 
 type MatrixRow = { role: string; permissions: string[] };
 type UserRoleRow = {
@@ -116,148 +100,292 @@ export default function RolesPermissionsPage() {
   }, [callerUserId, loadAll, user?.id]);
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Roles & permissions
-        </h1>
-        <p className="text-muted-foreground text-sm">
-          Read-only view of the canonical role-to-permission matrix shared by
-          the Rust IPC layer and the React UI.
-        </p>
-      </div>
+    <div className="im-page">
+      <AppBar
+        crumbs={['Import Manager', 'Administration', 'Roles & Permissions']}
+      />
+      <div
+        className="im-dashboard-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+      >
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--color-im-text)',
+              fontFamily: 'var(--font-im-sans)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
+          >
+            Roles &amp; Permissions
+          </h1>
+          <p
+            style={{
+              margin: '3px 0 0',
+              fontSize: 11.5,
+              color: 'var(--color-im-faint)',
+            }}
+          >
+            Read-only view of the canonical role-to-permission matrix shared by
+            the Rust IPC layer and the React UI.
+          </p>
+        </div>
 
-      {adminRows.length === 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Bootstrap administrator</CardTitle>
-            <CardDescription>
-              No administrator role is configured. Click below to assign the
-              currently signed-in user as the first administrator. This action
-              is allowed exactly once and is recorded in the audit log.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={onBootstrap} disabled={bootstrapping || !user?.id}>
-              {bootstrapping
-                ? 'Assigning…'
-                : `Bootstrap as ${user?.name ?? 'current user'}`}
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        {ROLES.map(role => (
-          <Card key={role}>
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2 text-base capitalize">
-                {role}
-                {role === 'administrator' ? (
-                  <Badge variant="default">superuser</Badge>
-                ) : null}
-              </CardTitle>
-              <CardDescription>{ROLE_DESCRIPTION[role]}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="text-muted-foreground text-xs">
-                {grantedSet.get(role)?.size ?? 0} of {PERMISSIONS.length}{' '}
-                permissions
+        {adminRows.length === 0 ? (
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">
+                // Bootstrap administrator
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 12.5,
+                  color: 'var(--color-im-muted)',
+                }}
+              >
+                No administrator role is configured. Click below to assign the
+                currently signed-in user as the first administrator. This action
+                is allowed exactly once and is recorded in the audit log.
+              </p>
+              <div>
+                <button
+                  className="im-btn im-btn--primary"
+                  onClick={() => void onBootstrap()}
+                  disabled={bootstrapping || !user?.id}
+                >
+                  {bootstrapping
+                    ? 'Assigning…'
+                    : `Bootstrap as ${user?.name ?? 'current user'}`}
+                </button>
               </div>
-            </CardContent>
-          </Card>
-        ))}
+            </div>
+          </div>
+        ) : null}
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 16,
+          }}
+        >
+          {ROLES.map(role => (
+            <div key={role} className="im-section">
+              <div className="im-section__header">
+                <span
+                  className="im-section__label"
+                  style={{ textTransform: 'capitalize' }}
+                >
+                  // {role}
+                  {role === 'administrator' ? (
+                    <span
+                      className="im-status-pill is-accent"
+                      style={{ marginLeft: 8 }}
+                    >
+                      superuser
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              <div
+                className="im-section__body"
+                style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 12.5,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
+                  {ROLE_DESCRIPTION[role]}
+                </p>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 11.5,
+                    color: 'var(--color-im-faint)',
+                  }}
+                >
+                  {grantedSet.get(role)?.size ?? 0} of {PERMISSIONS.length}{' '}
+                  permissions
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Permission matrix</span>
+            <span className="im-section__sub">
+              Mirrors `src-tauri/src/security/permissions.rs::role_has`. A check
+              mark means the role grants the permission.
+            </span>
+          </div>
+          <div className="im-section__body" style={{ padding: 0 }}>
+            {loading ? (
+              <p
+                style={{
+                  padding: 16,
+                  color: 'var(--color-im-muted)',
+                  fontSize: 12.5,
+                }}
+              >
+                Loading…
+              </p>
+            ) : (
+              <div className="im-table-scroll">
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th">Permission</th>
+                      {ROLES.map(role => (
+                        <th
+                          key={role}
+                          className="im-th"
+                          style={{
+                            textAlign: 'center',
+                            textTransform: 'capitalize',
+                          }}
+                        >
+                          {role}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {PERMISSIONS.map((permission: Permission, i) => (
+                      <tr
+                        key={permission}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                      >
+                        <td
+                          className="im-td"
+                          style={{
+                            fontFamily: 'Consolas, "Courier New", monospace',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {permission}
+                        </td>
+                        {ROLES.map(role => {
+                          const allowed =
+                            role === 'administrator' ||
+                            grantedSet.get(role)?.has(permission);
+                          return (
+                            <td
+                              key={role}
+                              className="im-td"
+                              style={{ textAlign: 'center' }}
+                            >
+                              {allowed ? (
+                                <Check
+                                  style={{
+                                    display: 'inline',
+                                    width: 16,
+                                    height: 16,
+                                    color: 'var(--color-im-good)',
+                                  }}
+                                />
+                              ) : (
+                                <span
+                                  style={{ color: 'var(--color-im-faint)' }}
+                                >
+                                  —
+                                </span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Role assignments</span>
+            <span className="im-section__sub">
+              Users currently mapped to a role in `user_roles`.
+            </span>
+          </div>
+          <div className="im-section__body" style={{ padding: 0 }}>
+            {userRoles.length === 0 ? (
+              <p
+                style={{
+                  padding: 16,
+                  color: 'var(--color-im-muted)',
+                  fontSize: 12.5,
+                }}
+              >
+                No role rows.
+              </p>
+            ) : (
+              <div className="im-table-scroll">
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th">User ID</th>
+                      <th className="im-th">Role</th>
+                      <th className="im-th">Created</th>
+                      <th className="im-th">Updated</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {userRoles.map((row, i) => (
+                      <tr
+                        key={row.id ?? row.user_id}
+                        className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                      >
+                        <td
+                          className="im-td"
+                          style={{
+                            fontFamily: 'Consolas, "Courier New", monospace',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          {row.user_id}
+                        </td>
+                        <td className="im-td">
+                          <span className="im-badge is-neutral">
+                            {row.role}
+                          </span>
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11.5 }}>
+                          {row.created_at}
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11.5 }}>
+                          {row.updated_at}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Permission matrix</CardTitle>
-          <CardDescription>
-            Mirrors `src-tauri/src/security/permissions.rs::role_has`. A check
-            mark means the role grants the permission.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p className="text-muted-foreground text-sm">Loading…</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Permission</TableHead>
-                  {ROLES.map(role => (
-                    <TableHead key={role} className="text-center capitalize">
-                      {role}
-                    </TableHead>
-                  ))}
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {PERMISSIONS.map((permission: Permission) => (
-                  <TableRow key={permission}>
-                    <TableCell className="font-mono text-xs">
-                      {permission}
-                    </TableCell>
-                    {ROLES.map(role => {
-                      const allowed =
-                        role === 'administrator' ||
-                        grantedSet.get(role)?.has(permission);
-                      return (
-                        <TableCell key={role} className="text-center">
-                          {allowed ? (
-                            <Check className="mx-auto h-4 w-4 text-emerald-500" />
-                          ) : (
-                            <span className="text-muted-foreground">—</span>
-                          )}
-                        </TableCell>
-                      );
-                    })}
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Role assignments</CardTitle>
-          <CardDescription>
-            Users currently mapped to a role in `user_roles`.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {userRoles.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No role rows.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>User ID</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {userRoles.map(row => (
-                  <TableRow key={row.id ?? row.user_id}>
-                    <TableCell className="font-mono text-xs">
-                      {row.user_id}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant="outline">{row.role}</Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">{row.created_at}</TableCell>
-                    <TableCell className="text-xs">{row.updated_at}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

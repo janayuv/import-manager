@@ -100,7 +100,7 @@ export function SetupPage() {
     <div className="bg-background flex min-h-screen items-center justify-center">
       <Card className="mx-auto max-w-sm">
         <CardHeader>
-          <CardTitle className="text-xl font-semibold text-blue-600">
+          <CardTitle className="text-xl font-semibold">
             Welcome — set up administrator
           </CardTitle>
           <CardDescription>
@@ -128,7 +128,7 @@ export function SetupPage() {
                 id="setup-password"
                 type="password"
                 autoComplete="new-password"
-                placeholder="Minimum 12 characters; upper, lower, digit, symbol"
+                placeholder="Minimum 6 characters; upper, lower, digit, symbol"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
                 disabled={isLoading}

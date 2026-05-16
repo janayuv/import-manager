@@ -18,9 +18,6 @@ import { toast } from 'sonner';
 
 import * as React from 'react';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CreatableCombobox } from '@/components/ui/combobox-creatable';
 import {
   Dialog,
@@ -29,10 +26,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 
 import type { Option } from '@/types/options';
@@ -64,16 +57,18 @@ interface ProfessionalShipmentFormProps {
   className?: string;
 }
 
-const getStatusColor = (status?: string) => {
-  if (!status) return 'secondary';
-  const statusLower = status.toLowerCase();
-  if (statusLower.includes('delivered') || statusLower.includes('completed'))
-    return 'default';
-  if (statusLower.includes('in-transit') || statusLower.includes('shipped'))
-    return 'default';
-  if (statusLower.includes('docs-rcvd') || statusLower.includes('pending'))
-    return 'secondary';
-  return 'secondary';
+const getStatusPillClass = (status?: string) => {
+  if (!status) return 'im-pill im-pill--gray';
+  const s = status.toLowerCase();
+  if (s.includes('delivered') || s.includes('completed'))
+    return 'im-pill im-pill--green';
+  if (s.includes('in-transit') || s.includes('shipped'))
+    return 'im-pill im-pill--blue';
+  if (s.includes('docs-rcvd')) return 'im-pill im-pill--teal';
+  if (s.includes('customs')) return 'im-pill im-pill--purple';
+  if (s.includes('ready')) return 'im-pill im-pill--amber';
+  if (s.includes('pending')) return 'im-pill im-pill--gray';
+  return 'im-pill im-pill--gray';
 };
 
 export function ProfessionalShipmentForm({
@@ -212,19 +207,44 @@ export function ProfessionalShipmentForm({
   const headerRow = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="bg-primary/10 rounded-lg p-2">
-          <Ship className="text-primary h-6 w-6" />
+        <div
+          style={{
+            background: 'var(--color-im-accent)',
+            borderRadius: 6,
+            padding: 8,
+            opacity: 0.15,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+          }}
+        >
+          <Ship
+            style={{
+              color: 'var(--color-im-accent)',
+              height: 24,
+              width: 24,
+              position: 'absolute',
+            }}
+          />
+          <Ship style={{ height: 24, width: 24, opacity: 0 }} />
         </div>
         <div>
           {isPage ? (
             <>
               <h2
                 id="shipment-form-title"
-                className="text-xl font-semibold tracking-tight"
+                style={{
+                  fontFamily: 'Consolas, "Courier New", monospace',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  letterSpacing: '0.03em',
+                  color: 'var(--color-im-fg)',
+                }}
               >
                 {shipmentToEdit ? 'Edit shipment' : 'Create new shipment'}
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
                 {shipmentToEdit
                   ? `Editing: ${shipmentToEdit.invoiceNumber}`
                   : 'Add a new shipment to track your goods'}
@@ -244,502 +264,914 @@ export function ProfessionalShipmentForm({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Badge variant={getStatusColor(formData.status)}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className={getStatusPillClass(formData.status)}>
           {formData.status?.replace(/-/g, ' ').toUpperCase() || 'PENDING'}
-        </Badge>
-        <Button
-          variant="ghost"
-          size="icon"
+        </span>
+        <button
+          type="button"
+          className="im-hdr-btn"
           onClick={() => onOpenChange(false)}
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
-        </Button>
+          <X style={{ height: 16, width: 16 }} />
+        </button>
       </div>
     </div>
   );
 
   const tabsBlock = (
     <div
-      className={
+      style={
         isPage
-          ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-6'
-          : 'flex-1 overflow-hidden'
+          ? {
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+              flex: 1,
+              overflow: 'hidden',
+              padding: '0 24px',
+            }
+          : { flex: 1, overflow: 'hidden' }
       }
     >
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className={isPage ? 'flex h-full min-h-0 flex-col' : 'h-full'}
-      >
-        <TabsList className="mb-4 grid w-full grid-cols-3">
-          <TabsTrigger
-            value="overview"
-            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+      <div>
+        {/* Tabs nav */}
+        <div className="im-tabs" style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className={
+              'im-tab' + (activeTab === 'overview' ? ' is-active' : '')
+            }
+            onClick={() => setActiveTab('overview')}
           >
-            <Ship className="h-4 w-4" />
+            <Ship
+              style={{
+                height: 16,
+                width: 16,
+                display: 'inline',
+                marginRight: 6,
+              }}
+            />
             Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="commercial"
-            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          </button>
+          <button
+            type="button"
+            className={
+              'im-tab' + (activeTab === 'commercial' ? ' is-active' : '')
+            }
+            onClick={() => setActiveTab('commercial')}
           >
-            <DollarSign className="h-4 w-4" />
+            <DollarSign
+              style={{
+                height: 16,
+                width: 16,
+                display: 'inline',
+                marginRight: 6,
+              }}
+            />
             Commercial
-          </TabsTrigger>
-          <TabsTrigger
-            value="logistics"
-            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          </button>
+          <button
+            type="button"
+            className={
+              'im-tab' + (activeTab === 'logistics' ? ' is-active' : '')
+            }
+            onClick={() => setActiveTab('logistics')}
           >
-            <Truck className="h-4 w-4" />
+            <Truck
+              style={{
+                height: 16,
+                width: 16,
+                display: 'inline',
+                marginRight: 6,
+              }}
+            />
             Logistics
-          </TabsTrigger>
-        </TabsList>
+          </button>
+        </div>
 
         <div className={scrollAreaClass}>
           {/* Overview Tab */}
-          <TabsContent value="overview" className="mt-0 space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Basic Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
-                    Basic Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      {getFieldIcon('supplierId')}
-                      Supplier *
-                    </Label>
-                    <CreatableCombobox
-                      options={suppliers}
-                      value={formData.supplierId || ''}
-                      onChange={v => handleSelectChange('supplierId', v)}
-                      onOptionCreate={opt => onOptionCreate('supplier', opt)}
-                      placeholder="Select supplier"
-                    />
+          {activeTab === 'overview' && (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 24,
+                }}
+              >
+                {/* Basic Information */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <FileText style={{ height: 16, width: 16 }} />
+                      Basic Information
+                    </span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 text-sm font-medium">
-                        {getFieldIcon('invoiceNumber')}
-                        Invoice Number *
-                      </Label>
-                      <Input
-                        id="invoiceNumber"
-                        value={formData.invoiceNumber || ''}
-                        onChange={handleChange}
-                        placeholder="Enter invoice number"
-                        className="h-10"
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {getFieldIcon('supplierId')}
+                        Supplier *
+                      </p>
+                      <CreatableCombobox
+                        options={suppliers}
+                        value={formData.supplierId || ''}
+                        onChange={v => handleSelectChange('supplierId', v)}
+                        onOptionCreate={opt => onOptionCreate('supplier', opt)}
+                        placeholder="Select supplier"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 text-sm font-medium">
-                        {getFieldIcon('invoiceDate')}
-                        Invoice Date *
-                      </Label>
-                      <Input
-                        id="invoiceDate"
-                        type="date"
-                        value={formData.invoiceDate || ''}
-                        onChange={handleChange}
-                        className="h-10"
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p
+                          className="im-field-label"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          {getFieldIcon('invoiceNumber')}
+                          Invoice Number *
+                        </p>
+                        <input
+                          className="im-input"
+                          id="invoiceNumber"
+                          value={formData.invoiceNumber || ''}
+                          onChange={handleChange}
+                          placeholder="Enter invoice number"
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p
+                          className="im-field-label"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          {getFieldIcon('invoiceDate')}
+                          Invoice Date *
+                        </p>
+                        <input
+                          className="im-input"
+                          id="invoiceDate"
+                          type="date"
+                          value={formData.invoiceDate || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {getFieldIcon('goodsCategory')}
+                        Goods Category *
+                      </p>
+                      <CreatableCombobox
+                        options={categories}
+                        value={formData.goodsCategory || ''}
+                        onChange={v => handleSelectChange('goodsCategory', v)}
+                        onOptionCreate={opt => onOptionCreate('category', opt)}
+                        placeholder="Select goods category"
                       />
                     </div>
                   </div>
+                </div>
 
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      {getFieldIcon('goodsCategory')}
-                      Goods Category *
-                    </Label>
-                    <CreatableCombobox
-                      options={categories}
-                      value={formData.goodsCategory || ''}
-                      onChange={v => handleSelectChange('goodsCategory', v)}
-                      onOptionCreate={opt => onOptionCreate('category', opt)}
-                      placeholder="Select goods category"
-                    />
+                {/* Status & Type */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Settings style={{ height: 16, width: 16 }} />
+                      Status &amp; Classification
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {getFieldIcon('status')}
+                        Status
+                      </p>
+                      <CreatableCombobox
+                        options={statuses}
+                        value={formData.status || ''}
+                        onChange={v => handleSelectChange('status', v)}
+                        onOptionCreate={opt => onOptionCreate('status', opt)}
+                        placeholder="Select status"
+                      />
+                    </div>
 
-              {/* Status & Type */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Settings className="h-4 w-4" />
-                    Status & Classification
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      {getFieldIcon('status')}
-                      Status
-                    </Label>
-                    <CreatableCombobox
-                      options={statuses}
-                      value={formData.status || ''}
-                      onChange={v => handleSelectChange('status', v)}
-                      onOptionCreate={opt => onOptionCreate('status', opt)}
-                      placeholder="Select status"
-                    />
-                  </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {getFieldIcon('shipmentType')}
+                        Shipment Type
+                      </p>
+                      <CreatableCombobox
+                        options={types}
+                        value={formData.shipmentType || ''}
+                        onChange={v => handleSelectChange('shipmentType', v)}
+                        onOptionCreate={opt => onOptionCreate('type', opt)}
+                        placeholder="Select shipment type"
+                      />
+                    </div>
 
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      {getFieldIcon('shipmentType')}
-                      Shipment Type
-                    </Label>
-                    <CreatableCombobox
-                      options={types}
-                      value={formData.shipmentType || ''}
-                      onChange={v => handleSelectChange('shipmentType', v)}
-                      onOptionCreate={opt => onOptionCreate('type', opt)}
-                      placeholder="Select shipment type"
-                    />
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {getFieldIcon('modeOfTransport')}
+                        Mode of Transport
+                      </p>
+                      <CreatableCombobox
+                        options={modes}
+                        value={formData.shipmentMode || ''}
+                        onChange={v => handleSelectChange('shipmentMode', v)}
+                        onOptionCreate={opt => onOptionCreate('mode', opt)}
+                        placeholder="Select transport mode"
+                      />
+                    </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      {getFieldIcon('modeOfTransport')}
-                      Mode of Transport
-                    </Label>
-                    <CreatableCombobox
-                      options={modes}
-                      value={formData.shipmentMode || ''}
-                      onChange={v => handleSelectChange('shipmentMode', v)}
-                      onOptionCreate={opt => onOptionCreate('mode', opt)}
-                      placeholder="Select transport mode"
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Commercial Tab */}
-          <TabsContent value="commercial" className="mt-0 space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Invoice Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <DollarSign className="h-4 w-4" />
-                    Invoice Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 text-sm font-medium">
-                        {getFieldIcon('invoiceCurrency')}
-                        Currency *
-                      </Label>
+          {activeTab === 'commercial' && (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 24,
+                }}
+              >
+                {/* Invoice Details */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <DollarSign style={{ height: 16, width: 16 }} />
+                      Invoice Details
+                    </span>
+                  </div>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p
+                          className="im-field-label"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          {getFieldIcon('invoiceCurrency')}
+                          Currency *
+                        </p>
+                        <CreatableCombobox
+                          options={currencies}
+                          value={formData.invoiceCurrency || ''}
+                          onChange={v =>
+                            handleSelectChange('invoiceCurrency', v)
+                          }
+                          onOptionCreate={opt =>
+                            onOptionCreate('currency', opt)
+                          }
+                          placeholder="USD, EUR, INR"
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p
+                          className="im-field-label"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                          }}
+                        >
+                          {getFieldIcon('invoiceValue')}
+                          Invoice Value *
+                        </p>
+                        <input
+                          className="im-input"
+                          id="invoiceValue"
+                          type="number"
+                          value={formData.invoiceValue ?? ''}
+                          onChange={handleChange}
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {getFieldIcon('incoterm')}
+                        Incoterm *
+                      </p>
                       <CreatableCombobox
-                        options={currencies}
-                        value={formData.invoiceCurrency || ''}
-                        onChange={v => handleSelectChange('invoiceCurrency', v)}
-                        onOptionCreate={opt => onOptionCreate('currency', opt)}
-                        placeholder="USD, EUR, INR"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="flex items-center gap-2 text-sm font-medium">
-                        {getFieldIcon('invoiceValue')}
-                        Invoice Value *
-                      </Label>
-                      <Input
-                        id="invoiceValue"
-                        type="number"
-                        value={formData.invoiceValue ?? ''}
-                        onChange={handleChange}
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        className="h-10"
+                        options={incoterms}
+                        value={formData.incoterm || ''}
+                        onChange={v => handleSelectChange('incoterm', v)}
+                        onOptionCreate={opt => onOptionCreate('incoterm', opt)}
+                        placeholder="FOB, CIF, EXW, etc."
                       />
                     </div>
                   </div>
-
-                  <div className="space-y-2">
-                    <Label className="flex items-center gap-2 text-sm font-medium">
-                      {getFieldIcon('incoterm')}
-                      Incoterm *
-                    </Label>
-                    <CreatableCombobox
-                      options={incoterms}
-                      value={formData.incoterm || ''}
-                      onChange={v => handleSelectChange('incoterm', v)}
-                      onOptionCreate={opt => onOptionCreate('incoterm', opt)}
-                      placeholder="FOB, CIF, EXW, etc."
-                    />
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Logistics Tab */}
-          <TabsContent value="logistics" className="mt-0 space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Shipping Documents */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
-                    Shipping Documents
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        BL/AWB Number
-                      </Label>
-                      <Input
-                        id="blAwbNumber"
-                        value={formData.blAwbNumber || ''}
-                        onChange={handleChange}
-                        placeholder="Bill of Lading / Airway Bill"
-                        className="h-10"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">BL/AWB Date</Label>
-                      <Input
-                        id="blAwbDate"
-                        type="date"
-                        value={formData.blAwbDate || ''}
-                        onChange={handleChange}
-                        className="h-10"
-                      />
-                    </div>
+          {activeTab === 'logistics' && (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 24,
+                }}
+              >
+                {/* Shipping Documents */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <FileText style={{ height: 16, width: 16 }} />
+                      Shipping Documents
+                    </span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">Vessel Name</Label>
-                      <Input
-                        id="vesselName"
-                        value={formData.vesselName || ''}
-                        onChange={handleChange}
-                        placeholder="Ship/Flight name"
-                        className="h-10"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Container Number
-                      </Label>
-                      <Input
-                        id="containerNumber"
-                        value={formData.containerNumber || ''}
-                        onChange={handleChange}
-                        placeholder="Container/ULD number"
-                        className="h-10"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Shipping Schedule & Weight */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Calendar className="h-4 w-4" />
-                    Schedule & Weight
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        ETD (Estimated Departure)
-                      </Label>
-                      <Input
-                        id="etd"
-                        type="date"
-                        value={formData.etd || ''}
-                        onChange={handleChange}
-                        className="h-10"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        ETA (Estimated Arrival)
-                      </Label>
-                      <Input
-                        id="eta"
-                        type="date"
-                        value={formData.eta || ''}
-                        onChange={handleChange}
-                        className="h-10"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Gross Weight (KG)
-                      </Label>
-                      <Input
-                        id="grossWeightKg"
-                        type="number"
-                        value={formData.grossWeightKg ?? ''}
-                        onChange={handleChange}
-                        step="0.01"
-                        min="0"
-                        placeholder="0.00"
-                        className="h-10"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium">
-                        Date of Delivery
-                      </Label>
-                      <Input
-                        id="dateOfDelivery"
-                        type="date"
-                        value={formData.dateOfDelivery || ''}
-                        onChange={handleChange}
-                        className="h-10"
-                      />
-                    </div>
-                  </div>
-
-                  {transitDays && (
-                    <div className="bg-primary/10 rounded-lg p-3">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Transit Time
-                      </Label>
-                      <p className="text-primary text-lg font-semibold">
-                        {transitDays} days
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Shipment Control */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Settings className="h-4 w-4" />
-                    Shipment Control
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="isFrozen"
-                      checked={formData.isFrozen || false}
-                      onChange={e =>
-                        setFormData(prev => ({
-                          ...prev,
-                          isFrozen: e.target.checked,
-                        }))
-                      }
-                      className="text-primary focus:ring-primary h-4 w-4 rounded border-gray-300"
-                    />
-                    <Label htmlFor="isFrozen" className="text-sm font-medium">
-                      Freeze Shipment
-                    </Label>
-                  </div>
-                  <p className="text-muted-foreground text-xs">
-                    Frozen shipments cannot be modified and are locked for
-                    processing
-                  </p>
-
-                  {formData.isFrozen && (
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-                      <div className="flex items-center gap-2 text-yellow-800">
-                        <Settings className="h-4 w-4" />
-                        <span className="text-sm font-medium">
-                          Shipment Frozen
-                        </span>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">BL/AWB Number</p>
+                        <input
+                          className="im-input"
+                          id="blAwbNumber"
+                          value={formData.blAwbNumber || ''}
+                          onChange={handleChange}
+                          placeholder="Bill of Lading / Airway Bill"
+                        />
                       </div>
-                      <p className="mt-1 text-xs text-yellow-700">
-                        This shipment is locked and cannot be modified
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">BL/AWB Date</p>
+                        <input
+                          className="im-input"
+                          id="blAwbDate"
+                          type="date"
+                          value={formData.blAwbDate || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">Vessel Name</p>
+                        <input
+                          className="im-input"
+                          id="vesselName"
+                          value={formData.vesselName || ''}
+                          onChange={handleChange}
+                          placeholder="Ship/Flight name"
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">Container Number</p>
+                        <input
+                          className="im-input"
+                          id="containerNumber"
+                          value={formData.containerNumber || ''}
+                          onChange={handleChange}
+                          placeholder="Container/ULD number"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Shipping Schedule & Weight */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Calendar style={{ height: 16, width: 16 }} />
+                      Schedule &amp; Weight
+                    </span>
+                  </div>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">
+                          ETD (Estimated Departure)
+                        </p>
+                        <input
+                          className="im-input"
+                          id="etd"
+                          type="date"
+                          value={formData.etd || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">
+                          ETA (Estimated Arrival)
+                        </p>
+                        <input
+                          className="im-input"
+                          id="eta"
+                          type="date"
+                          value={formData.eta || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">Gross Weight (KG)</p>
+                        <input
+                          className="im-input"
+                          id="grossWeightKg"
+                          type="number"
+                          value={formData.grossWeightKg ?? ''}
+                          onChange={handleChange}
+                          step="0.01"
+                          min="0"
+                          placeholder="0.00"
+                        />
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 8,
+                        }}
+                      >
+                        <p className="im-field-label">Date of Delivery</p>
+                        <input
+                          className="im-input"
+                          id="dateOfDelivery"
+                          type="date"
+                          value={formData.dateOfDelivery || ''}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+
+                    {transitDays && (
+                      <div
+                        style={{
+                          background: 'rgba(232,162,58,0.10)',
+                          border: '1px solid var(--color-im-accent)',
+                          borderRadius: 4,
+                          padding: 12,
+                        }}
+                      >
+                        <p className="im-field-label">Transit Time</p>
+                        <p
+                          style={{
+                            color: 'var(--color-im-accent)',
+                            fontSize: 16,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {transitDays} days
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipment Control */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  gap: 24,
+                  marginTop: 24,
+                }}
+              >
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Settings style={{ height: 16, width: 16 }} />
+                      Shipment Control
+                    </span>
+                  </div>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <input
+                        type="checkbox"
+                        id="isFrozen"
+                        checked={formData.isFrozen || false}
+                        onChange={e =>
+                          setFormData(prev => ({
+                            ...prev,
+                            isFrozen: e.target.checked,
+                          }))
+                        }
+                        style={{
+                          accentColor: 'var(--color-im-accent)',
+                          height: 16,
+                          width: 16,
+                        }}
+                      />
+                      <p className="im-field-label" style={{ marginBottom: 0 }}>
+                        Freeze Shipment
                       </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                    <p style={{ color: 'var(--color-im-muted)', fontSize: 12 }}>
+                      Frozen shipments cannot be modified and are locked for
+                      processing
+                    </p>
+
+                    {formData.isFrozen && (
+                      <div
+                        style={{
+                          borderRadius: 4,
+                          border: '1px solid #FDE68A',
+                          background: '#FEFCE8',
+                          padding: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: '#92400E',
+                          }}
+                        >
+                          <Settings style={{ height: 16, width: 16 }} />
+                          <span style={{ fontSize: 13, fontWeight: 500 }}>
+                            Shipment Frozen
+                          </span>
+                        </div>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 12,
+                            color: '#A16207',
+                          }}
+                        >
+                          This shipment is locked and cannot be modified
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </Tabs>
+      </div>
     </div>
   );
 
   const footerBlock = (
     <>
-      <Separator className={isPage ? 'shrink-0' : undefined} />
+      <hr
+        style={{
+          border: 'none',
+          borderTop: '1px solid var(--color-im-rule)',
+          margin: '8px 0',
+        }}
+      />
 
       <div
-        className={
+        style={
           isPage
-            ? 'flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-6 py-4'
-            : 'flex items-center justify-between pt-4'
+            ? {
+                display: 'flex',
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                padding: '12px 24px',
+              }
+            : {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: 16,
+              }
         }
       >
-        <div className="text-muted-foreground flex items-center gap-2 text-sm">
-          <div className="flex items-center gap-1">
+        <div
+          style={{
+            color: 'var(--color-im-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 13,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <div
-              className={`h-2 w-2 rounded-full ${isFormValid() ? 'bg-green-500' : 'bg-red-500'}`}
+              style={{
+                height: 8,
+                width: 8,
+                borderRadius: '50%',
+                background: isFormValid() ? '#22C55E' : '#EF4444',
+              }}
             />
             {isFormValid() ? 'Form is valid' : 'Please fill required fields'}
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Button
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <button
             type="button"
-            variant="outline"
-            useAccentColor
+            className="im-btn"
             onClick={() => onOpenChange(false)}
             disabled={isSubmitting}
           >
             Cancel
-          </Button>
+          </button>
 
-          <Button
+          <button
             type="button"
-            variant="default"
-            useAccentColor
+            className="im-btn im-btn--primary"
             onClick={handleSubmit}
             disabled={!isFormValid() || isSubmitting}
-            className="flex items-center gap-2"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
           >
             {isSubmitting ? (
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+              <div
+                style={{
+                  height: 16,
+                  width: 16,
+                  borderRadius: '50%',
+                  border: '2px solid white',
+                  borderTopColor: 'transparent',
+                  animation: 'spin 0.7s linear infinite',
+                }}
+              />
             ) : (
-              <Save className="h-4 w-4" />
+              <Save style={{ height: 16, width: 16 }} />
             )}
             {isSubmitting
               ? 'Saving...'
               : shipmentToEdit
                 ? 'Update Shipment'
                 : 'Create Shipment'}
-          </Button>
+          </button>
         </div>
       </div>
     </>
@@ -748,13 +1180,25 @@ export function ProfessionalShipmentForm({
   if (isPage) {
     return (
       <section
-        className={cn(
-          'bg-card text-card-foreground flex h-full min-h-0 flex-col overflow-hidden',
-          className
-        )}
+        className={cn(className)}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'var(--color-im-bg)',
+        }}
         aria-labelledby="shipment-form-title"
       >
-        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+        <header
+          style={{
+            flexShrink: 0,
+            borderBottom: '1px solid var(--color-im-rule)',
+            padding: '16px 24px',
+            background: 'var(--color-im-sub)',
+          }}
+        >
           {headerRow}
         </header>
         {tabsBlock}

@@ -1,10 +1,5 @@
 import { memo, type Dispatch, type SetStateAction } from 'react';
 import { Gauge } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import type {
   AutomationCapacityLoadRow,
   DailyAutomationEconomicsRow,
@@ -51,45 +46,67 @@ export const AutomationCostBenefitPanel = memo(
     onSaveCostLimits,
   }: AutomationCostBenefitPanelProps) {
     return (
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Gauge className="h-4 w-4" />
-            Automation cost vs benefit
-          </CardTitle>
-          <div className="flex flex-wrap gap-2">
-            <Button
+      <div className="im-section">
+        <div
+          className="im-section__header"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <span
+            className="im-section__label"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <Gauge style={{ width: 14, height: 14 }} />
+            // Automation Cost vs Benefit
+          </span>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               onClick={() => void onDetectIneff()}
             >
               Inefficient rules
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               onClick={() => void onCapForecast()}
             >
               Capacity forecast
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               onClick={() => void onCostSug()}
             >
               Cost suggestions
-            </Button>
+            </button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
+        </div>
+        <div
+          className="im-section__body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
           {costDash?.totals14d ? (
-            <div className="text-muted-foreground grid gap-2 text-sm sm:grid-cols-2">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,1fr)',
+                gap: 8,
+                fontSize: 12,
+                color: 'var(--color-im-muted)',
+              }}
+            >
               <div>
                 Cost units (14d roll-up):{' '}
-                <span className="text-foreground font-medium">
+                <span
+                  style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                >
                   {Number(
                     (costDash.totals14d as Record<string, unknown>)
                       .totalCostUnits ?? 0
@@ -98,7 +115,9 @@ export const AutomationCostBenefitPanel = memo(
               </div>
               <div>
                 Resolution gain h (14d):{' '}
-                <span className="text-foreground font-medium">
+                <span
+                  style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                >
                   {Number(
                     (costDash.totals14d as Record<string, unknown>)
                       .totalResolutionGainHours ?? 0
@@ -107,7 +126,9 @@ export const AutomationCostBenefitPanel = memo(
               </div>
               <div>
                 Cost / resolution-hour:{' '}
-                <span className="text-foreground font-medium">
+                <span
+                  style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                >
                   {Number(
                     (costDash.totals14d as Record<string, unknown>)
                       .costPerResolutionHour ?? 0
@@ -116,17 +137,31 @@ export const AutomationCostBenefitPanel = memo(
               </div>
             </div>
           ) : (
-            <p className="text-muted-foreground text-sm">
+            <p style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
               Cost efficiency metrics populate after automation cycles write
               logs.
             </p>
           )}
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2,1fr)',
+              gap: 16,
+            }}
+          >
             <div>
-              <p className="mb-1 text-sm font-medium">
+              <p style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>
                 Economics index (recent)
               </p>
-              <pre className="bg-muted max-h-40 overflow-auto rounded-md p-2 text-xs">
+              <pre
+                style={{
+                  background: 'var(--color-im-panel)',
+                  maxHeight: 160,
+                  overflow: 'auto',
+                  padding: 8,
+                  fontSize: 11,
+                }}
+              >
                 {JSON.stringify(
                   econTrend.slice(0, 14).map(e => ({
                     date: e.snapshotDate,
@@ -138,13 +173,25 @@ export const AutomationCostBenefitPanel = memo(
               </pre>
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">Latest capacity</p>
+              <p style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>
+                Latest capacity
+              </p>
               {capLoad[0] ? (
-                <ul className="text-muted-foreground space-y-1 text-sm">
+                <ul
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                    fontSize: 12,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
                   <li>
                     Load:{' '}
-                    <Badge variant="outline">{capLoad[0].loadState}</Badge>{' '}
-                    <span className="text-foreground font-medium">
+                    <span className="im-badge">{capLoad[0].loadState}</span>{' '}
+                    <span
+                      style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                    >
                       {capLoad[0].loadPercentage.toFixed(0)}%
                     </span>
                   </li>
@@ -157,48 +204,107 @@ export const AutomationCostBenefitPanel = memo(
                   <li>Queue (open cases): {capLoad[0].queueDepth}</li>
                 </ul>
               ) : (
-                <span className="text-muted-foreground text-sm">
+                <span style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
                   No snapshots yet.
                 </span>
               )}
             </div>
           </div>
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2,1fr)',
+              gap: 16,
+            }}
+          >
             <div>
-              <p className="mb-1 text-sm font-medium">Cost trend (30d)</p>
-              <pre className="bg-muted max-h-36 overflow-auto text-xs">
+              <p style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>
+                Cost trend (30d)
+              </p>
+              <pre
+                style={{
+                  background: 'var(--color-im-panel)',
+                  maxHeight: 144,
+                  overflow: 'auto',
+                  fontSize: 11,
+                }}
+              >
                 {JSON.stringify(costDash?.costTrend30d ?? [], null, 2)}
               </pre>
             </div>
             <div>
-              <p className="mb-1 text-sm font-medium">Benefit trend (30d)</p>
-              <pre className="bg-muted max-h-36 overflow-auto text-xs">
+              <p style={{ marginBottom: 4, fontSize: 12, fontWeight: 500 }}>
+                Benefit trend (30d)
+              </p>
+              <pre
+                style={{
+                  background: 'var(--color-im-panel)',
+                  maxHeight: 144,
+                  overflow: 'auto',
+                  fontSize: 11,
+                }}
+              >
                 {JSON.stringify(costDash?.benefitTrend30d ?? [], null, 2)}
               </pre>
             </div>
           </div>
           {(ineffRules || capForecast || costSug) && (
-            <div className="grid gap-4 border-t pt-4 md:grid-cols-3">
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3,1fr)',
+                gap: 16,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 16,
+              }}
+            >
               {ineffRules && (
                 <div>
-                  <p className="mb-1 text-xs font-medium">Inefficient</p>
-                  <pre className="bg-muted max-h-48 overflow-auto text-xs">
+                  <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                    Inefficient
+                  </p>
+                  <pre
+                    style={{
+                      background: 'var(--color-im-panel)',
+                      maxHeight: 192,
+                      overflow: 'auto',
+                      fontSize: 11,
+                    }}
+                  >
                     {JSON.stringify(ineffRules, null, 2)}
                   </pre>
                 </div>
               )}
               {capForecast && (
                 <div>
-                  <p className="mb-1 text-xs font-medium">Forecast</p>
-                  <pre className="bg-muted max-h-48 overflow-auto text-xs">
+                  <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                    Forecast
+                  </p>
+                  <pre
+                    style={{
+                      background: 'var(--color-im-panel)',
+                      maxHeight: 192,
+                      overflow: 'auto',
+                      fontSize: 11,
+                    }}
+                  >
                     {JSON.stringify(capForecast, null, 2)}
                   </pre>
                 </div>
               )}
               {costSug && (
                 <div>
-                  <p className="mb-1 text-xs font-medium">Suggestions</p>
-                  <pre className="bg-muted max-h-48 overflow-auto text-xs">
+                  <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                    Suggestions
+                  </p>
+                  <pre
+                    style={{
+                      background: 'var(--color-im-panel)',
+                      maxHeight: 192,
+                      overflow: 'auto',
+                      fontSize: 11,
+                    }}
+                  >
                     {JSON.stringify(costSug, null, 2)}
                   </pre>
                 </div>
@@ -206,40 +312,68 @@ export const AutomationCostBenefitPanel = memo(
             </div>
           )}
           {mutateOk && (
-            <div className="flex flex-col gap-3 border-t pt-4 md:flex-row md:items-end">
-              <div className="grid flex-1 gap-2 sm:grid-cols-3">
-                <div className="space-y-1">
-                  <Label>Max cost units / cycle</Label>
-                  <Input
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 16,
+              }}
+            >
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3,1fr)',
+                  gap: 8,
+                  flex: 1,
+                }}
+              >
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  <p className="im-field-label">Max cost units / cycle</p>
+                  <input
+                    className="im-input"
                     value={limMaxCu}
                     onChange={e => setLimMaxCu(e.target.value)}
                     inputMode="decimal"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>Max cycle time (ms)</Label>
-                  <Input
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  <p className="im-field-label">Max cycle time (ms)</p>
+                  <input
+                    className="im-input"
                     value={limMaxMs}
                     onChange={e => setLimMaxMs(e.target.value)}
                     inputMode="numeric"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label>Max records / cycle</Label>
-                  <Input
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  <p className="im-field-label">Max records / cycle</p>
+                  <input
+                    className="im-input"
                     value={limMaxRec}
                     onChange={e => setLimMaxRec(e.target.value)}
                     inputMode="numeric"
                   />
                 </div>
               </div>
-              <Button type="button" onClick={() => void onSaveCostLimits()}>
+              <button
+                type="button"
+                className="im-btn im-btn--primary im-btn--sm"
+                onClick={() => void onSaveCostLimits()}
+              >
                 Save cost limits
-              </Button>
+              </button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 );

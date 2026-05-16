@@ -6,10 +6,7 @@ import { useMemo, useState } from 'react';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { DataTable } from '@/components/shared/data-table';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import { useReport } from '@/hooks/useReport';
 
 export default function ReportsPage() {
@@ -195,170 +192,204 @@ export default function ReportsPage() {
   );
 
   return (
-    <div className="container mx-auto space-y-6 py-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-semibold text-blue-600">
-            Consolidated Report
-          </h1>
-          <p className="text-muted-foreground mt-1">
-            Comprehensive analytics and reporting across all modules
-          </p>
-        </div>
-        <div className="space-x-2">
-          <Button onClick={exportCsv} variant="default" useAccentColor>
-            Export CSV
-          </Button>
-          <Button onClick={exportPdf} variant="default" useAccentColor>
-            Export PDF
-          </Button>
-        </div>
-      </div>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Report']} />
+      <PageHeader
+        title="Consolidated Report"
+        subtitle="Comprehensive analytics and reporting across all modules"
+        actions={
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="im-btn im-btn--primary"
+              onClick={exportCsv}
+            >
+              Export CSV
+            </button>
+            <button
+              type="button"
+              className="im-btn im-btn--primary"
+              onClick={exportPdf}
+            >
+              Export PDF
+            </button>
+          </div>
+        }
+      />
 
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filters</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
-            <div>
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={e => setStartDate(e.target.value)}
-              />
+      <div className="im-dashboard-body flex flex-col gap-6">
+        {/* Filters */}
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">Filters</span>
+          </div>
+          <div className="im-section__body">
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-5">
+              <div>
+                <label className="im-field-label" htmlFor="startDate">
+                  Start Date
+                </label>
+                <input
+                  className="im-input"
+                  id="startDate"
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="im-field-label" htmlFor="endDate">
+                  End Date
+                </label>
+                <input
+                  className="im-input"
+                  id="endDate"
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="im-field-label" htmlFor="supplier">
+                  Supplier
+                </label>
+                <input
+                  className="im-input"
+                  id="supplier"
+                  placeholder="Supplier name"
+                  value={supplier}
+                  onChange={e => setSupplier(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="im-field-label" htmlFor="invoiceNo">
+                  Invoice No
+                </label>
+                <input
+                  className="im-input"
+                  id="invoiceNo"
+                  placeholder="Invoice number"
+                  value={invoiceNo}
+                  onChange={e => setInvoiceNo(e.target.value)}
+                />
+              </div>
+              <div>
+                <label className="im-field-label" htmlFor="partNo">
+                  Part No
+                </label>
+                <input
+                  className="im-input"
+                  id="partNo"
+                  placeholder="Part number"
+                  value={partNo}
+                  onChange={e => setPartNo(e.target.value)}
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={e => setEndDate(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="supplier">Supplier</Label>
-              <Input
-                id="supplier"
-                placeholder="Supplier name"
-                value={supplier}
-                onChange={e => setSupplier(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="invoiceNo">Invoice No</Label>
-              <Input
-                id="invoiceNo"
-                placeholder="Invoice number"
-                value={invoiceNo}
-                onChange={e => setInvoiceNo(e.target.value)}
-              />
-            </div>
-            <div>
-              <Label htmlFor="partNo">Part No</Label>
-              <Input
-                id="partNo"
-                placeholder="Part number"
-                value={partNo}
-                onChange={e => setPartNo(e.target.value)}
-              />
+            <div style={{ marginTop: 16, display: 'flex', gap: 8 }}>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={handleSearch}
+              >
+                Search
+              </button>
+              <button type="button" className="im-btn" onClick={handleClear}>
+                Clear
+              </button>
             </div>
           </div>
-          <div className="mt-4 flex space-x-2">
-            <Button onClick={handleSearch} variant="default" useAccentColor>
-              Search
-            </Button>
-            <Button onClick={handleClear} variant="outline" useAccentColor>
-              Clear
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Data Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Report Data</CardTitle>
-          {loading && (
-            <p className="text-muted-foreground text-sm">Loading...</p>
-          )}
-          {error && <p className="text-destructive text-sm">Error: {error}</p>}
-        </CardHeader>
-        <CardContent>
-          {data.length === 0 && !loading ? (
-            <div className="py-8 text-center">
-              <p className="text-muted-foreground">No data found</p>
-              <p className="text-muted-foreground mt-2 text-sm">
-                Try adjusting your filters or check if there's data in the
-                database
+        {/* Data Table */}
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">Report Data</span>
+            {loading && (
+              <p style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
+                Loading...
               </p>
-            </div>
-          ) : (
-            <DataTable
-              columns={columns}
-              data={data as unknown as Record<string, unknown>[]}
-              storageKey="report-table"
-            />
-          )}
-        </CardContent>
-      </Card>
+            )}
+            {error && (
+              <p style={{ color: 'var(--color-im-bad)', fontSize: 13 }}>
+                Error: {error}
+              </p>
+            )}
+          </div>
+          <div className="im-section__body">
+            {data.length === 0 && !loading ? (
+              <div className="py-8 text-center">
+                <p style={{ color: 'var(--color-im-muted)' }}>No data found</p>
+                <p
+                  style={{
+                    color: 'var(--color-im-muted)',
+                    marginTop: 8,
+                    fontSize: 13,
+                  }}
+                >
+                  Try adjusting your filters or check if there's data in the
+                  database
+                </p>
+              </div>
+            ) : (
+              <DataTable
+                columns={columns}
+                data={data as unknown as Record<string, unknown>[]}
+                storageKey="report-table"
+              />
+            )}
+          </div>
+        </div>
 
-      {/* Totals */}
-      {totals && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Totals</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
-              <div>
-                <Label className="text-sm font-medium">Total Qty</Label>
-                <p className="text-2xl font-bold">
-                  {totals.qty?.toFixed(2) || '0.00'}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">
-                  Total Assessable Value
-                </Label>
-                <p className="text-2xl font-bold">
-                  {totals.assessable_value?.toFixed(2) || '0.00'}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Total BCD</Label>
-                <p className="text-2xl font-bold">
-                  {totals.bcd_amount?.toFixed(2) || '0.00'}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Total SWS</Label>
-                <p className="text-2xl font-bold">
-                  {totals.sws_amount?.toFixed(2) || '0.00'}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Total IGST</Label>
-                <p className="text-2xl font-bold">
-                  {totals.igst_amount?.toFixed(2) || '0.00'}
-                </p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">
-                  Total Expenses (Basic)
-                </Label>
-                <p className="text-2xl font-bold">
-                  {totals.expenses_total?.toFixed(2) || '0.00'}
-                </p>
+        {/* Totals */}
+        {totals && (
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">Totals</span>
+            </div>
+            <div className="im-section__body">
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-6">
+                <div>
+                  <span className="im-field-label">Total Qty</span>
+                  <p className="text-2xl font-bold">
+                    {totals.qty?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div>
+                  <span className="im-field-label">Total Assessable Value</span>
+                  <p className="text-2xl font-bold">
+                    {totals.assessable_value?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div>
+                  <span className="im-field-label">Total BCD</span>
+                  <p className="text-2xl font-bold">
+                    {totals.bcd_amount?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div>
+                  <span className="im-field-label">Total SWS</span>
+                  <p className="text-2xl font-bold">
+                    {totals.sws_amount?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div>
+                  <span className="im-field-label">Total IGST</span>
+                  <p className="text-2xl font-bold">
+                    {totals.igst_amount?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
+                <div>
+                  <span className="im-field-label">Total Expenses (Basic)</span>
+                  <p className="text-2xl font-bold">
+                    {totals.expenses_total?.toFixed(2) || '0.00'}
+                  </p>
+                </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

@@ -6,22 +6,7 @@ import { safeInvoke as invoke } from '@/lib/ipc-safe';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import { Separator } from '@/components/ui/separator';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type { ExpenseType, ServiceProvider } from '@/types/expense';
@@ -469,36 +454,27 @@ export default function ExpenseImport({
   const selectedShipmentData = shipments.find(s => s.id === selectedShipment);
 
   return (
-    <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <span>Import Expenses</span>
-            <div className="flex gap-2">
-              <Button
-                variant="default"
-                size="sm"
-                useAccentColor
-                onClick={downloadTemplate}
-              >
-                📥 Download Template
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                useAccentColor
-                onClick={handleReset}
-              >
-                🔄 Reset
-              </Button>
-            </div>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      <div className="im-section">
+        <div className="im-section__header">
+          <span className="im-section__label">// Import Expenses</span>
+          <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+            <button className="im-btn im-btn--sm" onClick={downloadTemplate}>
+              Download Template
+            </button>
+            <button className="im-btn im-btn--sm" onClick={handleReset}>
+              Reset
+            </button>
+          </div>
+        </div>
+        <div
+          className="im-section__body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
           {/* Shipment Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="shipment-select">Select Shipment *</Label>
-            <div className="max-w-md">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p className="im-field-label">Select Shipment *</p>
+            <div style={{ maxWidth: 480 }}>
               <Combobox
                 options={shipments.map(shipment => ({
                   value: shipment.id,
@@ -513,31 +489,31 @@ export default function ExpenseImport({
               />
             </div>
             {selectedShipmentData && (
-              <div className="mt-2">
-                <Badge variant="outline">
+              <div style={{ marginTop: 4 }}>
+                <span className="im-badge">
                   Selected:{' '}
                   {formatText(
                     selectedShipmentData.invoiceNumber,
                     settings.textFormat
                   )}
-                </Badge>
+                </span>
               </div>
             )}
           </div>
 
           {/* File Upload */}
-          <div className="space-y-2">
-            <Label htmlFor="file-upload">Upload File *</Label>
-            <div className="flex items-center gap-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p className="im-field-label">Upload File *</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
               <input
                 id="file-upload"
                 type="file"
                 accept=".csv,.xlsx,.xls"
                 onChange={handleFileUpload}
                 disabled={isProcessing}
-                className="flex-1"
+                style={{ flex: 1 }}
               />
-              <div className="text-muted-foreground text-sm">
+              <div style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
                 Supports CSV, Excel (.xlsx, .xls)
               </div>
             </div>
@@ -545,194 +521,262 @@ export default function ExpenseImport({
 
           {/* Progress Bar */}
           {isProcessing && (
-            <div className="space-y-2">
-              <Label>Processing...</Label>
-              <Progress value={progress} className="w-full" />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Processing...</p>
+              <div style={{ height: 4, background: 'var(--color-im-rule)' }}>
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${progress}%`,
+                    background: 'var(--color-im-accent)',
+                  }}
+                />
+              </div>
             </div>
           )}
 
           {/* Validation Errors */}
           {validationErrors.length > 0 && (
-            <Alert variant="destructive">
-              <AlertDescription>
-                <div className="space-y-1">
-                  <div className="font-medium">
-                    Validation Errors ({validationErrors.length}):
-                  </div>
-                  <ul className="list-inside list-disc space-y-1 text-sm">
-                    {validationErrors.slice(0, 10).map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                    {validationErrors.length > 10 && (
-                      <li>
-                        ... and {validationErrors.length - 10} more errors
-                      </li>
-                    )}
-                  </ul>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <div
+              style={{
+                padding: '8px 12px',
+                border: '1px solid var(--color-im-rule)',
+                fontSize: 12,
+                color: 'var(--color-im-muted)',
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: 4 }}>
+                Validation Errors ({validationErrors.length}):
+              </div>
+              <ul style={{ margin: 0, paddingLeft: 16 }}>
+                {validationErrors.slice(0, 10).map((error, index) => (
+                  <li key={index}>{error}</li>
+                ))}
+                {validationErrors.length > 10 && (
+                  <li>... and {validationErrors.length - 10} more errors</li>
+                )}
+              </ul>
+            </div>
           )}
 
           {/* Import Button */}
           {importData.length > 0 && validationErrors.length === 0 && (
-            <div className="flex items-center gap-4">
-              <Button
-                variant="default"
-                useAccentColor
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+              <button
+                className="im-btn im-btn--primary"
                 onClick={handleImport}
                 disabled={isProcessing || !selectedShipment}
-                className="flex-1"
+                style={{ flex: 1 }}
               >
                 {isProcessing
                   ? 'Importing...'
                   : `Import ${importData.length} Expenses`}
-              </Button>
-              <Button
-                variant="outline"
-                useAccentColor
+              </button>
+              <button
+                className="im-btn"
                 onClick={() => setPreviewMode(!previewMode)}
               >
                 {previewMode ? 'Hide Preview' : 'Show Preview'}
-              </Button>
+              </button>
             </div>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Data Preview */}
       {previewMode && importData.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Import Preview ({importData.length} records)</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Expense Type</TableHead>
-                    <TableHead>Service Provider</TableHead>
-                    <TableHead>Invoice No</TableHead>
-                    <TableHead>Invoice Date</TableHead>
-                    <TableHead className="text-right">Amount</TableHead>
-                    <TableHead className="text-right">CGST</TableHead>
-                    <TableHead className="text-right">SGST</TableHead>
-                    <TableHead className="text-right">IGST</TableHead>
-                    <TableHead className="text-right">TDS</TableHead>
-                    <TableHead className="text-right">Total Amount</TableHead>
-                    <TableHead>Remarks</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">
+              // Import Preview ({importData.length} records)
+            </span>
+          </div>
+          <div className="im-section__body">
+            <div className="im-table-scroll">
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th">Expense Type</th>
+                    <th className="im-th">Service Provider</th>
+                    <th className="im-th">Invoice No</th>
+                    <th className="im-th">Invoice Date</th>
+                    <th className="im-th" style={{ textAlign: 'right' }}>
+                      Amount
+                    </th>
+                    <th className="im-th" style={{ textAlign: 'right' }}>
+                      CGST
+                    </th>
+                    <th className="im-th" style={{ textAlign: 'right' }}>
+                      SGST
+                    </th>
+                    <th className="im-th" style={{ textAlign: 'right' }}>
+                      IGST
+                    </th>
+                    <th className="im-th" style={{ textAlign: 'right' }}>
+                      TDS
+                    </th>
+                    <th className="im-th" style={{ textAlign: 'right' }}>
+                      Total Amount
+                    </th>
+                    <th className="im-th">Remarks</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {importData.slice(0, 10).map((row, index) => (
-                    <TableRow key={index}>
-                      <TableCell className="font-medium">
+                    <tr className="im-tr" key={index}>
+                      <td className="im-td" style={{ fontWeight: 500 }}>
                         {row.expenseTypeName}
-                      </TableCell>
-                      <TableCell>{row.serviceProviderName}</TableCell>
-                      <TableCell>{row.invoiceNo}</TableCell>
-                      <TableCell>{row.invoiceDate}</TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="im-td">{row.serviceProviderName}</td>
+                      <td className="im-td">{row.invoiceNo}</td>
+                      <td className="im-td">{row.invoiceDate}</td>
+                      <td className="im-td" style={{ textAlign: 'right' }}>
                         ₹
                         {row.amount.toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                         })}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="im-td" style={{ textAlign: 'right' }}>
                         ₹
                         {row.cgstAmount.toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                         })}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="im-td" style={{ textAlign: 'right' }}>
                         ₹
                         {row.sgstAmount.toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                         })}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="im-td" style={{ textAlign: 'right' }}>
                         ₹
                         {row.igstAmount.toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                         })}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="im-td" style={{ textAlign: 'right' }}>
                         ₹
                         {row.tdsAmount.toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                         })}
-                      </TableCell>
-                      <TableCell className="text-right">
+                      </td>
+                      <td className="im-td" style={{ textAlign: 'right' }}>
                         ₹
                         {row.totalAmount.toLocaleString('en-IN', {
                           minimumFractionDigits: 2,
                         })}
-                      </TableCell>
-                      <TableCell
-                        className="max-w-xs truncate"
+                      </td>
+                      <td
+                        className="im-td"
+                        style={{
+                          maxWidth: 200,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
                         title={row.remarks}
                       >
                         {row.remarks}
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ))}
                   {importData.length > 10 && (
-                    <TableRow>
-                      <TableCell
+                    <tr className="im-tr">
+                      <td
                         colSpan={11}
-                        className="text-muted-foreground text-center"
+                        className="im-td"
+                        style={{
+                          textAlign: 'center',
+                          color: 'var(--color-im-muted)',
+                        }}
                       >
                         ... and {importData.length - 10} more records
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Instructions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Import Instructions</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div className="space-y-2">
-              <h4 className="font-medium">📋 File Format Requirements:</h4>
-              <ul className="text-muted-foreground space-y-1 text-sm">
-                <li>• First row must contain headers</li>
-                <li>• Use CSV or Excel format</li>
-                <li>• Date format: YYYY-MM-DD</li>
-                <li>• Amounts should be numbers only</li>
+      <div className="im-section">
+        <div className="im-section__header">
+          <span className="im-section__label">// Import Instructions</span>
+        </div>
+        <div
+          className="im-section__body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+        >
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <h4 style={{ fontWeight: 500, margin: 0 }}>
+                File Format Requirements:
+              </h4>
+              <ul
+                style={{
+                  color: 'var(--color-im-muted)',
+                  fontSize: 13,
+                  margin: 0,
+                  paddingLeft: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <li>First row must contain headers</li>
+                <li>Use CSV or Excel format</li>
+                <li>Date format: YYYY-MM-DD</li>
+                <li>Amounts should be numbers only</li>
                 <li>
-                  • Expense Type and Service Provider names must match existing
+                  Expense Type and Service Provider names must match existing
                   records
                 </li>
               </ul>
             </div>
-            <div className="space-y-2">
-              <h4 className="font-medium">✅ Required Fields:</h4>
-              <ul className="text-muted-foreground space-y-1 text-sm">
-                <li>• Expense Type (must exist in system)</li>
-                <li>• Service Provider (must exist in system)</li>
-                <li>• Invoice No</li>
-                <li>• Invoice Date</li>
-                <li>• Amount</li>
-                <li>• Total Amount</li>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <h4 style={{ fontWeight: 500, margin: 0 }}>Required Fields:</h4>
+              <ul
+                style={{
+                  color: 'var(--color-im-muted)',
+                  fontSize: 13,
+                  margin: 0,
+                  paddingLeft: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <li>Expense Type (must exist in system)</li>
+                <li>Service Provider (must exist in system)</li>
+                <li>Invoice No</li>
+                <li>Invoice Date</li>
+                <li>Amount</li>
+                <li>Total Amount</li>
               </ul>
             </div>
           </div>
-          <Separator />
-          <div className="text-muted-foreground text-sm">
-            <strong>💡 Tip:</strong> Download the template first to see the
-            exact format and sample data structure.
+          <hr
+            style={{
+              border: 'none',
+              borderTop: '1px solid var(--color-im-rule)',
+              margin: '8px 0',
+            }}
+          />
+          <div style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
+            <strong>Tip:</strong> Download the template first to see the exact
+            format and sample data structure.
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

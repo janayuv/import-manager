@@ -1,12 +1,6 @@
 'use client';
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { ImSection } from '@/components/shared/im';
 import {
   Table,
   TableBody,
@@ -32,39 +26,46 @@ const formatCurrency = (amount: number | null | undefined) => {
 
 export function BoeDetailsTable({ boe }: BoeDetailsTableProps) {
   return (
-    <Card className="bg-card mt-6">
-      <CardHeader>
-        <CardTitle>Details for Selected BOE: #{boe.beNumber}</CardTitle>
-        <CardDescription>
-          This is the official data for the selected Bill of Entry.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>BE Date</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead className="text-right">Assess. Value</TableHead>
-                <TableHead className="text-right">Duty Paid</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow>
-                <TableCell>{formatDateForDisplay(boe.beDate)}</TableCell>
-                <TableCell>{boe.location}</TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatCurrency(boe.totalAssessmentValue)}
-                </TableCell>
-                <TableCell className="text-right font-mono">
-                  {formatCurrency(boe.dutyPaid)}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+    <ImSection
+      label="SELECTED BOE (REFERENCE)"
+      sub={`Official record for BE #${boe.beNumber}.`}
+    >
+      <div className="border-im-rule bg-im-sub border">
+        <Table className="im-table text-xs">
+          <TableHeader>
+            <TableRow className="border-0 hover:bg-transparent">
+              <TableHead className="im-th !h-9 rounded-none font-mono">
+                BE date
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none font-mono">
+                Location
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                Assess. value
+              </TableHead>
+              <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                Duty paid
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow className="hover:bg-im-hover border-0">
+              <TableCell className="im-td text-im-text !max-w-none font-mono">
+                {formatDateForDisplay(boe.beDate)}
+              </TableCell>
+              <TableCell className="im-td text-im-text !max-w-none">
+                {boe.location}
+              </TableCell>
+              <TableCell className="im-td im-td-mono text-right">
+                {formatCurrency(boe.totalAssessmentValue)}
+              </TableCell>
+              <TableCell className="im-td im-td-mono text-right">
+                {formatCurrency(boe.dutyPaid)}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+    </ImSection>
   );
 }

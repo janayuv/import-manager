@@ -18,14 +18,11 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import type {
   ExpenseType,
   ExpenseWithInvoice,
   ServiceProvider,
 } from '@/types/expense';
-
-import { Label } from '../ui/label';
 
 // Select option type
 interface Option {
@@ -298,7 +295,10 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+      >
         {/* Expense Type */}
         <FormField
           control={form.control}
@@ -353,7 +353,11 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FormItem>
               <FormLabel>Invoice Number</FormLabel>
               <FormControl>
-                <Input placeholder="Invoice Number" {...field} />
+                <input
+                  className="im-input"
+                  placeholder="Invoice Number"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -368,7 +372,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FormItem>
               <FormLabel>Invoice Date</FormLabel>
               <FormControl>
-                <Input type="date" {...field} />
+                <input className="im-input" type="date" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -383,7 +387,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FormItem>
               <FormLabel>Amount (w/o GST)</FormLabel>
               <FormControl>
-                <Input type="number" placeholder="Amount" {...field} />
+                <input
+                  className="im-input"
+                  type="number"
+                  placeholder="Amount"
+                  {...field}
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -391,7 +400,13 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         />
 
         {/* GST Amounts */}
-        <div className="grid grid-cols-3 gap-4">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: 16,
+          }}
+        >
           <FormField
             control={form.control}
             name="cgstAmount"
@@ -399,7 +414,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
               <FormItem>
                 <FormLabel>CGST Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="CGST Amount" {...field} />
+                  <input
+                    className="im-input"
+                    type="number"
+                    placeholder="CGST Amount"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -412,7 +432,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
               <FormItem>
                 <FormLabel>SGST Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="SGST Amount" {...field} />
+                  <input
+                    className="im-input"
+                    type="number"
+                    placeholder="SGST Amount"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -425,7 +450,12 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
               <FormItem>
                 <FormLabel>IGST Amount</FormLabel>
                 <FormControl>
-                  <Input type="number" placeholder="IGST Amount" {...field} />
+                  <input
+                    className="im-input"
+                    type="number"
+                    placeholder="IGST Amount"
+                    {...field}
+                  />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -441,7 +471,8 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FormItem>
               <FormLabel>TDS %</FormLabel>
               <FormControl>
-                <Input
+                <input
+                  className="im-input"
                   type="number"
                   step="0.01"
                   placeholder="TDS Percentage"
@@ -454,9 +485,9 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         />
 
         {/* Total */}
-        <div className="space-y-2">
-          <Label>Total Amount</Label>
-          <Input value={totalAmount.toFixed(2)} readOnly />
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <p className="im-field-label">Total Amount</p>
+          <input className="im-input" value={totalAmount.toFixed(2)} readOnly />
         </div>
 
         {/* Remarks */}
@@ -467,7 +498,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
             <FormItem>
               <FormLabel>Remarks</FormLabel>
               <FormControl>
-                <Input placeholder="Remarks" {...field} />
+                <input className="im-input" placeholder="Remarks" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -475,7 +506,7 @@ const ExpenseForm: React.FC<ExpenseFormProps> = ({
         />
 
         {/* Action Buttons */}
-        <div className="flex space-x-2">
+        <div style={{ display: 'flex', gap: 8 }}>
           <Button type="submit" disabled={isSubmitting} useAccentColor>
             {isSubmitting
               ? 'Saving...'

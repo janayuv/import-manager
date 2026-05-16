@@ -13,10 +13,7 @@ import ExpenseList from '@/components/expenses/expense-list';
 import { ExpenseMultilineForm } from '@/components/expenses/expense-multiline-form';
 import ExpenseReports from '@/components/expenses/expense-reports';
 import ShipmentSelector from '@/components/expenses/shipment-selector';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type {
@@ -47,6 +44,7 @@ const ExpensesPage = () => {
   );
   const [isLoading, setIsLoading] = useState(true);
   const [showMultilineForm, setShowMultilineForm] = useState(false);
+  const [activeTab, setActiveTab] = useState('manage');
 
   const handleFormSubmit = useCallback(() => {
     setExpenseToEdit(null);
@@ -140,208 +138,274 @@ const ExpensesPage = () => {
       moduleName="Expenses"
       showDetails={process.env.NODE_ENV === 'development'}
     >
-      <div className="container mx-auto py-10">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold text-blue-600">
-              Manage Expenses
-            </h1>
-            <p className="text-muted-foreground mt-1">
-              Track and manage expenses for your shipments
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="default"
-              size="sm"
-              useAccentColor
-              onClick={handleRefresh}
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'Expenses']} />
+        <PageHeader
+          title="Manage Expenses"
+          subtitle="Track and manage expenses for your shipments"
+          actions={
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                flexWrap: 'wrap',
+              }}
             >
-              Refresh Data
-            </Button>
-            {selectedShipment && (
-              <div className="text-right">
-                <Badge variant="outline" className="text-sm">
-                  Shipment:{' '}
-                  {formatText(
-                    selectedShipment.invoiceNumber,
-                    settings.textFormat
-                  )}
-                </Badge>
-                <p className="text-muted-foreground mt-1 text-xs">
-                  BL/AWB:{' '}
-                  {formatText(
-                    selectedShipment.blAwbNumber,
-                    settings.textFormat
-                  )}
+              <button
+                type="button"
+                className="im-btn im-btn--sm im-btn--primary"
+                onClick={handleRefresh}
+              >
+                Refresh Data
+              </button>
+              {selectedShipment && (
+                <div className="text-right">
+                  <span
+                    className="im-badge is-neutral"
+                    style={{ fontSize: 13 }}
+                  >
+                    Shipment:{' '}
+                    {formatText(
+                      selectedShipment.invoiceNumber,
+                      settings.textFormat
+                    )}
+                  </span>
+                  <p
+                    style={{
+                      color: 'var(--color-im-muted)',
+                      marginTop: 4,
+                      fontSize: 12,
+                    }}
+                  >
+                    BL/AWB:{' '}
+                    {formatText(
+                      selectedShipment.blAwbNumber,
+                      settings.textFormat
+                    )}
+                  </p>
+                </div>
+              )}
+            </div>
+          }
+        />
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
+          {isLoading ? (
+            <div className="py-12 text-center">
+              <div className="mx-auto max-w-md">
+                <div className="mb-4 text-6xl">⏳</div>
+                <h3 className="mb-2 text-xl font-semibold">Loading...</h3>
+                <p style={{ color: 'var(--color-im-muted)' }}>
+                  Please wait while we load the expense data.
                 </p>
               </div>
-            )}
-          </div>
-        </div>
-
-        {isLoading ? (
-          <div className="py-12 text-center">
-            <div className="mx-auto max-w-md">
-              <div className="mb-4 text-6xl">⏳</div>
-              <h3 className="mb-2 text-xl font-semibold">Loading...</h3>
-              <p className="text-muted-foreground">
-                Please wait while we load the expense data.
-              </p>
             </div>
-          </div>
-        ) : (
-          <Tabs defaultValue="manage" className="space-y-6">
-            <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger
-                value="manage"
-                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
-              >
-                Manage Expenses
-              </TabsTrigger>
-              <TabsTrigger
-                value="import"
-                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
-              >
-                Import Expenses
-              </TabsTrigger>
-              <TabsTrigger
-                value="debug"
-                className="text-foreground data-[state=active]:bg-accent! data-[state=active]:text-accent-foreground! bg-transparent"
-              >
-                Debug & Setup
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value="manage" className="space-y-6">
-              <div className="mb-6">
-                <label className="mb-2 block text-sm font-medium">
-                  Select Shipment
-                </label>
-                <ShipmentSelector
-                  selectedShipment={selectedShipment}
-                  setSelectedShipment={handleShipmentChange}
-                />
+          ) : (
+            <>
+              <div className="im-tabs">
+                <button
+                  type="button"
+                  className={`im-tab${activeTab === 'manage' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab('manage')}
+                >
+                  Manage Expenses
+                </button>
+                <button
+                  type="button"
+                  className={`im-tab${activeTab === 'import' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab('import')}
+                >
+                  Import Expenses
+                </button>
+                <button
+                  type="button"
+                  className={`im-tab${activeTab === 'debug' ? 'is-active' : ''}`}
+                  onClick={() => setActiveTab('debug')}
+                >
+                  Debug &amp; Setup
+                </button>
               </div>
 
-              <Separator className="my-6" />
+              <div
+                className="im-dashboard-body"
+                style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+              >
+                {activeTab === 'manage' && (
+                  <>
+                    <div style={{ marginBottom: 8 }}>
+                      <label
+                        className="im-field-label"
+                        style={{ marginBottom: 8, display: 'block' }}
+                      >
+                        Select Shipment
+                      </label>
+                      <ShipmentSelector
+                        selectedShipment={selectedShipment}
+                        setSelectedShipment={handleShipmentChange}
+                      />
+                    </div>
 
-              {selectedShipment && (
-                <>
-                  {showMultilineForm ? (
-                    <ExpenseMultilineForm
-                      shipmentId={selectedShipment.id}
-                      onSuccess={handleMultilineSuccess}
-                      onCancel={handleMultilineCancel}
+                    <hr
+                      style={{
+                        border: 'none',
+                        borderTop: '1px solid var(--color-im-rule)',
+                        margin: '12px 0',
+                      }}
                     />
-                  ) : (
-                    <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                      <div className="lg:col-span-2">
-                        <div className="mb-4 flex items-center justify-between">
-                          <h2 className="text-2xl font-semibold">
-                            Expenses for Invoice:{' '}
+
+                    {selectedShipment && (
+                      <>
+                        {showMultilineForm ? (
+                          <ExpenseMultilineForm
+                            shipmentId={selectedShipment.id}
+                            onSuccess={handleMultilineSuccess}
+                            onCancel={handleMultilineCancel}
+                          />
+                        ) : (
+                          <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                            <div className="lg:col-span-2">
+                              <div className="mb-4 flex items-center justify-between">
+                                <h2 className="text-2xl font-semibold">
+                                  Expenses for Invoice:{' '}
+                                  {formatText(
+                                    selectedShipment.invoiceNumber,
+                                    settings.textFormat
+                                  )}
+                                </h2>
+                                <div className="flex items-center gap-2">
+                                  {expenseToEdit && (
+                                    <span className="im-badge is-neutral">
+                                      Editing Expense
+                                    </span>
+                                  )}
+                                  <button
+                                    type="button"
+                                    className="im-btn im-btn--primary im-btn--sm"
+                                    onClick={() => setShowMultilineForm(true)}
+                                  >
+                                    Add Multiple Expenses
+                                  </button>
+                                </div>
+                              </div>
+                              <ExpenseList
+                                shipmentId={selectedShipment.id}
+                                onEdit={handleEdit}
+                                onDelete={handleDelete}
+                                refreshKey={refreshKey}
+                              />
+                            </div>
+                            <div className="lg:col-span-1">
+                              <div className="sticky top-6">
+                                <div className="im-section">
+                                  <div
+                                    className="im-section__body"
+                                    style={{
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      gap: 12,
+                                    }}
+                                  >
+                                    {selectedShipment && (
+                                      <div className="flex items-center justify-between">
+                                        <span
+                                          className="im-badge is-neutral"
+                                          style={{ fontSize: 11 }}
+                                        >
+                                          {formatText(
+                                            selectedShipment.invoiceNumber,
+                                            settings.textFormat
+                                          )}
+                                        </span>
+                                      </div>
+                                    )}
+                                    <h2 className="mb-4 text-xl font-semibold">
+                                      {expenseToEdit ? 'Edit' : 'Add'} Expense
+                                    </h2>
+                                    <ExpenseForm
+                                      expenseToEdit={expenseToEdit}
+                                      onFormSubmit={handleFormSubmit}
+                                      onCancelEdit={handleCancelEdit}
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+
+                        <hr
+                          style={{
+                            border: 'none',
+                            borderTop: '1px solid var(--color-im-rule)',
+                            margin: '12px 0',
+                          }}
+                        />
+
+                        <div>
+                          <h2 className="mb-4 text-2xl font-semibold">
+                            Reports for Invoice:{' '}
                             {formatText(
                               selectedShipment.invoiceNumber,
                               settings.textFormat
                             )}
                           </h2>
-                          <div className="flex items-center gap-2">
-                            {expenseToEdit && (
-                              <Badge variant="secondary">Editing Expense</Badge>
-                            )}
-                            <Button
-                              variant="default"
-                              size="sm"
-                              useAccentColor
-                              onClick={() => setShowMultilineForm(true)}
-                            >
-                              Add Multiple Expenses
-                            </Button>
-                          </div>
+                          <ExpenseReports shipmentId={selectedShipment.id} />
                         </div>
-                        <ExpenseList
-                          shipmentId={selectedShipment.id}
-                          onEdit={handleEdit}
-                          onDelete={handleDelete}
-                          refreshKey={refreshKey}
-                        />
-                      </div>
-                      <div className="lg:col-span-1">
-                        <div className="sticky top-6">
-                          <div className="bg-card space-y-3 rounded-lg border p-6">
-                            {selectedShipment && (
-                              <div className="flex items-center justify-between">
-                                <Badge variant="outline" className="text-xs">
-                                  {formatText(
-                                    selectedShipment.invoiceNumber,
-                                    settings.textFormat
-                                  )}
-                                </Badge>
-                              </div>
-                            )}
-                            <h2 className="mb-4 text-xl font-semibold">
-                              {expenseToEdit ? 'Edit' : 'Add'} Expense
-                            </h2>
-                            <ExpenseForm
-                              expenseToEdit={expenseToEdit}
-                              onFormSubmit={handleFormSubmit}
-                              onCancelEdit={handleCancelEdit}
-                            />
-                          </div>
+                      </>
+                    )}
+
+                    {!selectedShipment && (
+                      <div className="py-12 text-center">
+                        <div className="mx-auto max-w-md">
+                          <div className="mb-4 text-6xl">📦</div>
+                          <h3 className="mb-2 text-xl font-semibold">
+                            No Shipment Selected
+                          </h3>
+                          <p
+                            style={{
+                              color: 'var(--color-im-muted)',
+                              marginBottom: 16,
+                            }}
+                          >
+                            Please select a shipment from the dropdown above to
+                            start managing expenses.
+                          </p>
+                          <p
+                            style={{
+                              color: 'var(--color-im-muted)',
+                              fontSize: 13,
+                            }}
+                          >
+                            You can add, edit, and delete expenses for the
+                            selected shipment.
+                          </p>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+                  </>
+                )}
 
-                  <Separator className="my-6" />
+                {activeTab === 'import' && (
+                  <ExpenseImport
+                    shipments={shipments}
+                    expenseTypes={expenseTypes}
+                    serviceProviders={serviceProviders}
+                    onImportSuccess={handleImportSuccess}
+                  />
+                )}
 
-                  <div>
-                    <h2 className="mb-4 text-2xl font-semibold">
-                      Reports for Invoice:{' '}
-                      {formatText(
-                        selectedShipment.invoiceNumber,
-                        settings.textFormat
-                      )}
-                    </h2>
-                    <ExpenseReports shipmentId={selectedShipment.id} />
-                  </div>
-                </>
-              )}
-
-              {!selectedShipment && (
-                <div className="py-12 text-center">
-                  <div className="mx-auto max-w-md">
-                    <div className="mb-4 text-6xl">📦</div>
-                    <h3 className="mb-2 text-xl font-semibold">
-                      No Shipment Selected
-                    </h3>
-                    <p className="text-muted-foreground mb-4">
-                      Please select a shipment from the dropdown above to start
-                      managing expenses.
-                    </p>
-                    <p className="text-muted-foreground text-sm">
-                      You can add, edit, and delete expenses for the selected
-                      shipment.
-                    </p>
-                  </div>
-                </div>
-              )}
-            </TabsContent>
-
-            <TabsContent value="import" className="space-y-6">
-              <ExpenseImport
-                shipments={shipments}
-                expenseTypes={expenseTypes}
-                serviceProviders={serviceProviders}
-                onImportSuccess={handleImportSuccess}
-              />
-            </TabsContent>
-
-            <TabsContent value="debug" className="space-y-6">
-              <ExpenseDebug />
-            </TabsContent>
-          </Tabs>
-        )}
+                {activeTab === 'debug' && <ExpenseDebug />}
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </ModuleErrorBoundary>
   );

@@ -1,0 +1,152 @@
+/* src/components/shipment/table-shipment.css
+ * Shipment-specific extensions to the Industrial Console table.
+ * Import alongside ../supplier/table-industrial.css.
+ */
+
+/* ── Shipment status pill variants ──────────────────────────────────── */
+.im-status-pill--docs {
+  background: rgba(45, 212, 191, 0.1);
+  color: #2dd4bf;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+}
+.im-status-pill--in-transit {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+}
+.im-status-pill--customs {
+  background: rgba(167, 139, 250, 0.1);
+  color: #a78bfa;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+}
+.im-status-pill--ready {
+  background: rgba(232, 162, 58, 0.1);
+  color: #e8a23a;
+  border: 1px solid rgba(232, 162, 58, 0.25);
+}
+
+/* ── Toolbar row 2 ──────────────────────────────────────────────────── */
+.im-table-toolbar-row2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--im-rule);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+/* Supplier select */
+.im-toolbar-select {
+  padding: 6px 8px;
+  background: var(--im-sub);
+  border: 1px solid var(--im-rule);
+  color: var(--im-text);
+  font-family: var(--im-sans);
+  font-size: 12px;
+  outline: none;
+  min-width: 160px;
+  max-width: 200px;
+  cursor: pointer;
+}
+.im-toolbar-select:focus {
+  border-color: var(--im-faint);
+}
+.im-toolbar-select option {
+  background: #0a0a0a;
+}
+
+/* Date range inputs */
+.im-toolbar-date-wrap {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.im-toolbar-date-label {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  color: var(--im-faint);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+.im-toolbar-date {
+  padding: 5px 8px;
+  background: var(--im-sub);
+  border: 1px solid var(--im-rule);
+  color: var(--im-text);
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  outline: none;
+  width: 128px;
+  cursor: text;
+}
+.im-toolbar-date:focus {
+  border-color: var(--im-faint);
+}
+.im-toolbar-date::-webkit-calendar-picker-indicator {
+  filter: invert(0.55);
+  cursor: pointer;
+}
+
+/* Exception toggle buttons */
+.im-exception-btns {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.im-exception-btn {
+  padding: 4px 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  background: transparent;
+  border: 1px solid var(--im-rule);
+  color: var(--im-faint);
+  cursor: pointer;
+  white-space: nowrap;
+  text-transform: uppercase;
+  transition:
+    color 0.1s,
+    border-color 0.1s,
+    background 0.1s;
+}
+.im-exception-btn:hover {
+  color: var(--im-muted);
+  border-color: var(--im-faint);
+}
+.im-exception-btn.is-active {
+  background: var(--im-bad-bg);
+  color: var(--im-bad);
+  border-color: var(--im-bad-bdr);
+}
+.im-exception-btn--overdue.is-active {
+  background: rgba(232, 162, 58, 0.1);
+  color: var(--im-accent);
+  border-color: rgba(232, 162, 58, 0.3);
+}
+.im-clear-btn {
+  padding: 4px 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--im-faint);
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: color 0.1s;
+}
+.im-clear-btn:hover {
+  color: var(--im-muted);
+}
+
+/* ── Exception-flagged rows ──────────────────────────────────────────── */
+.im-tr.is-overdue {
+  box-shadow: inset 3px 0 0 var(--im-accent);
+}
+.im-tr.is-exception {
+  box-shadow: inset 3px 0 0 #60a5fa;
+}

@@ -1,7 +1,5 @@
 import { memo, useMemo } from 'react';
 import { Shield } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 export interface AutomationDeploymentSafetyPanelProps {
   viewOk: boolean;
@@ -21,6 +19,17 @@ export interface AutomationDeploymentSafetyPanelProps {
   onEnableProdSafetyGate: () => void | Promise<void>;
   onDisableProdSafetyGate: () => void | Promise<void>;
 }
+
+const preStyle: React.CSSProperties = {
+  background: 'var(--color-im-panel)',
+  border: '1px solid var(--color-im-rule)',
+  overflow: 'auto',
+  padding: 8,
+  fontSize: 10,
+  fontFamily: 'var(--font-im-mono)',
+  color: 'var(--color-im-muted)',
+  lineHeight: 1.5,
+};
 
 export const AutomationDeploymentSafetyPanel = memo(
   function AutomationDeploymentSafetyPanel({
@@ -47,108 +56,115 @@ export const AutomationDeploymentSafetyPanel = memo(
     );
 
     return (
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Shield className="h-4 w-4 shrink-0" />
-            Deployment safety
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3 text-sm">
-          <div className="flex flex-wrap gap-2">
-            <Button
+      <div className="im-section">
+        <div className="im-section__header">
+          <span
+            className="im-section__label"
+            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <Shield style={{ width: 14, height: 14, flexShrink: 0 }} />
+            // Deployment safety
+          </span>
+        </div>
+        <div
+          className="im-section__body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+        >
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               disabled={!viewOk}
               onClick={onLoadDashboard}
             >
               Safety dashboard
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               disabled={!viewOk}
               onClick={onLoadRecommendations}
             >
               Timing recommendations
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               disabled={ruleScopedActionsDisabled}
               onClick={onEvaluateSafety}
             >
               Evaluate safety
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               disabled={ruleScopedActionsDisabled}
               onClick={onDryRun}
             >
               Dry-run
-            </Button>
-            <Button
+            </button>
+            <button
               type="button"
-              variant="outline"
-              size="sm"
+              className="im-btn im-btn--sm"
               disabled={ruleScopedActionsDisabled}
               onClick={onAuditReport}
             >
               Audit report
-            </Button>
+            </button>
           </div>
           {mutateOk ? (
-            <div className="flex flex-wrap gap-2 border-t pt-2">
-              <Button
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                gap: 8,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 8,
+              }}
+            >
+              <button
                 type="button"
-                size="sm"
-                variant="secondary"
+                className="im-btn im-btn--sm im-btn--primary"
                 onClick={onEnableProdSafetyGate}
               >
                 Enable prod safety gate
-              </Button>
-              <Button
+              </button>
+              <button
                 type="button"
-                size="sm"
-                variant="outline"
+                className="im-btn im-btn--sm"
                 onClick={onDisableProdSafetyGate}
               >
                 Disable prod safety gate
-              </Button>
+              </button>
             </div>
           ) : null}
           {depSafetyDash ? (
-            <pre className="bg-muted max-h-36 overflow-auto rounded-md p-2 text-[10px]">
+            <pre style={{ ...preStyle, maxHeight: 144 }}>
               {JSON.stringify(depSafetyDash, null, 2)}
             </pre>
           ) : null}
           {depSafetyReco ? (
-            <pre className="bg-muted max-h-28 overflow-auto rounded-md p-2 text-[10px]">
+            <pre style={{ ...preStyle, maxHeight: 112 }}>
               {JSON.stringify(depSafetyReco, null, 2)}
             </pre>
           ) : null}
           {depSafetyEval ? (
-            <pre className="bg-muted max-h-44 overflow-auto rounded-md p-2 text-[10px]">
+            <pre style={{ ...preStyle, maxHeight: 176 }}>
               {JSON.stringify(depSafetyEval, null, 2)}
             </pre>
           ) : null}
           {depDryRun ? (
-            <pre className="bg-muted max-h-44 overflow-auto rounded-md p-2 text-[10px]">
+            <pre style={{ ...preStyle, maxHeight: 176 }}>
               {JSON.stringify(depDryRun, null, 2)}
             </pre>
           ) : null}
           {depSafetyAudit ? (
-            <pre className="bg-muted max-h-44 overflow-auto rounded-md p-2 text-[10px]">
+            <pre style={{ ...preStyle, maxHeight: 176 }}>
               {JSON.stringify(depSafetyAudit, null, 2)}
             </pre>
           ) : null}
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 );

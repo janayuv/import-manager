@@ -11,15 +11,7 @@ const BoeSummaryClient = React.lazy(() =>
     default: module.BoeSummaryClient,
   }))
 );
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import type { BoeDetails } from '@/types/boe';
 import type { SavedBoe, Shipment } from '@/types/boe-entry';
 
@@ -76,86 +68,109 @@ export default function BoeSummaryPage() {
 
   if (isLoading) {
     return (
-      <div className="space-y-8 p-4 md:p-8">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-72" />
-            <Skeleton className="mt-2 h-4 w-96" />
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-              <Skeleton className="h-10 w-full" />
-              <Skeleton className="h-10 w-full" />
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'BOE Summary']} />
+        <PageHeader
+          title="BOE Reconciliation Report"
+          subtitle="Loading data..."
+        />
+        <div
+          className="im-dashboard-body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+        >
+          <div className="im-section">
+            <div className="im-section__body">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <div
+                  style={{ height: 40, background: 'var(--color-im-rule)' }}
+                />
+                <div
+                  style={{ height: 40, background: 'var(--color-im-rule)' }}
+                />
+              </div>
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-6 w-48" />
-          </CardHeader>
-          <CardContent>
-            <Skeleton className="h-40 w-full" />
-          </CardContent>
-        </Card>
+          </div>
+          <div className="im-section">
+            <div className="im-section__body">
+              <div
+                style={{ height: 160, background: 'var(--color-im-rule)' }}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (decodedSavedBoeId && urlBoeNotFound) {
     return (
-      <div className="space-y-8 p-4 md:p-8">
-        <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-          <h2 className="text-card-foreground text-lg font-semibold">
-            Record not found
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            No saved BOE calculation with ID{' '}
-            <span className="text-foreground font-mono">
-              {decodedSavedBoeId}
-            </span>
-            .
-          </p>
-          <Button
-            type="button"
-            variant="default"
-            useAccentColor
-            onClick={() => navigate('/boe-summary')}
-            className="w-fit gap-2"
-          >
-            <ArrowLeft className="size-4" aria-hidden />
-            Back to BOE summary
-          </Button>
+      <div className="im-page">
+        <AppBar crumbs={['Import Manager', 'BOE Summary']} />
+        <div className="im-dashboard-body">
+          <div className="border-im-rule bg-im-panel mx-auto flex w-full max-w-lg flex-col gap-4 border p-8">
+            <h2 className="text-im-text text-lg font-semibold">
+              Record not found
+            </h2>
+            <p style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
+              No saved BOE calculation with ID{' '}
+              <span
+                style={{
+                  color: 'var(--color-im-text)',
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                }}
+              >
+                {decodedSavedBoeId}
+              </span>
+              .
+            </p>
+            <button
+              type="button"
+              className="im-btn im-btn--primary"
+              style={{
+                width: 'fit-content',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+              onClick={() => navigate('/boe-summary')}
+            >
+              <ArrowLeft style={{ width: 14, height: 14 }} aria-hidden />
+              Back to BOE summary
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-4 md:p-8">
-      <Card>
-        <CardHeader>
-          <div>
-            <CardTitle className="text-xl font-semibold text-blue-600">
-              BOE Reconciliation Report
-            </CardTitle>
-            <CardDescription>
-              Select a supplier and invoice to view a detailed breakdown of
-              duties and variance. Open a specific calculation from the URL or
-              pick one below.
-            </CardDescription>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'BOE Summary']} />
+      <PageHeader
+        title="BOE Reconciliation Report"
+        subtitle="Select a supplier and invoice to view a detailed breakdown of duties and variance. Open a specific calculation from the URL or pick one below."
+      />
+      <div className="im-dashboard-body">
+        <div className="im-section">
+          <div className="im-section__body">
+            <React.Suspense
+              fallback={
+                <div
+                  style={{ height: 384, background: 'var(--color-im-rule)' }}
+                />
+              }
+            >
+              <BoeSummaryClient
+                savedBoes={savedBoes}
+                shipments={shipments}
+                allBoes={allBoes}
+                initialSavedBoeId={decodedSavedBoeId}
+              />
+            </React.Suspense>
           </div>
-        </CardHeader>
-        <CardContent>
-          <React.Suspense fallback={<Skeleton className="h-96 w-full" />}>
-            <BoeSummaryClient
-              savedBoes={savedBoes}
-              shipments={shipments}
-              allBoes={allBoes}
-              initialSavedBoeId={decodedSavedBoeId}
-            />
-          </React.Suspense>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

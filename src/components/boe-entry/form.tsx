@@ -1,4 +1,3 @@
-// src/components/boe-entry/form.tsx (MODIFIED)
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -11,7 +10,13 @@ import * as React from 'react';
 
 import { type Resolver, useForm } from 'react-hook-form';
 
-import { Button } from '@/components/ui/button';
+import {
+  FieldError,
+  FieldLabel,
+  FormFooter,
+  ImInput,
+  ImSection,
+} from '@/components/shared/im';
 import { Combobox } from '@/components/ui/combobox';
 import {
   Form,
@@ -19,11 +24,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
-  FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-// Removed unused Select imports
 import { selectBoesForEntryDropdown } from '@/lib/boe-entry-dropdown-boes';
 import { calculateDuties } from '@/lib/duty-calculator';
 import { defaultSavedBoeStatusForNewEntry } from '@/lib/saved-boe-entry-status';
@@ -42,18 +43,6 @@ import { BoeDetailsTable } from './boe-details-table';
 import { CalculationResults } from './calculation-results';
 import { ItemsTable } from './items-table';
 
-// src/components/boe-entry/form.tsx (MODIFIED)
-
-// src/components/boe-entry/form.tsx (MODIFIED)
-
-// src/components/boe-entry/form.tsx (MODIFIED)
-
-// src/components/boe-entry/form.tsx (MODIFIED)
-
-// src/components/boe-entry/form.tsx (MODIFIED)
-
-// src/components/boe-entry/form.tsx (MODIFIED)
-
 function boePrefixFilter(value: string, search: string): number {
   if (!search) return 1;
   const digits = (s: string) => s.replace(/\D/g, '');
@@ -64,6 +53,10 @@ function boePrefixFilter(value: string, search: string): number {
   if (v.startsWith(q)) return 1;
   return 0;
 }
+
+/** Industrial trigger styling for shared Combobox (replaces default outline button). */
+const IM_COMBO_TRIGGER_CLASS =
+  'border-im-rule bg-im-sub text-im-text hover:bg-im-hover flex h-[34px] w-full min-h-[34px] shrink-0 items-center justify-between gap-2 border px-2.5 font-sans text-[12.5px] font-normal tracking-normal shadow-none rounded-none focus-visible:border-im-accent focus-visible:ring-0 disabled:cursor-not-allowed disabled:opacity-50';
 
 const formSchema = z.object({
   supplierName: z.string().min(1, { message: 'Please select a supplier.' }),
@@ -557,248 +550,300 @@ export function BoeEntryForm({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-2 lg:grid-cols-3">
-          <FormField
-            name="supplierName"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Supplier</FormLabel>
-                <Combobox
-                  options={suppliers.map(s => ({ value: s, label: s }))}
-                  value={field.value}
-                  onChange={handleSupplierChange}
-                  placeholder="Select a supplier"
-                  searchPlaceholder="Search suppliers..."
-                  emptyText="No supplier found."
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="shipmentId"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Invoice / Shipment</FormLabel>
-                <Combobox
-                  options={availableInvoices.map(inv => ({
-                    value: inv.id,
-                    label: `${inv.invoiceNumber} - ${inv.supplierName}`,
-                  }))}
-                  value={field.value}
-                  onChange={handleInvoiceChange}
-                  placeholder="Select an invoice"
-                  searchPlaceholder="Search invoices..."
-                  emptyText="No invoice found."
-                  disabled={!availableInvoices.length && !isEditing}
-                />
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormItem>
-            <FormLabel>BOE No (Optional)</FormLabel>
-            <Combobox
-              options={boeOptions}
-              value={selectedBoeId}
-              onChange={handleBoeSelect}
-              placeholder="Select a BOE..."
-              searchPlaceholder="Search BOE No..."
-              emptyText="No BOE found."
-              filter={boePrefixFilter}
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-4"
+      >
+        <ImSection
+          label="SELECTION"
+          sub="Supplier, invoice, and optional linked BOE for validation."
+        >
+          <div className="im-grid im-grid__3 gap-3">
+            <FormField
+              name="supplierName"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    Supplier<span className="im-field-label__req">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Combobox
+                      options={suppliers.map(s => ({ value: s, label: s }))}
+                      value={field.value}
+                      onChange={handleSupplierChange}
+                      placeholder="— Select supplier —"
+                      searchPlaceholder="Search suppliers…"
+                      emptyText="No supplier found."
+                      className={IM_COMBO_TRIGGER_CLASS}
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
             />
-          </FormItem>
-        </div>
+            <FormField
+              name="shipmentId"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    Invoice / shipment
+                    <span className="im-field-label__req">*</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Combobox
+                      options={availableInvoices.map(inv => ({
+                        value: inv.id,
+                        label: `${inv.invoiceNumber} - ${inv.supplierName}`,
+                      }))}
+                      value={field.value}
+                      onChange={handleInvoiceChange}
+                      placeholder="— Select invoice —"
+                      searchPlaceholder="Search invoices…"
+                      emptyText="No invoice found."
+                      disabled={!availableInvoices.length && !isEditing}
+                      className={IM_COMBO_TRIGGER_CLASS}
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
+            />
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel>BOE no (optional)</FieldLabel>
+              <Combobox
+                options={boeOptions}
+                value={selectedBoeId}
+                onChange={handleBoeSelect}
+                placeholder="— Select BOE —"
+                searchPlaceholder="Search BOE no…"
+                emptyText="No BOE found."
+                filter={boePrefixFilter}
+                className={IM_COMBO_TRIGGER_CLASS}
+              />
+            </div>
+          </div>
+        </ImSection>
 
         {selectedBoeDetails && <BoeDetailsTable boe={selectedBoeDetails} />}
 
-        <div className="mt-8 grid grid-cols-1 items-end gap-6 md:grid-cols-3 lg:grid-cols-6">
-          <FormField
-            name="exchangeRate"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Exchange Rate</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    placeholder="e.g., 83.50"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={e =>
-                      field.onChange(
-                        e.target.value === '' ? undefined : e.target.value
-                      )
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="freightCost"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Freight Cost</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g., 5000"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={e =>
-                      field.onChange(
-                        e.target.value === '' ? undefined : e.target.value
-                      )
-                    }
-                    disabled={isCif}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="exwCost"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>EXW Cost</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g., 200"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={e =>
-                      field.onChange(
-                        e.target.value === '' ? undefined : e.target.value
-                      )
-                    }
-                    disabled={isCif}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="insuranceRate"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Insurance %</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.001"
-                    placeholder="e.g., 1.125"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={e =>
-                      field.onChange(
-                        e.target.value === '' ? undefined : e.target.value
-                      )
-                    }
-                    disabled={isCif}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            name="interest"
-            control={form.control}
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Interest</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    placeholder="e.g., 100"
-                    {...field}
-                    value={field.value ?? ''}
-                    onChange={e =>
-                      field.onChange(
-                        e.target.value === '' ? undefined : e.target.value
-                      )
-                    }
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <div className="md:col-span-2 lg:col-span-1">
-            <Label htmlFor="override-file">Duty Override File (Optional)</Label>
-            <Input
-              id="override-file"
-              type="file"
-              accept=".csv"
-              onChange={e => setOverrideFile(e.target.files?.[0] || null)}
+        <ImSection
+          label="LANDED COST INPUTS"
+          sub="Rates and costs used for duty calculation. CIF shipments lock freight-related fields."
+        >
+          <div className="im-grid im-grid__4 gap-3">
+            <FormField
+              name="exchangeRate"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    Exchange rate
+                  </FormLabel>
+                  <FormControl>
+                    <ImInput
+                      type="number"
+                      step="0.001"
+                      placeholder="e.g. 83.50"
+                      mono
+                      hasError={!!fieldState.error}
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={e =>
+                        field.onChange(
+                          e.target.value === '' ? undefined : e.target.value
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
             />
+            <FormField
+              name="freightCost"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    Freight cost
+                  </FormLabel>
+                  <FormControl>
+                    <ImInput
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 5000"
+                      mono
+                      hasError={!!fieldState.error}
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={e =>
+                        field.onChange(
+                          e.target.value === '' ? undefined : e.target.value
+                        )
+                      }
+                      disabled={isCif}
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="exwCost"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    EXW cost
+                  </FormLabel>
+                  <FormControl>
+                    <ImInput
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 200"
+                      mono
+                      hasError={!!fieldState.error}
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={e =>
+                        field.onChange(
+                          e.target.value === '' ? undefined : e.target.value
+                        )
+                      }
+                      disabled={isCif}
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="insuranceRate"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    Insurance %
+                  </FormLabel>
+                  <FormControl>
+                    <ImInput
+                      type="number"
+                      step="0.001"
+                      placeholder="e.g. 1.125"
+                      mono
+                      hasError={!!fieldState.error}
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={e =>
+                        field.onChange(
+                          e.target.value === '' ? undefined : e.target.value
+                        )
+                      }
+                      disabled={isCif}
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
+            />
+            <FormField
+              name="interest"
+              control={form.control}
+              render={({ field, fieldState }) => (
+                <FormItem className="gap-1.5">
+                  <FormLabel className="im-field-label data-[error=true]:text-im-bad !mb-0">
+                    Interest
+                  </FormLabel>
+                  <FormControl>
+                    <ImInput
+                      type="number"
+                      step="0.01"
+                      placeholder="e.g. 100"
+                      mono
+                      hasError={!!fieldState.error}
+                      {...field}
+                      value={field.value ?? ''}
+                      onChange={e =>
+                        field.onChange(
+                          e.target.value === '' ? undefined : e.target.value
+                        )
+                      }
+                    />
+                  </FormControl>
+                  <FieldError message={fieldState.error?.message} />
+                </FormItem>
+              )}
+            />
+            <div className="im-grid__align-end flex flex-col gap-1.5 md:col-span-2 lg:col-span-1">
+              <FieldLabel htmlFor="boe-entry-override-file">
+                Duty override file (optional)
+              </FieldLabel>
+              <input
+                id="boe-entry-override-file"
+                type="file"
+                accept=".csv"
+                onChange={e => setOverrideFile(e.target.files?.[0] || null)}
+                className="im-input file:text-im-muted h-[34px] cursor-pointer py-0 text-xs file:mr-2 file:border-0 file:bg-transparent file:font-mono file:text-[11px]"
+              />
+            </div>
           </div>
-        </div>
+        </ImSection>
 
         {selectedShipment && (
-          <div className="mt-8">
-            <h3 className="mb-4 text-lg font-medium">Invoice Items</h3>
+          <ImSection
+            label="INVOICE LINE ITEMS"
+            sub="BOE duty rates per line. IGST follows the invoice snapshot."
+          >
             <ItemsTable
               items={selectedShipment.items}
               itemInputs={itemInputs}
               setItemInputs={setItemInputs}
             />
-          </div>
+          </ImSection>
         )}
 
-        <div className="flex justify-end space-x-4">
-          <Button
+        <FormFooter
+          note={
+            overrideFile
+              ? 'Duty override CSV attached — submit runs import then calculate.'
+              : undefined
+          }
+        >
+          <button
             type="button"
-            variant="default"
-            useAccentColor
+            className="im-btn im-btn--sm"
             onClick={handleDownloadOverrideTemplate}
           >
-            Download Item Template
-          </Button>
-          <Button
+            Download item template
+          </button>
+          <button
             type="submit"
-            variant="default"
-            useAccentColor
+            className="im-btn im-btn--primary im-btn--sm"
             disabled={!form.formState.isValid}
           >
-            {overrideFile ? 'Import & Calculate' : 'Calculate Duties'}
-          </Button>
+            {overrideFile ? 'Import & calculate' : 'Calculate duties'}
+          </button>
           {calculationResult && (
-            <Button
+            <button
               type="button"
-              variant="default"
-              useAccentColor
+              className="im-btn im-btn--primary im-btn--sm"
               onClick={handleSaveOrUpdate}
             >
               {isEditing ? 'Update BOE' : 'Save BOE'}
-            </Button>
+            </button>
           )}
           {isEditing && (
-            <Button
+            <button
               type="button"
-              variant="outline"
-              useAccentColor
+              className="im-btn im-btn--sm"
               onClick={onCancelEdit}
             >
-              Cancel Edit
-            </Button>
+              Cancel edit
+            </button>
           )}
-        </div>
+        </FormFooter>
       </form>
 
       {calculationResult && <CalculationResults results={calculationResult} />}

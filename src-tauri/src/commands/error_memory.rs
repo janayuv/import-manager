@@ -238,7 +238,7 @@ fn redact_sensitive(raw: &str) -> String {
     ] {
         let pattern = format!(r#"(?i)("{}\s*"\s*:\s*")[^"]+""#, key);
         if let Ok(re) = regex::Regex::new(&pattern) {
-            out = re.replace_all(&out, format!("${{1}}<redacted>\"")).to_string();
+            out = re.replace_all(&out, "${1}<redacted>\"".to_string()).to_string();
         }
     }
     out

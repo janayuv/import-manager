@@ -8,8 +8,6 @@ import { toast } from 'sonner';
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -18,14 +16,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   computeDutyFromRates,
   computeLandedCostPerUnit,
@@ -41,6 +31,93 @@ import type { CalculatedDutyItem, SavedBoe, Shipment } from '@/types/boe-entry';
 
 import { StatusBadge } from './status-badge';
 
+/* ── Design tokens ─────────────────────────────────────────────── */
+const IM = {
+  panel: '#101010',
+  alt: '#0C0C0B',
+  header: '#0D0D0B',
+  text: '#EFEDE8',
+  muted: '#8C8A82',
+  faint: '#56544E',
+  rule: '#1F1E1A',
+  hover: '#161513',
+  accent: '#E8A23A',
+  accentBg: 'rgba(232,162,58,0.10)',
+  accentBdr: 'rgba(232,162,58,0.25)',
+  good: '#5FCB7D',
+  goodBg: 'rgba(95,203,125,0.10)',
+  goodBdr: 'rgba(95,203,125,0.22)',
+  bad: '#F87171',
+  badBg: 'rgba(248,113,113,0.09)',
+  badBdr: 'rgba(248,113,113,0.20)',
+  mono: "Consolas, 'Courier New', monospace",
+} as const;
+
+const panelStyle: React.CSSProperties = {
+  border: `1px solid ${IM.rule}`,
+  background: IM.panel,
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const panelHeaderStyle: React.CSSProperties = {
+  background: IM.header,
+  borderBottom: `1px solid ${IM.rule}`,
+  padding: '8px 16px',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 12,
+  flexWrap: 'wrap' as const,
+};
+
+const panelTitleStyle: React.CSSProperties = {
+  fontFamily: IM.mono,
+  fontSize: 11,
+  fontWeight: 700,
+  color: IM.text,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+};
+
+const thStyle: React.CSSProperties = {
+  padding: '8px 12px',
+  textAlign: 'left',
+  fontFamily: IM.mono,
+  fontSize: 10.5,
+  fontWeight: 700,
+  color: IM.muted,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  borderBottom: `1px solid ${IM.rule}`,
+  whiteSpace: 'nowrap' as const,
+};
+
+const thRightStyle: React.CSSProperties = { ...thStyle, textAlign: 'right' };
+
+const tdStyle: React.CSSProperties = {
+  padding: '0 12px',
+  height: 36,
+  fontSize: 12,
+  color: IM.text,
+  fontFamily: IM.mono,
+  borderBottom: `1px solid ${IM.rule}`,
+  whiteSpace: 'nowrap' as const,
+};
+
+const tdRightStyle: React.CSSProperties = { ...tdStyle, textAlign: 'right' };
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontFamily: IM.mono,
+  fontSize: 10,
+  color: IM.muted,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  display: 'block',
+  marginBottom: 4,
+};
+
+/* ── Helpers (logic unchanged) ─────────────────────────────────── */
 const formatCurrency = (amount: number | null | undefined) => {
   if (amount === null || amount === undefined) return '-';
   return new Intl.NumberFormat('en-US', {
@@ -54,19 +131,15 @@ const formatCurrencyNoDecimals = (amount: number | null | undefined) => {
   return formatCurrencyWithSettings(amount);
 };
 
-// Function to get ordered fields based on settings
 const getOrderedFields = () => {
   const settings = loadSettings();
   const boeSummaryFields = settings.modules.boeSummary.fields;
-
-  // Convert to array and sort by order
   return Object.entries(boeSummaryFields)
     .filter(([, config]) => config.visible)
     .sort(([, a], [, b]) => a.order - b.order)
     .map(([fieldName]) => fieldName);
 };
 
-// Function to get field display name
 const getFieldDisplayName = (fieldName: string) => {
   const fieldMap: Record<string, string> = {
     partNo: 'Part No',
@@ -82,11 +155,10 @@ const getFieldDisplayName = (fieldName: string) => {
     actualDuty: 'Actual Duty',
     savings: 'Savings',
   };
-
   return fieldMap[fieldName] || fieldName;
 };
 
-// Function to render cell value
+/* renderCellValue — logic unchanged, now returns <td> instead of <TableCell> */
 const renderCellValue = (
   fieldName: string,
   row: {
@@ -106,75 +178,65 @@ const renderCellValue = (
 ) => {
   switch (fieldName) {
     case 'partNo':
-      return <TableCell className="font-medium">{row.partNo}</TableCell>;
+      return <td style={{ ...tdStyle, fontWeight: 700 }}>{row.partNo}</td>;
     case 'description':
-      return <TableCell>{row.description}</TableCell>;
+      return <td style={tdStyle}>{row.description}</td>;
     case 'assessableValue':
       return (
-        <TableCell className="text-right font-mono">
+        <td style={tdRightStyle}>
           {formatCurrencyNoDecimals(row.assessableValue)}
-        </TableCell>
+        </td>
       );
     case 'bcd':
       return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.bcdValue)}
-        </TableCell>
+        <td style={tdRightStyle}>{formatCurrencyNoDecimals(row.bcdValue)}</td>
       );
     case 'sws':
       return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.swsValue)}
-        </TableCell>
+        <td style={tdRightStyle}>{formatCurrencyNoDecimals(row.swsValue)}</td>
       );
     case 'igst':
       return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.igstValue)}
-        </TableCell>
+        <td style={tdRightStyle}>{formatCurrencyNoDecimals(row.igstValue)}</td>
       );
     case 'totalDuty':
       return (
-        <TableCell className="text-right font-mono">
-          {formatCurrencyNoDecimals(row.totalDuty)}
-        </TableCell>
+        <td style={tdRightStyle}>{formatCurrencyNoDecimals(row.totalDuty)}</td>
       );
     case 'qty':
-      return (
-        <TableCell className="text-right font-mono">{row.qty || '-'}</TableCell>
-      );
+      return <td style={tdRightStyle}>{row.qty || '-'}</td>;
     case 'perUnitDuty':
       return (
-        <TableCell className="text-right font-mono">
+        <td style={tdRightStyle}>
           {row.qty ? formatCurrency(row.perUnitDuty) : '-'}
-        </TableCell>
+        </td>
       );
     case 'landedCostPerUnit':
       return (
-        <TableCell className="text-right font-mono">
+        <td style={tdRightStyle}>
           {row.qty ? formatCurrency(row.landedCostPerUnit) : '-'}
-        </TableCell>
+        </td>
       );
     case 'actualDuty':
       return (
-        <TableCell className="text-right font-mono">
+        <td style={tdRightStyle}>
           {row.actualDuty != null
             ? formatCurrencyNoDecimals(row.actualDuty)
             : '-'}
-        </TableCell>
+        </td>
       );
     case 'savings':
       return (
-        <TableCell className="text-right font-mono">
+        <td style={tdRightStyle}>
           {formatCurrencyNoDecimals(row.dutySavings)}
-        </TableCell>
+        </td>
       );
     default:
-      return <TableCell>-</TableCell>;
+      return <td style={tdStyle}>-</td>;
   }
 };
 
-// Function to render totals cell value
+/* renderTotalsCellValue — logic unchanged, now returns <td> */
 const renderTotalsCellValue = (
   fieldName: string,
   totals: {
@@ -188,86 +250,91 @@ const renderTotalsCellValue = (
   },
   orderedFields: string[]
 ) => {
-  // Find the index of the current field in the ordered fields
   const fieldIndex = orderedFields.indexOf(fieldName);
 
-  // If this is the first field (partNo), create a cell that spans the first two columns
   if (fieldIndex === 0) {
     return (
-      <TableCell colSpan={2} className="text-right font-semibold">
+      <td
+        colSpan={2}
+        style={{
+          ...tdStyle,
+          textAlign: 'right',
+          fontWeight: 700,
+          color: IM.accent,
+          background: IM.accentBg,
+        }}
+      >
         Totals
-      </TableCell>
+      </td>
     );
   }
 
-  // If this is the second field (description), skip it since it's covered by the colspan
   if (fieldIndex === 1) {
     return null;
   }
 
-  // For all other fields, render the appropriate value
+  const totalTdStyle: React.CSSProperties = {
+    ...tdRightStyle,
+    fontWeight: 700,
+    color: IM.accent,
+    background: IM.accentBg,
+  };
+
   switch (fieldName) {
     case 'assessableValue':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.assessableValue)}
-        </TableCell>
+        </td>
       );
     case 'bcd':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.bcdValue)}
-        </TableCell>
+        </td>
       );
     case 'sws':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.swsValue)}
-        </TableCell>
+        </td>
       );
     case 'igst':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.igstValue)}
-        </TableCell>
+        </td>
       );
     case 'totalDuty':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.totalDuty)}
-        </TableCell>
+        </td>
       );
     case 'qty':
-      return (
-        <TableCell className="text-right font-mono font-semibold">-</TableCell>
-      );
+      return <td style={totalTdStyle}>-</td>;
     case 'perUnitDuty':
-      return (
-        <TableCell className="text-right font-mono font-semibold">-</TableCell>
-      );
+      return <td style={totalTdStyle}>-</td>;
     case 'landedCostPerUnit':
-      return (
-        <TableCell className="text-right font-mono font-semibold">-</TableCell>
-      );
+      return <td style={totalTdStyle}>-</td>;
     case 'actualDuty':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.actualDuty)}
-        </TableCell>
+        </td>
       );
     case 'savings':
       return (
-        <TableCell className="text-right font-mono font-semibold">
+        <td style={totalTdStyle}>
           {formatCurrencyNoDecimals(totals.dutySavings)}
-        </TableCell>
+        </td>
       );
     default:
-      return (
-        <TableCell className="text-right font-mono font-semibold">-</TableCell>
-      );
+      return <td style={totalTdStyle}>-</td>;
   }
 };
 
+/* ── Download / export helpers (logic unchanged) ─────────────── */
 function downloadCsv(
   filename: string,
   rows: Array<Record<string, string | number>>
@@ -320,11 +387,7 @@ async function exportXlsx(params: {
     const headers = Object.keys(itemsRows[0]);
     itemsSheet.addRow(headers);
     itemsRows.forEach(row => {
-      itemsSheet.addRow(
-        headers.map(header => {
-          return row[header];
-        })
-      );
+      itemsSheet.addRow(headers.map(header => row[header]));
     });
   }
 
@@ -356,7 +419,6 @@ function printReport(params: {
 
   try {
     const orderedFields = getOrderedFields();
-
     const fieldDisplayNames = orderedFields.map(fieldName =>
       getFieldDisplayName(fieldName)
     );
@@ -366,7 +428,6 @@ function printReport(params: {
         const cells = orderedFields
           .map(fieldName => {
             const displayName = getFieldDisplayName(fieldName);
-
             const value = r[displayName] ?? '-';
             const isNumeric = [
               'assessableValue',
@@ -383,9 +444,7 @@ function printReport(params: {
             return `<td class="${isNumeric ? 'num' : ''}">${value}</td>`;
           })
           .join('');
-
-        const rowHtml = `<tr>${cells}</tr>`;
-        return rowHtml;
+        return `<tr>${cells}</tr>`;
       })
       .join('');
 
@@ -396,16 +455,13 @@ function printReport(params: {
           calculated: number;
           boe: number | null;
           variance: number | null;
-        }) => {
-          const rowHtml = `
+        }) => `
           <tr>
             <td>${r.label}</td>
             <td class="num">${r.calculated.toFixed(2)}</td>
             <td class="num">${r.boe != null ? r.boe.toFixed(2) : '-'}</td>
             <td class="num">${r.variance != null ? r.variance.toFixed(2) : '-'}</td>
-          </tr>`;
-          return rowHtml;
-        }
+          </tr>`
       )
       .join('');
 
@@ -426,30 +482,30 @@ function printReport(params: {
     <body>
       <h1>${title}</h1>
       <h2>Item Details</h2>
-           <table>
-         <thead>
-           <tr>
-             ${fieldDisplayNames
-               .map(displayName => {
-                 const isNumeric = [
-                   'Assessable',
-                   'BCD',
-                   'SWS',
-                   'IGST',
-                   'Total Duty',
-                   'Qty',
-                   'Per-Unit Duty',
-                   'Landed Cost / Unit',
-                   'Actual Duty',
-                   'Savings',
-                 ].includes(displayName);
-                 return `<th class="${isNumeric ? 'num' : ''}">${displayName}</th>`;
-               })
-               .join('')}
-           </tr>
-         </thead>
-         <tbody>${itemRowsHtml}</tbody>
-       </table>
+      <table>
+        <thead>
+          <tr>
+            ${fieldDisplayNames
+              .map(displayName => {
+                const isNumeric = [
+                  'Assessable',
+                  'BCD',
+                  'SWS',
+                  'IGST',
+                  'Total Duty',
+                  'Qty',
+                  'Per-Unit Duty',
+                  'Landed Cost / Unit',
+                  'Actual Duty',
+                  'Savings',
+                ].includes(displayName);
+                return `<th class="${isNumeric ? 'num' : ''}">${displayName}</th>`;
+              })
+              .join('')}
+          </tr>
+        </thead>
+        <tbody>${itemRowsHtml}</tbody>
+      </table>
       <h2>BOE Summary & Variance</h2>
       <table>
         <thead>
@@ -462,7 +518,6 @@ function printReport(params: {
       <script>window.onload = () => window.print();</script>
     </body></html>`;
 
-    // Try to open the print window
     const printWindow = window.open(
       '',
       '_blank',
@@ -471,8 +526,6 @@ function printReport(params: {
 
     if (!printWindow) {
       console.error('❌ Failed to open print window - popup blocked?');
-
-      // Fallback: Create a temporary iframe for printing
       try {
         const iframe = document.createElement('iframe');
         iframe.style.position = 'fixed';
@@ -482,21 +535,15 @@ function printReport(params: {
         iframe.style.height = '0';
         iframe.style.border = '0';
         iframe.style.visibility = 'hidden';
-
         document.body.appendChild(iframe);
-
         const iframeDoc =
           iframe.contentDocument || iframe.contentWindow?.document;
         if (iframeDoc) {
           iframeDoc.open();
           iframeDoc.write(html);
           iframeDoc.close();
-
-          // Wait a moment for content to load, then print
           setTimeout(() => {
             iframe.contentWindow?.print();
-
-            // Remove iframe after printing
             setTimeout(() => {
               document.body.removeChild(iframe);
             }, 1000);
@@ -528,6 +575,77 @@ function printReport(params: {
   }
 }
 
+/* ── ImBtn — amber industrial button ─────────────────────────── */
+function ImBtn({
+  onClick,
+  children,
+  disabled,
+  primary = false,
+  type = 'button',
+}: {
+  onClick?: () => void | Promise<void>;
+  children: React.ReactNode;
+  disabled?: boolean;
+  primary?: boolean;
+  type?: 'button' | 'submit';
+}) {
+  const [hovered, setHovered] = React.useState(false);
+  return (
+    <button
+      type={type}
+      onClick={onClick ? () => void onClick() : undefined}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        padding: '5px 14px',
+        fontFamily: IM.mono,
+        fontSize: 11,
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        textTransform: 'uppercase',
+        whiteSpace: 'nowrap',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.4 : 1,
+        transition: 'filter 80ms',
+        background: primary ? IM.accent : 'transparent',
+        border: `1px solid ${primary ? IM.accent : hovered ? IM.faint : IM.rule}`,
+        color: primary ? '#100c04' : hovered ? IM.text : IM.muted,
+        filter: primary && hovered && !disabled ? 'brightness(1.08)' : 'none',
+      }}
+    >
+      {children}
+    </button>
+  );
+}
+
+/* ── ImRow helper ─────────────────────────────────────────────── */
+function ImRow({
+  children,
+  even,
+  totals,
+}: {
+  children: React.ReactNode;
+  even: boolean;
+  totals?: boolean;
+}) {
+  const [hovered, setHovered] = React.useState(false);
+  const base = totals ? IM.accentBg : even ? IM.panel : IM.alt;
+  return (
+    <tr
+      style={{
+        background: hovered && !totals ? IM.hover : base,
+        transition: 'background 80ms',
+      }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
+      {children}
+    </tr>
+  );
+}
+
+/* ── ItemDetailsTable ─────────────────────────────────────────── */
 function ItemDetailsTable({
   items,
   quantities,
@@ -627,22 +745,14 @@ function ItemDetailsTable({
     Savings: Math.round(r.dutySavings),
   }));
 
-  const handleExport = () => {
-    downloadCsv('boe-item-details.csv', exportRows);
-  };
-
+  const handleExport = () => downloadCsv('boe-item-details.csv', exportRows);
   const handleExportXlsx = async () =>
     await exportXlsx({ itemsRows: exportRows, summary: [] });
-
   const handlePrint = () => {
-    // Show a helpful message about popup blockers
     toast.info(
       'Printing... If nothing happens, please allow popups for this site.',
-      {
-        duration: 3000,
-      }
+      { duration: 3000 }
     );
-
     printReport({
       itemsRows: exportRows,
       summary: [],
@@ -653,85 +763,63 @@ function ItemDetailsTable({
   const orderedFields = getOrderedFields();
 
   return (
-    <Card className="mt-2">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>Item Details</CardTitle>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="default"
-            useAccentColor
-            onClick={handleExport}
-          >
-            CSV
-          </Button>
-          <Button
-            size="sm"
-            variant="default"
-            useAccentColor
-            onClick={handleExportXlsx}
-          >
-            Excel
-          </Button>
-          <Button
-            size="sm"
-            variant="default"
-            useAccentColor
-            onClick={handlePrint}
-          >
-            Print
-          </Button>
+    <div style={panelStyle}>
+      <div style={panelHeaderStyle}>
+        <span style={panelTitleStyle}>Item Details</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <ImBtn onClick={handleExport}>CSV</ImBtn>
+          <ImBtn onClick={handleExportXlsx}>Excel</ImBtn>
+          <ImBtn onClick={handlePrint}>Print</ImBtn>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                {orderedFields.map(fieldName => (
-                  <TableHead
-                    key={fieldName}
-                    className={
-                      fieldName !== 'partNo' && fieldName !== 'description'
-                        ? 'text-right'
-                        : ''
-                    }
-                  >
-                    {getFieldDisplayName(fieldName)}
-                  </TableHead>
-                ))}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {rows.map(r => (
-                <TableRow key={r.partNo}>
-                  {orderedFields.map(fieldName => (
-                    <React.Fragment key={fieldName}>
-                      {renderCellValue(fieldName, r)}
-                    </React.Fragment>
-                  ))}
-                </TableRow>
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: IM.header }}>
+              {orderedFields.map(fieldName => (
+                <th
+                  key={fieldName}
+                  style={
+                    fieldName !== 'partNo' && fieldName !== 'description'
+                      ? thRightStyle
+                      : thStyle
+                  }
+                >
+                  {getFieldDisplayName(fieldName)}
+                </th>
               ))}
-              <TableRow className="bg-muted/30">
-                {orderedFields.map(fieldName => {
-                  const cell = renderTotalsCellValue(
-                    fieldName,
-                    totals,
-                    orderedFields
-                  );
-                  return cell ? (
-                    <React.Fragment key={fieldName}>{cell}</React.Fragment>
-                  ) : null;
-                })}
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <ImRow key={r.partNo} even={i % 2 === 0}>
+                {orderedFields.map(fieldName => (
+                  <React.Fragment key={fieldName}>
+                    {renderCellValue(fieldName, r)}
+                  </React.Fragment>
+                ))}
+              </ImRow>
+            ))}
+            <ImRow even={rows.length % 2 === 0} totals>
+              {orderedFields.map(fieldName => {
+                const cell = renderTotalsCellValue(
+                  fieldName,
+                  totals,
+                  orderedFields
+                );
+                return cell ? (
+                  <React.Fragment key={fieldName}>{cell}</React.Fragment>
+                ) : null;
+              })}
+            </ImRow>
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
+/* ── BoeSummaryTable ──────────────────────────────────────────── */
 function BoeSummaryTable({
   assessableTotal,
   bcdTotal,
@@ -770,7 +858,7 @@ function BoeSummaryTable({
     },
   ];
 
-  const handleExport = () => {
+  const handleExport = () =>
     downloadCsv(
       'boe-summary.csv',
       summaryRows.map(r => ({
@@ -780,95 +868,76 @@ function BoeSummaryTable({
         Variance: r.variance ?? '',
       }))
     );
-  };
-
   const handleExportXlsx = async () =>
     await exportXlsx({ itemsRows: [], summary: summaryRows });
-
   const handlePrint = () => {
-    // Show a helpful message about popup blockers
     toast.info(
       'Printing... If nothing happens, please allow popups for this site.',
-      {
-        duration: 3000,
-      }
+      { duration: 3000 }
     );
-
     printReport({ itemsRows: [], summary: summaryRows, title: 'BOE Summary' });
   };
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0">
-        <CardTitle>BOE Summary & Variance</CardTitle>
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="default"
-            useAccentColor
-            onClick={handleExport}
-          >
-            CSV
-          </Button>
-          <Button
-            size="sm"
-            variant="default"
-            useAccentColor
-            onClick={handleExportXlsx}
-          >
-            Excel
-          </Button>
-          <Button
-            size="sm"
-            variant="default"
-            useAccentColor
-            onClick={handlePrint}
-          >
-            Print
-          </Button>
+    <div style={panelStyle}>
+      <div style={panelHeaderStyle}>
+        <span style={panelTitleStyle}>BOE Summary &amp; Variance</span>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <ImBtn onClick={handleExport}>CSV</ImBtn>
+          <ImBtn onClick={handleExportXlsx}>Excel</ImBtn>
+          <ImBtn onClick={handlePrint}>Print</ImBtn>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="overflow-x-auto rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-muted/50">
-                <TableHead>Metric</TableHead>
-                <TableHead className="text-right">Calculated</TableHead>
-                <TableHead className="text-right">BOE</TableHead>
-                <TableHead className="text-right">
-                  Variance (Calc - BOE)
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {summaryRows.map(r => (
-                <TableRow key={r.label}>
-                  <TableCell className="font-medium">{r.label}</TableCell>
-                  <TableCell className="text-right font-mono">
-                    {formatCurrency(r.calculated)}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
+      </div>
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: IM.header }}>
+              <th style={thStyle}>Metric</th>
+              <th style={thRightStyle}>Calculated</th>
+              <th style={thRightStyle}>BOE</th>
+              <th style={thRightStyle}>Variance (Calc − BOE)</th>
+            </tr>
+          </thead>
+          <tbody>
+            {summaryRows.map((r, i) => {
+              const hasVariance = r.variance != null;
+              const isPositive = hasVariance && r.variance! > 0;
+              const isNegative = hasVariance && r.variance! < 0;
+              return (
+                <ImRow key={r.label} even={i % 2 === 0}>
+                  <td style={{ ...tdStyle, fontWeight: 600 }}>{r.label}</td>
+                  <td style={tdRightStyle}>{formatCurrency(r.calculated)}</td>
+                  <td style={tdRightStyle}>
                     {r.boe != null ? formatCurrency(r.boe) : '-'}
-                  </TableCell>
-                  <TableCell className="text-right font-mono">
+                  </td>
+                  <td
+                    style={{
+                      ...tdRightStyle,
+                      color: isPositive
+                        ? IM.bad
+                        : isNegative
+                          ? IM.good
+                          : IM.muted,
+                      fontWeight: hasVariance ? 700 : undefined,
+                    }}
+                  >
                     {r.variance != null ? formatCurrency(r.variance) : '-'}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </CardContent>
-    </Card>
+                  </td>
+                </ImRow>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 }
 
+/* ── Main client component ────────────────────────────────────── */
 interface BoeSummaryClientProps {
   savedBoes: SavedBoe[];
   shipments: Shipment[];
   allBoes: BoeDetails[];
-  /** Deep link from `/boe-summary/:savedBoeId` */
   initialSavedBoeId?: string | null;
 }
 
@@ -912,19 +981,16 @@ export function BoeSummaryClient({
     if (!selectedInvoiceId) return null;
     const savedBoe = mergedSavedBoes.find(b => b.id === selectedInvoiceId);
     if (!savedBoe) return null;
-    // NOTE: shipments passed earlier might exclude some; fetch fresh for summary
     const shipment = shipments.find(s => s.id === savedBoe.shipmentId) || null;
     const boeDetails = savedBoe.boeId
       ? allBoes.find(b => b.id === savedBoe.boeId) || null
       : null;
-
     const assessableTotal = savedBoe.calculationResult.calculatedItems.reduce(
       (sum, it) => sum + it.assessableValue,
       0
     );
     const { bcdTotal, swsTotal, igstTotal, interest, customsDutyTotal } =
       savedBoe.calculationResult;
-
     return {
       savedBoe,
       shipment,
@@ -939,7 +1005,6 @@ export function BoeSummaryClient({
   }, [selectedInvoiceId, mergedSavedBoes, shipments, allBoes]);
 
   React.useEffect(() => {
-    // Keep local pending status in sync when selection changes
     if (selectedData?.savedBoe?.status) {
       setPendingStatus(selectedData.savedBoe.status);
     } else {
@@ -1011,328 +1076,454 @@ export function BoeSummaryClient({
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex flex-col gap-4 md:flex-row">
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="supplier-select">Supplier</Label>
-            <Select
-              onValueChange={handleSupplierChange}
-              value={selectedSupplier}
-            >
-              <SelectTrigger id="supplier-select">
-                <SelectValue placeholder="Select a supplier" />
-              </SelectTrigger>
-              <SelectContent>
-                {suppliers.map(s => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="invoice-select">Invoice</Label>
-            <Select
-              onValueChange={handleInvoiceChange}
-              value={selectedInvoiceId}
-              disabled={!selectedSupplier}
-            >
-              <SelectTrigger id="invoice-select">
-                <SelectValue placeholder="Select an invoice" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableInvoices.map(inv => (
-                  <SelectItem key={inv.id} value={inv.id}>
-                    {inv.invoiceNumber}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid w-full max-w-sm items-center gap-1.5">
-            <Label htmlFor="status-filter">Status</Label>
-            <Select onValueChange={setStatusFilter} value={statusFilter}>
-              <SelectTrigger id="status-filter">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                {[
-                  'All',
-                  'Awaiting BOE Data',
-                  'Discrepancy Found',
-                  'Reconciled',
-                  'Investigation',
-                  'Closed',
-                ].map(s => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {/* Filter controls panel */}
+      <div style={panelStyle}>
+        <div style={panelHeaderStyle}>
+          <span style={panelTitleStyle}>Select BOE Calculation</span>
+        </div>
+        <div style={{ padding: 16 }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(3, 1fr)',
+              gap: 16,
+            }}
+          >
+            <div>
+              <Label htmlFor="supplier-select" style={fieldLabelStyle}>
+                Supplier
+              </Label>
+              <Select
+                onValueChange={handleSupplierChange}
+                value={selectedSupplier}
+              >
+                <SelectTrigger id="supplier-select">
+                  <SelectValue placeholder="Select a supplier" />
+                </SelectTrigger>
+                <SelectContent>
+                  {suppliers.map(s => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="invoice-select" style={fieldLabelStyle}>
+                Invoice
+              </Label>
+              <Select
+                onValueChange={handleInvoiceChange}
+                value={selectedInvoiceId}
+                disabled={!selectedSupplier}
+              >
+                <SelectTrigger id="invoice-select">
+                  <SelectValue placeholder="Select an invoice" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableInvoices.map(inv => (
+                    <SelectItem key={inv.id} value={inv.id}>
+                      {inv.invoiceNumber}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="status-filter" style={fieldLabelStyle}>
+                Status Filter
+              </Label>
+              <Select onValueChange={setStatusFilter} value={statusFilter}>
+                <SelectTrigger id="status-filter">
+                  <SelectValue placeholder="Filter by status" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    'All',
+                    'Awaiting BOE Data',
+                    'Discrepancy Found',
+                    'Reconciled',
+                    'Investigation',
+                    'Closed',
+                  ].map(s => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="mt-6 space-y-8">
-        {selectedData ? (
-          <>
-            <ItemDetailsTable
-              items={selectedData.savedBoe.calculationResult.calculatedItems}
-              quantities={shipmentQuantityMap}
-              actualRatesByPart={shipmentRatesMap}
-              methodByPart={methodByPartMap}
-            />
-            <BoeSummaryTable
-              assessableTotal={selectedData.assessableTotal}
-              bcdTotal={selectedData.bcdTotal}
-              swsTotal={selectedData.swsTotal}
-              igstTotal={selectedData.igstTotal}
-              interest={selectedData.interest}
-              calcDutyTotal={selectedData.customsDutyTotal}
-              boeAssessable={selectedData.boeDetails?.totalAssessmentValue}
-              boeDutyPaid={selectedData.boeDetails?.dutyPaid}
-            />
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  Status <StatusBadge status={selectedData.savedBoe.status} />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-end">
-                  <div className="grid w-full max-w-xs items-center gap-1.5">
-                    <Label htmlFor="status-change">Change Status</Label>
-                    <Select
-                      value={pendingStatus || selectedData.savedBoe.status}
-                      onValueChange={setPendingStatus}
-                    >
-                      <SelectTrigger id="status-change">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[
-                          'Awaiting BOE Data',
-                          'Discrepancy Found',
-                          'Reconciled',
-                          'Investigation',
-                          'Closed',
-                        ].map(s => (
-                          <SelectItem key={s} value={s}>
-                            {s}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button
-                    variant="default"
-                    useAccentColor
-                    disabled={
-                      isUpdatingStatus ||
-                      !pendingStatus ||
-                      pendingStatus === selectedData.savedBoe.status
-                    }
-                    onClick={async () => {
-                      const existing = mergedSavedBoes.find(
-                        b => b.id === selectedData.savedBoe!.id
-                      );
-                      if (!existing) return;
-                      const next = {
-                        ...existing,
-                        status: pendingStatus as SavedBoe['status'],
-                      } as SavedBoe;
+      </div>
 
+      {/* Content area */}
+      {selectedData ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <ItemDetailsTable
+            items={selectedData.savedBoe.calculationResult.calculatedItems}
+            quantities={shipmentQuantityMap}
+            actualRatesByPart={shipmentRatesMap}
+            methodByPart={methodByPartMap}
+          />
+
+          <BoeSummaryTable
+            assessableTotal={selectedData.assessableTotal}
+            bcdTotal={selectedData.bcdTotal}
+            swsTotal={selectedData.swsTotal}
+            igstTotal={selectedData.igstTotal}
+            interest={selectedData.interest}
+            calcDutyTotal={selectedData.customsDutyTotal}
+            boeAssessable={selectedData.boeDetails?.totalAssessmentValue}
+            boeDutyPaid={selectedData.boeDetails?.dutyPaid}
+          />
+
+          {/* Status panel */}
+          <div style={panelStyle}>
+            <div style={panelHeaderStyle}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={panelTitleStyle}>Status</span>
+                <StatusBadge status={selectedData.savedBoe.status} />
+              </div>
+            </div>
+            <div style={{ padding: 16 }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-end',
+                  gap: 12,
+                  flexWrap: 'wrap',
+                }}
+              >
+                <div>
+                  <Label htmlFor="status-change" style={fieldLabelStyle}>
+                    Change Status
+                  </Label>
+                  <Select
+                    value={pendingStatus || selectedData.savedBoe.status}
+                    onValueChange={setPendingStatus}
+                  >
+                    <SelectTrigger id="status-change" className="w-52">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[
+                        'Awaiting BOE Data',
+                        'Discrepancy Found',
+                        'Reconciled',
+                        'Investigation',
+                        'Closed',
+                      ].map(s => (
+                        <SelectItem key={s} value={s}>
+                          {s}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <ImBtn
+                  primary
+                  disabled={
+                    isUpdatingStatus ||
+                    !pendingStatus ||
+                    pendingStatus === selectedData.savedBoe.status
+                  }
+                  onClick={async () => {
+                    const existing = mergedSavedBoes.find(
+                      b => b.id === selectedData.savedBoe!.id
+                    );
+                    if (!existing) return;
+                    const next = {
+                      ...existing,
+                      status: pendingStatus as SavedBoe['status'],
+                    } as SavedBoe;
+
+                    setBoeOverrides(prev => ({
+                      ...prev,
+                      [next.id]: { status: next.status },
+                    }));
+                    setIsUpdatingStatus(true);
+                    const toastId = toast.loading('Updating status...');
+                    try {
+                      await invoke('update_boe_status', {
+                        id: next.id,
+                        status: pendingStatus,
+                      });
+                      toast.success('Status updated', { id: toastId });
+                    } catch {
                       setBoeOverrides(prev => ({
                         ...prev,
-                        [next.id]: { status: next.status },
+                        [next.id]: { status: existing.status },
                       }));
-                      setIsUpdatingStatus(true);
-                      const toastId = toast.loading('Updating status...');
-                      try {
-                        await invoke('update_boe_status', {
-                          id: next.id,
-                          status: pendingStatus,
-                        });
-                        toast.success('Status updated', { id: toastId });
-                      } catch {
+                      toast.error('Failed to update status', { id: toastId });
+                    } finally {
+                      setIsUpdatingStatus(false);
+                    }
+                  }}
+                >
+                  {isUpdatingStatus ? 'Updating...' : 'Update Status'}
+                </ImBtn>
+              </div>
+            </div>
+          </div>
+
+          {/* Attached Documents panel */}
+          <div style={panelStyle}>
+            <div style={panelHeaderStyle}>
+              <span style={panelTitleStyle}>Attached Documents</span>
+              {selectedData.savedBoe.attachments?.length ? (
+                <span
+                  style={{
+                    fontFamily: IM.mono,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: IM.accent,
+                    background: IM.accentBg,
+                    border: `1px solid ${IM.accentBdr}`,
+                    padding: '1px 6px',
+                  }}
+                >
+                  {selectedData.savedBoe.attachments.length}
+                </span>
+              ) : null}
+            </div>
+            <div
+              style={{
+                padding: 16,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              {selectedData.savedBoe.attachments?.length ? (
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  {selectedData.savedBoe.attachments.map(att => (
+                    <div
+                      key={att.id}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        padding: '8px 12px',
+                        background: IM.alt,
+                        border: `1px solid ${IM.rule}`,
+                        gap: 12,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 2,
+                        }}
+                      >
+                        <a
+                          style={{
+                            fontFamily: IM.mono,
+                            fontSize: 12,
+                            color: IM.accent,
+                            textDecoration: 'none',
+                          }}
+                          href={convertFileSrc(att.url)}
+                          target="_blank"
+                          rel="noreferrer"
+                          onMouseEnter={e =>
+                            ((e.target as HTMLElement).style.textDecoration =
+                              'underline')
+                          }
+                          onMouseLeave={e =>
+                            ((e.target as HTMLElement).style.textDecoration =
+                              'none')
+                          }
+                        >
+                          {att.fileName}
+                        </a>
+                        <span
+                          style={{
+                            fontFamily: IM.mono,
+                            fontSize: 10,
+                            color: IM.muted,
+                          }}
+                        >
+                          {att.documentType} ·{' '}
+                          {new Date(att.uploadedAt).toLocaleString()}
+                        </span>
+                      </div>
+                      <a
+                        href={convertFileSrc(att.url)}
+                        download={att.fileName}
+                        style={{
+                          padding: '4px 12px',
+                          fontFamily: IM.mono,
+                          fontSize: 11,
+                          fontWeight: 600,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          background: 'transparent',
+                          border: `1px solid ${IM.rule}`,
+                          color: IM.muted,
+                          textDecoration: 'none',
+                          display: 'inline-block',
+                        }}
+                        onMouseEnter={e => {
+                          (e.currentTarget as HTMLElement).style.color =
+                            IM.text;
+                          (e.currentTarget as HTMLElement).style.borderColor =
+                            IM.faint;
+                        }}
+                        onMouseLeave={e => {
+                          (e.currentTarget as HTMLElement).style.color =
+                            IM.muted;
+                          (e.currentTarget as HTMLElement).style.borderColor =
+                            IM.rule;
+                        }}
+                      >
+                        Download
+                      </a>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p
+                  style={{
+                    fontFamily: IM.mono,
+                    fontSize: 11,
+                    color: IM.muted,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.05em',
+                    margin: 0,
+                  }}
+                >
+                  No documents attached
+                </p>
+              )}
+              <div>
+                <ImBtn
+                  primary
+                  onClick={async () => {
+                    const picked = await openDialog({
+                      multiple: false,
+                      directory: false,
+                      filters: [
+                        {
+                          name: 'Documents',
+                          extensions: [
+                            'pdf',
+                            'png',
+                            'jpg',
+                            'jpeg',
+                            'xlsx',
+                            'xls',
+                            'csv',
+                            'doc',
+                            'docx',
+                          ],
+                        },
+                      ],
+                    });
+
+                    if (!picked || Array.isArray(picked)) return;
+
+                    const srcPath = picked as string;
+                    const toastId = toast.loading('Saving document...');
+                    try {
+                      const destPath = await invoke<string>(
+                        'save_boe_attachment_file',
+                        { id: selectedData.savedBoe.id, srcPath }
+                      );
+
+                      const idx = mergedSavedBoes.findIndex(
+                        b => b.id === selectedData.savedBoe.id
+                      );
+
+                      if (idx >= 0) {
+                        const current = mergedSavedBoes[idx];
+                        const fileName =
+                          srcPath.split(/\\|\//).pop() || `file-${Date.now()}`;
+
+                        const att = {
+                          id: `ATT-${Date.now()}`,
+                          documentType: 'Attachment',
+                          fileName,
+                          url: destPath,
+                          uploadedAt: new Date().toISOString(),
+                        };
+
+                        const next = {
+                          ...current,
+                          attachments: [...(current.attachments ?? []), att],
+                        } as SavedBoe;
+
                         setBoeOverrides(prev => ({
                           ...prev,
-                          [next.id]: { status: existing.status },
+                          [next.id]: { attachments: next.attachments },
                         }));
-                        toast.error('Failed to update status', { id: toastId });
-                      } finally {
-                        setIsUpdatingStatus(false);
-                      }
-                    }}
-                  >
-                    {isUpdatingStatus ? 'Updating...' : 'Update Status'}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Attached Documents</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {selectedData.savedBoe.attachments?.length ? (
-                    <ul className="space-y-2">
-                      {selectedData.savedBoe.attachments.map(att => (
-                        <li
-                          key={att.id}
-                          className="flex items-center justify-between rounded-md border p-2"
-                        >
-                          <div>
-                            <a
-                              className="text-primary hover:underline"
-                              href={convertFileSrc(att.url)}
-                              target="_blank"
-                              rel="noreferrer"
-                            >
-                              {att.fileName}
-                            </a>
-                            <div className="text-muted-foreground text-sm">
-                              {att.documentType} •{' '}
-                              {new Date(att.uploadedAt).toLocaleString()}
-                            </div>
-                          </div>
-                          <Button
-                            size="sm"
-                            variant="default"
-                            useAccentColor
-                            asChild
-                          >
-                            <a
-                              href={convertFileSrc(att.url)}
-                              download={att.fileName}
-                            >
-                              Download
-                            </a>
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <div className="text-muted-foreground text-sm">
-                      No documents attached.
-                    </div>
-                  )}
-                  <Button
-                    variant="default"
-                    useAccentColor
-                    onClick={async () => {
-                      const picked = await openDialog({
-                        multiple: false,
-                        directory: false,
-                        filters: [
-                          {
-                            name: 'Documents',
-                            extensions: [
-                              'pdf',
-                              'png',
-                              'jpg',
-                              'jpeg',
-                              'xlsx',
-                              'xls',
-                              'csv',
-                              'doc',
-                              'docx',
-                            ],
-                          },
-                        ],
-                      });
-
-                      if (!picked || Array.isArray(picked)) {
-                        return;
-                      }
-
-                      const srcPath = picked as string;
-
-                      const toastId = toast.loading('Saving document...');
-                      try {
-                        const destPath = await invoke<string>(
-                          'save_boe_attachment_file',
-                          {
-                            id: selectedData.savedBoe.id,
-                            srcPath: srcPath,
-                          }
-                        );
-
-                        const idx = mergedSavedBoes.findIndex(
-                          b => b.id === selectedData.savedBoe.id
-                        );
-
-                        if (idx >= 0) {
-                          const current = mergedSavedBoes[idx];
-                          const fileName =
-                            srcPath.split(/\\|\//).pop() ||
-                            `file-${Date.now()}`;
-
-                          const att = {
-                            id: `ATT-${Date.now()}`,
-                            documentType: 'Attachment',
-                            fileName,
-                            url: destPath,
-                            uploadedAt: new Date().toISOString(),
-                          };
-
-                          const next = {
-                            ...current,
-                            attachments: [...(current.attachments ?? []), att],
-                          } as SavedBoe;
-
-                          setBoeOverrides(prev => ({
-                            ...prev,
-                            [next.id]: { attachments: next.attachments },
-                          }));
-
-                          await invoke('add_boe_attachment', {
-                            id: next.id,
-                            attachment: att,
-                          });
-
-                          toast.success('Document saved', {
-                            id: toastId,
-                            description: destPath,
-                          });
-                        } else {
-                          console.error(
-                            '❌ Failed to locate BOE in savedBoes array'
-                          );
-                          toast.error('Failed to locate BOE to attach', {
-                            id: toastId,
-                          });
-                        }
-                      } catch (error) {
-                        console.error('💥 Failed to save BOE document:', error);
-                        console.error('Error details:', {
-                          message:
-                            error instanceof Error
-                              ? error.message
-                              : String(error),
-                          stack:
-                            error instanceof Error ? error.stack : undefined,
+                        await invoke('add_boe_attachment', {
+                          id: next.id,
+                          attachment: att,
                         });
-                        toast.error('Failed to save document', { id: toastId });
+
+                        toast.success('Document saved', {
+                          id: toastId,
+                          description: destPath,
+                        });
+                      } else {
+                        console.error(
+                          '❌ Failed to locate BOE in savedBoes array'
+                        );
+                        toast.error('Failed to locate BOE to attach', {
+                          id: toastId,
+                        });
                       }
-                    }}
-                  >
-                    Upload Document
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </>
-        ) : (
-          <div className="text-muted-foreground py-12 text-center">
-            <p>Please select a supplier and invoice to view the report.</p>
+                    } catch (error) {
+                      console.error('💥 Failed to save BOE document:', error);
+                      console.error('Error details:', {
+                        message:
+                          error instanceof Error
+                            ? error.message
+                            : String(error),
+                        stack: error instanceof Error ? error.stack : undefined,
+                      });
+                      toast.error('Failed to save document', { id: toastId });
+                    }
+                  }}
+                >
+                  Upload Document
+                </ImBtn>
+              </div>
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </div>
+      ) : (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '64px 24px',
+            border: `1px solid ${IM.rule}`,
+            background: IM.panel,
+          }}
+        >
+          <p
+            style={{
+              fontFamily: IM.mono,
+              fontSize: 11,
+              color: IM.muted,
+              textTransform: 'uppercase',
+              letterSpacing: '0.06em',
+              margin: 0,
+            }}
+          >
+            Select a supplier and invoice to view the report
+          </p>
+        </div>
+      )}
+    </div>
   );
 }

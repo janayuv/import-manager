@@ -6,11 +6,118 @@ import { useDebugUtils, getEnvironmentConfig } from '@/lib/debug-utils';
 import { confirm as confirmUserAction } from '@/lib/tauri-bridge';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
-import { Separator } from '@/components/ui/separator';
+
+const IM = {
+  bg: '#0A0A0A',
+  panel: '#101010',
+  alt: '#0C0C0B',
+  header: '#0D0D0B',
+  text: '#EFEDE8',
+  muted: '#8C8A82',
+  faint: '#56544E',
+  rule: '#1F1E1A',
+  accent: '#E8A23A',
+  accentBg: 'rgba(232,162,58,0.10)',
+  accentBdr: 'rgba(232,162,58,0.25)',
+  good: '#5FCB7D',
+  goodBg: 'rgba(95,203,125,0.10)',
+  goodBdr: 'rgba(95,203,125,0.22)',
+  bad: '#F87171',
+  badBg: 'rgba(248,113,113,0.09)',
+  badBdr: 'rgba(248,113,113,0.20)',
+  blue: '#60A5FA',
+  blueBg: 'rgba(96,165,250,0.08)',
+  blueBdr: 'rgba(96,165,250,0.20)',
+  mono: "Consolas, 'Courier New', monospace",
+} as const;
+
+const panelStyle: React.CSSProperties = {
+  border: `1px solid ${IM.rule}`,
+  background: IM.panel,
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const panelHeaderStyle: React.CSSProperties = {
+  background: IM.header,
+  borderBottom: `1px solid ${IM.rule}`,
+  padding: '8px 16px',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 10,
+};
+
+const panelTitleStyle: React.CSSProperties = {
+  fontFamily: IM.mono,
+  fontSize: 11,
+  fontWeight: 700,
+  color: IM.text,
+  textTransform: 'uppercase',
+  letterSpacing: '0.08em',
+};
+
+const sectionLabelStyle: React.CSSProperties = {
+  fontFamily: IM.mono,
+  fontSize: 10,
+  fontWeight: 700,
+  color: IM.muted,
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  display: 'block',
+  marginBottom: 8,
+};
+
+const fieldLabelStyle: React.CSSProperties = {
+  fontFamily: IM.mono,
+  fontSize: 10,
+  color: IM.muted,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  display: 'block',
+  marginBottom: 4,
+};
+
+function StatusPill({ on, label }: { on: boolean; label: string }) {
+  return (
+    <span
+      style={{
+        fontFamily: IM.mono,
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        padding: '1px 6px',
+        background: on ? IM.goodBg : IM.badBg,
+        color: on ? IM.good : IM.bad,
+        border: `1px solid ${on ? IM.goodBdr : IM.badBdr}`,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
+function NeutralPill({ label }: { label: string }) {
+  return (
+    <span
+      style={{
+        fontFamily: IM.mono,
+        fontSize: 10,
+        fontWeight: 700,
+        textTransform: 'uppercase',
+        letterSpacing: '0.05em',
+        padding: '1px 6px',
+        background: IM.blueBg,
+        color: IM.blue,
+        border: `1px solid ${IM.blueBdr}`,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
 
 export function ExpenseDebug() {
   const notifications = useUnifiedNotifications();
@@ -316,93 +423,90 @@ export function ExpenseDebug() {
   // cleanupOrphanedExpenseInvoices is now handled by auto-adjusting debug actions
 
   return (
-    <div className="space-y-6 p-6">
-      {/* Auto-adjusting Environment Status */}
+    <div
+      style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}
+    >
+      {/* Environment Status */}
       {config.showEnvironmentInfo && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              Environment Status
-              <Badge
-                variant={config.enableDebugPanel ? 'default' : 'secondary'}
-                useAccentColor={config.enableDebugPanel}
-              >
-                {config.enableDebugPanel ? 'Debug Mode' : 'Production Mode'}
-              </Badge>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Environment</Label>
-                <div className="flex gap-2">
-                  <Badge
-                    variant={envConfig.isDevelopment ? 'default' : 'outline'}
-                    useAccentColor={envConfig.isDevelopment}
-                  >
-                    Development: {envConfig.isDevelopment ? 'Yes' : 'No'}
-                  </Badge>
-                  <Badge
-                    variant={envConfig.isProduction ? 'default' : 'outline'}
-                    useAccentColor={envConfig.isProduction}
-                  >
-                    Production: {envConfig.isProduction ? 'Yes' : 'No'}
-                  </Badge>
+        <div style={panelStyle}>
+          <div style={panelHeaderStyle}>
+            <span style={panelTitleStyle}>Environment Status</span>
+            <StatusPill
+              on={config.enableDebugPanel}
+              label={config.enableDebugPanel ? 'Debug Mode' : 'Production Mode'}
+            />
+          </div>
+          <div style={{ padding: 16 }}>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 16,
+              }}
+            >
+              {/* Environment */}
+              <div>
+                <span style={sectionLabelStyle}>Environment</span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <StatusPill
+                    on={envConfig.isDevelopment}
+                    label={`Dev: ${envConfig.isDevelopment ? 'Yes' : 'No'}`}
+                  />
+                  <StatusPill
+                    on={envConfig.isProduction}
+                    label={`Prod: ${envConfig.isProduction ? 'Yes' : 'No'}`}
+                  />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Logging</Label>
-                <div className="flex gap-2">
-                  <Badge
-                    variant={
-                      config.enableVerboseLogging ? 'default' : 'outline'
-                    }
-                    useAccentColor={config.enableVerboseLogging}
-                  >
-                    Verbose: {config.enableVerboseLogging ? 'On' : 'Off'}
-                  </Badge>
-                  <Badge variant="outline">Level: {envConfig.logLevel}</Badge>
+              {/* Logging */}
+              <div>
+                <span style={sectionLabelStyle}>Logging</span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <StatusPill
+                    on={config.enableVerboseLogging}
+                    label={`Verbose: ${config.enableVerboseLogging ? 'On' : 'Off'}`}
+                  />
+                  <NeutralPill label={`Level: ${envConfig.logLevel}`} />
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Monitoring</Label>
-                <div className="flex gap-2">
-                  <Badge
-                    variant={
-                      config.enablePerformanceMonitoring ? 'default' : 'outline'
-                    }
-                    useAccentColor={config.enablePerformanceMonitoring}
-                  >
-                    Performance:{' '}
-                    {config.enablePerformanceMonitoring ? 'On' : 'Off'}
-                  </Badge>
-                  <Badge
-                    variant={config.enableErrorTracking ? 'default' : 'outline'}
-                    useAccentColor={config.enableErrorTracking}
-                  >
-                    Error Tracking: {config.enableErrorTracking ? 'On' : 'Off'}
-                  </Badge>
+              {/* Monitoring */}
+              <div>
+                <span style={sectionLabelStyle}>Monitoring</span>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <StatusPill
+                    on={config.enablePerformanceMonitoring}
+                    label={`Perf: ${config.enablePerformanceMonitoring ? 'On' : 'Off'}`}
+                  />
+                  <StatusPill
+                    on={config.enableErrorTracking}
+                    label={`Errors: ${config.enableErrorTracking ? 'On' : 'Off'}`}
+                  />
                 </div>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
-      {/* Main Debug & Setup Card */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            Expense Types Debug & Setup
-            <Badge variant="outline" className="text-xs">
-              Auto-Adjusting
-            </Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
+      {/* Debug & Setup */}
+      <div style={panelStyle}>
+        <div style={panelHeaderStyle}>
+          <span style={panelTitleStyle}>Expense Types — Debug &amp; Setup</span>
+          <NeutralPill label="Auto-Adjusting" />
+        </div>
+
+        <div
+          style={{
+            padding: 16,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 20,
+          }}
+        >
           {/* Auto-Adjusting Debug Actions */}
-          <div className="space-y-4">
-            <div className="flex flex-wrap gap-2">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <span style={sectionLabelStyle}>Debug Actions</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {config.customDebugActions?.map(action => (
                 <Button
                   key={action.id}
@@ -411,7 +515,6 @@ export function ExpenseDebug() {
                   variant={
                     action.variant === 'destructive' ? 'destructive' : 'default'
                   }
-                  className="text-sm"
                   useAccentColor={action.variant !== 'destructive'}
                 >
                   {loading ? 'Loading...' : action.label}
@@ -419,18 +522,15 @@ export function ExpenseDebug() {
               ))}
             </div>
 
-            {/* Legacy Actions for Backward Compatibility */}
-            <div className="space-y-2">
-              <Label className="text-muted-foreground text-sm font-medium">
-                Legacy Actions (Auto-Adjusted)
-              </Label>
-              <div className="flex flex-wrap gap-2">
+            {/* Legacy Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={sectionLabelStyle}>Legacy Actions</span>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                 <Button
                   onClick={addSampleExpenseTypes}
                   disabled={loading}
                   variant="default"
                   useAccentColor
-                  className="text-sm"
                 >
                   Add Sample Expense Types
                 </Button>
@@ -438,57 +538,103 @@ export function ExpenseDebug() {
                   onClick={fixLclChargesRate}
                   disabled={loading}
                   variant="destructive"
-                  className="text-sm"
                 >
                   Fix LCL Charges Rate
                 </Button>
               </div>
             </div>
 
-            {/* Debug Information Display */}
+            {/* Debug output */}
             {debugInfo && (
-              <div className="bg-muted rounded-lg p-4">
-                <h3 className="mb-2 flex items-center gap-2 font-semibold">
-                  Debug Information
-                  <Badge variant="outline" className="text-xs">
-                    Auto-Generated
-                  </Badge>
-                </h3>
-                <pre className="max-h-96 overflow-auto whitespace-pre-wrap text-sm">
+              <div
+                style={{
+                  background: IM.alt,
+                  border: `1px solid ${IM.rule}`,
+                  padding: 12,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={panelTitleStyle}>Debug Output</span>
+                  <NeutralPill label="Auto-Generated" />
+                </div>
+                <pre
+                  style={{
+                    fontFamily: IM.mono,
+                    fontSize: 11,
+                    color: IM.text,
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: 320,
+                    overflowY: 'auto',
+                    margin: 0,
+                  }}
+                >
                   {debugInfo}
                 </pre>
               </div>
             )}
 
-            {/* Environment Information Display (Development Only) */}
+            {/* Environment info */}
             {config.showEnvironmentInfo && environmentInfo && (
-              <div className="bg-muted rounded-lg p-4">
-                <h3 className="mb-2 flex items-center gap-2 font-semibold">
-                  Environment Information
-                  <Badge variant="outline" className="text-xs">
-                    Development Only
-                  </Badge>
-                </h3>
-                <pre className="max-h-64 overflow-auto whitespace-pre-wrap text-xs">
+              <div
+                style={{
+                  background: IM.alt,
+                  border: `1px solid ${IM.rule}`,
+                  padding: 12,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 8,
+                  }}
+                >
+                  <span style={panelTitleStyle}>Environment Info</span>
+                  <NeutralPill label="Development Only" />
+                </div>
+                <pre
+                  style={{
+                    fontFamily: IM.mono,
+                    fontSize: 10,
+                    color: IM.muted,
+                    whiteSpace: 'pre-wrap',
+                    maxHeight: 200,
+                    overflowY: 'auto',
+                    margin: 0,
+                  }}
+                >
                   {environmentInfo}
                 </pre>
               </div>
             )}
           </div>
 
-          <Separator />
+          {/* Divider */}
+          <div style={{ borderTop: `1px solid ${IM.rule}` }} />
 
-          {/* Add New Expense Type Section */}
-          <div className="space-y-4">
-            <h3 className="flex items-center gap-2 font-semibold">
-              Add New Expense Type
-              <Badge variant="outline" className="text-xs">
-                Manual Entry
-              </Badge>
-            </h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+          {/* Add New Expense Type */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={panelTitleStyle}>Add New Expense Type</span>
+              <NeutralPill label="Manual Entry" />
+            </div>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 12,
+              }}
+            >
               <div>
-                <Label>Name</Label>
+                <Label style={fieldLabelStyle}>Name</Label>
                 <Input
                   value={newExpenseType.name}
                   onChange={e =>
@@ -501,7 +647,7 @@ export function ExpenseDebug() {
                 />
               </div>
               <div>
-                <Label>CGST Rate (%)</Label>
+                <Label style={fieldLabelStyle}>CGST Rate (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -517,7 +663,7 @@ export function ExpenseDebug() {
                 />
               </div>
               <div>
-                <Label>SGST Rate (%)</Label>
+                <Label style={fieldLabelStyle}>SGST Rate (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -533,7 +679,7 @@ export function ExpenseDebug() {
                 />
               </div>
               <div>
-                <Label>IGST Rate (%)</Label>
+                <Label style={fieldLabelStyle}>IGST Rate (%)</Label>
                 <Input
                   type="number"
                   step="1"
@@ -549,89 +695,144 @@ export function ExpenseDebug() {
                 />
               </div>
             </div>
-            <Button
-              onClick={addExpenseType}
-              disabled={loading || !newExpenseType.name.trim()}
-              variant="default"
-              useAccentColor
-            >
-              Add Expense Type
-            </Button>
+            <div>
+              <Button
+                onClick={addExpenseType}
+                disabled={loading || !newExpenseType.name.trim()}
+                variant="default"
+                useAccentColor
+              >
+                Add Expense Type
+              </Button>
+            </div>
           </div>
 
-          {/* Auto-Adjusting Instructions */}
-          <div className="bg-muted rounded-lg p-4">
-            <h3 className="text-foreground mb-2 flex items-center gap-2 font-semibold">
-              Instructions & Auto-Adjust Behavior
-              <Badge variant="outline" className="text-xs">
-                Environment-Aware
-              </Badge>
-            </h3>
-            <div className="text-foreground space-y-3 text-sm">
+          {/* Divider */}
+          <div style={{ borderTop: `1px solid ${IM.rule}` }} />
+
+          {/* Instructions */}
+          <div
+            style={{
+              background: IM.alt,
+              border: `1px solid ${IM.rule}`,
+              padding: 12,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                marginBottom: 12,
+              }}
+            >
+              <span style={panelTitleStyle}>Instructions &amp; Behavior</span>
+              <NeutralPill label="Environment-Aware" />
+            </div>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                fontFamily: IM.mono,
+                fontSize: 11,
+                color: IM.muted,
+              }}
+            >
               <div>
-                <h4 className="mb-1 font-medium">🔧 Debug Actions:</h4>
-                <ul className="ml-4 space-y-1">
+                <div
+                  style={{
+                    color: IM.text,
+                    fontWeight: 700,
+                    marginBottom: 4,
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  Debug Actions
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
                   <li>
-                    • Debug actions auto-adjust based on environment
+                    Debug actions auto-adjust based on environment
                     (dev/test/prod)
                   </li>
                   <li>
-                    • Development mode shows verbose logging and environment
-                    info
+                    Development mode shows verbose logging and environment info
                   </li>
-                  <li>• Production mode hides sensitive debug information</li>
+                  <li>Production mode hides sensitive debug information</li>
                   <li>
-                    • Performance monitoring is enabled in development/test
+                    Performance monitoring is enabled in development/test
                     environments
                   </li>
                 </ul>
               </div>
-
               <div>
-                <h4 className="mb-1 font-medium">📊 Expense Management:</h4>
-                <ul className="ml-4 space-y-1">
+                <div
+                  style={{
+                    color: IM.text,
+                    fontWeight: 700,
+                    marginBottom: 4,
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  Expense Management
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
                   <li>
-                    • Click debug actions to see current expense types and their
+                    Click debug actions to see current expense types and their
                     rates
                   </li>
                   <li>
-                    • Add sample expense types with correct rates automatically
+                    Add sample expense types with correct rates automatically
                   </li>
                   <li>
-                    • Fix actions include confirmation prompts for destructive
+                    Fix actions include confirmation prompts for destructive
                     operations
                   </li>
                   <li>
-                    • All actions include performance monitoring and error
+                    All actions include performance monitoring and error
                     tracking
                   </li>
                 </ul>
               </div>
-
               <div>
-                <h4 className="mb-1 font-medium">⚙️ Technical Details:</h4>
-                <ul className="ml-4 space-y-1">
+                <div
+                  style={{
+                    color: IM.text,
+                    fontWeight: 700,
+                    marginBottom: 4,
+                    fontSize: 10,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.06em',
+                  }}
+                >
+                  Technical Details
+                </div>
+                <ul style={{ margin: 0, paddingLeft: 16, lineHeight: 1.8 }}>
                   <li>
-                    • Rates should be entered as percentages (e.g., 9 for 9%)
+                    Rates should be entered as percentages (e.g., 9 for 9%)
                   </li>
                   <li>
-                    • System converts percentages to basis points for storage
-                    (9% = 900 basis points)
+                    System converts percentages to basis points for storage (9%
+                    = 900 basis points)
                   </li>
                   <li>
-                    • Environment detection uses multiple fallback methods for
+                    Environment detection uses multiple fallback methods for
                     reliability
                   </li>
                   <li>
-                    • Error handling includes automatic fallbacks and
+                    Error handling includes automatic fallbacks and
                     user-friendly messages
                   </li>
                 </ul>
               </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 }

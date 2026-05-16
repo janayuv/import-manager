@@ -341,23 +341,28 @@ pub fn change_admin_password(
 pub fn get_recent_auth_events(
     caller_user_id: String,
     limit: Option<i64>,
+    // Supports server-side pagination; callers pass offset = page_index * page_size.
+    offset: Option<i64>,
     session: State<'_, DesktopSessionState>,
     db: State<'_, DbState>,
 ) -> Result<Vec<UserActivityAuditLog>, String> {
     session.require_permission(&db, caller_user_id.trim(), PERM_SECURITY_SESSION_READ)?;
     let conn = db.db.lock().map_err(|e| e.to_string())?;
-    let limit_val = limit.unwrap_or(100).clamp(1, 1000);
+    // Default matches the frontend default page size of 50; hard ceiling prevents runaway scans.
+    let limit_val = limit.unwrap_or(50).clamp(1, 1000);
+    // Non-negative offset so page N starts at N * limit rows from the top.
+    let offset_val = offset.unwrap_or(0).max(0);
     let mut stmt = conn
         .prepare(
             "SELECT id, user_id, action_name, entity_type, entity_id, details_json, status, timestamp, severity \
              FROM user_activity_audit_logs \
              WHERE action_name LIKE 'auth.%' \
              ORDER BY timestamp DESC \
-             LIMIT ?1",
+             LIMIT ?1 OFFSET ?2",
         )
         .map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map([limit_val], |row| {
+        .query_map([limit_val, offset_val], |row| {
             Ok(UserActivityAuditLog {
                 id: row.get(0)?,
                 user_id: row.get(1)?,

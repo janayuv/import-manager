@@ -16,9 +16,6 @@ import {
 
 import * as React from 'react';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -26,9 +23,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Separator } from '@/components/ui/separator';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { Option } from '@/types/options';
 import type { Shipment } from '@/types/shipment';
@@ -59,16 +53,18 @@ const formatCurrency = (amount?: number, currency?: string): string => {
   return currency ? `${currency} ${formatted}` : formatted;
 };
 
-const getStatusColor = (status?: string) => {
-  if (!status) return 'secondary';
-  const statusLower = status.toLowerCase();
-  if (statusLower.includes('delivered') || statusLower.includes('completed'))
-    return 'default';
-  if (statusLower.includes('in-transit') || statusLower.includes('shipped'))
-    return 'default';
-  if (statusLower.includes('docs-rcvd') || statusLower.includes('pending'))
-    return 'secondary';
-  return 'secondary';
+const getStatusPillClass = (status?: string) => {
+  if (!status) return 'im-pill im-pill--gray';
+  const s = status.toLowerCase();
+  if (s.includes('delivered') || s.includes('completed'))
+    return 'im-pill im-pill--green';
+  if (s.includes('in-transit') || s.includes('shipped'))
+    return 'im-pill im-pill--blue';
+  if (s.includes('docs-rcvd')) return 'im-pill im-pill--teal';
+  if (s.includes('customs')) return 'im-pill im-pill--purple';
+  if (s.includes('ready')) return 'im-pill im-pill--amber';
+  if (s.includes('pending')) return 'im-pill im-pill--gray';
+  return 'im-pill im-pill--gray';
 };
 
 const formatDate = (dateString?: string): string => {
@@ -124,19 +120,44 @@ export function ProfessionalShipmentViewDialog({
   const headerRow = (
     <div className="flex items-center justify-between">
       <div className="flex items-center gap-3">
-        <div className="bg-primary/10 rounded-lg p-2">
-          <Ship className="text-primary h-6 w-6" />
+        <div
+          style={{
+            background: 'var(--color-im-accent)',
+            borderRadius: 6,
+            padding: 8,
+            opacity: 0.15,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            position: 'relative',
+          }}
+        >
+          <Ship
+            style={{
+              color: 'var(--color-im-accent)',
+              height: 24,
+              width: 24,
+              position: 'absolute',
+            }}
+          />
+          <Ship style={{ height: 24, width: 24, opacity: 0 }} />
         </div>
         <div>
           {isPage ? (
             <>
               <h2
                 id="shipment-view-title"
-                className="text-xl font-semibold tracking-tight"
+                style={{
+                  fontFamily: 'Consolas, "Courier New", monospace',
+                  fontSize: 18,
+                  fontWeight: 600,
+                  letterSpacing: '0.03em',
+                  color: 'var(--color-im-fg)',
+                }}
               >
                 {shipment.invoiceNumber}
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ color: 'var(--color-im-muted)', fontSize: 13 }}>
                 Shipment from {getSupplierName(suppliers, shipment.supplierId)}
               </p>
             </>
@@ -152,428 +173,867 @@ export function ProfessionalShipmentViewDialog({
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2">
-        <Badge variant={getStatusColor(shipment.status)}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span className={getStatusPillClass(shipment.status)}>
           {shipment.status?.replace(/-/g, ' ').toUpperCase() || 'PENDING'}
-        </Badge>
-        <Button
-          variant="ghost"
-          size="icon"
+        </span>
+        <button
+          type="button"
+          className="im-hdr-btn"
           onClick={() => onOpenChange(false)}
           aria-label="Close"
         >
-          <X className="h-4 w-4" />
-        </Button>
+          <X style={{ height: 16, width: 16 }} />
+        </button>
       </div>
     </div>
   );
 
   const tabsBlock = (
     <div
-      className={
+      style={
         isPage
-          ? 'flex min-h-0 flex-1 flex-col overflow-hidden px-6'
-          : 'flex-1 overflow-hidden'
+          ? {
+              display: 'flex',
+              flexDirection: 'column',
+              minHeight: 0,
+              flex: 1,
+              overflow: 'hidden',
+              padding: '0 24px',
+            }
+          : { flex: 1, overflow: 'hidden' }
       }
     >
-      <Tabs
-        value={activeTab}
-        onValueChange={setActiveTab}
-        className={isPage ? 'flex h-full min-h-0 flex-col' : 'h-full'}
-      >
-        <TabsList className="mb-4 grid w-full grid-cols-3">
-          <TabsTrigger
-            value="overview"
-            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+      <div>
+        {/* Tabs nav */}
+        <div className="im-tabs" style={{ marginBottom: 16 }}>
+          <button
+            type="button"
+            className={
+              'im-tab' + (activeTab === 'overview' ? ' is-active' : '')
+            }
+            onClick={() => setActiveTab('overview')}
           >
-            <Ship className="h-4 w-4" />
+            <Ship
+              style={{
+                height: 16,
+                width: 16,
+                display: 'inline',
+                marginRight: 6,
+              }}
+            />
             Overview
-          </TabsTrigger>
-          <TabsTrigger
-            value="commercial"
-            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          </button>
+          <button
+            type="button"
+            className={
+              'im-tab' + (activeTab === 'commercial' ? ' is-active' : '')
+            }
+            onClick={() => setActiveTab('commercial')}
           >
-            <DollarSign className="h-4 w-4" />
+            <DollarSign
+              style={{
+                height: 16,
+                width: 16,
+                display: 'inline',
+                marginRight: 6,
+              }}
+            />
             Commercial
-          </TabsTrigger>
-          <TabsTrigger
-            value="logistics"
-            className="text-foreground flex items-center gap-2 bg-transparent data-[state=active]:!bg-accent data-[state=active]:!text-accent-foreground"
+          </button>
+          <button
+            type="button"
+            className={
+              'im-tab' + (activeTab === 'logistics' ? ' is-active' : '')
+            }
+            onClick={() => setActiveTab('logistics')}
           >
-            <Truck className="h-4 w-4" />
+            <Truck
+              style={{
+                height: 16,
+                width: 16,
+                display: 'inline',
+                marginRight: 6,
+              }}
+            />
             Logistics
-          </TabsTrigger>
-        </TabsList>
+          </button>
+        </div>
 
         <div className={scrollAreaClass}>
           {/* Overview Tab */}
-          <TabsContent value="overview" className="mt-0 space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Basic Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
-                    Basic Information
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Building className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Supplier
-                      </Label>
-                      <p className="mt-1 text-sm">
-                        {getSupplierName(suppliers, shipment.supplierId)}
-                      </p>
-                    </div>
+          {activeTab === 'overview' && (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 24,
+                }}
+              >
+                {/* Basic Information */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <FileText style={{ height: 16, width: 16 }} />
+                      Basic Information
+                    </span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-start gap-3">
-                      <Hash className="text-muted-foreground mt-1 h-4 w-4" />
-                      <div className="flex-1">
-                        <Label className="text-muted-foreground text-sm font-medium">
-                          Invoice Number
-                        </Label>
-                        <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
-                          {shipment.invoiceNumber}
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <Building
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Supplier</p>
+                        <p style={{ marginTop: 4, fontSize: 14 }}>
+                          {getSupplierName(suppliers, shipment.supplierId)}
                         </p>
                       </div>
                     </div>
 
-                    <div className="flex items-start gap-3">
-                      <Calendar className="text-muted-foreground mt-1 h-4 w-4" />
-                      <div className="flex-1">
-                        <Label className="text-muted-foreground text-sm font-medium">
-                          Invoice Date
-                        </Label>
-                        <p className="mt-1 text-sm">
-                          {formatDate(shipment.invoiceDate)}
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                        }}
+                      >
+                        <Hash
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            marginTop: 2,
+                            height: 16,
+                            width: 16,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <p className="im-field-label">Invoice Number</p>
+                          <p
+                            style={{
+                              marginTop: 4,
+                              fontFamily: 'Consolas, "Courier New", monospace',
+                              fontSize: 13,
+                              background: 'var(--color-im-sub)',
+                              padding: '2px 6px',
+                              borderRadius: 3,
+                            }}
+                          >
+                            {shipment.invoiceNumber}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: 12,
+                        }}
+                      >
+                        <Calendar
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            marginTop: 2,
+                            height: 16,
+                            width: 16,
+                            flexShrink: 0,
+                          }}
+                        />
+                        <div style={{ flex: 1 }}>
+                          <p className="im-field-label">Invoice Date</p>
+                          <p style={{ marginTop: 4, fontSize: 14 }}>
+                            {formatDate(shipment.invoiceDate)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <Tag
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Goods Category</p>
+                        <p style={{ marginTop: 4, fontSize: 14 }}>
+                          {shipment.goodsCategory || 'Not specified'}
                         </p>
                       </div>
                     </div>
                   </div>
+                </div>
 
-                  <div className="flex items-start gap-3">
-                    <Tag className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Goods Category
-                      </Label>
-                      <p className="mt-1 text-sm">
-                        {shipment.goodsCategory || 'Not specified'}
-                      </p>
-                    </div>
+                {/* Status & Classification */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Settings style={{ height: 16, width: 16 }} />
+                      Status &amp; Classification
+                    </span>
                   </div>
-                </CardContent>
-              </Card>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <Settings
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Status</p>
+                        <div style={{ marginTop: 4 }}>
+                          <span className={getStatusPillClass(shipment.status)}>
+                            {shipment.status
+                              ?.replace(/-/g, ' ')
+                              .toUpperCase() || 'PENDING'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
 
-              {/* Status & Classification */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Settings className="h-4 w-4" />
-                    Status & Classification
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <Settings className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Status
-                      </Label>
-                      <div className="mt-1">
-                        <Badge variant={getStatusColor(shipment.status)}>
-                          {shipment.status?.replace(/-/g, ' ').toUpperCase() ||
-                            'PENDING'}
-                        </Badge>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <Package
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Shipment Type</p>
+                        <p style={{ marginTop: 4, fontSize: 14 }}>
+                          {shipment.shipmentType || 'Not specified'}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <Truck
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Mode of Transport</p>
+                        <p style={{ marginTop: 4, fontSize: 14 }}>
+                          {shipment.shipmentMode || 'Not specified'}
+                        </p>
                       </div>
                     </div>
                   </div>
-
-                  <div className="flex items-start gap-3">
-                    <Package className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Shipment Type
-                      </Label>
-                      <p className="mt-1 text-sm">
-                        {shipment.shipmentType || 'Not specified'}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-3">
-                    <Truck className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Mode of Transport
-                      </Label>
-                      <p className="mt-1 text-sm">
-                        {shipment.shipmentMode || 'Not specified'}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Commercial Tab */}
-          <TabsContent value="commercial" className="mt-0 space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-              {/* Invoice Details */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <DollarSign className="h-4 w-4" />
-                    Invoice Details
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <DollarSign className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Invoice Value
-                      </Label>
-                      <p className="mt-1 text-lg font-semibold">
-                        {formatCurrency(
-                          shipment.invoiceValue,
-                          shipment.invoiceCurrency
-                        )}
-                      </p>
-                    </div>
+          {activeTab === 'commercial' && (
+            <>
+              <div
+                style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 24 }}
+              >
+                {/* Invoice Details */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <DollarSign style={{ height: 16, width: 16 }} />
+                      Invoice Details
+                    </span>
                   </div>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <DollarSign
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Invoice Value</p>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 16,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatCurrency(
+                            shipment.invoiceValue,
+                            shipment.invoiceCurrency
+                          )}
+                        </p>
+                      </div>
+                    </div>
 
-                  <div className="flex items-start gap-3">
-                    <Globe className="text-muted-foreground mt-1 h-4 w-4" />
-                    <div className="flex-1">
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Incoterm
-                      </Label>
-                      <p className="mt-1 text-sm">
-                        {shipment.incoterm || 'Not specified'}
-                      </p>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: 12,
+                      }}
+                    >
+                      <Globe
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          marginTop: 2,
+                          height: 16,
+                          width: 16,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <div style={{ flex: 1 }}>
+                        <p className="im-field-label">Incoterm</p>
+                        <p style={{ marginTop: 4, fontSize: 14 }}>
+                          {shipment.incoterm || 'Not specified'}
+                        </p>
+                      </div>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+                </div>
+              </div>
+            </>
+          )}
 
           {/* Logistics Tab */}
-          <TabsContent value="logistics" className="mt-0 space-y-6">
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-              {/* Shipping Documents */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <FileText className="h-4 w-4" />
-                    Shipping Documents
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-3">
+          {activeTab === 'logistics' && (
+            <>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: 24,
+                }}
+              >
+                {/* Shipping Documents */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <FileText style={{ height: 16, width: 16 }} />
+                      Shipping Documents
+                    </span>
+                  </div>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 12,
+                    }}
+                  >
                     <div>
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        BL/AWB Number
-                      </Label>
-                      <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
+                      <p className="im-field-label">BL/AWB Number</p>
+                      <p
+                        style={{
+                          marginTop: 4,
+                          fontFamily: 'Consolas, "Courier New", monospace',
+                          fontSize: 13,
+                          background: 'var(--color-im-sub)',
+                          padding: '2px 6px',
+                          borderRadius: 3,
+                        }}
+                      >
                         {shipment.blAwbNumber || 'Not specified'}
                       </p>
                     </div>
 
                     <div>
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        BL/AWB Date
-                      </Label>
-                      <p className="mt-1 text-sm">
+                      <p className="im-field-label">BL/AWB Date</p>
+                      <p style={{ marginTop: 4, fontSize: 14 }}>
                         {formatDate(shipment.blAwbDate)}
                       </p>
                     </div>
 
                     <div>
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Vessel Name
-                      </Label>
-                      <p className="mt-1 text-sm">
+                      <p className="im-field-label">Vessel Name</p>
+                      <p style={{ marginTop: 4, fontSize: 14 }}>
                         {shipment.vesselName || 'Not specified'}
                       </p>
                     </div>
 
                     <div>
-                      <Label className="text-muted-foreground text-sm font-medium">
-                        Container Number
-                      </Label>
-                      <p className="bg-muted mt-1 rounded px-2 py-1 font-mono text-sm">
+                      <p className="im-field-label">Container Number</p>
+                      <p
+                        style={{
+                          marginTop: 4,
+                          fontFamily: 'Consolas, "Courier New", monospace',
+                          fontSize: 13,
+                          background: 'var(--color-im-sub)',
+                          padding: '2px 6px',
+                          borderRadius: 3,
+                        }}
+                      >
                         {shipment.containerNumber || 'Not specified'}
                       </p>
                     </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
 
-              {/* Shipping Schedule & Weight */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Calendar className="h-4 w-4" />
-                    Schedule & Weight
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-muted/50 rounded-lg p-3 text-center">
-                      <Label className="text-muted-foreground text-xs font-medium">
-                        ETD
-                      </Label>
-                      <p className="mt-1 text-sm font-semibold">
-                        {formatDate(shipment.etd)}
-                      </p>
-                    </div>
-
-                    <div className="bg-muted/50 rounded-lg p-3 text-center">
-                      <Label className="text-muted-foreground text-xs font-medium">
-                        ETA
-                      </Label>
-                      <p className="mt-1 text-sm font-semibold">
-                        {formatDate(shipment.eta)}
-                      </p>
-                    </div>
+                {/* Shipping Schedule & Weight */}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Calendar style={{ height: 16, width: 16 }} />
+                      Schedule &amp; Weight
+                    </span>
                   </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-muted/50 rounded-lg p-3 text-center">
-                      <Label className="text-muted-foreground text-xs font-medium">
-                        Gross Weight (KG)
-                      </Label>
-                      <p className="mt-1 text-sm font-semibold">
-                        {shipment.grossWeightKg
-                          ? `${shipment.grossWeightKg} kg`
-                          : 'Not specified'}
-                      </p>
-                    </div>
-
-                    <div className="bg-muted/50 rounded-lg p-3 text-center">
-                      <Label className="text-muted-foreground text-xs font-medium">
-                        Delivery Date
-                      </Label>
-                      <p className="mt-1 text-sm font-semibold">
-                        {formatDate(shipment.dateOfDelivery)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {transitDays && (
-                    <div className="bg-primary/10 rounded-lg p-3 text-center">
-                      <Label className="text-muted-foreground text-xs font-medium">
-                        Transit Time
-                      </Label>
-                      <p className="text-primary mt-1 text-lg font-bold">
-                        {transitDays} days
-                      </p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Shipment Status */}
-            <div className="grid grid-cols-1 gap-6 lg:grid-cols-1">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <Settings className="h-4 w-4" />
-                    Shipment Status
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="bg-muted/50 flex items-center justify-between rounded-lg p-3">
-                    <Label className="text-muted-foreground text-sm font-medium">
-                      Frozen Status
-                    </Label>
-                    <div className="flex items-center gap-2">
-                      {shipment.isFrozen ? (
-                        <>
-                          <div className="h-2 w-2 rounded-full bg-yellow-500" />
-                          <span className="text-sm font-semibold text-yellow-700">
-                            Frozen
-                          </span>
-                        </>
-                      ) : (
-                        <>
-                          <div className="h-2 w-2 rounded-full bg-green-500" />
-                          <span className="text-sm font-semibold text-green-700">
-                            Active
-                          </span>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {shipment.isFrozen && (
-                    <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-3">
-                      <div className="flex items-center gap-2 text-yellow-800">
-                        <Settings className="h-4 w-4" />
-                        <span className="text-sm font-medium">
-                          Shipment Frozen
-                        </span>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: 'var(--color-im-sub)',
+                          borderRadius: 4,
+                          padding: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p className="im-field-label" style={{ fontSize: 11 }}>
+                          ETD
+                        </p>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatDate(shipment.etd)}
+                        </p>
                       </div>
-                      <p className="mt-1 text-xs text-yellow-700">
-                        This shipment is locked and cannot be modified
-                      </p>
+
+                      <div
+                        style={{
+                          background: 'var(--color-im-sub)',
+                          borderRadius: 4,
+                          padding: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p className="im-field-label" style={{ fontSize: 11 }}>
+                          ETA
+                        </p>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatDate(shipment.eta)}
+                        </p>
+                      </div>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </TabsContent>
+
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(2, 1fr)',
+                        gap: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          background: 'var(--color-im-sub)',
+                          borderRadius: 4,
+                          padding: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p className="im-field-label" style={{ fontSize: 11 }}>
+                          Gross Weight (KG)
+                        </p>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {shipment.grossWeightKg
+                            ? `${shipment.grossWeightKg} kg`
+                            : 'Not specified'}
+                        </p>
+                      </div>
+
+                      <div
+                        style={{
+                          background: 'var(--color-im-sub)',
+                          borderRadius: 4,
+                          padding: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p className="im-field-label" style={{ fontSize: 11 }}>
+                          Delivery Date
+                        </p>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 13,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {formatDate(shipment.dateOfDelivery)}
+                        </p>
+                      </div>
+                    </div>
+
+                    {transitDays && (
+                      <div
+                        style={{
+                          background: 'rgba(232,162,58,0.10)',
+                          border: '1px solid var(--color-im-accent)',
+                          borderRadius: 4,
+                          padding: 12,
+                          textAlign: 'center',
+                        }}
+                      >
+                        <p className="im-field-label" style={{ fontSize: 11 }}>
+                          Transit Time
+                        </p>
+                        <p
+                          style={{
+                            color: 'var(--color-im-accent)',
+                            marginTop: 4,
+                            fontSize: 18,
+                            fontWeight: 700,
+                          }}
+                        >
+                          {transitDays} days
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Shipment Status */}
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: '1fr',
+                  gap: 24,
+                  marginTop: 24,
+                }}
+              >
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span
+                      className="im-section__label"
+                      style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                    >
+                      <Settings style={{ height: 16, width: 16 }} />
+                      Shipment Status
+                    </span>
+                  </div>
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        background: 'var(--color-im-sub)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        borderRadius: 4,
+                        padding: 12,
+                      }}
+                    >
+                      <p className="im-field-label" style={{ marginBottom: 0 }}>
+                        Frozen Status
+                      </p>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 8,
+                        }}
+                      >
+                        {shipment.isFrozen ? (
+                          <>
+                            <div
+                              style={{
+                                height: 8,
+                                width: 8,
+                                borderRadius: '50%',
+                                background: '#EAB308',
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: '#A16207',
+                              }}
+                            >
+                              Frozen
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <div
+                              style={{
+                                height: 8,
+                                width: 8,
+                                borderRadius: '50%',
+                                background: '#22C55E',
+                              }}
+                            />
+                            <span
+                              style={{
+                                fontSize: 13,
+                                fontWeight: 600,
+                                color: '#15803D',
+                              }}
+                            >
+                              Active
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {shipment.isFrozen && (
+                      <div
+                        style={{
+                          borderRadius: 4,
+                          border: '1px solid #FDE68A',
+                          background: '#FEFCE8',
+                          padding: 12,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 8,
+                            color: '#92400E',
+                          }}
+                        >
+                          <Settings style={{ height: 16, width: 16 }} />
+                          <span style={{ fontSize: 13, fontWeight: 500 }}>
+                            Shipment Frozen
+                          </span>
+                        </div>
+                        <p
+                          style={{
+                            marginTop: 4,
+                            fontSize: 12,
+                            color: '#A16207',
+                          }}
+                        >
+                          This shipment is locked and cannot be modified
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
         </div>
-      </Tabs>
+      </div>
     </div>
   );
 
   const footerBlock = (
     <>
-      <Separator className={isPage ? 'shrink-0' : undefined} />
+      <hr
+        style={{
+          border: 'none',
+          borderTop: '1px solid var(--color-im-rule)',
+          margin: '8px 0',
+        }}
+      />
 
       <div
-        className={
+        style={
           isPage
-            ? 'flex shrink-0 flex-wrap items-center justify-between gap-3 border-t px-6 py-4'
-            : 'flex items-center justify-between pt-4'
+            ? {
+                display: 'flex',
+                flexShrink: 0,
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                padding: '12px 24px',
+              }
+            : {
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                paddingTop: 16,
+              }
         }
       >
-        <div className="text-muted-foreground flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <div className={`bg-primary h-2 w-2 rounded-full`} />
+        <div
+          style={{
+            color: 'var(--color-im-muted)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 16,
+            fontSize: 13,
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div
+              style={{
+                background: 'var(--color-im-accent)',
+                height: 8,
+                width: 8,
+                borderRadius: '50%',
+              }}
+            />
             Shipment ID: {shipment.id}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 8,
+          }}
+        >
           {onEdit ? (
-            <Button
+            <button
               type="button"
-              variant="default"
-              useAccentColor
+              className="im-btn im-btn--primary"
               onClick={onEdit}
             >
               Edit shipment
-            </Button>
+            </button>
           ) : null}
-          <Button
+          <button
             type="button"
-            variant="outline"
-            useAccentColor
+            className="im-btn"
             onClick={() => onOpenChange(false)}
           >
             Close
-          </Button>
+          </button>
         </div>
       </div>
     </>
@@ -582,13 +1042,25 @@ export function ProfessionalShipmentViewDialog({
   if (isPage) {
     return (
       <section
-        className={cn(
-          'bg-card text-card-foreground flex h-full min-h-0 flex-col overflow-hidden',
-          className
-        )}
+        className={cn(className)}
+        style={{
+          flex: 1,
+          minHeight: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          background: 'var(--color-im-bg)',
+        }}
         aria-labelledby="shipment-view-title"
       >
-        <header className="shrink-0 border-b px-6 pb-4 pt-6">
+        <header
+          style={{
+            flexShrink: 0,
+            borderBottom: '1px solid var(--color-im-rule)',
+            padding: '16px 24px',
+            background: 'var(--color-im-sub)',
+          }}
+        >
           {headerRow}
         </header>
         {tabsBlock}

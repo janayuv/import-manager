@@ -1,5 +1,8 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 #![allow(clippy::uninlined_format_args)]
+// IpcError is intentionally 128 bytes — it carries full diagnostic context for the frontend.
+// Boxing it everywhere would require touching all 16+ command return types with no behaviour change.
+#![allow(clippy::result_large_err)]
 
 mod commands;
 mod connection_manager;

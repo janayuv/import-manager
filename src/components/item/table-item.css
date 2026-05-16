@@ -1,0 +1,64 @@
+/* src/components/item/table-item.css
+ * Industrial Console — Item Master extensions.
+ * Import after table-industrial.css. */
+
+/* ── Category tag ─────────────────────────────────────────────────── */
+.im-category-tag {
+  display: inline-block;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: #b0ada4;
+  background: #151412;
+  border: 1px solid #2a2820;
+  border-radius: 3px;
+  padding: 1px 6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  vertical-align: middle;
+}
+
+/* ── Right-aligned cell ────────────────────────────────────────────── */
+.im-td--right {
+  text-align: right;
+}
+
+/* ── Item toolbar (single row: search + dropdowns + clear) ──────────── */
+.im-item-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1f1e1a;
+  background: #101010;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.im-item-toolbar .im-table-search-wrap {
+  flex: 1;
+  min-width: 180px;
+}
+
+.im-item-select {
+  height: 28px;
+  padding: 0 8px;
+  background: #0c0c0a;
+  border: 1px solid #2a2820;
+  border-radius: 3px;
+  color: #c8c5be;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.03em;
+  cursor: pointer;
+  outline: none;
+}
+.im-item-select:focus {
+  border-color: #e8a23a;
+}
+.im-item-select option {
+  background: #0c0c0a;
+  color: #c8c5be;
+}

@@ -1,23 +1,10 @@
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
 'use client';
+
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 import React from 'react';
 
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { ImSection } from '@/components/shared/im';
+import { cn } from '@/lib/utils';
 import {
   Table,
   TableBody,
@@ -27,66 +14,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import type { SavedBoe } from '@/types/boe-entry';
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/saved-boe-list.tsx (MODIFIED)   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Connected the "View" button's `onClick` handler to a new `onView` prop,      |
-| which will be used to trigger the view dialog from the parent page.          |
-================================================================================
-*/
 
 interface SavedBoeListProps {
   savedBoes: SavedBoe[];
@@ -140,36 +67,33 @@ export function SavedBoeList({
     : 0;
 
   if (savedBoes.length === 0) {
-    return null; // Don't render anything if there are no saved BOEs
+    return null;
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Saved BOE Calculations</CardTitle>
-        <CardDescription>
-          Here is a list of all the BOE calculations you have saved.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
+    <ImSection
+      label="SAVED BOE CALCULATIONS"
+      sub="Saved duty runs on this device — view, edit, or remove a record."
+    >
+      <div className="border-im-rule bg-im-panel border">
         <div
           ref={containerRef}
-          className="max-h-[420px] overflow-auto rounded-md border"
+          className="im-table-scroll max-h-[420px]"
           onScroll={e => setScrollTop(e.currentTarget.scrollTop)}
         >
-          <Table>
-            <TableHeader className="bg-primary text-primary-foreground">
-              <TableRow>
-                <TableHead className="text-primary-foreground">
-                  Invoice Number
+          <Table className="im-table text-xs">
+            <TableHeader>
+              <TableRow className="border-0 hover:bg-transparent">
+                <TableHead className="im-th !h-9 rounded-none font-mono">
+                  Invoice number
                 </TableHead>
-                <TableHead className="text-primary-foreground">
+                <TableHead className="im-th !h-9 rounded-none font-mono">
                   Supplier
                 </TableHead>
-                <TableHead className="text-primary-foreground text-right">
-                  Total Duty
+                <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                  Total duty
                 </TableHead>
-                <TableHead className="text-primary-foreground text-right">
+                <TableHead className="im-th im-th-actions !h-9 rounded-none text-right font-mono">
                   Actions
                 </TableHead>
               </TableRow>
@@ -187,42 +111,56 @@ export function SavedBoeList({
                   />
                 </TableRow>
               )}
-              {visibleBoes.map(boe => (
-                <TableRow key={boe.id}>
-                  <TableCell className="font-medium">
-                    {boe.invoiceNumber}
-                  </TableCell>
-                  <TableCell>{boe.supplierName}</TableCell>
-                  <TableCell className="text-right">
-                    {formatCurrency(boe.calculationResult.customsDutyTotal)}
-                  </TableCell>
-                  <TableCell className="space-x-2 text-right">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      useAccentColor
-                      onClick={() => onView(boe.id)}
-                    >
-                      View
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      useAccentColor
-                      onClick={() => onEdit(boe.id)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => onDelete(boe.id)}
-                    >
-                      Delete
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {visibleBoes.map((boe, visibleIndex) => {
+                const rowIndex = start + visibleIndex;
+                return (
+                  <TableRow
+                    key={boe.id}
+                    className={cn(
+                      'im-tr hover:bg-im-hover border-0',
+                      rowIndex % 2 === 1 && 'is-alt'
+                    )}
+                  >
+                    <TableCell className="im-td im-td-name-main !max-w-none">
+                      {boe.invoiceNumber}
+                    </TableCell>
+                    <TableCell className="im-td text-im-text !max-w-[min(280px,40vw)]">
+                      {boe.supplierName}
+                    </TableCell>
+                    <TableCell className="im-td im-td-mono text-right">
+                      {formatCurrency(boe.calculationResult.customsDutyTotal)}
+                    </TableCell>
+                    <TableCell className="im-td im-td-actions">
+                      <div className="im-row-actions">
+                        <button
+                          type="button"
+                          className="im-btn-icon"
+                          aria-label="View saved calculation"
+                          onClick={() => onView(boe.id)}
+                        >
+                          <Eye size={13} strokeWidth={1.75} />
+                        </button>
+                        <button
+                          type="button"
+                          className="im-btn-icon"
+                          aria-label="Edit saved calculation"
+                          onClick={() => onEdit(boe.id)}
+                        >
+                          <Pencil size={13} strokeWidth={1.75} />
+                        </button>
+                        <button
+                          type="button"
+                          className="im-btn-icon text-im-bad hover:border-im-bad-bdr"
+                          aria-label="Delete saved calculation"
+                          onClick={() => onDelete(boe.id)}
+                        >
+                          <Trash2 size={13} strokeWidth={1.75} />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {bottomSpacer > 0 && (
                 <TableRow>
                   <TableCell
@@ -238,7 +176,7 @@ export function SavedBoeList({
             </TableBody>
           </Table>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </ImSection>
   );
 }

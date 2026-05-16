@@ -4,12 +4,10 @@ import { Navigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ipcErrorMessage, parseIpcError } from '@/lib/ipc-error';
 import { rebuildDashboardSnapshots } from '@/lib/ops-admin';
 import { useUser, useHasPermission } from '@/lib/user-context';
+import { AppBar } from '@/components/shared/im';
 
 export default function AdminSystemToolsPage() {
   const { user } = useUser();
@@ -62,46 +60,107 @@ export default function AdminSystemToolsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-3xl space-y-6 p-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">System tools</h1>
-        <p className="text-muted-foreground text-sm">
-          Operational controls for cache recovery. Rebuild runs on the backend
-          and does not block the UI thread.
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            Dashboard snapshot rebuild
-          </CardTitle>
-          <p className="text-muted-foreground text-sm font-normal">
-            Clears in-memory dashboard metrics cache rows and regenerates KPI,
-            exception, and workflow snapshots. Only one rebuild runs at a time.
-          </p>
-        </CardHeader>
-        <CardContent className="flex flex-wrap items-center gap-3">
-          <Button
-            type="button"
-            onClick={() => void runRebuild()}
-            disabled={rebuilding}
-            data-testid="admin-rebuild-dashboard-snapshots"
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Administration', 'System Tools']} />
+      <div
+        className="im-dashboard-body"
+        style={{
+          maxWidth: 768,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+        }}
+      >
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 18,
+              fontWeight: 700,
+              color: 'var(--color-im-text)',
+              fontFamily: 'var(--font-im-sans)',
+              textTransform: 'uppercase',
+              letterSpacing: '0.02em',
+            }}
           >
-            {rebuilding ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Rebuilding…
-              </>
-            ) : (
-              'Rebuild dashboard cache'
-            )}
-          </Button>
-          <Badge variant="outline" className="font-normal">
-            Admin only
-          </Badge>
-        </CardContent>
-      </Card>
+            System Tools
+          </h1>
+          <p
+            style={{
+              margin: '3px 0 0',
+              fontSize: 11.5,
+              color: 'var(--color-im-faint)',
+            }}
+          >
+            Operational controls for cache recovery. Rebuild runs on the backend
+            and does not block the UI thread.
+          </p>
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">
+              // Dashboard snapshot rebuild
+            </span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            <p
+              style={{
+                margin: 0,
+                fontSize: 12.5,
+                color: 'var(--color-im-muted)',
+              }}
+            >
+              Clears in-memory dashboard metrics cache rows and regenerates KPI,
+              exception, and workflow snapshots. Only one rebuild runs at a
+              time.
+            </p>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 12,
+              }}
+            >
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
+                onClick={() => void runRebuild()}
+                disabled={rebuilding}
+                data-testid="admin-rebuild-dashboard-snapshots"
+              >
+                {rebuilding ? (
+                  <>
+                    <Loader2
+                      style={{
+                        display: 'inline',
+                        width: 14,
+                        height: 14,
+                        marginRight: 6,
+                        animation: 'spin 1s linear infinite',
+                      }}
+                    />
+                    Rebuilding…
+                  </>
+                ) : (
+                  'Rebuild dashboard cache'
+                )}
+              </button>
+              <span className="im-badge is-neutral">Admin only</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }

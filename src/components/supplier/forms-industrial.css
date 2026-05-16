@@ -1,0 +1,424 @@
+/* src/components/supplier/forms-industrial.css
+ * Industrial Console — Supplier form / view / edit panels
+ * Scoped under .im-form-page. Tokens mirror table-industrial.css convention.
+ */
+
+/* ── Tokens ─────────────────────────────────────────────────────── */
+.im-form-page {
+  --im-bg: #0a0a0a;
+  --im-panel: #101010;
+  --im-header: #0d0d0b;
+  --im-sub: #0c0b09;
+  --im-hover: #161513;
+  --im-text: #efede8;
+  --im-muted: #8c8a82;
+  --im-faint: #56544e;
+  --im-rule: #1f1e1a;
+  --im-accent: #e8a23a;
+  --im-good: #5fcb7d;
+  --im-good-bg: rgba(95, 203, 125, 0.1);
+  --im-good-bdr: rgba(95, 203, 125, 0.22);
+  --im-bad: #f87171;
+  --im-bad-bg: rgba(248, 113, 113, 0.09);
+  --im-bad-bdr: rgba(248, 113, 113, 0.2);
+  --im-mono: 'Consolas', 'Courier New', monospace;
+  --im-sans: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--im-bg);
+  color: var(--im-text);
+  font-family: var(--im-sans);
+  overflow: hidden;
+}
+
+/* ── Page title block (New supplier) ────────────────────────────── */
+.im-page-title-block {
+  padding: 20px 28px 16px;
+  border-bottom: 1px solid var(--im-rule);
+  background: var(--im-header);
+  flex-shrink: 0;
+}
+.im-page-title-block h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--im-text);
+  font-family: var(--im-mono);
+}
+.im-page-title-block p {
+  margin: 5px 0 0;
+  font-size: 12.5px;
+  color: var(--im-faint);
+}
+.im-page-title-block .im-req {
+  color: var(--im-accent);
+}
+
+/* ── Identity header (View / Edit) ──────────────────────────────── */
+.im-identity-header {
+  padding: 18px 28px 16px;
+  background: var(--im-header);
+  border-bottom: 1px solid var(--im-rule);
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  flex-shrink: 0;
+}
+.im-identity-header__body {
+  flex: 1;
+  min-width: 0;
+}
+.im-identity-header h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--im-text);
+  font-family: var(--im-mono);
+}
+.im-identity-header__sub {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: var(--im-faint);
+}
+.im-identity-header__tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.im-tag-mono {
+  font-family: var(--im-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  padding: 3px 8px;
+  background: var(--im-panel);
+  border: 1px solid var(--im-rule);
+  color: var(--im-muted);
+}
+.im-tag-mono--faint {
+  color: var(--im-faint);
+}
+
+/* ── Status pill ─────────────────────────────────────────────────── */
+.im-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  font-family: var(--im-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+}
+.im-status-pill__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.im-status-pill--active {
+  background: var(--im-good-bg);
+  color: var(--im-good);
+  border: 1px solid var(--im-good-bdr);
+}
+.im-status-pill--inactive {
+  background: var(--im-bad-bg);
+  color: var(--im-bad);
+  border: 1px solid var(--im-bad-bdr);
+}
+
+/* ── Scrollable form body ────────────────────────────────────────── */
+.im-form-body {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 20px 28px;
+}
+
+/* ── Section card ────────────────────────────────────────────────── */
+.im-section {
+  border: 1px solid var(--im-rule);
+  margin-bottom: 16px;
+}
+.im-section__header {
+  background: var(--im-header);
+  border-bottom: 1px solid var(--im-rule);
+  padding: 10px 18px;
+}
+.im-section__title {
+  font-family: var(--im-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--im-muted);
+}
+.im-section__sub {
+  font-size: 11.5px;
+  color: var(--im-faint);
+  margin-top: 3px;
+}
+.im-section__body {
+  padding: 18px;
+  background: var(--im-panel);
+}
+
+/* ── Two-column grid ─────────────────────────────────────────────── */
+.im-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 20px;
+}
+.im-grid__full {
+  grid-column: 1 / -1;
+}
+.im-grid__align-end {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+/* ── Field label ─────────────────────────────────────────────────── */
+.im-field-label {
+  display: block;
+  font-family: var(--im-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--im-faint);
+  margin-bottom: 6px;
+}
+.im-field-label__req {
+  color: var(--im-accent);
+  margin-left: 3px;
+}
+
+/* ── Text input ──────────────────────────────────────────────────── */
+.im-input {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 10px;
+  background: var(--im-sub);
+  border: 1px solid var(--im-rule);
+  color: var(--im-text);
+  font-family: var(--im-sans);
+  font-size: 12.5px;
+  outline: none;
+  transition: border-color 0.12s;
+}
+.im-input::placeholder {
+  color: var(--im-faint);
+}
+.im-input:focus {
+  border-color: var(--im-accent);
+}
+.im-input.is-error {
+  border-color: var(--im-bad);
+}
+.im-input.is-readonly {
+  background: var(--im-header);
+  cursor: default;
+}
+.im-input.is-mono {
+  font-family: var(--im-mono);
+  font-size: 12px;
+}
+
+/* ── Error message ───────────────────────────────────────────────── */
+.im-error-msg {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 4px;
+  font-family: var(--im-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--im-bad);
+}
+
+/* ── Active-status toggle ────────────────────────────────────────── */
+.im-active-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background: var(--im-sub);
+  border: 1px solid var(--im-rule);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.12s;
+  width: 100%;
+}
+.im-active-toggle.is-on {
+  border-color: rgba(232, 162, 58, 0.27);
+}
+.im-active-toggle__main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.im-active-toggle__box {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid var(--im-faint);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.im-active-toggle.is-on .im-active-toggle__box {
+  border-color: var(--im-accent);
+  background: var(--im-accent);
+}
+.im-active-toggle__label {
+  font-family: var(--im-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--im-text);
+}
+.im-active-toggle__state {
+  font-family: var(--im-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+}
+.im-active-toggle.is-on .im-active-toggle__state {
+  color: var(--im-good);
+}
+.im-active-toggle:not(.is-on) .im-active-toggle__state {
+  color: var(--im-bad);
+}
+
+/* ── View-mode field display ─────────────────────────────────────── */
+.im-view-field__label {
+  font-family: var(--im-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--im-faint);
+  margin-bottom: 5px;
+}
+.im-view-field__value {
+  font-family: var(--im-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--im-text);
+}
+.im-view-field__value.is-mono {
+  font-family: var(--im-mono);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+}
+.im-view-field__value.is-empty {
+  color: var(--im-faint);
+}
+
+/* ── Form footer / action bar ────────────────────────────────────── */
+.im-form-footer {
+  flex-shrink: 0;
+  border-top: 1px solid var(--im-rule);
+  background: var(--im-sub);
+  padding: 10px 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.im-form-footer__note {
+  margin-right: auto;
+  font-family: var(--im-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.04em;
+  color: var(--im-faint);
+}
+.im-form-footer__note.is-warn {
+  color: var(--im-accent);
+}
+.im-form-footer__note.is-warn::before {
+  content: '▲ ';
+}
+.im-form-footer__actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+.im-form-footer__note + .im-form-footer__actions {
+  margin-left: 0;
+}
+
+/* ── Buttons ─────────────────────────────────────────────────────── */
+.im-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--im-muted);
+  border: 1px solid var(--im-rule);
+  font-family: var(--im-sans);
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    background 0.1s,
+    color 0.1s,
+    border-color 0.1s;
+}
+.im-btn:hover {
+  background: var(--im-hover);
+  color: var(--im-text);
+}
+
+.im-btn--primary {
+  background: var(--im-accent);
+  color: #100c04;
+  border-color: var(--im-accent);
+  font-weight: 700;
+}
+.im-btn--primary:hover {
+  background: #f0b34e;
+  color: #100c04;
+}
+
+.im-btn--danger {
+  border-color: var(--im-bad-bdr);
+  color: var(--im-bad);
+}
+.im-btn--danger:hover {
+  background: var(--im-bad-bg);
+}
+
+.im-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  background: var(--im-rule);
+  color: var(--im-faint);
+  border-color: var(--im-rule);
+}
+
+/* Icon-only button */
+.im-btn-icon {
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: 1px solid var(--im-rule);
+  color: var(--im-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.im-btn-icon:hover {
+  color: var(--im-text);
+  border-color: var(--im-faint);
+}

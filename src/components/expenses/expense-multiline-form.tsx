@@ -4,17 +4,6 @@ import { AlertTriangle, Calculator, Plus, Trash2, X } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -342,59 +331,90 @@ export function ExpenseMultilineForm({
   };
 
   return (
-    <Card className="mx-auto w-full max-w-7xl">
-      <CardHeader className="bg-card/50 border-b">
-        <CardTitle className="flex items-center justify-between text-xl">
-          <span>Add Multiple Expenses</span>
-          <Button variant="outline" size="sm" useAccentColor onClick={onCancel}>
-            <X className="h-4 w-4" />
-          </Button>
-        </CardTitle>
-        <CardDescription>
+    <div
+      className="im-section"
+      style={{ maxWidth: 1280, margin: '0 auto', width: '100%' }}
+    >
+      <div
+        className="im-section__header"
+        style={{ justifyContent: 'space-between' }}
+      >
+        <span className="im-section__label">// Add Multiple Expenses</span>
+        <button className="im-btn im-btn--sm" onClick={onCancel}>
+          <X style={{ width: 14, height: 14 }} />
+        </button>
+      </div>
+      <div className="im-section__body">
+        <p
+          style={{
+            color: 'var(--color-im-muted)',
+            fontSize: 13,
+            marginBottom: 16,
+          }}
+        >
           Create expense invoice with multiple expense lines and automatic tax
           calculations
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-8">
+        </p>
+        <form
+          onSubmit={handleSubmit}
+          style={{ display: 'flex', flexDirection: 'column', gap: 32 }}
+        >
           {/* Duplicate Warning */}
           {duplicateWarning && (
-            <Alert className="bg-warning/10">
-              <AlertTriangle className="text-warning h-4 w-4" />
-              <AlertDescription className="text-warning-foreground">
-                <div className="flex items-center justify-between">
-                  <span>{duplicateWarning}</span>
-                  <Button
-                    type="button"
-                    variant="default"
-                    size="sm"
-                    useAccentColor
-                    onClick={combineDuplicateExpenseTypes}
-                    className="text-warning hover:bg-warning/20 ml-4"
-                  >
-                    Combine Duplicates
-                  </Button>
-                </div>
-              </AlertDescription>
-            </Alert>
+            <div
+              style={{
+                padding: '8px 12px',
+                border: '1px solid var(--color-im-rule)',
+                fontSize: 12,
+                color: 'var(--color-im-muted)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <AlertTriangle
+                  style={{ width: 14, height: 14, flexShrink: 0 }}
+                />
+                <span>{duplicateWarning}</span>
+              </div>
+              <button
+                type="button"
+                className="im-btn im-btn--sm"
+                onClick={combineDuplicateExpenseTypes}
+                style={{ marginLeft: 16 }}
+              >
+                Combine Duplicates
+              </button>
+            </div>
           )}
 
           {/* Invoice Header Section */}
-          <div className="space-y-4">
-            <div className="flex items-center gap-2">
-              <div className="bg-primary h-6 w-1 rounded-full"></div>
-              <h3 className="text-foreground text-lg font-semibold">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                style={{
+                  background: 'var(--color-im-accent)',
+                  height: 24,
+                  width: 4,
+                }}
+              ></div>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
                 Invoice Details
               </h3>
             </div>
-            <div className="bg-card/50 grid grid-cols-1 gap-6 rounded-lg border p-6 md:grid-cols-2 lg:grid-cols-4">
-              <div className="space-y-2">
-                <Label
-                  htmlFor="service-provider"
-                  className="text-sm font-medium"
-                >
-                  Service Provider *
-                </Label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 24,
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                padding: 24,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Service Provider *</p>
                 <Select
                   value={invoiceHeader.service_provider_id}
                   onValueChange={value =>
@@ -417,11 +437,10 @@ export function ExpenseMultilineForm({
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="invoice-number" className="text-sm font-medium">
-                  Invoice Number *
-                </Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Invoice Number *</p>
+                <input
+                  className="im-input"
                   id="invoice-number"
                   value={invoiceHeader.invoice_number}
                   onChange={e =>
@@ -431,15 +450,13 @@ export function ExpenseMultilineForm({
                     }))
                   }
                   placeholder="Enter invoice number"
-                  className="h-10"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="invoice-date" className="text-sm font-medium">
-                  Invoice Date *
-                </Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Invoice Date *</p>
+                <input
+                  className="im-input"
                   id="invoice-date"
                   type="date"
                   value={invoiceHeader.invoice_date}
@@ -449,14 +466,11 @@ export function ExpenseMultilineForm({
                       invoice_date: e.target.value,
                     }))
                   }
-                  className="h-10"
                 />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="currency" className="text-sm font-medium">
-                  Currency
-                </Label>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label">Currency</p>
                 <Select
                   value={invoiceHeader.currency}
                   onValueChange={value =>
@@ -480,74 +494,127 @@ export function ExpenseMultilineForm({
           </div>
 
           {/* Expense Lines Section */}
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <div className="bg-success h-6 w-1 rounded-full"></div>
-                <h3 className="text-foreground text-lg font-semibold">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div
+                  style={{
+                    background: 'var(--color-im-good)',
+                    height: 24,
+                    width: 4,
+                  }}
+                ></div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
                   Expense Lines
                 </h3>
               </div>
-              <div className="flex gap-3">
-                <Button
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
                   type="button"
-                  variant="default"
-                  size="sm"
-                  useAccentColor
+                  className="im-btn im-btn--sm"
                   onClick={handlePreview}
                   disabled={previewLoading}
-                  className="h-9"
                 >
-                  <Calculator className="mr-2 h-4 w-4" />
+                  <Calculator
+                    style={{
+                      marginRight: 8,
+                      width: 14,
+                      height: 14,
+                      display: 'inline',
+                    }}
+                  />
                   {previewLoading ? 'Calculating...' : 'Preview'}
-                </Button>
-                <Button
+                </button>
+                <button
                   type="button"
-                  variant="default"
-                  size="sm"
-                  useAccentColor
+                  className="im-btn im-btn--sm im-btn--primary"
                   onClick={addExpenseLine}
-                  className="h-9"
                 >
-                  <Plus className="mr-2 h-4 w-4" />
+                  <Plus
+                    style={{
+                      marginRight: 8,
+                      width: 14,
+                      height: 14,
+                      display: 'inline',
+                    }}
+                  />
                   Add Line
-                </Button>
+                </button>
               </div>
             </div>
 
             {expenseLines.map((line, index) => (
               <div
                 key={index}
-                className="bg-secondary space-y-6 rounded-lg border p-6 shadow-sm"
+                style={{
+                  background: 'var(--color-im-panel)',
+                  border: '1px solid var(--color-im-rule)',
+                  padding: 24,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 24,
+                }}
               >
-                <div className="flex items-center justify-between border-b pb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="bg-primary/10 text-primary flex h-8 w-8 items-center justify-center rounded-full text-sm font-semibold">
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    borderBottom: '1px solid var(--color-im-rule)',
+                    paddingBottom: 16,
+                  }}
+                >
+                  <div
+                    style={{ display: 'flex', alignItems: 'center', gap: 12 }}
+                  >
+                    <div
+                      style={{
+                        background: 'rgba(232,162,58,0.10)',
+                        color: 'var(--color-im-accent)',
+                        width: 32,
+                        height: 32,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}
+                    >
                       {index + 1}
                     </div>
-                    <h4 className="text-foreground font-semibold">
+                    <h4 style={{ margin: 0, fontWeight: 600 }}>
                       Expense Line {index + 1}
                     </h4>
                   </div>
                   {expenseLines.length > 1 && (
-                    <Button
+                    <button
                       type="button"
-                      variant="destructive"
-                      size="sm"
+                      className="im-btn im-btn--sm im-btn--danger"
                       onClick={() => removeExpenseLine(index)}
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                      <Trash2 style={{ width: 14, height: 14 }} />
+                    </button>
                   )}
                 </div>
 
                 {/* Basic Details Row */}
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">
-                      Expense Type *
-                    </Label>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(3, 1fr)',
+                    gap: 24,
+                  }}
+                >
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                  >
+                    <p className="im-field-label">Expense Type *</p>
                     <Select
                       value={line.expense_type_id}
                       onValueChange={value =>
@@ -567,9 +634,12 @@ export function ExpenseMultilineForm({
                     </Select>
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Amount (₹) *</Label>
-                    <Input
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                  >
+                    <p className="im-field-label">Amount (₹) *</p>
+                    <input
+                      className="im-input"
                       type="number"
                       step="0.01"
                       value={line.amount_paise / 100}
@@ -582,34 +652,51 @@ export function ExpenseMultilineForm({
                         );
                       }}
                       placeholder="0.00"
-                      className="h-10"
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Remarks</Label>
-                    <Input
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 8 }}
+                  >
+                    <p className="im-field-label">Remarks</p>
+                    <input
+                      className="im-input"
                       value={line.remarks || ''}
                       onChange={e =>
                         updateExpenseLine(index, 'remarks', e.target.value)
                       }
                       placeholder="Optional remarks"
-                      className="h-10"
                     />
                   </div>
                 </div>
 
                 {/* Tax Rates Row */}
-                <div className="space-y-3">
-                  <Label className="text-foreground text-sm font-medium">
-                    Tax Rates (%)
-                  </Label>
-                  <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs font-medium">
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  <p className="im-field-label">Tax Rates (%)</p>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: 16,
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{ color: 'var(--color-im-muted)', fontSize: 11 }}
+                      >
                         CGST Rate (%)
-                      </Label>
-                      <Input
+                      </p>
+                      <input
+                        className="im-input"
                         type="number"
                         step="1"
                         value={line.cgst_rate}
@@ -618,15 +705,24 @@ export function ExpenseMultilineForm({
                           updateExpenseLine(index, 'cgst_rate', percentage);
                         }}
                         placeholder="9"
-                        className="h-9 text-sm"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs font-medium">
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{ color: 'var(--color-im-muted)', fontSize: 11 }}
+                      >
                         SGST Rate (%)
-                      </Label>
-                      <Input
+                      </p>
+                      <input
+                        className="im-input"
                         type="number"
                         step="1"
                         value={line.sgst_rate}
@@ -635,15 +731,24 @@ export function ExpenseMultilineForm({
                           updateExpenseLine(index, 'sgst_rate', percentage);
                         }}
                         placeholder="9"
-                        className="h-9 text-sm"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs font-medium">
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{ color: 'var(--color-im-muted)', fontSize: 11 }}
+                      >
                         IGST Rate (%)
-                      </Label>
-                      <Input
+                      </p>
+                      <input
+                        className="im-input"
                         type="number"
                         step="1"
                         value={line.igst_rate}
@@ -652,15 +757,24 @@ export function ExpenseMultilineForm({
                           updateExpenseLine(index, 'igst_rate', percentage);
                         }}
                         placeholder="0"
-                        className="h-9 text-sm"
                       />
                     </div>
 
-                    <div className="space-y-2">
-                      <Label className="text-muted-foreground text-xs font-medium">
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <p
+                        className="im-field-label"
+                        style={{ color: 'var(--color-im-muted)', fontSize: 11 }}
+                      >
                         TDS Rate (%)
-                      </Label>
-                      <Input
+                      </p>
+                      <input
+                        className="im-input"
                         type="number"
                         step="1"
                         value={line.tds_rate}
@@ -669,7 +783,6 @@ export function ExpenseMultilineForm({
                           updateExpenseLine(index, 'tds_rate', percentage);
                         }}
                         placeholder="2"
-                        className="h-9 text-sm"
                       />
                     </div>
                   </div>
@@ -680,29 +793,58 @@ export function ExpenseMultilineForm({
 
           {/* Preview Section */}
           {showPreview && preview && (
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="h-6 w-1 rounded-full bg-purple-600"></div>
-                <h3 className="text-foreground text-lg font-semibold">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div
+                  style={{ height: 24, width: 4, background: '#7c3aed' }}
+                ></div>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
                   Calculation Preview
                 </h3>
               </div>
-              <div className="bg-card/50 rounded-lg border p-6">
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div
+                style={{
+                  background: 'var(--color-im-panel)',
+                  border: '1px solid var(--color-im-rule)',
+                  padding: 24,
+                }}
+              >
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 24,
+                  }}
+                >
                   <div>
-                    <h4 className="text-foreground mb-2 font-medium">
+                    <h4 style={{ margin: '0 0 8px', fontWeight: 500 }}>
                       Line Details
                     </h4>
-                    <div className="space-y-2">
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
                       {preview.lines.map((line, index) => (
                         <div
                           key={index}
-                          className="rounded border bg-white p-2"
+                          style={{
+                            background: '#fff',
+                            border: '1px solid var(--color-im-rule)',
+                            padding: 8,
+                          }}
                         >
-                          <div className="text-sm font-medium">
+                          <div style={{ fontSize: 13, fontWeight: 500 }}>
                             {line.expense_type_name}
                           </div>
-                          <div className="text-muted-foreground text-xs">
+                          <div
+                            style={{
+                              color: 'var(--color-im-muted)',
+                              fontSize: 12,
+                            }}
+                          >
                             Amount: {formatCurrency(line.amount_paise)} | CGST:{' '}
                             {formatCurrency(line.cgst_amount_paise)} (
                             {formatPercentage(line.cgst_rate)}) | SGST:{' '}
@@ -713,7 +855,13 @@ export function ExpenseMultilineForm({
                             {formatCurrency(line.tds_amount_paise)} (
                             {formatPercentage(line.tds_rate)})
                           </div>
-                          <div className="text-success text-xs font-medium">
+                          <div
+                            style={{
+                              color: 'var(--color-im-good)',
+                              fontSize: 12,
+                              fontWeight: 500,
+                            }}
+                          >
                             Total: {formatCurrency(line.total_amount_paise)}
                           </div>
                         </div>
@@ -721,43 +869,83 @@ export function ExpenseMultilineForm({
                     </div>
                   </div>
                   <div>
-                    <h4 className="text-foreground mb-2 font-medium">
+                    <h4 style={{ margin: '0 0 8px', fontWeight: 500 }}>
                       Invoice Summary
                     </h4>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                        fontSize: 13,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <span>Total Amount:</span>
-                        <span className="font-medium">
+                        <span style={{ fontWeight: 500 }}>
                           {formatCurrency(preview.total_amount_paise)}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <span>Total CGST:</span>
                         <span>
                           {formatCurrency(preview.total_cgst_amount_paise)}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <span>Total SGST:</span>
                         <span>
                           {formatCurrency(preview.total_sgst_amount_paise)}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <span>Total IGST:</span>
                         <span>
                           {formatCurrency(preview.total_igst_amount_paise)}
                         </span>
                       </div>
-                      <div className="flex justify-between">
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                        }}
+                      >
                         <span>Total TDS:</span>
                         <span>
                           {formatCurrency(preview.total_tds_amount_paise)}
                         </span>
                       </div>
-                      <div className="flex justify-between border-t pt-2 font-semibold">
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          borderTop: '1px solid var(--color-im-rule)',
+                          paddingTop: 8,
+                          fontWeight: 600,
+                        }}
+                      >
                         <span>Net Amount:</span>
-                        <span className="text-success">
+                        <span style={{ color: 'var(--color-im-good)' }}>
                           {formatCurrency(preview.net_amount_paise)}
                         </span>
                       </div>
@@ -769,26 +957,28 @@ export function ExpenseMultilineForm({
           )}
 
           {/* Action Buttons */}
-          <div className="flex justify-end gap-4 border-t pt-6">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={onCancel}
-            >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 16,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <button type="button" className="im-btn" onClick={onCancel}>
               Cancel
-            </Button>
-            <Button
+            </button>
+            <button
               type="submit"
-              variant="default"
-              useAccentColor
+              className="im-btn im-btn--primary"
               disabled={loading}
             >
               {loading ? 'Creating...' : 'Create Invoice'}
-            </Button>
+            </button>
           </div>
         </form>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

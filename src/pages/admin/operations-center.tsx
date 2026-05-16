@@ -17,35 +17,6 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
 import {
   acknowledgeWorkflowForecastActions,
   appendWorkflowIncidentResolutionNote,
@@ -77,6 +48,7 @@ import type {
   RuntimeAnomalyReport,
 } from '@/types/dashboard-metrics';
 import { useUser, useHasPermission } from '@/lib/user-context';
+import { AppBar } from '@/components/shared/im';
 
 const DEBUG_MODES = [
   { id: 'api_timeout', label: 'API timeout' },
@@ -136,15 +108,6 @@ function incidentSeveritySummary(dash: OperationsCenterDashboard): string {
   return 'No open incidents';
 }
 
-function healthBadgeClass(status: string): string {
-  if (status === 'green')
-    return 'border-green-600/30 bg-green-50 text-green-800';
-  if (status === 'amber')
-    return 'border-amber-600/30 bg-amber-50 text-amber-900';
-  if (status === 'red') return 'border-red-600/30 bg-red-50 text-red-900';
-  return 'border-muted';
-}
-
 function parseSqliteUtc(ts: string): number {
   return new Date(ts.replace(' ', 'T') + 'Z').getTime();
 }
@@ -172,21 +135,51 @@ function ForecastRecommendedActionsBlock({
     Array.isArray(raw) && raw.length > 0 ? recommendedActionsList(banner) : [];
   if (!acts.length) return null;
   return (
-    <div className="mt-3 border-t border-purple-300/50 pt-3 dark:border-purple-700/50">
-      <div className="flex flex-wrap items-center gap-2">
-        <p className="text-sm font-medium text-purple-950 dark:text-purple-50">
+    <div
+      style={{
+        marginTop: 12,
+        borderTop: '1px solid var(--color-im-rule)',
+        paddingTop: 12,
+      }}
+    >
+      <div
+        style={{
+          display: 'flex',
+          flexWrap: 'wrap',
+          alignItems: 'center',
+          gap: 8,
+        }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: 'var(--color-im-text)',
+          }}
+        >
           Recommended actions:
         </p>
         {banner.actionPriority ? (
-          <Badge
-            variant="outline"
-            className="border-purple-700/50 text-xs font-semibold uppercase text-purple-900 dark:text-purple-100"
+          <span
+            className="im-badge is-warn"
+            style={{ textTransform: 'uppercase', fontSize: 11 }}
           >
             {banner.actionPriority}
-          </Badge>
+          </span>
         ) : null}
       </div>
-      <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-sm text-purple-900/95 dark:text-purple-100/95">
+      <ul
+        style={{
+          margin: '6px 0 0',
+          paddingLeft: 18,
+          fontSize: 12.5,
+          color: 'var(--color-im-muted)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 2,
+        }}
+      >
         {acts.map(line => (
           <li key={line}>{line}</li>
         ))}
@@ -559,1535 +552,2423 @@ export default function OperationsCenterPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-6 p-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            Operations center
-          </h1>
-          <p className="text-muted-foreground text-sm">
-            Single-operator incident lifecycle: detection, diagnosis,
-            resolution, and post-mortem audit trail.
-          </p>
+    <div className="im-page">
+      <AppBar
+        crumbs={['Import Manager', 'Administration', 'Operations Center']}
+      />
+      <div className="im-dashboard-body space-y-6">
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 16,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--color-im-text)',
+                fontFamily: 'var(--font-im-sans)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Operations Center
+            </h1>
+            <p
+              style={{
+                margin: '3px 0 0',
+                fontSize: 11.5,
+                color: 'var(--color-im-faint)',
+              }}
+            >
+              Single-operator incident lifecycle: detection, diagnosis,
+              resolution, and post-mortem audit trail.
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
+              className="im-btn im-btn--sm"
+              onClick={() => {
+                void loadDash();
+                void loadPhase3Safety();
+              }}
+            >
+              <RefreshCw
+                style={{
+                  display: 'inline',
+                  width: 14,
+                  height: 14,
+                  marginRight: 4,
+                }}
+              />
+              Refresh
+            </button>
+            <button
+              className="im-btn im-btn--sm"
+              onClick={() => void onRefreshMetrics()}
+            >
+              <Activity
+                style={{
+                  display: 'inline',
+                  width: 14,
+                  height: 14,
+                  marginRight: 4,
+                }}
+              />
+              Sync metrics
+            </button>
+            <button
+              className="im-btn im-btn--sm"
+              onClick={() => void onScanBursts()}
+            >
+              <ShieldAlert
+                style={{
+                  display: 'inline',
+                  width: 14,
+                  height: 14,
+                  marginRight: 4,
+                }}
+              />
+              Scan bursts
+            </button>
+            <button
+              className="im-btn im-btn--sm"
+              onClick={() => void onExport()}
+            >
+              <Download
+                style={{
+                  display: 'inline',
+                  width: 14,
+                  height: 14,
+                  marginRight: 4,
+                }}
+              />
+              Export CSV
+            </button>
+          </div>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              void loadDash();
-              void loadPhase3Safety();
-            }}
-          >
-            <RefreshCw className="mr-1 size-4" />
-            Refresh
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void onRefreshMetrics()}
-          >
-            <Activity className="mr-1 size-4" />
-            Sync metrics
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void onScanBursts()}
-          >
-            <ShieldAlert className="mr-1 size-4" />
-            Scan bursts
-          </Button>
-          <Button variant="outline" size="sm" onClick={() => void onExport()}>
-            <Download className="mr-1 size-4" />
-            Export CSV
-          </Button>
-        </div>
-      </div>
 
-      {isAdmin ? (
-        <Card className="border-muted">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Platform maintenance</CardTitle>
-            <CardDescription>
-              Snapshot rebuild, diagnostics export, and health — centralized
-              entry points for admins.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-2">
-              <Button variant="secondary" size="sm" asChild>
-                <Link to="/admin/system-tools">
-                  <Wrench className="mr-1 size-4" />
+        {isAdmin ? (
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Platform maintenance</span>
+              <span className="im-section__sub">
+                Snapshot rebuild, diagnostics export, and health — centralized
+                entry points for admins.
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <Link to="/admin/system-tools" className="im-btn im-btn--sm">
+                  <Wrench
+                    style={{
+                      display: 'inline',
+                      width: 14,
+                      height: 14,
+                      marginRight: 4,
+                    }}
+                  />
                   System tools
                 </Link>
-              </Button>
-              <Button variant="secondary" size="sm" asChild>
-                <Link to="/admin/system-health">System health</Link>
-              </Button>
-              <Button variant="secondary" size="sm" asChild>
-                <Link to="/admin/automation-center">Automation center</Link>
-              </Button>
+                <Link to="/admin/system-health" className="im-btn im-btn--sm">
+                  System health
+                </Link>
+                <Link
+                  to="/admin/automation-center"
+                  className="im-btn im-btn--sm"
+                >
+                  Automation center
+                </Link>
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: 11.5,
+                  color: 'var(--color-im-faint)',
+                }}
+              >
+                Diagnostics bundle: Help → Export diagnostics (audit
+                permission). Rebuilds and exports are recorded in User activity
+                with correlation IDs.
+              </p>
             </div>
-            <p className="text-muted-foreground text-xs">
-              Diagnostics bundle: Help → Export diagnostics (audit permission).
-              Rebuilds and exports are recorded in User activity with
-              correlation IDs.
-            </p>
-          </CardContent>
-        </Card>
-      ) : null}
+          </div>
+        ) : null}
 
-      <Card className="border-muted">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">
-            Phase 3 production safety (single-user)
-          </CardTitle>
-          <CardDescription>
-            AI consistency auditor, runtime anomaly score, and deterministic
-            self-healing recovery.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {phase3Loading ? (
-            <Skeleton className="h-24 w-full rounded-md" />
-          ) : (
-            <>
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="font-medium">AI consistency</span>
-                    <Badge
-                      variant={
-                        (consistencyAudit?.checksFailed ?? 0) > 0
-                          ? 'destructive'
-                          : 'secondary'
-                      }
-                    >
-                      {consistencyAudit?.checksFailed ?? 0} failed
-                    </Badge>
-                  </div>
-                  <p className="text-muted-foreground text-xs">
-                    {consistencyAudit?.summary ?? 'No data yet'}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    Checks run: {consistencyAudit?.checksRun ?? 0} · Trace
-                    violations (7d):{' '}
-                    {consistencyAudit?.rootCauseTraceViolations7d ?? 0}
-                  </p>
-                </div>
-                <div className="rounded-md border p-3 text-sm">
-                  <div className="mb-1 flex items-center justify-between gap-2">
-                    <span className="font-medium">Runtime anomaly</span>
-                    <Badge variant="outline">
-                      {anomalyReport?.severity?.toUpperCase() ?? 'UNKNOWN'}
-                    </Badge>
-                  </div>
-                  <p className="text-muted-foreground text-xs">
-                    Score: {anomalyReport?.anomalyScore ?? 0} · Failed jobs 1h:{' '}
-                    {anomalyReport?.failedJobs1h ?? 0} · Timeouts 1h:{' '}
-                    {anomalyReport?.timeoutJobs1h ?? 0}
-                  </p>
-                  <p className="text-muted-foreground mt-1 text-xs">
-                    Stuck recovery ops:{' '}
-                    {anomalyReport?.recoveryJournalStuck ?? 0}
-                    {' · '}Integrity issues 24h:{' '}
-                    {anomalyReport?.integrityIssues24h ?? 0}
-                  </p>
-                </div>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void loadPhase3Safety()}
-                  disabled={phase3Loading || selfHealingBusy}
-                >
-                  <RefreshCw className="mr-1 size-4" />
-                  Refresh safety checks
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => void onRunSelfHealing()}
-                  disabled={phase3Loading || selfHealingBusy}
-                >
-                  <Wrench className="mr-1 size-4" />
-                  {selfHealingBusy
-                    ? 'Running self-heal...'
-                    : 'Run self-healing'}
-                </Button>
-              </div>
-              <div className="rounded-md border p-3">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="text-sm font-medium">
-                    Safety trend (recent)
-                  </span>
-                  <span className="text-muted-foreground text-xs">
-                    last {phase3Trend.length || 0} samples
-                  </span>
-                </div>
-                {phase3Trend.length === 0 ? (
-                  <p className="text-muted-foreground text-xs">
-                    No samples yet. Refresh safety checks to start collecting.
-                  </p>
-                ) : (
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap gap-1">
-                      {phase3Trend.map((p, idx) => (
-                        <div
-                          key={`${p.ts}-${idx}`}
-                          title={`${new Date(p.ts).toLocaleTimeString()} | score=${p.anomalyScore} | ${p.severity}${p.healed != null ? ` | healed=${p.healed}` : ''}`}
-                          className={`h-8 min-w-[22px] rounded border px-1 text-center text-[10px] tabular-nums leading-7 ${
-                            p.anomalyScore >= 20
-                              ? 'border-red-300 bg-red-50 text-red-900'
-                              : p.anomalyScore >= 10
-                                ? 'border-amber-300 bg-amber-50 text-amber-900'
-                                : p.anomalyScore >= 5
-                                  ? 'border-yellow-300 bg-yellow-50 text-yellow-900'
-                                  : 'border-emerald-300 bg-emerald-50 text-emerald-900'
-                          }`}
-                        >
-                          {p.anomalyScore}
-                        </div>
-                      ))}
-                    </div>
-                    <div className="text-muted-foreground flex flex-wrap gap-3 text-[11px]">
-                      <span>
-                        High/critical:{' '}
-                        {phase3Trend.filter(p => p.anomalyScore >= 10).length}
-                      </span>
-                      <span>
-                        Self-heal improved:{' '}
-                        {phase3Trend.filter(p => p.healed === true).length}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      {loading && (
-        <div className="grid gap-4 md:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-24 rounded-lg" />
-          ))}
-        </div>
-      )}
-
-      {error && (
-        <Card className="border-destructive/50">
-          <CardHeader>
-            <CardTitle className="text-destructive flex items-center gap-2 text-base">
-              <ShieldAlert className="size-4" />
-              Failed to load dashboard
-            </CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-        </Card>
-      )}
-
-      {dash && !loading && dash.failureForecastBanner && (
-        <div
-          role="status"
-          className="rounded-lg border border-purple-600/35 bg-purple-50 px-4 py-3 text-purple-950 shadow-sm dark:border-purple-500/40 dark:bg-purple-950/40 dark:text-purple-50"
-        >
-          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-            <span className="text-lg" aria-hidden>
-              🔮
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">
+              // Phase 3 production safety (single-user)
             </span>
-            <span className="font-semibold tracking-tight">
-              Failure Risk Predicted
+            <span className="im-section__sub">
+              AI consistency auditor, runtime anomaly score, and deterministic
+              self-healing recovery.
             </span>
           </div>
-          <p className="mt-2 text-sm leading-relaxed">
-            <span className="font-medium">Module:</span>{' '}
-            <span className="font-mono">
-              {dash.failureForecastBanner.sourceModule}
-            </span>
-            <span className="mx-2 text-purple-700/80 dark:text-purple-200/80">
-              ·
-            </span>
-            <span className="font-medium">Probability:</span>{' '}
-            <span className="tabular-nums">
-              {dash.failureForecastBanner.predictedFailureProbability.toFixed(
-                2
-              )}
-            </span>
-            <span className="mx-2 text-purple-700/80 dark:text-purple-200/80">
-              ·
-            </span>
-            <span className="font-medium">Window:</span> Next{' '}
-            {dash.failureForecastBanner.forecastHorizonMinutes} minutes
-          </p>
-          <p className="mt-2 text-sm">
-            <span className="font-medium">Confidence:</span>{' '}
-            <span className="tabular-nums">
-              {dash.failureForecastBanner.confidenceScore.toFixed(2)}
-            </span>
-            {typeof dash.failureForecastBanner.dataPointsUsed === 'number' ? (
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            {phase3Loading ? (
+              <div
+                style={{
+                  height: 96,
+                  background: 'var(--color-im-rule)',
+                  borderRadius: 4,
+                  opacity: 0.5,
+                }}
+              />
+            ) : (
               <>
-                {' '}
-                <span className="text-purple-800/85 dark:text-purple-100/85">
-                  — Based on {dash.failureForecastBanner.dataPointsUsed} data
-                  points
-                </span>
-              </>
-            ) : null}
-          </p>
-          {dash.failureForecastBanner.trendSummary ? (
-            <p className="mt-2 text-sm leading-snug text-purple-900/95 dark:text-purple-50/95">
-              {dash.failureForecastBanner.trendSummary}
-            </p>
-          ) : null}
-          <div className="mt-3 border-t border-purple-300/50 pt-3 dark:border-purple-700/50">
-            <p className="text-sm font-medium text-purple-950 dark:text-purple-50">
-              Why this forecast exists:
-            </p>
-            <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-sm text-purple-900/95 dark:text-purple-100/95">
-              {forecastBannerBullets(dash).map(line => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-          <ForecastRecommendedActionsBlock
-            banner={dash.failureForecastBanner}
-          />
-          {viewOk ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="default"
-                className="bg-purple-800 text-white hover:bg-purple-900 dark:bg-purple-700 dark:hover:bg-purple-600"
-                disabled={forecastAckBusy || forecastFeedbackBusy}
-                onClick={() => {
-                  const id = dash.failureForecastBanner?.forecastId;
-                  if (!id) return;
-                  const acts = recommendedActionsList(
-                    dash.failureForecastBanner!
-                  );
-                  const summary =
-                    acts.length > 0
-                      ? `Acknowledged checklist: ${acts.join('; ')}`
-                      : 'Acknowledged recommended preventive checklist';
-                  setForecastAckBusy(true);
-                  void (async () => {
-                    try {
-                      await acknowledgeWorkflowForecastActions(
-                        id,
-                        summary,
-                        role || 'Admin'
-                      );
-                      toast.success('ACKNOWLEDGE_ACTION recorded');
-                      await loadDash();
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : String(e));
-                    } finally {
-                      setForecastAckBusy(false);
-                    }
-                  })();
-                }}
-              >
-                Acknowledge recommended actions
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="border-purple-700/40 bg-white/80 text-purple-950 hover:bg-purple-100 dark:border-purple-400/40 dark:bg-purple-900/50 dark:text-purple-50 dark:hover:bg-purple-800/60"
-                disabled={forecastFeedbackBusy || forecastAckBusy}
-                onClick={() => {
-                  const id = dash.failureForecastBanner?.forecastId;
-                  if (!id) return;
-                  setForecastFeedbackBusy(true);
-                  void (async () => {
-                    try {
-                      await submitWorkflowForecastFeedback(
-                        id,
-                        'accurate',
-                        role || 'Admin',
-                        null
-                      );
-                      toast.success('Recorded: prediction was accurate');
-                      await loadDash();
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : String(e));
-                    } finally {
-                      setForecastFeedbackBusy(false);
-                    }
-                  })();
-                }}
-              >
-                Prediction was accurate
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                className="border-purple-700/40 bg-white/80 text-purple-950 hover:bg-purple-100 dark:border-purple-400/40 dark:bg-purple-900/50 dark:text-purple-50 dark:hover:bg-purple-800/60"
-                disabled={forecastFeedbackBusy || forecastAckBusy}
-                onClick={() => {
-                  const id = dash.failureForecastBanner?.forecastId;
-                  if (!id) return;
-                  setForecastFeedbackBusy(true);
-                  void (async () => {
-                    try {
-                      await submitWorkflowForecastFeedback(
-                        id,
-                        'misleading',
-                        role || 'Admin',
-                        null
-                      );
-                      toast.success('Recorded: prediction was misleading');
-                      await loadDash();
-                    } catch (e) {
-                      toast.error(e instanceof Error ? e.message : String(e));
-                    } finally {
-                      setForecastFeedbackBusy(false);
-                    }
-                  })();
-                }}
-              >
-                Prediction was misleading
-              </Button>
-            </div>
-          ) : null}
-        </div>
-      )}
-
-      {dash && !loading && recentSystemicBursts.length > 0 && (
-        <div className="space-y-3">
-          {recentSystemicBursts.map(b => {
-            const det = (b.details ?? {}) as Record<string, unknown>;
-            const classification = String(
-              det.rootCauseClassification ?? ''
-            ).replace(/_/g, ' ');
-            const durSec = Number(det.burstDurationSeconds);
-            const durMin = Number.isFinite(durSec)
-              ? Math.max(0.1, durSec / 60)
-              : Math.max(0.1, b.durationMinutes);
-            const conf =
-              typeof b.confidenceScore === 'number'
-                ? b.confidenceScore
-                : typeof det.confidenceScore === 'number'
-                  ? (det.confidenceScore as number)
-                  : null;
-            return (
-              <Card
-                key={b.burstId}
-                className="border-amber-500/40 bg-amber-50/90 text-amber-950 dark:bg-amber-950/30 dark:text-amber-50"
-              >
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <AlertTriangle className="size-5 shrink-0" />
-                    BURST DETECTED
-                  </CardTitle>
-                  <CardDescription className="text-amber-900/90 dark:text-amber-100/90">
-                    Module:{' '}
-                    <span className="font-mono text-xs">{b.sourceModule}</span>
-                    {' · '}
-                    Events:{' '}
-                    <span className="font-medium tabular-nums">
-                      {b.eventCount}
-                    </span>
-                    {' · '}
-                    Duration:{' '}
-                    <span className="tabular-nums">
-                      {durMin.toFixed(1)}
-                    </span>{' '}
-                    min
-                    {' · '}
-                    Severity:{' '}
-                    <span className="font-semibold">{b.severity}</span>
-                    {classification ? (
-                      <>
-                        {' · '}
-                        Class:{' '}
-                        <span className="font-mono text-[11px]">
-                          {classification}
-                        </span>
-                      </>
-                    ) : null}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="text-sm">
-                  <p className="font-medium leading-snug">
-                    Hint: {b.rootCauseHint}
-                  </p>
-                  {conf != null ? (
-                    <p className="text-muted-foreground mt-1 text-xs">
-                      Confidence: {(conf * 100).toFixed(0)}%
-                    </p>
-                  ) : null}
-                  <p className="text-muted-foreground mt-2 text-xs">
-                    Baseline rate ~{b.baselineRate.toFixed(3)} / 10m vs current
-                    rate {b.currentRate.toFixed(1)} / 10m · Event:{' '}
-                    <span className="font-mono">{b.eventType}</span>
-                  </p>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      )}
-
-      {dash && !loading && (dash.activeSuppressions?.length ?? 0) > 0 && (
-        <div className="space-y-3">
-          {(dash.activeSuppressions ?? []).map(s => (
-            <Card
-              key={s.suppressionId}
-              className="border-sky-600/30 bg-sky-50/95 text-sky-950 dark:bg-sky-950/35 dark:text-sky-50"
-            >
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <ShieldAlert className="size-5 shrink-0" />
-                  Incident suppression active
-                </CardTitle>
-                <CardDescription className="text-sky-900/90 dark:text-sky-100/90">
-                  Module:{' '}
-                  <span className="font-mono text-xs">{s.sourceModule}</span>
-                  {' · '}
-                  Signal:{' '}
-                  <span className="font-mono text-xs">{s.eventType}</span>
-                  {' · '}
-                  Suppressed:{' '}
-                  <span className="font-medium tabular-nums">
-                    {s.suppressedEventCount}
-                  </span>{' '}
-                  events · Window:{' '}
-                  <span className="tabular-nums">
-                    {s.windowMinutes.toFixed(0)}
-                  </span>{' '}
-                  min · Confidence:{' '}
-                  <span className="tabular-nums">
-                    {(s.confidenceScore * 100).toFixed(0)}%
-                  </span>
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-xs text-sky-900/85 dark:text-sky-100/85">
-                <p className="leading-snug">{s.reason}</p>
-                <p className="text-muted-foreground mt-2 font-mono text-[11px]">
-                  Until {s.suppressionEnd} (UTC)
-                </p>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {dash && !loading && (dash.stabilizationSignals?.length ?? 0) > 0 && (
-        <div className="space-y-3">
-          {(dash.stabilizationSignals ?? []).map(sig => {
-            const confirmed = sig.phase === 'confirmed' || sig.tone === 'green';
-            return (
-              <Card
-                key={sig.stabilizationId}
-                className={
-                  confirmed
-                    ? 'border-emerald-600/35 bg-emerald-50/95 text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-50'
-                    : 'border-amber-600/35 bg-amber-50/95 text-amber-950 dark:bg-amber-950/40 dark:text-amber-50'
-                }
-              >
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    {confirmed ? (
-                      <CheckCircle2 className="size-5 shrink-0" />
-                    ) : (
-                      <Activity className="size-5 shrink-0 animate-pulse" />
-                    )}
-                    {confirmed ? 'System stabilized' : 'System stabilizing'}
-                  </CardTitle>
-                  <CardDescription
-                    className={
-                      confirmed
-                        ? 'text-emerald-900/90 dark:text-emerald-100/90'
-                        : 'text-amber-900/90 dark:text-amber-100/90'
-                    }
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      border: '1px solid var(--color-im-rule)',
+                      borderRadius: 4,
+                      padding: 12,
+                      fontSize: 12.5,
+                    }}
                   >
-                    Module:{' '}
-                    <span className="font-mono text-xs">
-                      {sig.sourceModule}
+                    <div
+                      style={{
+                        marginBottom: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>AI consistency</span>
+                      <span
+                        className={
+                          (consistencyAudit?.checksFailed ?? 0) > 0
+                            ? 'im-status-pill is-inactive'
+                            : 'im-status-pill is-neutral'
+                        }
+                      >
+                        {consistencyAudit?.checksFailed ?? 0} failed
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 11.5,
+                        margin: 0,
+                      }}
+                    >
+                      {consistencyAudit?.summary ?? 'No data yet'}
+                    </p>
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 11.5,
+                        marginTop: 4,
+                        marginBottom: 0,
+                      }}
+                    >
+                      Checks run: {consistencyAudit?.checksRun ?? 0} · Trace
+                      violations (7d):{' '}
+                      {consistencyAudit?.rootCauseTraceViolations7d ?? 0}
+                    </p>
+                  </div>
+                  <div
+                    style={{
+                      border: '1px solid var(--color-im-rule)',
+                      borderRadius: 4,
+                      padding: 12,
+                      fontSize: 12.5,
+                    }}
+                  >
+                    <div
+                      style={{
+                        marginBottom: 4,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        gap: 8,
+                      }}
+                    >
+                      <span style={{ fontWeight: 500 }}>Runtime anomaly</span>
+                      <span className="im-status-pill is-neutral">
+                        {anomalyReport?.severity?.toUpperCase() ?? 'UNKNOWN'}
+                      </span>
+                    </div>
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 11.5,
+                        margin: 0,
+                      }}
+                    >
+                      Score: {anomalyReport?.anomalyScore ?? 0} · Failed jobs
+                      1h: {anomalyReport?.failedJobs1h ?? 0} · Timeouts 1h:{' '}
+                      {anomalyReport?.timeoutJobs1h ?? 0}
+                    </p>
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 11.5,
+                        marginTop: 4,
+                        marginBottom: 0,
+                      }}
+                    >
+                      Stuck recovery ops:{' '}
+                      {anomalyReport?.recoveryJournalStuck ?? 0} · Integrity
+                      issues 24h: {anomalyReport?.integrityIssues24h ?? 0}
+                    </p>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
+                    className="im-btn im-btn--sm"
+                    onClick={() => void loadPhase3Safety()}
+                    disabled={phase3Loading || selfHealingBusy}
+                  >
+                    <RefreshCw
+                      style={{
+                        display: 'inline',
+                        width: 14,
+                        height: 14,
+                        marginRight: 4,
+                      }}
+                    />
+                    Refresh safety checks
+                  </button>
+                  <button
+                    className="im-btn im-btn--sm"
+                    onClick={() => void onRunSelfHealing()}
+                    disabled={phase3Loading || selfHealingBusy}
+                  >
+                    <Wrench
+                      style={{
+                        display: 'inline',
+                        width: 14,
+                        height: 14,
+                        marginRight: 4,
+                      }}
+                    />
+                    {selfHealingBusy
+                      ? 'Running self-heal...'
+                      : 'Run self-healing'}
+                  </button>
+                </div>
+                <div
+                  style={{
+                    border: '1px solid var(--color-im-rule)',
+                    borderRadius: 4,
+                    padding: 12,
+                  }}
+                >
+                  <div
+                    style={{
+                      marginBottom: 8,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span style={{ fontSize: 12.5, fontWeight: 500 }}>
+                      Safety trend (recent)
                     </span>
-                    {' · '}
-                    Signal:{' '}
-                    <span className="font-mono text-xs">{sig.eventType}</span>
-                    {' · '}
-                    Quiet time:{' '}
-                    <span className="font-medium tabular-nums">
-                      {sig.quietMinutes.toFixed(0)}
-                    </span>{' '}
-                    min · Confidence:{' '}
-                    <span className="tabular-nums">
-                      {sig.confidenceScore.toFixed(2)}
+                    <span
+                      style={{ color: 'var(--color-im-muted)', fontSize: 11.5 }}
+                    >
+                      last {phase3Trend.length || 0} samples
                     </span>
-                    {confirmed && sig.stabilityDurationMinutes > 0 ? (
-                      <>
-                        {' · '}
-                        Stability window:{' '}
-                        <span className="tabular-nums">
-                          {sig.stabilityDurationMinutes}
-                        </span>{' '}
-                        min
-                      </>
-                    ) : null}
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            );
-          })}
+                  </div>
+                  {phase3Trend.length === 0 ? (
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 11.5,
+                        margin: 0,
+                      }}
+                    >
+                      No samples yet. Refresh safety checks to start collecting.
+                    </p>
+                  ) : (
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 8,
+                      }}
+                    >
+                      <div
+                        style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}
+                      >
+                        {phase3Trend.map((p, idx) => (
+                          <div
+                            key={`${p.ts}-${idx}`}
+                            title={`${new Date(p.ts).toLocaleTimeString()} | score=${p.anomalyScore} | ${p.severity}${p.healed != null ? ` | healed=${p.healed}` : ''}`}
+                            className={`h-8 min-w-[22px] rounded border px-1 text-center text-[10px] tabular-nums leading-7 ${
+                              p.anomalyScore >= 20
+                                ? 'border-red-300 bg-red-50 text-red-900'
+                                : p.anomalyScore >= 10
+                                  ? 'border-amber-300 bg-amber-50 text-amber-900'
+                                  : p.anomalyScore >= 5
+                                    ? 'border-yellow-300 bg-yellow-50 text-yellow-900'
+                                    : 'border-emerald-300 bg-emerald-50 text-emerald-900'
+                            }`}
+                          >
+                            {p.anomalyScore}
+                          </div>
+                        ))}
+                      </div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexWrap: 'wrap',
+                          gap: 12,
+                          color: 'var(--color-im-muted)',
+                          fontSize: 11,
+                        }}
+                      >
+                        <span>
+                          High/critical:{' '}
+                          {phase3Trend.filter(p => p.anomalyScore >= 10).length}
+                        </span>
+                        <span>
+                          Self-heal improved:{' '}
+                          {phase3Trend.filter(p => p.healed === true).length}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
         </div>
-      )}
 
-      {dash && !loading && (dash.regressionSignals?.length ?? 0) > 0 && (
-        <div className="space-y-3">
-          {(dash.regressionSignals ?? []).map(r => {
-            const src = r.triggerSource ?? 'alert';
-            const isStructured = src === 'structured_log';
-            return (
-              <Card
-                key={r.regressionId}
-                className="border-red-700/45 bg-red-50/95 text-red-950 dark:bg-red-950/45 dark:text-red-50"
+        {loading && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 16,
+            }}
+          >
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                style={{
+                  height: 96,
+                  background: 'var(--color-im-rule)',
+                  borderRadius: 4,
+                  opacity: 0.5,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {error && (
+          <div
+            className="im-section"
+            style={{ borderColor: 'var(--color-im-bad)' }}
+          >
+            <div className="im-section__header">
+              <span
+                className="im-section__label"
+                style={{ color: 'var(--color-im-bad)' }}
               >
-                <CardHeader className="pb-2">
-                  <CardTitle className="flex items-center gap-2 text-base">
-                    <OctagonAlert className="size-5 shrink-0 text-red-700 dark:text-red-200" />
-                    Regression detected
-                  </CardTitle>
-                  <CardDescription className="text-red-900/90 dark:text-red-100/90">
-                    <span className="mb-1 flex flex-wrap items-center gap-2">
-                      <Badge
-                        variant="outline"
-                        className="border-red-800/40 bg-white/80 text-red-950 dark:bg-red-900/40 dark:text-red-50"
+                <ShieldAlert
+                  style={{
+                    display: 'inline',
+                    width: 14,
+                    height: 14,
+                    marginRight: 4,
+                  }}
+                />
+                // Failed to load dashboard
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ fontSize: 12.5, color: 'var(--color-im-muted)' }}
+            >
+              {error}
+            </div>
+          </div>
+        )}
+
+        {dash && !loading && dash.failureForecastBanner && (
+          <div
+            role="status"
+            className="rounded-lg border border-purple-600/35 bg-purple-50 px-4 py-3 text-purple-950 shadow-sm dark:border-purple-500/40 dark:bg-purple-950/40 dark:text-purple-50"
+          >
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <span className="text-lg" aria-hidden>
+                🔮
+              </span>
+              <span className="font-semibold tracking-tight">
+                Failure Risk Predicted
+              </span>
+            </div>
+            <p className="mt-2 text-sm leading-relaxed">
+              <span className="font-medium">Module:</span>{' '}
+              <span className="font-mono">
+                {dash.failureForecastBanner.sourceModule}
+              </span>
+              <span className="mx-2 text-purple-700/80 dark:text-purple-200/80">
+                ·
+              </span>
+              <span className="font-medium">Probability:</span>{' '}
+              <span className="tabular-nums">
+                {dash.failureForecastBanner.predictedFailureProbability.toFixed(
+                  2
+                )}
+              </span>
+              <span className="mx-2 text-purple-700/80 dark:text-purple-200/80">
+                ·
+              </span>
+              <span className="font-medium">Window:</span> Next{' '}
+              {dash.failureForecastBanner.forecastHorizonMinutes} minutes
+            </p>
+            <p className="mt-2 text-sm">
+              <span className="font-medium">Confidence:</span>{' '}
+              <span className="tabular-nums">
+                {dash.failureForecastBanner.confidenceScore.toFixed(2)}
+              </span>
+              {typeof dash.failureForecastBanner.dataPointsUsed === 'number' ? (
+                <>
+                  {' '}
+                  <span className="text-purple-800/85 dark:text-purple-100/85">
+                    — Based on {dash.failureForecastBanner.dataPointsUsed} data
+                    points
+                  </span>
+                </>
+              ) : null}
+            </p>
+            {dash.failureForecastBanner.trendSummary ? (
+              <p className="mt-2 text-sm leading-snug text-purple-900/95 dark:text-purple-50/95">
+                {dash.failureForecastBanner.trendSummary}
+              </p>
+            ) : null}
+            <div className="mt-3 border-t border-purple-300/50 pt-3 dark:border-purple-700/50">
+              <p className="text-sm font-medium text-purple-950 dark:text-purple-50">
+                Why this forecast exists:
+              </p>
+              <ul className="mt-1.5 list-inside list-disc space-y-0.5 text-sm text-purple-900/95 dark:text-purple-100/95">
+                {forecastBannerBullets(dash).map(line => (
+                  <li key={line}>{line}</li>
+                ))}
+              </ul>
+            </div>
+            <ForecastRecommendedActionsBlock
+              banner={dash.failureForecastBanner}
+            />
+            {viewOk ? (
+              <div
+                style={{
+                  marginTop: 12,
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 8,
+                }}
+              >
+                <button
+                  type="button"
+                  className="im-btn im-btn--primary im-btn--sm"
+                  disabled={forecastAckBusy || forecastFeedbackBusy}
+                  onClick={() => {
+                    const id = dash.failureForecastBanner?.forecastId;
+                    if (!id) return;
+                    const acts = recommendedActionsList(
+                      dash.failureForecastBanner!
+                    );
+                    const summary =
+                      acts.length > 0
+                        ? `Acknowledged checklist: ${acts.join('; ')}`
+                        : 'Acknowledged recommended preventive checklist';
+                    setForecastAckBusy(true);
+                    void (async () => {
+                      try {
+                        await acknowledgeWorkflowForecastActions(
+                          id,
+                          summary,
+                          role || 'Admin'
+                        );
+                        toast.success('ACKNOWLEDGE_ACTION recorded');
+                        await loadDash();
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : String(e));
+                      } finally {
+                        setForecastAckBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  Acknowledge recommended actions
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  disabled={forecastFeedbackBusy || forecastAckBusy}
+                  onClick={() => {
+                    const id = dash.failureForecastBanner?.forecastId;
+                    if (!id) return;
+                    setForecastFeedbackBusy(true);
+                    void (async () => {
+                      try {
+                        await submitWorkflowForecastFeedback(
+                          id,
+                          'accurate',
+                          role || 'Admin',
+                          null
+                        );
+                        toast.success('Recorded: prediction was accurate');
+                        await loadDash();
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : String(e));
+                      } finally {
+                        setForecastFeedbackBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  Prediction was accurate
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--sm"
+                  disabled={forecastFeedbackBusy || forecastAckBusy}
+                  onClick={() => {
+                    const id = dash.failureForecastBanner?.forecastId;
+                    if (!id) return;
+                    setForecastFeedbackBusy(true);
+                    void (async () => {
+                      try {
+                        await submitWorkflowForecastFeedback(
+                          id,
+                          'misleading',
+                          role || 'Admin',
+                          null
+                        );
+                        toast.success('Recorded: prediction was misleading');
+                        await loadDash();
+                      } catch (e) {
+                        toast.error(e instanceof Error ? e.message : String(e));
+                      } finally {
+                        setForecastFeedbackBusy(false);
+                      }
+                    })();
+                  }}
+                >
+                  Prediction was misleading
+                </button>
+              </div>
+            ) : null}
+          </div>
+        )}
+
+        {dash && !loading && recentSystemicBursts.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {recentSystemicBursts.map(b => {
+              const det = (b.details ?? {}) as Record<string, unknown>;
+              const classification = String(
+                det.rootCauseClassification ?? ''
+              ).replace(/_/g, ' ');
+              const durSec = Number(det.burstDurationSeconds);
+              const durMin = Number.isFinite(durSec)
+                ? Math.max(0.1, durSec / 60)
+                : Math.max(0.1, b.durationMinutes);
+              const conf =
+                typeof b.confidenceScore === 'number'
+                  ? b.confidenceScore
+                  : typeof det.confidenceScore === 'number'
+                    ? (det.confidenceScore as number)
+                    : null;
+              return (
+                <div
+                  key={b.burstId}
+                  className="im-section"
+                  style={{ borderColor: 'var(--color-im-accent)' }}
+                >
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      <AlertTriangle
+                        style={{
+                          display: 'inline',
+                          width: 13,
+                          height: 13,
+                          marginRight: 4,
+                        }}
+                      />
+                      // Burst detected
+                    </span>
+                    <span className="im-section__sub">
+                      Module:{' '}
+                      <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                        {b.sourceModule}
+                      </span>
+                      {' · '}Events: <strong>{b.eventCount}</strong>
+                      {' · '}Duration: {durMin.toFixed(1)} min
+                      {' · '}Severity: <strong>{b.severity}</strong>
+                      {classification ? (
+                        <>
+                          {' · '}Class:{' '}
+                          <span
+                            style={{ fontFamily: 'monospace', fontSize: 11 }}
+                          >
+                            {classification}
+                          </span>
+                        </>
+                      ) : null}
+                    </span>
+                  </div>
+                  <div className="im-section__body" style={{ fontSize: 12.5 }}>
+                    <p style={{ margin: 0, fontWeight: 600 }}>
+                      Hint: {b.rootCauseHint}
+                    </p>
+                    {conf != null ? (
+                      <p
+                        style={{
+                          margin: '4px 0 0',
+                          color: 'var(--color-im-muted)',
+                          fontSize: 11.5,
+                        }}
+                      >
+                        Confidence: {(conf * 100).toFixed(0)}%
+                      </p>
+                    ) : null}
+                    <p
+                      style={{
+                        margin: '8px 0 0',
+                        color: 'var(--color-im-muted)',
+                        fontSize: 11.5,
+                      }}
+                    >
+                      Baseline rate ~{b.baselineRate.toFixed(3)} / 10m vs
+                      current rate {b.currentRate.toFixed(1)} / 10m
+                      {' · '}Event:{' '}
+                      <span style={{ fontFamily: 'monospace' }}>
+                        {b.eventType}
+                      </span>
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {dash && !loading && (dash.activeSuppressions?.length ?? 0) > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(dash.activeSuppressions ?? []).map(s => (
+              <div
+                key={s.suppressionId}
+                className="im-section"
+                style={{ borderColor: 'var(--color-im-good)' }}
+              >
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    <ShieldAlert
+                      style={{
+                        display: 'inline',
+                        width: 13,
+                        height: 13,
+                        marginRight: 4,
+                      }}
+                    />
+                    // Incident suppression active
+                  </span>
+                  <span className="im-section__sub">
+                    Module:{' '}
+                    <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                      {s.sourceModule}
+                    </span>
+                    {' · '}Signal:{' '}
+                    <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                      {s.eventType}
+                    </span>
+                    {' · '}Suppressed: <strong>{s.suppressedEventCount}</strong>{' '}
+                    events
+                    {' · '}Window: {s.windowMinutes.toFixed(0)} min
+                    {' · '}Confidence: {(s.confidenceScore * 100).toFixed(0)}%
+                  </span>
+                </div>
+                <div
+                  className="im-section__body"
+                  style={{ fontSize: 11.5, color: 'var(--color-im-muted)' }}
+                >
+                  <p style={{ margin: 0 }}>{s.reason}</p>
+                  <p
+                    style={{
+                      margin: '6px 0 0',
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    }}
+                  >
+                    Until {s.suppressionEnd} (UTC)
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {dash && !loading && (dash.stabilizationSignals?.length ?? 0) > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(dash.stabilizationSignals ?? []).map(sig => {
+              const confirmed =
+                sig.phase === 'confirmed' || sig.tone === 'green';
+              return (
+                <div
+                  key={sig.stabilizationId}
+                  className="im-section"
+                  style={{
+                    borderColor: confirmed
+                      ? 'var(--color-im-good)'
+                      : 'var(--color-im-accent)',
+                  }}
+                >
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      {confirmed ? (
+                        <CheckCircle2
+                          style={{
+                            display: 'inline',
+                            width: 13,
+                            height: 13,
+                            marginRight: 4,
+                          }}
+                        />
+                      ) : (
+                        <Activity
+                          style={{
+                            display: 'inline',
+                            width: 13,
+                            height: 13,
+                            marginRight: 4,
+                          }}
+                        />
+                      )}
+                      //{' '}
+                      {confirmed ? 'System stabilized' : 'System stabilizing'}
+                    </span>
+                    <span className="im-section__sub">
+                      Module:{' '}
+                      <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                        {sig.sourceModule}
+                      </span>
+                      {' · '}Signal:{' '}
+                      <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                        {sig.eventType}
+                      </span>
+                      {' · '}Quiet time:{' '}
+                      <strong>{sig.quietMinutes.toFixed(0)}</strong> min
+                      {' · '}Confidence: {sig.confidenceScore.toFixed(2)}
+                      {confirmed && sig.stabilityDurationMinutes > 0 ? (
+                        <>
+                          {' · '}Stability window:{' '}
+                          {sig.stabilityDurationMinutes} min
+                        </>
+                      ) : null}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {dash && !loading && (dash.regressionSignals?.length ?? 0) > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(dash.regressionSignals ?? []).map(r => {
+              const src = r.triggerSource ?? 'alert';
+              const isStructured = src === 'structured_log';
+              return (
+                <div
+                  key={r.regressionId}
+                  className="im-section"
+                  style={{ borderColor: 'var(--color-im-bad)' }}
+                >
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      <OctagonAlert
+                        style={{
+                          display: 'inline',
+                          width: 13,
+                          height: 13,
+                          marginRight: 4,
+                          color: 'var(--color-im-bad)',
+                        }}
+                      />
+                      // Regression detected
+                    </span>
+                    <span
+                      className="im-section__sub"
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <span
+                        className="im-badge is-neutral"
+                        style={{ fontSize: 11 }}
                       >
                         {isStructured ? (
                           <>
-                            <Settings2 className="mr-1 inline size-3.5" />
+                            <Settings2
+                              style={{
+                                display: 'inline',
+                                width: 11,
+                                height: 11,
+                                marginRight: 3,
+                              }}
+                            />
                             Structured event
                           </>
                         ) : (
                           <>
-                            <Bell className="mr-1 inline size-3.5" />
+                            <Bell
+                              style={{
+                                display: 'inline',
+                                width: 11,
+                                height: 11,
+                                marginRight: 3,
+                              }}
+                            />
                             Alert event
                           </>
                         )}
-                      </Badge>
-                      <span className="text-[11px] font-normal uppercase tracking-wide text-red-900/80 dark:text-red-100/80">
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          color: 'var(--color-im-muted)',
+                        }}
+                      >
                         Trigger source: {isStructured ? 'STRUCTURED' : 'ALERT'}
                       </span>
+                      <span>
+                        Module:{' '}
+                        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {r.sourceModule}
+                        </span>
+                        {' · '}Event:{' '}
+                        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {r.eventType}
+                        </span>
+                        {' · '}Time since stabilization:{' '}
+                        <strong>{r.timeSinceStabilizationMinutes}</strong> min
+                        {' · '}Confidence: {r.confidenceScore.toFixed(2)}
+                        {' · '}
+                        <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                          {r.regressionDetectedAt}
+                        </span>
+                      </span>
                     </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {dash && !loading && (dash.persistenceSignals?.length ?? 0) > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {(dash.persistenceSignals ?? []).map(p => (
+              <div
+                key={p.persistenceId}
+                className="im-section"
+                style={{ borderColor: 'var(--color-im-accent)' }}
+              >
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    <Flame
+                      style={{
+                        display: 'inline',
+                        width: 13,
+                        height: 13,
+                        marginRight: 4,
+                      }}
+                    />
+                    // Persistent failure detected
+                  </span>
+                  <span className="im-section__sub">
                     Module:{' '}
-                    <span className="font-mono text-xs">{r.sourceModule}</span>
-                    {' · '}
-                    Event:{' '}
-                    <span className="font-mono text-xs">{r.eventType}</span>
-                    {' · '}
-                    Time since stabilization:{' '}
-                    <span className="font-medium tabular-nums">
-                      {r.timeSinceStabilizationMinutes}
-                    </span>{' '}
-                    min · Confidence:{' '}
-                    <span className="tabular-nums">
-                      {r.confidenceScore.toFixed(2)}
+                    <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                      {p.sourceModule}
                     </span>
-                    {' · '}
-                    <span className="font-mono text-[11px]">
-                      {r.regressionDetectedAt}
+                    {' · '}Event:{' '}
+                    <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                      {p.eventType}
                     </span>
-                  </CardDescription>
-                </CardHeader>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                    {' · '}Failure rate:{' '}
+                    <strong>{p.failureRate.toFixed(3)}</strong>/min
+                    {' · '}Expected: {p.expectedRate.toFixed(3)}/min
+                    {' · '}Confidence: {p.confidenceScore.toFixed(2)}
+                    {' · '}
+                    <span style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                      {p.persistenceDetectedAt}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
-      {dash && !loading && (dash.persistenceSignals?.length ?? 0) > 0 && (
-        <div className="space-y-3">
-          {(dash.persistenceSignals ?? []).map(p => (
-            <Card
-              key={p.persistenceId}
-              className="border-orange-600/45 bg-orange-50/95 text-orange-950 dark:bg-orange-950/40 dark:text-orange-50"
+        {dash && !loading && (
+          <>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: 16,
+              }}
             >
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Flame className="size-5 shrink-0 text-orange-700 dark:text-orange-200" />
-                  Persistent failure detected
-                </CardTitle>
-                <CardDescription className="text-orange-900/90 dark:text-orange-100/90">
-                  Module:{' '}
-                  <span className="font-mono text-xs">{p.sourceModule}</span>
-                  {' · '}
-                  Event:{' '}
-                  <span className="font-mono text-xs">{p.eventType}</span>
-                  {' · '}
-                  Failure rate:{' '}
-                  <span className="font-medium tabular-nums">
-                    {p.failureRate.toFixed(3)}
+              <div
+                className="im-section"
+                style={{
+                  border: `1px solid ${dash.healthStatus === 'green' ? 'var(--color-im-good)' : dash.healthStatus === 'amber' ? 'var(--color-im-accent)' : 'var(--color-im-bad)'}`,
+                }}
+              >
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    {dash.healthStatus === 'green' ? (
+                      <CheckCircle2
+                        style={{
+                          display: 'inline',
+                          width: 13,
+                          height: 13,
+                          marginRight: 4,
+                        }}
+                      />
+                    ) : (
+                      <AlertTriangle
+                        style={{
+                          display: 'inline',
+                          width: 13,
+                          height: 13,
+                          marginRight: 4,
+                        }}
+                      />
+                    )}
+                    // Incident health
                   </span>
-                  /min · Expected:{' '}
-                  <span className="tabular-nums">
-                    {p.expectedRate.toFixed(3)}
+                  <span className="im-section__sub">
+                    {healthLabel(dash.healthStatus)}
                   </span>
-                  /min · Confidence:{' '}
-                  <span className="tabular-nums">
-                    {p.confidenceScore.toFixed(2)}
-                  </span>
-                  {' · '}
-                  <span className="font-mono text-[11px]">
-                    {p.persistenceDetectedAt}
-                  </span>
-                </CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {dash && !loading && (
-        <>
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card className={healthBadgeClass(dash.healthStatus)}>
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base">
-                  {dash.healthStatus === 'green' ? (
-                    <CheckCircle2 className="size-4" />
-                  ) : (
-                    <AlertTriangle className="size-4" />
-                  )}
-                  Incident health
-                </CardTitle>
-                <CardDescription className="text-current/80">
-                  {healthLabel(dash.healthStatus)}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="text-sm">
-                <div className="flex flex-wrap gap-x-4 gap-y-1">
-                  <span>Open: {dash.activeIncidentCount}</span>
-                  <span>Critical: {dash.openCritical}</span>
-                  <span>Fatal: {dash.openFatal}</span>
                 </div>
-                <p className="text-current/80 mt-2 text-xs">
-                  {incidentSeveritySummary(dash)}. This card tracks incident
-                  severity queue; database/runtime checks are shown in{' '}
-                  <Link to="/admin/system-health" className="underline">
-                    System health
-                  </Link>
-                  .
-                </p>
-
-                <div className="mt-3">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => {
-                      activeIncidentsAnchorRef.current?.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start',
-                      });
+                <div
+                  className="im-section__body"
+                  style={{
+                    fontSize: 12.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '4px 16px',
                     }}
-                    disabled={!dash.activeIncidentCount}
-                    className="w-full"
                   >
-                    Jump to active incidents
-                  </Button>
+                    <span>Open: {dash.activeIncidentCount}</span>
+                    <span>Critical: {dash.openCritical}</span>
+                    <span>Fatal: {dash.openFatal}</span>
+                  </div>
+                  <p
+                    style={{
+                      margin: 0,
+                      fontSize: 11.5,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
+                    {incidentSeveritySummary(dash)}. See{' '}
+                    <Link
+                      to="/admin/system-health"
+                      style={{ color: 'var(--color-im-accent)' }}
+                    >
+                      System health
+                    </Link>
+                    .
+                  </p>
+                  <div>
+                    <button
+                      className="im-btn im-btn--sm"
+                      type="button"
+                      onClick={() => {
+                        activeIncidentsAnchorRef.current?.scrollIntoView({
+                          behavior: 'smooth',
+                          block: 'start',
+                        });
+                      }}
+                      disabled={!dash.activeIncidentCount}
+                      style={{ width: '100%' }}
+                    >
+                      Jump to active incidents
+                    </button>
+                  </div>
                 </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Recovery (30d)</CardTitle>
-                <CardDescription>
-                  Automatic recovery success ratio
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {(dash.recoverySuccessRate30d * 100).toFixed(1)}%
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Reliability score</CardTitle>
-                <CardDescription>Platform reliability index</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold tabular-nums">
-                  {(dash.systemReliabilityScore * 100).toFixed(1)}%
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">Today (metrics)</CardTitle>
-                <CardDescription>Rolled incident counters</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-1 text-sm">
-                {dash.metricsToday ? (
+              </div>
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">// Recovery (30d)</span>
+                  <span className="im-section__sub">
+                    Automatic recovery success ratio
+                  </span>
+                </div>
+                <div className="im-section__body">
+                  <p style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>
+                    {(dash.recoverySuccessRate30d * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    // Reliability score
+                  </span>
+                  <span className="im-section__sub">
+                    Platform reliability index
+                  </span>
+                </div>
+                <div className="im-section__body">
+                  <p style={{ fontSize: 24, fontWeight: 600, margin: 0 }}>
+                    {(dash.systemReliabilityScore * 100).toFixed(1)}%
+                  </p>
+                </div>
+              </div>
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">// Today (metrics)</span>
+                  <span className="im-section__sub">
+                    Rolled incident counters
+                  </span>
+                </div>
+                <div
+                  className="im-section__body"
+                  style={{
+                    fontSize: 12.5,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 4,
+                  }}
+                >
+                  {dash.metricsToday ? (
+                    <>
+                      <div>
+                        Created: {dash.metricsToday.incidentsCreatedToday} ·
+                        Resolved: {dash.metricsToday.incidentsResolvedToday}
+                      </div>
+                      <div>
+                        Critical/Fatal opened:{' '}
+                        {dash.metricsToday.criticalIncidentCount}
+                      </div>
+                      <div>
+                        Avg resolution (min):{' '}
+                        {dash.metricsToday.avgResolutionTime.toFixed(1)}
+                      </div>
+                    </>
+                  ) : (
+                    <span style={{ color: 'var(--color-im-muted)' }}>
+                      No row for today yet
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">
+                  // Incident correlation
+                </span>
+                <span className="im-section__sub">
+                  Alerts merged into existing OPEN incidents (same module,
+                  signal, entity, 10-minute sliding window)
+                </span>
+              </div>
+              <div
+                className="im-section__body"
+                style={{
+                  fontSize: 12.5,
+                  color: 'var(--color-im-muted)',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: '8px 32px',
+                }}
+              >
+                {dash.correlationMetricsToday ? (
                   <>
                     <div>
-                      Created: {dash.metricsToday.incidentsCreatedToday} ·
-                      Resolved: {dash.metricsToday.incidentsResolvedToday}
+                      <span
+                        style={{
+                          color: 'var(--color-im-text)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {dash.correlationMetricsToday.alertsGrouped}
+                      </span>{' '}
+                      alerts grouped
                     </div>
                     <div>
-                      Critical/Fatal opened:{' '}
-                      {dash.metricsToday.criticalIncidentCount}
+                      <span
+                        style={{
+                          color: 'var(--color-im-text)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {dash.correlationMetricsToday.incidentsCreated}
+                      </span>{' '}
+                      incidents created
                     </div>
                     <div>
-                      Avg resolution (min):{' '}
-                      {dash.metricsToday.avgResolutionTime.toFixed(1)}
-                    </div>
-                  </>
-                ) : (
-                  <span className="text-muted-foreground">
-                    No row for today yet
-                  </span>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Incident correlation</CardTitle>
-              <CardDescription>
-                Alerts merged into existing OPEN incidents (same module, signal,
-                entity, 10-minute sliding window)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="text-muted-foreground flex flex-wrap gap-x-8 gap-y-2 text-sm">
-              {dash.correlationMetricsToday ? (
-                <>
-                  <div>
-                    <span className="text-foreground font-medium tabular-nums">
-                      {dash.correlationMetricsToday.alertsGrouped}
-                    </span>{' '}
-                    alerts grouped
-                  </div>
-                  <div>
-                    <span className="text-foreground font-medium tabular-nums">
-                      {dash.correlationMetricsToday.incidentsCreated}
-                    </span>{' '}
-                    incidents created
-                  </div>
-                  <div>
-                    Noise reduction:{' '}
-                    <span className="text-foreground font-medium tabular-nums">
-                      {(
-                        dash.correlationMetricsToday.noiseReductionRatio * 100
-                      ).toFixed(1)}
-                      %
-                    </span>
-                  </div>
-                  <div>
-                    Burst signals:{' '}
-                    <span className="text-foreground font-medium tabular-nums">
-                      {dash.correlationMetricsToday.burstSignalsEmitted}
-                    </span>
-                  </div>
-                  <div>
-                    Systemic bursts logged:{' '}
-                    <span className="text-foreground font-medium tabular-nums">
-                      {dash.correlationMetricsToday.burstsDetected ?? 0}
-                    </span>
-                  </div>
-                </>
-              ) : (
-                <span>No correlation KPI row for today yet</span>
-              )}
-              {dash.incidentNoiseScoreToday ? (
-                <div className="mt-3 w-full border-t pt-3 text-xs">
-                  <span className="text-foreground font-medium">
-                    Correlation efficiency (noise score)
-                  </span>
-                  :{' '}
-                  <span className="tabular-nums">
-                    {(dash.incidentNoiseScoreToday.noiseScore * 100).toFixed(1)}
-                    %
-                  </span>
-                  <span className="text-muted-foreground">
-                    {' '}
-                    (grouped {dash.incidentNoiseScoreToday.alertsGrouped} /
-                    alerts {dash.incidentNoiseScoreToday.totalAlerts})
-                  </span>
-                </div>
-              ) : null}
-              {dash.suppressionMetricsToday ? (
-                <div className="mt-3 w-full border-t pt-3 text-xs">
-                  <div className="text-foreground font-medium">
-                    Suppression (today)
-                  </div>
-                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1">
-                    <span>
-                      Alerts suppressed:{' '}
-                      <span className="font-medium tabular-nums">
-                        {dash.suppressionMetricsToday.alertsSuppressed}
-                      </span>
-                    </span>
-                    <span>
-                      Windows:{' '}
-                      <span className="font-medium tabular-nums">
-                        {dash.suppressionMetricsToday.suppressionWindows}
-                      </span>
-                    </span>
-                    <span>
-                      Noise gain:{' '}
-                      <span className="font-medium tabular-nums">
+                      Noise reduction:{' '}
+                      <span
+                        style={{
+                          color: 'var(--color-im-text)',
+                          fontWeight: 500,
+                        }}
+                      >
                         {(
-                          dash.suppressionMetricsToday.noiseReductionGain * 100
+                          dash.correlationMetricsToday.noiseReductionRatio * 100
                         ).toFixed(1)}
                         %
                       </span>
-                    </span>
-                    <span>
-                      Confidence:{' '}
-                      <span className="font-medium tabular-nums">
-                        {(
-                          dash.suppressionMetricsToday.confidenceScore * 100
-                        ).toFixed(0)}
-                        %
-                      </span>
-                    </span>
-                  </div>
-                </div>
-              ) : null}
-            </CardContent>
-          </Card>
-
-          {(dash.activeSystemicBursts?.length ?? 0) > 0 && (
-            <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-base">
-                  Systemic bursts (24h)
-                </CardTitle>
-                <CardDescription>
-                  Rate-based bursts vs 24h baseline; CRITICAL incidents promoted
-                  when thresholds pass
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 sm:px-6">
-                <div className="max-h-[280px] overflow-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Started</TableHead>
-                        <TableHead>Module</TableHead>
-                        <TableHead>Event</TableHead>
-                        <TableHead className="text-right">Count</TableHead>
-                        <TableHead className="text-right">
-                          Duration (min)
-                        </TableHead>
-                        <TableHead>Conf.</TableHead>
-                        <TableHead>Hint</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {(dash.activeSystemicBursts ?? []).map(b => (
-                        <TableRow key={b.burstId}>
-                          <TableCell className="whitespace-nowrap text-xs">
-                            {b.burstStartTime}
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {b.sourceModule}
-                          </TableCell>
-                          <TableCell className="max-w-[140px] truncate font-mono text-xs">
-                            {b.eventType}
-                          </TableCell>
-                          <TableCell className="text-right tabular-nums">
-                            {b.eventCount}
-                          </TableCell>
-                          <TableCell className="text-right text-xs tabular-nums">
-                            {b.durationMinutes.toFixed(1)}
-                          </TableCell>
-                          <TableCell className="text-right text-xs tabular-nums">
-                            {typeof b.confidenceScore === 'number'
-                              ? `${(b.confidenceScore * 100).toFixed(0)}%`
-                              : '—'}
-                          </TableCell>
-                          <TableCell className="max-w-[280px] text-xs">
-                            {b.rootCauseHint}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {isAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-base">
-                  Manual incident suppression
-                </CardTitle>
-                <CardDescription>
-                  Block new CRITICAL/FATAL incident promotion for a module +
-                  signal type (e.g. known outage). Optional incident link logs
-                  SUPPRESSION_STARTED on that row.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end">
-                <div className="space-y-2">
-                  <Label className="text-xs">Source module</Label>
-                  <Input
-                    value={supMod}
-                    onChange={e => setSupMod(e.target.value)}
-                    className="w-[180px]"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Signal / event type</Label>
-                  <Input
-                    value={supEvt}
-                    onChange={e => setSupEvt(e.target.value)}
-                    className="w-[220px] font-mono text-xs"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Window (minutes)</Label>
-                  <Input
-                    value={supWin}
-                    onChange={e => setSupWin(e.target.value)}
-                    className="w-[100px] tabular-nums"
-                  />
-                </div>
-                <div className="min-w-[200px] flex-1 space-y-2">
-                  <Label className="text-xs">Reason</Label>
-                  <Input
-                    value={supReason}
-                    onChange={e => setSupReason(e.target.value)}
-                    placeholder="Known infrastructure outage"
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-xs">Incident ID (optional)</Label>
-                  <Input
-                    value={supIncident}
-                    onChange={e => setSupIncident(e.target.value)}
-                    className="w-[260px] font-mono text-[11px]"
-                    placeholder="uuid…"
-                  />
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => void onManualSuppression()}
-                >
-                  Start suppression
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          {isAdmin && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <FlaskConical className="size-4" />
-                  Controlled failure simulation
-                </CardTitle>
-                <CardDescription>
-                  Admin-only. Emits structured signal, alert, and incident
-                  (CRITICAL / FATAL) for drill and integration tests.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="flex flex-wrap items-end gap-3">
-                <div className="space-y-2">
-                  <Label>Mode</Label>
-                  <Select value={debugMode} onValueChange={setDebugMode}>
-                    <SelectTrigger className="w-[220px]">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {DEBUG_MODES.map(m => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <Button
-                  variant="secondary"
-                  onClick={() => void onDebugTrigger()}
-                >
-                  Trigger simulated failure
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-
-          <div className="grid gap-6 lg:grid-cols-5">
-            <div ref={activeIncidentsAnchorRef} />
-            <Card className="lg:col-span-3">
-              <CardHeader>
-                <CardTitle className="text-base">Active incidents</CardTitle>
-                <CardDescription>
-                  OPEN items from critical alert promotion and correlation
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="p-0 sm:px-6">
-                <div className="max-h-[420px] overflow-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Created</TableHead>
-                        <TableHead>Severity</TableHead>
-                        <TableHead>Module</TableHead>
-                        <TableHead>Summary</TableHead>
-                        <TableHead className="text-right tabular-nums">
-                          Related
-                        </TableHead>
-                        <TableHead className="text-right tabular-nums">
-                          Spread (min)
-                        </TableHead>
-                        <TableHead>Correlation</TableHead>
-                        <TableHead>Stability</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {dash.activeIncidents.length === 0 ? (
-                        <TableRow>
-                          <TableCell
-                            colSpan={9}
-                            className="text-muted-foreground py-8 text-center"
-                          >
-                            No open incidents
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        dash.activeIncidents.map(row => (
-                          <TableRow
-                            key={row.incidentId}
-                            data-state={
-                              selectedId === row.incidentId
-                                ? 'selected'
-                                : undefined
-                            }
-                            className={
-                              selectedId === row.incidentId ? 'bg-muted/60' : ''
-                            }
-                          >
-                            <TableCell className="whitespace-nowrap text-xs">
-                              {row.createdAt}
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline">{row.severity}</Badge>
-                            </TableCell>
-                            <TableCell className="font-mono text-xs">
-                              {row.sourceModule}
-                            </TableCell>
-                            <TableCell className="max-w-[200px] truncate text-xs">
-                              {row.summaryPreview || '—'}
-                            </TableCell>
-                            <TableCell className="text-right text-xs tabular-nums">
-                              {row.relatedEventCount ?? '—'}
-                            </TableCell>
-                            <TableCell className="text-right text-xs tabular-nums">
-                              {typeof row.timeSpreadMinutes === 'number'
-                                ? row.timeSpreadMinutes.toFixed(1)
-                                : '—'}
-                            </TableCell>
-                            <TableCell className="max-w-[220px] truncate text-xs">
-                              {row.aggregationSummary ?? '—'}
-                            </TableCell>
-                            <TableCell className="text-xs">
-                              {row.resolutionRecommended ? (
-                                <Badge
-                                  variant="outline"
-                                  className="border-emerald-600/40 bg-emerald-50 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100"
-                                >
-                                  Resolve recommended
-                                </Badge>
-                              ) : (
-                                '—'
-                              )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() =>
-                                  setSelectedId(
-                                    selectedId === row.incidentId
-                                      ? null
-                                      : row.incidentId
-                                  )
-                                }
-                              >
-                                {selectedId === row.incidentId
-                                  ? 'Hide'
-                                  : 'Details'}
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="lg:col-span-2">
-              <CardHeader>
-                <CardTitle className="text-base">Incident detail</CardTitle>
-                <CardDescription>
-                  Error context, related alert, and resolution workflow
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {!selectedId && (
-                  <p className="text-muted-foreground text-sm">
-                    Select an active incident to inspect context and history.
-                  </p>
-                )}
-                {selectedId && detailLoading && (
-                  <Skeleton className="h-40 w-full rounded-md" />
-                )}
-                {selectedId && !detailLoading && detail && (
-                  <>
-                    <div className="space-y-1 text-xs">
-                      <div className="break-all font-mono text-[11px]">
-                        {detail.incidentId}
-                      </div>
-                      <div className="text-muted-foreground">
-                        {detail.status} · {detail.severity} ·{' '}
-                        {detail.sourceModule}
-                      </div>
                     </div>
                     <div>
-                      <div className="flex items-center justify-between gap-2">
-                        <Label className="text-xs">Error context (JSON)</Label>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="h-7 px-2 text-xs"
-                          onClick={() =>
-                            void copyToClipboard(
-                              'Error context',
-                              errorContextPretty || '{}'
-                            )
-                          }
-                        >
-                          <Copy className="mr-1 size-3.5" />
-                          Copy
-                        </Button>
-                      </div>
-                      <pre className="bg-muted mt-1 max-h-40 overflow-auto rounded-md p-2 text-[11px] leading-snug">
-                        {errorContextPretty || '{}'}
-                      </pre>
+                      Burst signals:{' '}
+                      <span
+                        style={{
+                          color: 'var(--color-im-text)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {dash.correlationMetricsToday.burstSignalsEmitted}
+                      </span>
                     </div>
-                    {detail.relatedAlert && (
+                    <div>
+                      Systemic bursts logged:{' '}
+                      <span
+                        style={{
+                          color: 'var(--color-im-text)',
+                          fontWeight: 500,
+                        }}
+                      >
+                        {dash.correlationMetricsToday.burstsDetected ?? 0}
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <span>No correlation KPI row for today yet</span>
+                )}
+                {dash.incidentNoiseScoreToday ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      borderTop: '1px solid var(--color-im-rule)',
+                      paddingTop: 8,
+                      marginTop: 4,
+                      fontSize: 11.5,
+                    }}
+                  >
+                    <span
+                      style={{ color: 'var(--color-im-text)', fontWeight: 500 }}
+                    >
+                      Correlation efficiency (noise score)
+                    </span>
+                    :{' '}
+                    <span>
+                      {(dash.incidentNoiseScoreToday.noiseScore * 100).toFixed(
+                        1
+                      )}
+                      %
+                    </span>
+                    <span>
+                      {' '}
+                      (grouped {dash.incidentNoiseScoreToday.alertsGrouped} /
+                      alerts {dash.incidentNoiseScoreToday.totalAlerts})
+                    </span>
+                  </div>
+                ) : null}
+                {dash.suppressionMetricsToday ? (
+                  <div
+                    style={{
+                      width: '100%',
+                      borderTop: '1px solid var(--color-im-rule)',
+                      paddingTop: 8,
+                      marginTop: 4,
+                      fontSize: 11.5,
+                    }}
+                  >
+                    <div
+                      style={{
+                        color: 'var(--color-im-text)',
+                        fontWeight: 500,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Suppression (today)
+                    </div>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: '4px 16px',
+                      }}
+                    >
+                      <span>
+                        Alerts suppressed:{' '}
+                        <span style={{ fontWeight: 500 }}>
+                          {dash.suppressionMetricsToday.alertsSuppressed}
+                        </span>
+                      </span>
+                      <span>
+                        Windows:{' '}
+                        <span style={{ fontWeight: 500 }}>
+                          {dash.suppressionMetricsToday.suppressionWindows}
+                        </span>
+                      </span>
+                      <span>
+                        Noise gain:{' '}
+                        <span style={{ fontWeight: 500 }}>
+                          {(
+                            dash.suppressionMetricsToday.noiseReductionGain *
+                            100
+                          ).toFixed(1)}
+                          %
+                        </span>
+                      </span>
+                      <span>
+                        Confidence:{' '}
+                        <span style={{ fontWeight: 500 }}>
+                          {(
+                            dash.suppressionMetricsToday.confidenceScore * 100
+                          ).toFixed(0)}
+                          %
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            </div>
+
+            {(dash.activeSystemicBursts?.length ?? 0) > 0 && (
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    // Systemic bursts (24h)
+                  </span>
+                  <span className="im-section__sub">
+                    Rate-based bursts vs 24h baseline; CRITICAL incidents
+                    promoted when thresholds pass
+                  </span>
+                </div>
+                <div
+                  className="im-section__body"
+                  style={{ padding: 0, maxHeight: 280, overflow: 'auto' }}
+                >
+                  <div className="im-table-scroll">
+                    <table className="im-table">
+                      <thead>
+                        <tr>
+                          <th className="im-th">Started</th>
+                          <th className="im-th">Module</th>
+                          <th className="im-th">Event</th>
+                          <th className="im-th" style={{ textAlign: 'right' }}>
+                            Count
+                          </th>
+                          <th className="im-th" style={{ textAlign: 'right' }}>
+                            Duration (min)
+                          </th>
+                          <th className="im-th">Conf.</th>
+                          <th className="im-th">Hint</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(dash.activeSystemicBursts ?? []).map((b, i) => (
+                          <tr
+                            key={b.burstId}
+                            className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                          >
+                            <td
+                              className="im-td"
+                              style={{ whiteSpace: 'nowrap', fontSize: 11.5 }}
+                            >
+                              {b.burstStartTime}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily:
+                                  'Consolas, "Courier New", monospace',
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {b.sourceModule}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                maxWidth: 140,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                fontFamily:
+                                  'Consolas, "Courier New", monospace',
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {b.eventType}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{ textAlign: 'right' }}
+                            >
+                              {b.eventCount}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{ textAlign: 'right', fontSize: 11.5 }}
+                            >
+                              {b.durationMinutes.toFixed(1)}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{ textAlign: 'right', fontSize: 11.5 }}
+                            >
+                              {typeof b.confidenceScore === 'number'
+                                ? `${(b.confidenceScore * 100).toFixed(0)}%`
+                                : '—'}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{ maxWidth: 280, fontSize: 11.5 }}
+                            >
+                              {b.rootCauseHint}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {isAdmin && (
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    // Manual incident suppression
+                  </span>
+                  <span className="im-section__sub">
+                    Block new CRITICAL/FATAL incident promotion for a module +
+                    signal type (e.g. known outage). Optional incident link logs
+                    SUPPRESSION_STARTED on that row.
+                  </span>
+                </div>
+                <div
+                  className="im-section__body"
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'flex-end',
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    <label className="im-field-label">Source module</label>
+                    <input
+                      className="im-input"
+                      value={supMod}
+                      onChange={e => setSupMod(e.target.value)}
+                      style={{ width: 180 }}
+                    />
+                  </div>
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    <label className="im-field-label">
+                      Signal / event type
+                    </label>
+                    <input
+                      className="im-input"
+                      value={supEvt}
+                      onChange={e => setSupEvt(e.target.value)}
+                      style={{
+                        width: 220,
+                        fontFamily: 'Consolas, "Courier New", monospace',
+                        fontSize: 11.5,
+                      }}
+                    />
+                  </div>
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    <label className="im-field-label">Window (minutes)</label>
+                    <input
+                      className="im-input"
+                      value={supWin}
+                      onChange={e => setSupWin(e.target.value)}
+                      style={{ width: 100 }}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: 4,
+                      flex: '1 1 200px',
+                    }}
+                  >
+                    <label className="im-field-label">Reason</label>
+                    <input
+                      className="im-input"
+                      value={supReason}
+                      onChange={e => setSupReason(e.target.value)}
+                      placeholder="Known infrastructure outage"
+                    />
+                  </div>
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    <label className="im-field-label">
+                      Incident ID (optional)
+                    </label>
+                    <input
+                      className="im-input"
+                      value={supIncident}
+                      onChange={e => setSupIncident(e.target.value)}
+                      style={{
+                        width: 260,
+                        fontFamily: 'Consolas, "Courier New", monospace',
+                        fontSize: 11,
+                      }}
+                      placeholder="uuid…"
+                    />
+                  </div>
+                  <button
+                    className="im-btn im-btn--sm"
+                    onClick={() => void onManualSuppression()}
+                  >
+                    Start suppression
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {isAdmin && (
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">
+                    <FlaskConical
+                      style={{
+                        display: 'inline',
+                        width: 13,
+                        height: 13,
+                        marginRight: 4,
+                      }}
+                    />
+                    // Controlled failure simulation
+                  </span>
+                  <span className="im-section__sub">
+                    Admin-only. Emits structured signal, alert, and incident
+                    (CRITICAL / FATAL) for drill and integration tests.
+                  </span>
+                </div>
+                <div
+                  className="im-section__body"
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    alignItems: 'flex-end',
+                    gap: 12,
+                  }}
+                >
+                  <div
+                    style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                  >
+                    <label className="im-field-label">Mode</label>
+                    <div className="im-select-wrap" style={{ width: 220 }}>
+                      <select
+                        className="im-select"
+                        value={debugMode}
+                        onChange={e => setDebugMode(e.target.value)}
+                      >
+                        {DEBUG_MODES.map(m => (
+                          <option key={m.id} value={m.id}>
+                            {m.label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <button
+                    className="im-btn im-btn--sm"
+                    onClick={() => void onDebugTrigger()}
+                  >
+                    Trigger simulated failure
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '3fr 2fr',
+                gap: 16,
+              }}
+            >
+              <div>
+                <div ref={activeIncidentsAnchorRef} />
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      // Active incidents
+                    </span>
+                    <span className="im-section__sub">
+                      OPEN items from critical alert promotion and correlation
+                    </span>
+                  </div>
+                  <div
+                    className="im-section__body"
+                    style={{ padding: 0, maxHeight: 420, overflow: 'auto' }}
+                  >
+                    <div className="im-table-scroll">
+                      <table className="im-table">
+                        <thead>
+                          <tr>
+                            <th className="im-th">Created</th>
+                            <th className="im-th">Severity</th>
+                            <th className="im-th">Module</th>
+                            <th className="im-th">Summary</th>
+                            <th
+                              className="im-th"
+                              style={{ textAlign: 'right' }}
+                            >
+                              Related
+                            </th>
+                            <th
+                              className="im-th"
+                              style={{ textAlign: 'right' }}
+                            >
+                              Spread (min)
+                            </th>
+                            <th className="im-th">Correlation</th>
+                            <th className="im-th">Stability</th>
+                            <th
+                              className="im-th"
+                              style={{ textAlign: 'right' }}
+                            >
+                              Actions
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {dash.activeIncidents.length === 0 ? (
+                            <tr className="im-tr">
+                              <td
+                                className="im-td"
+                                colSpan={9}
+                                style={{
+                                  textAlign: 'center',
+                                  color: 'var(--color-im-muted)',
+                                  padding: 32,
+                                }}
+                              >
+                                No open incidents
+                              </td>
+                            </tr>
+                          ) : (
+                            dash.activeIncidents.map((row, i) => (
+                              <tr
+                                key={row.incidentId}
+                                className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}${selectedId === row.incidentId ? 'is-selected' : ''}`}
+                              >
+                                <td
+                                  className="im-td"
+                                  style={{
+                                    whiteSpace: 'nowrap',
+                                    fontSize: 11.5,
+                                  }}
+                                >
+                                  {row.createdAt}
+                                </td>
+                                <td className="im-td">
+                                  <span className="im-badge is-neutral">
+                                    {row.severity}
+                                  </span>
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{
+                                    fontFamily:
+                                      'Consolas, "Courier New", monospace',
+                                    fontSize: 11.5,
+                                  }}
+                                >
+                                  {row.sourceModule}
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{
+                                    maxWidth: 200,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    fontSize: 11.5,
+                                  }}
+                                >
+                                  {row.summaryPreview || '—'}
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{ textAlign: 'right', fontSize: 11.5 }}
+                                >
+                                  {row.relatedEventCount ?? '—'}
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{ textAlign: 'right', fontSize: 11.5 }}
+                                >
+                                  {typeof row.timeSpreadMinutes === 'number'
+                                    ? row.timeSpreadMinutes.toFixed(1)
+                                    : '—'}
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{
+                                    maxWidth: 220,
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    fontSize: 11.5,
+                                  }}
+                                >
+                                  {row.aggregationSummary ?? '—'}
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{ fontSize: 11.5 }}
+                                >
+                                  {row.resolutionRecommended ? (
+                                    <span className="im-status-pill is-active">
+                                      RESOLVE REC.
+                                    </span>
+                                  ) : (
+                                    '—'
+                                  )}
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{ textAlign: 'right' }}
+                                >
+                                  <button
+                                    className="im-btn im-btn--sm"
+                                    onClick={() =>
+                                      setSelectedId(
+                                        selectedId === row.incidentId
+                                          ? null
+                                          : row.incidentId
+                                      )
+                                    }
+                                  >
+                                    {selectedId === row.incidentId
+                                      ? 'Hide'
+                                      : 'Details'}
+                                  </button>
+                                </td>
+                              </tr>
+                            ))
+                          )}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="im-section">
+                <div className="im-section__header">
+                  <span className="im-section__label">// Incident detail</span>
+                  <span className="im-section__sub">
+                    Error context, related alert, and resolution workflow
+                  </span>
+                </div>
+                <div
+                  className="im-section__body"
+                  style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+                >
+                  {!selectedId && (
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 12.5,
+                        margin: 0,
+                      }}
+                    >
+                      Select an active incident to inspect context and history.
+                    </p>
+                  )}
+                  {selectedId && detailLoading && (
+                    <div
+                      style={{
+                        height: 160,
+                        background: 'var(--color-im-rule)',
+                        borderRadius: 4,
+                        opacity: 0.5,
+                      }}
+                    />
+                  )}
+                  {selectedId && !detailLoading && detail && (
+                    <>
+                      <div
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: 4,
+                          fontSize: 11.5,
+                        }}
+                      >
+                        <div
+                          style={{
+                            wordBreak: 'break-all',
+                            fontFamily: 'Consolas, "Courier New", monospace',
+                            fontSize: 11,
+                          }}
+                        >
+                          {detail.incidentId}
+                        </div>
+                        <div style={{ color: 'var(--color-im-muted)' }}>
+                          {detail.status} · {detail.severity} ·{' '}
+                          {detail.sourceModule}
+                        </div>
+                      </div>
                       <div>
-                        <div className="flex items-center justify-between gap-2">
-                          <Label className="text-xs">Related alert</Label>
-                          <Button
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: 8,
+                            marginBottom: 4,
+                          }}
+                        >
+                          <label className="im-field-label">
+                            Error context (JSON)
+                          </label>
+                          <button
+                            className="im-btn im-btn--sm"
                             type="button"
-                            variant="ghost"
-                            size="sm"
-                            className="h-7 px-2 text-xs"
                             onClick={() =>
                               void copyToClipboard(
-                                'Related alert',
-                                JSON.stringify(detail.relatedAlert, null, 2)
+                                'Error context',
+                                errorContextPretty || '{}'
                               )
                             }
                           >
-                            <Copy className="mr-1 size-3.5" />
+                            <Copy
+                              style={{
+                                display: 'inline',
+                                width: 12,
+                                height: 12,
+                                marginRight: 4,
+                              }}
+                            />
                             Copy
-                          </Button>
+                          </button>
                         </div>
-                        <pre className="bg-muted mt-1 max-h-32 overflow-auto rounded-md p-2 text-[11px]">
-                          {JSON.stringify(detail.relatedAlert, null, 2)}
+                        <pre
+                          style={{
+                            background: 'var(--color-im-panel)',
+                            border: '1px solid var(--color-im-rule)',
+                            borderRadius: 4,
+                            padding: 8,
+                            fontSize: 11,
+                            maxHeight: 160,
+                            overflow: 'auto',
+                            margin: 0,
+                          }}
+                        >
+                          {errorContextPretty || '{}'}
                         </pre>
                       </div>
-                    )}
-                    {(detail.correlatedEventCount != null ||
-                      detail.lastCorrelatedAt) && (
-                      <div className="bg-background/80 rounded-md border p-3 text-xs">
-                        <Label className="text-xs">Amplification</Label>
-                        <div className="mt-1 space-y-1">
-                          <div>
-                            Correlated events (counter):{' '}
-                            <span className="font-medium tabular-nums">
-                              {detail.correlatedEventCount ?? '—'}
-                            </span>
-                          </div>
-                          {detail.lastCorrelatedAt ? (
-                            <div className="text-muted-foreground">
-                              Last correlated: {detail.lastCorrelatedAt}
-                            </div>
-                          ) : null}
-                        </div>
-                      </div>
-                    )}
-                    {correlTimeline.length > 0 && (
-                      <div>
-                        <Label className="text-xs">
-                          Correlated timeline replay
-                        </Label>
-                        <ul className="bg-muted/30 mt-2 max-h-40 space-y-1 overflow-auto rounded-md border p-2 text-[11px] leading-snug">
-                          {correlTimeline.map((e, idx) => (
-                            <li
-                              key={`${e.timestamp}-${idx}`}
-                              className="border-border/50 flex flex-wrap gap-x-2 border-b py-1 last:border-0"
+                      {detail.relatedAlert && (
+                        <div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'space-between',
+                              gap: 8,
+                              marginBottom: 4,
+                            }}
+                          >
+                            <label className="im-field-label">
+                              Related alert
+                            </label>
+                            <button
+                              className="im-btn im-btn--sm"
+                              type="button"
+                              onClick={() =>
+                                void copyToClipboard(
+                                  'Related alert',
+                                  JSON.stringify(detail.relatedAlert, null, 2)
+                                )
+                              }
                             >
-                              <span className="text-muted-foreground whitespace-nowrap">
-                                {e.timestamp}
+                              <Copy
+                                style={{
+                                  display: 'inline',
+                                  width: 12,
+                                  height: 12,
+                                  marginRight: 4,
+                                }}
+                              />
+                              Copy
+                            </button>
+                          </div>
+                          <pre
+                            style={{
+                              background: 'var(--color-im-panel)',
+                              border: '1px solid var(--color-im-rule)',
+                              borderRadius: 4,
+                              padding: 8,
+                              fontSize: 11,
+                              maxHeight: 128,
+                              overflow: 'auto',
+                              margin: 0,
+                            }}
+                          >
+                            {JSON.stringify(detail.relatedAlert, null, 2)}
+                          </pre>
+                        </div>
+                      )}
+                      {(detail.correlatedEventCount != null ||
+                        detail.lastCorrelatedAt) && (
+                        <div
+                          style={{
+                            border: '1px solid var(--color-im-rule)',
+                            borderRadius: 4,
+                            padding: '8px 12px',
+                            fontSize: 11.5,
+                          }}
+                        >
+                          <label className="im-field-label">
+                            Amplification
+                          </label>
+                          <div
+                            style={{
+                              marginTop: 4,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                            }}
+                          >
+                            <div>
+                              Correlated events (counter):{' '}
+                              <span style={{ fontWeight: 500 }}>
+                                {detail.correlatedEventCount ?? '—'}
                               </span>
-                              <span className="font-mono">{e.eventType}</span>
-                              <span className="text-muted-foreground tabular-nums">
-                                correlates: {e.correlationCount}
+                            </div>
+                            {detail.lastCorrelatedAt ? (
+                              <div style={{ color: 'var(--color-im-muted)' }}>
+                                Last correlated: {detail.lastCorrelatedAt}
+                              </div>
+                            ) : null}
+                          </div>
+                        </div>
+                      )}
+                      {correlTimeline.length > 0 && (
+                        <div>
+                          <label className="im-field-label">
+                            Correlated timeline replay
+                          </label>
+                          <ul
+                            style={{
+                              background: 'var(--color-im-panel)',
+                              border: '1px solid var(--color-im-rule)',
+                              borderRadius: 4,
+                              padding: 8,
+                              marginTop: 4,
+                              maxHeight: 160,
+                              overflow: 'auto',
+                              fontSize: 11,
+                              listStyle: 'none',
+                            }}
+                          >
+                            {correlTimeline.map((e, idx) => (
+                              <li
+                                key={`${e.timestamp}-${idx}`}
+                                style={{
+                                  display: 'flex',
+                                  flexWrap: 'wrap',
+                                  gap: '0 8px',
+                                  borderBottom:
+                                    '1px solid var(--color-im-rule)',
+                                  paddingBottom: 4,
+                                  marginBottom: 4,
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    color: 'var(--color-im-muted)',
+                                    whiteSpace: 'nowrap',
+                                  }}
+                                >
+                                  {e.timestamp}
+                                </span>
+                                <span
+                                  style={{
+                                    fontFamily:
+                                      'Consolas, "Courier New", monospace',
+                                  }}
+                                >
+                                  {e.eventType}
+                                </span>
+                                <span
+                                  style={{ color: 'var(--color-im-muted)' }}
+                                >
+                                  correlates: {e.correlationCount}
+                                </span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {detail.correlation && (
+                        <div
+                          style={{
+                            border: '1px solid var(--color-im-rule)',
+                            borderRadius: 4,
+                            padding: '8px 12px',
+                          }}
+                        >
+                          <label className="im-field-label">
+                            Correlation intelligence
+                          </label>
+                          <div
+                            style={{
+                              marginTop: 8,
+                              display: 'flex',
+                              flexDirection: 'column',
+                              gap: 4,
+                              fontSize: 11.5,
+                            }}
+                          >
+                            <div
+                              style={{
+                                wordBreak: 'break-all',
+                                fontFamily:
+                                  'Consolas, "Courier New", monospace',
+                                fontSize: 11,
+                              }}
+                            >
+                              Key: {detail.correlationKey}
+                            </div>
+                            <div>
+                              Cluster size:{' '}
+                              <span style={{ fontWeight: 500 }}>
+                                {detail.correlation.correlationClusterSize}
+                              </span>{' '}
+                              · Related in window:{' '}
+                              <span style={{ fontWeight: 500 }}>
+                                {detail.correlation.relatedEventCount}
+                              </span>{' '}
+                              · Time spread:{' '}
+                              <span style={{ fontWeight: 500 }}>
+                                {detail.correlation.timeSpreadMinutes.toFixed(
+                                  1
+                                )}{' '}
+                                min
                               </span>
+                            </div>
+                            <p
+                              style={{
+                                color: 'var(--color-im-muted)',
+                                margin: 0,
+                              }}
+                            >
+                              {detail.correlation.aggregationSummary}
+                            </p>
+                            {detail.correlation.correlationStreamActive ? (
+                              <p
+                                style={{
+                                  display: 'flex',
+                                  gap: 8,
+                                  border: '1px solid var(--color-im-accent)',
+                                  background: 'rgba(232,162,58,0.08)',
+                                  borderRadius: 4,
+                                  padding: '6px 10px',
+                                  color: 'var(--color-im-accent)',
+                                  margin: 0,
+                                }}
+                              >
+                                <AlertTriangle
+                                  style={{
+                                    width: 14,
+                                    height: 14,
+                                    flexShrink: 0,
+                                    marginTop: 2,
+                                  }}
+                                />
+                                <span>
+                                  Correlated alert stream is still active inside
+                                  the 10-minute window. Manual resolution is
+                                  blocked until events go quiet.
+                                </span>
+                              </p>
+                            ) : (
+                              <p
+                                style={{
+                                  display: 'flex',
+                                  gap: 8,
+                                  border: '1px solid var(--color-im-good)',
+                                  background: 'rgba(74,222,128,0.08)',
+                                  borderRadius: 4,
+                                  padding: '6px 10px',
+                                  color: 'var(--color-im-good)',
+                                  fontSize: 11,
+                                  margin: 0,
+                                }}
+                              >
+                                <CheckCircle2
+                                  style={{
+                                    width: 14,
+                                    height: 14,
+                                    flexShrink: 0,
+                                    marginTop: 2,
+                                  }}
+                                />
+                                Correlation window is quiet — you may resolve
+                                once root cause and notes meet policy.
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      <hr
+                        style={{
+                          border: 'none',
+                          borderTop: '1px solid var(--color-im-rule)',
+                          margin: '4px 0',
+                        }}
+                      />
+                      <div>
+                        <label className="im-field-label">
+                          Resolution history
+                        </label>
+                        <ul
+                          style={{
+                            marginTop: 8,
+                            maxHeight: 144,
+                            overflow: 'auto',
+                            fontSize: 11.5,
+                            listStyle: 'none',
+                            padding: 0,
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 8,
+                          }}
+                        >
+                          {detail.history.map(h => (
+                            <li
+                              key={h.historyId}
+                              style={{
+                                borderLeft: '2px solid var(--color-im-rule)',
+                                paddingLeft: 8,
+                              }}
+                            >
+                              <span style={{ color: 'var(--color-im-muted)' }}>
+                                {h.eventTimestamp}
+                              </span>{' '}
+                              <span
+                                className="im-badge is-neutral"
+                                style={{ marginLeft: 4 }}
+                              >
+                                {h.eventType}
+                              </span>
+                              {h.notes ? (
+                                <div style={{ marginTop: 2 }}>{h.notes}</div>
+                              ) : null}
                             </li>
                           ))}
                         </ul>
                       </div>
-                    )}
-                    {detail.correlation && (
-                      <div className="bg-muted/40 rounded-md border p-3">
-                        <Label className="text-xs">
-                          Correlation intelligence
-                        </Label>
-                        <div className="mt-2 space-y-1 text-xs">
-                          <div className="break-all font-mono text-[11px]">
-                            Key: {detail.correlationKey}
+                      {detail.status === 'OPEN' && (
+                        <>
+                          <div>
+                            <label
+                              htmlFor="res-note"
+                              className="im-field-label"
+                            >
+                              Add resolution note
+                            </label>
+                            <textarea
+                              id="res-note"
+                              className="im-textarea"
+                              style={{ marginTop: 4, minHeight: 72 }}
+                              placeholder="Minimum 10 characters — what you changed or verified"
+                              value={resolutionNote}
+                              onChange={e => setResolutionNote(e.target.value)}
+                            />
+                            <button
+                              className="im-btn im-btn--sm"
+                              style={{ marginTop: 8 }}
+                              onClick={() => void onAppendNote()}
+                            >
+                              Append note
+                            </button>
                           </div>
                           <div>
-                            Cluster size:{' '}
-                            <span className="font-medium tabular-nums">
-                              {detail.correlation.correlationClusterSize}
-                            </span>
-                            {' · '}
-                            Related in window:{' '}
-                            <span className="font-medium tabular-nums">
-                              {detail.correlation.relatedEventCount}
-                            </span>
-                            {' · '}
-                            Time spread:{' '}
-                            <span className="font-medium tabular-nums">
-                              {detail.correlation.timeSpreadMinutes.toFixed(1)}{' '}
-                              min
-                            </span>
+                            <label
+                              htmlFor="root-cause"
+                              className="im-field-label"
+                            >
+                              Root cause summary (resolve, ≥50 chars)
+                            </label>
+                            <textarea
+                              id="root-cause"
+                              className="im-textarea"
+                              style={{ marginTop: 4, minHeight: 96 }}
+                              placeholder="Document technical root cause before closing"
+                              value={rootCauseDraft}
+                              onChange={e => setRootCauseDraft(e.target.value)}
+                            />
+                            <button
+                              className="im-btn im-btn--primary im-btn--sm"
+                              style={{ marginTop: 8 }}
+                              onClick={() => void onResolve()}
+                            >
+                              Resolve incident
+                            </button>
                           </div>
-                          <p className="text-muted-foreground">
-                            {detail.correlation.aggregationSummary}
-                          </p>
-                          {detail.correlation.correlationStreamActive ? (
-                            <p className="flex gap-2 rounded border border-amber-200 bg-amber-50/80 px-2 py-1.5 text-amber-900">
-                              <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-                              <span>
-                                Correlated alert stream is still active inside
-                                the 10-minute window. Manual resolution is
-                                blocked until events go quiet, or use automatic
-                                recovery to close the incident.
+                        </>
+                      )}
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">
+                  // Post-mortem timeline
+                </span>
+                <span className="im-section__sub">
+                  Lifecycle on resolved incidents; OPEN rows include burst,
+                  suppression, and stabilization transitions (newest first)
+                </span>
+              </div>
+              <div
+                className="im-section__body"
+                style={{ padding: 0, maxHeight: 360, overflow: 'auto' }}
+              >
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Time</th>
+                        <th className="im-th">Incident</th>
+                        <th className="im-th">Status</th>
+                        <th className="im-th">Event</th>
+                        <th className="im-th">Notes</th>
+                        <th className="im-th">Root cause (incident)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dash.postMortemTimeline.length === 0 ? (
+                        <tr className="im-tr">
+                          <td
+                            className="im-td"
+                            colSpan={6}
+                            style={{
+                              textAlign: 'center',
+                              color: 'var(--color-im-muted)',
+                              padding: 32,
+                            }}
+                          >
+                            No timeline rows yet (resolve incidents or generate
+                            burst / suppression / stabilization events)
+                          </td>
+                        </tr>
+                      ) : (
+                        dash.postMortemTimeline.map((row, i) => (
+                          <tr
+                            key={row.historyId}
+                            className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                          >
+                            <td
+                              className="im-td"
+                              style={{ whiteSpace: 'nowrap', fontSize: 11.5 }}
+                            >
+                              {row.eventTimestamp}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily:
+                                  'Consolas, "Courier New", monospace',
+                                fontSize: 11,
+                              }}
+                            >
+                              {row.incidentId.slice(0, 8)}…
+                            </td>
+                            <td className="im-td">
+                              <span className="im-badge is-neutral">
+                                {row.incidentStatus ?? '—'}
                               </span>
-                            </p>
-                          ) : (
-                            <p className="flex gap-2 rounded border border-green-200 bg-green-50/80 px-2 py-1.5 text-[11px] text-green-800">
-                              <CheckCircle2 className="mt-0.5 size-4 shrink-0" />
-                              Correlation window is quiet — you may resolve once
-                              root cause and notes meet policy.
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                    <Separator />
-                    <div>
-                      <Label>Resolution history</Label>
-                      <ul className="mt-2 max-h-36 space-y-2 overflow-auto text-xs">
-                        {detail.history.map(h => (
-                          <li
-                            key={h.historyId}
-                            className="border-muted border-l-2 pl-2"
-                          >
-                            <span className="text-muted-foreground">
-                              {h.eventTimestamp}
-                            </span>{' '}
-                            <Badge variant="secondary" className="ml-1">
-                              {h.eventType}
-                            </Badge>
-                            {h.notes ? (
-                              <div className="mt-0.5">{h.notes}</div>
-                            ) : null}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    {detail.status === 'OPEN' && (
-                      <>
-                        <div>
-                          <Label htmlFor="res-note">Add resolution note</Label>
-                          <Textarea
-                            id="res-note"
-                            className="mt-1 min-h-[72px]"
-                            placeholder="Minimum 10 characters — what you changed or verified"
-                            value={resolutionNote}
-                            onChange={e => setResolutionNote(e.target.value)}
-                          />
-                          <Button
-                            className="mt-2"
-                            size="sm"
-                            variant="secondary"
-                            onClick={() => void onAppendNote()}
-                          >
-                            Append note
-                          </Button>
-                        </div>
-                        <div>
-                          <Label htmlFor="root-cause">
-                            Root cause summary (resolve, ≥50 chars)
-                          </Label>
-                          <Textarea
-                            id="root-cause"
-                            className="mt-1 min-h-[96px]"
-                            placeholder="Document technical root cause before closing"
-                            value={rootCauseDraft}
-                            onChange={e => setRootCauseDraft(e.target.value)}
-                          />
-                          <Button
-                            className="mt-2"
-                            size="sm"
-                            onClick={() => void onResolve()}
-                          >
-                            Resolve incident
-                          </Button>
-                        </div>
-                      </>
-                    )}
-                  </>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Post-mortem timeline</CardTitle>
-              <CardDescription>
-                Lifecycle on resolved incidents; OPEN rows include burst,
-                suppression, and stabilization transitions (newest first)
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:px-6">
-              <div className="max-h-[360px] overflow-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Time</TableHead>
-                      <TableHead>Incident</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Event</TableHead>
-                      <TableHead>Notes</TableHead>
-                      <TableHead>Root cause (incident)</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dash.postMortemTimeline.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={6}
-                          className="text-muted-foreground py-8 text-center"
-                        >
-                          No timeline rows yet (resolve incidents or generate
-                          burst / suppression / stabilization events)
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      dash.postMortemTimeline.map(row => (
-                        <TableRow key={row.historyId}>
-                          <TableCell className="whitespace-nowrap text-xs">
-                            {row.eventTimestamp}
-                          </TableCell>
-                          <TableCell className="font-mono text-[11px]">
-                            {row.incidentId.slice(0, 8)}…
-                          </TableCell>
-                          <TableCell className="text-xs">
-                            <Badge variant="secondary">
-                              {row.incidentStatus ?? '—'}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{row.eventType}</Badge>
-                          </TableCell>
-                          <TableCell className="max-w-[220px] truncate text-xs">
-                            {row.notes || '—'}
-                          </TableCell>
-                          <TableCell className="max-w-[240px] truncate text-xs">
-                            {row.rootCauseSummary || '—'}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                            </td>
+                            <td className="im-td">
+                              <span className="im-badge is-neutral">
+                                {row.eventType}
+                              </span>
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                maxWidth: 220,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {row.notes || '—'}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                maxWidth: 240,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {row.rootCauseSummary || '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </CardContent>
-          </Card>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Resolved incidents</CardTitle>
-              <CardDescription>
-                Newest first — audit trail summary
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="p-0 sm:px-6">
-              <div className="max-h-[280px] overflow-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Resolved</TableHead>
-                      <TableHead>Severity</TableHead>
-                      <TableHead>Module</TableHead>
-                      <TableHead>Root cause</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {dash.postMortemIncidents.length === 0 ? (
-                      <TableRow>
-                        <TableCell
-                          colSpan={4}
-                          className="text-muted-foreground py-8 text-center"
-                        >
-                          No resolved incidents
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      dash.postMortemIncidents.map(row => (
-                        <TableRow key={row.incidentId}>
-                          <TableCell className="whitespace-nowrap text-xs">
-                            {row.resolvedAt ?? '—'}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant="outline">{row.severity}</Badge>
-                          </TableCell>
-                          <TableCell className="font-mono text-xs">
-                            {row.sourceModule}
-                          </TableCell>
-                          <TableCell className="max-w-md truncate text-xs">
-                            {row.rootCauseSummary || '—'}
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+            <div className="im-section">
+              <div className="im-section__header">
+                <span className="im-section__label">// Resolved incidents</span>
+                <span className="im-section__sub">
+                  Newest first — audit trail summary
+                </span>
               </div>
-            </CardContent>
-          </Card>
-        </>
-      )}
+              <div
+                className="im-section__body"
+                style={{ padding: 0, maxHeight: 280, overflow: 'auto' }}
+              >
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Resolved</th>
+                        <th className="im-th">Severity</th>
+                        <th className="im-th">Module</th>
+                        <th className="im-th">Root cause</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {dash.postMortemIncidents.length === 0 ? (
+                        <tr className="im-tr">
+                          <td
+                            className="im-td"
+                            colSpan={4}
+                            style={{
+                              textAlign: 'center',
+                              color: 'var(--color-im-muted)',
+                              padding: 32,
+                            }}
+                          >
+                            No resolved incidents
+                          </td>
+                        </tr>
+                      ) : (
+                        dash.postMortemIncidents.map((row, i) => (
+                          <tr
+                            key={row.incidentId}
+                            className={`im-tr${i % 2 !== 0 ? 'is-alt' : ''}`}
+                          >
+                            <td
+                              className="im-td"
+                              style={{ whiteSpace: 'nowrap', fontSize: 11.5 }}
+                            >
+                              {row.resolvedAt ?? '—'}
+                            </td>
+                            <td className="im-td">
+                              <span className="im-badge is-neutral">
+                                {row.severity}
+                              </span>
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily:
+                                  'Consolas, "Courier New", monospace',
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {row.sourceModule}
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                maxWidth: 'min(50vw, 400px)',
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                                fontSize: 11.5,
+                              }}
+                            >
+                              {row.rootCauseSummary || '—'}
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

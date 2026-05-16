@@ -1,0 +1,70 @@
+/* src/styles/im-theme.css
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Tailwind CSS 4 — @theme token registration
+ * Import this in your global CSS entry (e.g. src/index.css) BEFORE @tailwind
+ * utilities so that all `im-*` utilities become available everywhere.
+ *
+ *   @import './styles/im-theme.css';
+ *   @import 'tailwindcss';
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+@theme {
+  /* ── Base surfaces ─────────────────────────────────────────── */
+  --color-im-bg: #0a0a0a; /* app background              */
+  --color-im-panel: #101010; /* sidebar + table default row */
+  --color-im-alt: #0c0c0b; /* table alternate row         */
+  --color-im-header: #0d0d0b; /* table column header bg      */
+  --color-im-sub: #0c0b09; /* footer / status-bar bg      */
+  --color-im-hover: #161513; /* row hover state             */
+  --color-im-active: #1c1a14; /* selected / nav-active bg    */
+
+  /* ── Borders & dividers ────────────────────────────────────── */
+  --color-im-rule: #1f1e1a; /* 1px table cell borders      */
+
+  /* ── Text scale ────────────────────────────────────────────── */
+  --color-im-text: #efede8; /* primary text                */
+  --color-im-muted: #8c8a82; /* secondary / placeholder     */
+  --color-im-faint: #56544e; /* tertiary / disabled         */
+
+  /* ── Accent — amber ────────────────────────────────────────── */
+  --color-im-accent: #e8a23a; /* solid accent    */
+  --color-im-accent-bg: rgba(232, 162, 58, 0.1); /* row selected bg */
+  --color-im-accent-bdr: rgba(232, 162, 58, 0.25); /* badge border    */
+
+  /* ── Status — active (green) ───────────────────────────────── */
+  --color-im-good: #5fcb7d;
+  --color-im-good-bg: rgba(95, 203, 125, 0.1);
+  --color-im-good-bdr: rgba(95, 203, 125, 0.22);
+
+  /* ── Status — inactive (red) ───────────────────────────────── */
+  --color-im-bad: #f87171;
+  --color-im-bad-bg: rgba(248, 113, 113, 0.09);
+  --color-im-bad-bdr: rgba(248, 113, 113, 0.2);
+
+  /* ── Typography ────────────────────────────────────────────── */
+  --font-im-sans: 'IBM Plex Sans', 'Inter', system-ui, sans-serif;
+  --font-im-mono: 'Consolas', 'Courier New', monospace;
+
+  /* ── Spacing shortcuts ─────────────────────────────────────── */
+  --spacing-im-row: 36px; /* table row height                */
+  --spacing-im-cell-x: 10px; /* table cell horizontal padding   */
+}
+
+/*
+ * TAILWIND CLASS REFERENCE — use these in your TSX
+ * ─────────────────────────────────────────────────
+ * bg-im-bg          border-im-rule      text-im-text
+ * bg-im-panel       border-im-accent    text-im-muted
+ * bg-im-alt         border-im-good-bdr  text-im-faint
+ * bg-im-header      border-im-bad-bdr   text-im-accent
+ * bg-im-sub                             text-im-good
+ * bg-im-hover                           text-im-bad
+ * bg-im-active
+ * bg-im-accent-bg
+ * bg-im-good-bg
+ * bg-im-bad-bg
+ *
+ * font-im-sans
+ * font-im-mono
+ */

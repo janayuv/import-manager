@@ -2,25 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { Copy, Download, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import {
   exportErrorEventsCursorReport,
   getErrorMemoryMaintenanceStats,
@@ -32,6 +13,7 @@ import {
   type ErrorMemoryMaintenanceStats,
   type ErrorMemoryRow,
 } from '@/lib/error-memory';
+import { AppBar } from '@/components/shared/im';
 
 const STATUSES = ['new', 'triaged', 'fixed', 'ignored', 'duplicate'] as const;
 const SEVERITIES = ['info', 'warning', 'error', 'critical'] as const;
@@ -184,289 +166,504 @@ export default function ErrorCenterPage() {
   };
 
   return (
-    <div className="container mx-auto max-w-7xl space-y-4 p-6">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold">Error Center</h1>
-          <p className="text-muted-foreground text-sm">
-            Persistent error memory with dedupe, triage and Cursor export.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => void load()}>
-            <RefreshCw className="mr-1 size-4" />
-            Refresh
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => void downloadExport()}
-          >
-            <Download className="mr-1 size-4" />
-            Export selected view
-          </Button>
-        </div>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Filters</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-5">
-          <div className="space-y-1">
-            <Label className="text-xs">Severity</Label>
-            <Select value={severity} onValueChange={setSeverity}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {SEVERITIES.map(s => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Administration', 'Error Center']} />
+      <div
+        className="im-dashboard-body"
+        style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+      >
+        <div
+          style={{
+            padding: '14px 24px 12px',
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'flex-start',
+            justifyContent: 'space-between',
+            gap: 16,
+          }}
+        >
+          <div>
+            <h1
+              style={{
+                margin: 0,
+                fontSize: 18,
+                fontWeight: 700,
+                color: 'var(--color-im-text)',
+                fontFamily: 'var(--font-im-sans)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.02em',
+              }}
+            >
+              Error Center
+            </h1>
+            <p
+              style={{
+                margin: '3px 0 0',
+                fontSize: 11.5,
+                color: 'var(--color-im-faint)',
+              }}
+            >
+              Persistent error memory with dedupe, triage and Cursor export.
+            </p>
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All</SelectItem>
-                {STATUSES.map(s => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Module</Label>
-            <Input
-              value={moduleName}
-              onChange={e => setModuleName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Command</Label>
-            <Input
-              value={commandName}
-              onChange={e => setCommandName(e.target.value)}
-            />
-          </div>
-          <div className="space-y-1">
-            <Label className="text-xs">Search</Label>
-            <Input value={search} onChange={e => setSearch(e.target.value)} />
-          </div>
-          <div className="md:col-span-5">
-            <Button size="sm" onClick={() => void load()} disabled={loading}>
-              Apply
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Error memory maintenance</CardTitle>
-          <CardDescription>
-            Retention and cleanup policy controls.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="grid gap-2 text-xs md:grid-cols-3">
-            <div>
-              <strong>Total count:</strong> {maintenance?.totalCount ?? '-'}
-            </div>
-            <div>
-              <strong>Duplicate groups:</strong>{' '}
-              {maintenance?.duplicateCount ?? '-'}
-            </div>
-            <div>
-              <strong>Old resolved:</strong>{' '}
-              {maintenance?.oldResolvedCount ?? '-'}
-            </div>
-            <div>
-              <strong>Hard cap:</strong> {maintenance?.hardCap ?? '-'}
-            </div>
-            <div>
-              <strong>Last cleanup:</strong> {maintenance?.lastCleanupAt || '-'}
-            </div>
-            <div>
-              <strong>Last summary:</strong>{' '}
-              {maintenance?.lastCleanupSummary || '-'}
-            </div>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button className="im-btn im-btn--sm" onClick={() => void load()}>
+              <RefreshCw
+                style={{
+                  display: 'inline',
+                  width: 12,
+                  height: 12,
+                  marginRight: 4,
+                }}
+              />
+              Refresh
+            </button>
+            <button
+              className="im-btn im-btn--sm"
               onClick={() => void downloadExport()}
-              disabled={cleanupBusy}
             >
-              Export current view (before cleanup)
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => void onPreviewCleanup()}
-              disabled={cleanupBusy}
-            >
-              Dry-run cleanup
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => void onRunCleanup()}
-              disabled={cleanupBusy}
-            >
-              Run cleanup
-            </Button>
+              <Download
+                style={{
+                  display: 'inline',
+                  width: 12,
+                  height: 12,
+                  marginRight: 4,
+                }}
+              />
+              Export selected view
+            </button>
           </div>
-          {cleanupPreview && (
-            <div className="rounded border p-2 text-xs">
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Filters</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(5, 1fr)',
+              gap: 12,
+            }}
+          >
+            <div>
+              <label className="im-field-label">Severity</label>
+              <div className="im-select-wrap">
+                <select
+                  className="im-select"
+                  value={severity}
+                  onChange={e => setSeverity(e.target.value)}
+                >
+                  <option value="all">All</option>
+                  {SEVERITIES.map(s => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="im-field-label">Status</label>
+              <div className="im-select-wrap">
+                <select
+                  className="im-select"
+                  value={status}
+                  onChange={e => setStatus(e.target.value)}
+                >
+                  <option value="all">All</option>
+                  {STATUSES.map(s => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <div>
+              <label className="im-field-label">Module</label>
+              <input
+                className="im-input"
+                value={moduleName}
+                onChange={e => setModuleName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">Command</label>
+              <input
+                className="im-input"
+                value={commandName}
+                onChange={e => setCommandName(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="im-field-label">Search</label>
+              <input
+                className="im-input"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <button
+                className="im-btn im-btn--primary im-btn--sm"
+                onClick={() => void load()}
+                disabled={loading}
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">
+              // Error memory maintenance
+            </span>
+            <span className="im-section__sub">
+              Retention and cleanup policy controls.
+            </span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3, 1fr)',
+                gap: 8,
+                fontSize: 11.5,
+                color: 'var(--color-im-muted)',
+              }}
+            >
               <div>
-                <strong>Preview/run id:</strong> {cleanupPreview.runId}
+                <strong style={{ color: 'var(--color-im-text)' }}>
+                  Total count:
+                </strong>{' '}
+                {maintenance?.totalCount ?? '-'}
               </div>
               <div>
-                <strong>Result:</strong>{' '}
-                {cleanupPreview.dryRun
-                  ? `would prune ${cleanupPreview.wouldPruneCount}`
-                  : `pruned ${cleanupPreview.deletedCount}`}{' '}
-                records (candidates {cleanupPreview.candidateCount}, protected{' '}
-                {cleanupPreview.protectedCount})
+                <strong style={{ color: 'var(--color-im-text)' }}>
+                  Duplicate groups:
+                </strong>{' '}
+                {maintenance?.duplicateCount ?? '-'}
               </div>
               <div>
-                <strong>Executed:</strong> {cleanupPreview.executedAt}
+                <strong style={{ color: 'var(--color-im-text)' }}>
+                  Old resolved:
+                </strong>{' '}
+                {maintenance?.oldResolvedCount ?? '-'}
               </div>
-              {cleanupPreview.pruneReasons.length > 0 && (
-                <div className="mt-1 max-h-24 overflow-auto font-mono">
-                  {cleanupPreview.pruneReasons.slice(0, 8).join('\n')}
+              <div>
+                <strong style={{ color: 'var(--color-im-text)' }}>
+                  Hard cap:
+                </strong>{' '}
+                {maintenance?.hardCap ?? '-'}
+              </div>
+              <div>
+                <strong style={{ color: 'var(--color-im-text)' }}>
+                  Last cleanup:
+                </strong>{' '}
+                {maintenance?.lastCleanupAt || '-'}
+              </div>
+              <div>
+                <strong style={{ color: 'var(--color-im-text)' }}>
+                  Last summary:
+                </strong>{' '}
+                {maintenance?.lastCleanupSummary || '-'}
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              <button
+                className="im-btn im-btn--sm"
+                onClick={() => void downloadExport()}
+                disabled={cleanupBusy}
+              >
+                Export current view (before cleanup)
+              </button>
+              <button
+                className="im-btn im-btn--sm"
+                onClick={() => void onPreviewCleanup()}
+                disabled={cleanupBusy}
+              >
+                Dry-run cleanup
+              </button>
+              <button
+                className="im-btn im-btn--primary im-btn--sm"
+                onClick={() => void onRunCleanup()}
+                disabled={cleanupBusy}
+              >
+                Run cleanup
+              </button>
+            </div>
+            {cleanupPreview && (
+              <div
+                style={{
+                  padding: 10,
+                  border: '1px solid var(--color-im-rule)',
+                  borderRadius: 2,
+                  fontSize: 11.5,
+                }}
+              >
+                <div>
+                  <strong>Preview/run id:</strong> {cleanupPreview.runId}
                 </div>
+                <div>
+                  <strong>Result:</strong>{' '}
+                  {cleanupPreview.dryRun
+                    ? `would prune ${cleanupPreview.wouldPruneCount}`
+                    : `pruned ${cleanupPreview.deletedCount}`}{' '}
+                  records (candidates {cleanupPreview.candidateCount}, protected{' '}
+                  {cleanupPreview.protectedCount})
+                </div>
+                <div>
+                  <strong>Executed:</strong> {cleanupPreview.executedAt}
+                </div>
+                {cleanupPreview.pruneReasons.length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 4,
+                      maxHeight: 96,
+                      overflowY: 'auto',
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                    }}
+                  >
+                    {cleanupPreview.pruneReasons.slice(0, 8).join('\n')}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 16,
+          }}
+        >
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">
+                // Captured errors ({filtered.length})
+              </span>
+              <span className="im-section__sub">
+                Grouped by fingerprint with occurrence count.
+              </span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ maxHeight: 560, overflowY: 'auto', padding: 0 }}
+            >
+              {filtered.map(r => (
+                <button
+                  key={r.id}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    padding: '8px 12px',
+                    textAlign: 'left',
+                    background:
+                      selected?.id === r.id
+                        ? 'rgba(232,162,58,0.10)'
+                        : 'transparent',
+                    borderLeft:
+                      selected?.id === r.id
+                        ? '2px solid var(--color-im-accent)'
+                        : '2px solid transparent',
+                    borderBottom: '1px solid var(--color-im-rule)',
+                    cursor: 'pointer',
+                    fontSize: 12.5,
+                  }}
+                  onClick={() => setSelectedId(r.id)}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                        fontWeight: 600,
+                      }}
+                    >
+                      {r.errorCode || 'error'}: {r.errorMessage}
+                    </div>
+                    <span
+                      className="im-badge is-neutral"
+                      style={{ flexShrink: 0 }}
+                    >
+                      {r.occurrenceCount}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 4,
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0 12px',
+                      fontSize: 11,
+                      color: 'var(--color-im-muted)',
+                    }}
+                  >
+                    <span>{r.severity}</span>
+                    <span>{r.status}</span>
+                    <span>{r.moduleName || '-'}</span>
+                    <span>{r.lastSeenAt}</span>
+                  </div>
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <p
+                  style={{
+                    padding: 12,
+                    margin: 0,
+                    fontSize: 12.5,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
+                  No errors matched filters.
+                </p>
               )}
             </div>
-          )}
-        </CardContent>
-      </Card>
+          </div>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">
-              Captured errors ({filtered.length})
-            </CardTitle>
-            <CardDescription>
-              Grouped by fingerprint with occurrence count.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="max-h-[560px] space-y-2 overflow-auto">
-            {filtered.map(r => (
-              <button
-                key={r.id}
-                className={`w-full rounded border p-2 text-left ${selected?.id === r.id ? 'bg-muted' : ''}`}
-                onClick={() => setSelectedId(r.id)}
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <div className="truncate text-sm font-medium">
-                    {r.errorCode || 'error'}: {r.errorMessage}
+          <div className="im-section">
+            <div className="im-section__header">
+              <span className="im-section__label">// Detail view</span>
+            </div>
+            <div
+              className="im-section__body"
+              style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+            >
+              {!selected ? (
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: 12.5,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
+                  Select an error row.
+                </p>
+              ) : (
+                <>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                    {STATUSES.map(s => (
+                      <button
+                        key={s}
+                        className={`im-btn im-btn--sm${selected.status === s ? 'im-btn--primary' : ''}`}
+                        onClick={() => void setStatusForSelected(s)}
+                      >
+                        {s}
+                      </button>
+                    ))}
                   </div>
-                  <Badge variant="outline">{r.occurrenceCount}</Badge>
-                </div>
-                <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-3 text-xs">
-                  <span>{r.severity}</span>
-                  <span>{r.status}</span>
-                  <span>{r.moduleName || '-'}</span>
-                  <span>{r.lastSeenAt}</span>
-                </div>
-              </button>
-            ))}
-            {filtered.length === 0 && (
-              <p className="text-muted-foreground text-sm">
-                No errors matched filters.
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Detail view</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {!selected ? (
-              <p className="text-muted-foreground text-sm">
-                Select an error row.
-              </p>
-            ) : (
-              <>
-                <div className="flex flex-wrap gap-2">
-                  {STATUSES.map(s => (
-                    <Button
-                      key={s}
-                      size="sm"
-                      variant={selected.status === s ? 'default' : 'outline'}
-                      onClick={() => void setStatusForSelected(s)}
-                    >
-                      {s}
-                    </Button>
-                  ))}
-                </div>
-                <div className="grid gap-2 text-xs">
-                  <div>
-                    <strong>Fingerprint:</strong> {selected.fingerprint}
-                  </div>
-                  <div>
-                    <strong>First/Last seen:</strong> {selected.firstSeenAt} /{' '}
-                    {selected.lastSeenAt}
-                  </div>
-                  <div>
-                    <strong>Module/Command:</strong>{' '}
-                    {selected.moduleName || '-'} / {selected.commandName || '-'}
-                  </div>
-                  <div>
-                    <strong>Page/Component:</strong> {selected.pageName || '-'}{' '}
-                    / {selected.componentName || '-'}
-                  </div>
-                  <div>
-                    <strong>Category/Code:</strong>{' '}
-                    {selected.errorCategory || '-'} /{' '}
-                    {selected.errorCode || '-'}
-                  </div>
-                </div>
-                <div>
-                  <Label className="text-xs">Redacted payload preview</Label>
-                  <Textarea
-                    readOnly
-                    value={selected.redactedInputContext || ''}
-                    className="mt-1 min-h-[80px] font-mono text-xs"
-                  />
-                </div>
-                <div>
-                  <Label className="text-xs">Stack trace</Label>
-                  <Textarea
-                    readOnly
-                    value={selected.stackTrace || ''}
-                    className="mt-1 min-h-[140px] font-mono text-xs"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void onExport()}
+                  <div
+                    style={{
+                      display: 'grid',
+                      gap: 6,
+                      fontSize: 11.5,
+                      color: 'var(--color-im-muted)',
+                    }}
                   >
-                    <Copy className="mr-1 size-4" />
-                    Copy Cursor-ready report
-                  </Button>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
+                    <div>
+                      <strong style={{ color: 'var(--color-im-text)' }}>
+                        Fingerprint:
+                      </strong>{' '}
+                      {selected.fingerprint}
+                    </div>
+                    <div>
+                      <strong style={{ color: 'var(--color-im-text)' }}>
+                        First/Last seen:
+                      </strong>{' '}
+                      {selected.firstSeenAt} / {selected.lastSeenAt}
+                    </div>
+                    <div>
+                      <strong style={{ color: 'var(--color-im-text)' }}>
+                        Module/Command:
+                      </strong>{' '}
+                      {selected.moduleName || '-'} /{' '}
+                      {selected.commandName || '-'}
+                    </div>
+                    <div>
+                      <strong style={{ color: 'var(--color-im-text)' }}>
+                        Page/Component:
+                      </strong>{' '}
+                      {selected.pageName || '-'} /{' '}
+                      {selected.componentName || '-'}
+                    </div>
+                    <div>
+                      <strong style={{ color: 'var(--color-im-text)' }}>
+                        Category/Code:
+                      </strong>{' '}
+                      {selected.errorCategory || '-'} /{' '}
+                      {selected.errorCode || '-'}
+                    </div>
+                  </div>
+                  <div>
+                    <label className="im-field-label">
+                      Redacted payload preview
+                    </label>
+                    <textarea
+                      readOnly
+                      value={selected.redactedInputContext || ''}
+                      className="im-textarea"
+                      style={{
+                        marginTop: 4,
+                        minHeight: 80,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <label className="im-field-label">Stack trace</label>
+                    <textarea
+                      readOnly
+                      value={selected.stackTrace || ''}
+                      className="im-textarea"
+                      style={{
+                        marginTop: 4,
+                        minHeight: 140,
+                        fontFamily: 'monospace',
+                        fontSize: 11,
+                      }}
+                    />
+                  </div>
+                  <div>
+                    <button
+                      className="im-btn im-btn--sm"
+                      onClick={() => void onExport()}
+                    >
+                      <Copy
+                        style={{
+                          display: 'inline',
+                          width: 12,
+                          height: 12,
+                          marginRight: 4,
+                        }}
+                      />
+                      Copy Cursor-ready report
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

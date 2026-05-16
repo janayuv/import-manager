@@ -1,16 +1,6 @@
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/calculation-results.tsx         |
-| (MODIFIED)                                                                   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Updated to import all types from the new central `src/types` file.           |
-================================================================================
-*/
-
 'use client';
 
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { ImSection, ViewField } from '@/components/shared/im';
 import {
   Table,
   TableBody,
@@ -19,7 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-// Minimal shape used here to avoid cross-branch type drift
+
 type CalculationResult = {
   bcdTotal?: number;
   swsTotal?: number;
@@ -31,16 +21,6 @@ type CalculationResult = {
   exchangeRate?: number;
   calculationDate?: string;
 };
-
-/*
-================================================================================
-| FILE: src/app/dashboard/boe-entry/components/calculation-results.tsx         |
-| (MODIFIED)                                                                   |
-|------------------------------------------------------------------------------|
-| DESCRIPTION:                                                                 |
-| Updated to import all types from the new central `src/types` file.           |
-================================================================================
-*/
 
 interface CalculationResultsProps {
   results: unknown;
@@ -55,7 +35,6 @@ const formatCurrency = (amount: number) => {
   }).format(amount);
 };
 
-// Define proper types for the calculation items
 interface CalculationItem {
   description?: string;
   assessableValue?: number;
@@ -63,7 +42,7 @@ interface CalculationItem {
   igst?: number;
   compCess?: number;
   total?: number;
-  [key: string]: unknown; // Allow additional properties
+  [key: string]: unknown;
 }
 
 export function CalculationResults({ results }: CalculationResultsProps) {
@@ -82,50 +61,55 @@ export function CalculationResults({ results }: CalculationResultsProps) {
     safeNum((r as Record<string, unknown>).totalDuty) ||
     safeNum((r as Record<string, unknown>).customsDutyTotal) ||
     bcdTotal + swsTotal + igstTotal + interest;
-  return (
-    <div className="mt-12 space-y-8">
-      {/* --- Totals Summary --- */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Calculation Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 text-center md:grid-cols-4">
-            <div>
-              <p className="text-muted-foreground text-sm">BCD Total</p>
-              <p className="text-xl font-bold">{formatCurrency(bcdTotal)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">SWS Total</p>
-              <p className="text-xl font-bold">{formatCurrency(swsTotal)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">IGST Total</p>
-              <p className="text-xl font-bold">{formatCurrency(igstTotal)}</p>
-            </div>
-            <div>
-              <p className="text-muted-foreground text-sm">Total Duty</p>
-              <p className="text-xl font-bold">{formatCurrency(totalDuty)}</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
-      {/* --- Detailed Breakdown --- */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Detailed Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
+  return (
+    <div className="mt-6 flex flex-col gap-3">
+      <ImSection
+        label="CALCULATION SUMMARY"
+        sub="Duty totals from the last successful run."
+      >
+        <div className="im-grid im-grid__4 gap-3">
+          <ViewField label="BCD TOTAL" value={formatCurrency(bcdTotal)} mono />
+          <ViewField label="SWS TOTAL" value={formatCurrency(swsTotal)} mono />
+          <ViewField
+            label="IGST TOTAL"
+            value={formatCurrency(igstTotal)}
+            mono
+          />
+          <ViewField
+            label="TOTAL DUTY"
+            value={formatCurrency(totalDuty)}
+            mono
+          />
+        </div>
+      </ImSection>
+
+      <ImSection
+        label="LINE BREAKDOWN"
+        sub="Per-line assessable value and duty components."
+      >
+        <div className="border-im-rule bg-im-sub border">
+          <Table className="im-table text-xs">
             <TableHeader>
-              <TableRow>
-                <TableHead>Item</TableHead>
-                <TableHead className="text-right">Assessable Value</TableHead>
-                <TableHead className="text-right">BCD</TableHead>
-                <TableHead className="text-right">SWS</TableHead>
-                <TableHead className="text-right">IGST</TableHead>
-                <TableHead className="text-right">Total</TableHead>
+              <TableRow className="border-0 hover:bg-transparent">
+                <TableHead className="im-th !h-9 rounded-none font-mono">
+                  Item
+                </TableHead>
+                <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                  Assessable value
+                </TableHead>
+                <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                  BCD
+                </TableHead>
+                <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                  SWS
+                </TableHead>
+                <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                  IGST
+                </TableHead>
+                <TableHead className="im-th !h-9 rounded-none text-right font-mono">
+                  Total
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -142,22 +126,32 @@ export function CalculationResults({ results }: CalculationResultsProps) {
                 const total =
                   safeNum((item as Record<string, unknown>).total) ||
                   assessableValue + bcd + sws + igst;
+                const alt = index % 2 === 1;
                 return (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">{description}</TableCell>
-                    <TableCell className="text-right">
+                  <TableRow
+                    key={index}
+                    className={
+                      alt
+                        ? 'im-tr is-alt hover:bg-im-hover border-0'
+                        : 'im-tr hover:bg-im-hover border-0'
+                    }
+                  >
+                    <TableCell className="im-td text-im-text !max-w-[min(280px,40vw)] font-medium">
+                      {description}
+                    </TableCell>
+                    <TableCell className="im-td im-td-mono text-right">
                       {formatCurrency(assessableValue)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="im-td im-td-mono text-right">
                       {formatCurrency(bcd)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="im-td im-td-mono text-right">
                       {formatCurrency(sws)}
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="im-td im-td-mono text-right">
                       {formatCurrency(igst)}
                     </TableCell>
-                    <TableCell className="text-right font-bold">
+                    <TableCell className="im-td im-td-mono text-im-text text-right font-semibold">
                       {formatCurrency(total)}
                     </TableCell>
                   </TableRow>
@@ -165,33 +159,34 @@ export function CalculationResults({ results }: CalculationResultsProps) {
               })}
             </TableBody>
           </Table>
-        </CardContent>
-      </Card>
+        </div>
+      </ImSection>
 
-      {/* --- Additional Information --- */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Additional Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-            <div>
-              <h4 className="mb-2 font-semibold">Exchange Rate</h4>
-              <p className="text-muted-foreground">
-                USD 1 = INR {r.exchangeRate?.toFixed(2) || 'N/A'}
-              </p>
-            </div>
-            <div>
-              <h4 className="mb-2 font-semibold">Calculation Date</h4>
-              <p className="text-muted-foreground">
-                {r.calculationDate
-                  ? new Date(r.calculationDate).toLocaleDateString('en-IN')
-                  : 'N/A'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      <ImSection
+        label="RUN METADATA"
+        sub="Reference values for this calculation."
+      >
+        <div className="im-grid gap-3 md:grid-cols-2">
+          <ViewField
+            label="EXCHANGE RATE"
+            value={
+              r.exchangeRate != null && isFinite(r.exchangeRate)
+                ? `USD 1 = INR ${r.exchangeRate.toFixed(2)}`
+                : undefined
+            }
+            mono
+          />
+          <ViewField
+            label="CALCULATION DATE"
+            value={
+              r.calculationDate
+                ? new Date(r.calculationDate).toLocaleDateString('en-IN')
+                : undefined
+            }
+            mono
+          />
+        </div>
+      </ImSection>
     </div>
   );
 }

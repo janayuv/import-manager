@@ -5,31 +5,6 @@ import { toast } from 'sonner';
 import * as React from 'react';
 
 import { Combobox, type ComboboxOption } from '@/components/ui/combobox';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { formatDateForInput, formatDateForDisplay } from '@/lib/date-format';
 import { invoiceTaxSnapshotFromItem } from '@/lib/parse-percentage';
 import {
@@ -680,23 +655,32 @@ export function InvoiceWizard({
   }, [header.shipmentId, loadedFromDraft]);
 
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
-            <Button
-              variant="default"
-              useAccentColor
+    <div
+      className="im-table-shell mx-auto w-full max-w-7xl"
+      style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+    >
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              type="button"
+              className="im-btn im-btn--primary"
               onClick={saveDraft}
               disabled={saving}
             >
               {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />} Save
               Draft
-            </Button>
+            </button>
             {header.shipmentId && (
-              <Button
-                variant="default"
-                useAccentColor
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
                 onClick={() => {
                   const d = getLatestDraftForShipment(header.shipmentId);
                   if (!d) {
@@ -711,22 +695,39 @@ export function InvoiceWizard({
                 }}
               >
                 View Saved Draft
-              </Button>
+              </button>
             )}
-            <Button
-              variant="default"
-              useAccentColor
+            <button
+              type="button"
+              className="im-btn"
               onClick={deleteCurrentDraft}
             >
               Delete Draft
-            </Button>
+            </button>
           </div>
         </div>
-        <Progress value={currentProgress} />
+        <div
+          style={{
+            height: 4,
+            background: 'var(--color-im-rule)',
+            position: 'relative',
+          }}
+        >
+          <div
+            style={{
+              height: '100%',
+              width: `${currentProgress}%`,
+              background: 'var(--color-im-accent)',
+              transition: 'width 0.3s',
+            }}
+          />
+        </div>
         {loadedFromDraft && (
-          <div className="text-muted-foreground text-xs">Draft loaded</div>
+          <div style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
+            Draft loaded
+          </div>
         )}
-        <div className="text-muted-foreground text-xs">
+        <div style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
           Step {step} of {stepsCount}:{' '}
           {step === 1
             ? 'Invoice Header'
@@ -738,16 +739,29 @@ export function InvoiceWizard({
 
       {/* Step 1: Header */}
       {step === 1 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Header Info</CardTitle>
-            <CardDescription>
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// HEADER INFO</span>
+            <span
+              style={{
+                fontSize: 12,
+                color: 'var(--color-im-faint)',
+                marginLeft: 12,
+              }}
+            >
               Invoice number/date, supplier, currency, and shipment.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+            </span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4,1fr)',
+              gap: 24,
+            }}
+          >
             <div>
-              <Label>Shipment</Label>
+              <p className="im-field-label">SHIPMENT</p>
               <Combobox
                 options={shipmentOptions}
                 value={header.shipmentId || ''}
@@ -766,12 +780,18 @@ export function InvoiceWizard({
                     : 'No available shipments (already invoiced or terminal status).'
                 }
               />
-              <p className="text-muted-foreground mt-1 text-xs">
+              <p
+                style={{
+                  fontSize: 11,
+                  color: 'var(--color-im-muted)',
+                  marginTop: 4,
+                }}
+              >
                 Select from shipments without existing invoices.
               </p>
             </div>
             <div>
-              <Label>Supplier</Label>
+              <p className="im-field-label">SUPPLIER</p>
               <Combobox
                 options={supplierOptions}
                 value={header.supplierId}
@@ -781,8 +801,9 @@ export function InvoiceWizard({
               />
             </div>
             <div>
-              <Label>Invoice Number</Label>
-              <Input
+              <p className="im-field-label">INVOICE NUMBER</p>
+              <input
+                className="im-input"
                 value={header.invoiceNumber}
                 onChange={e =>
                   setHeader(h => ({ ...h, invoiceNumber: e.target.value }))
@@ -791,8 +812,9 @@ export function InvoiceWizard({
               />
             </div>
             <div>
-              <Label>Invoice Date</Label>
-              <Input
+              <p className="im-field-label">INVOICE DATE</p>
+              <input
+                className="im-input"
                 type="date"
                 value={formatDateForInput(header.invoiceDate)}
                 onChange={e =>
@@ -804,8 +826,9 @@ export function InvoiceWizard({
               />
             </div>
             <div>
-              <Label>Currency</Label>
-              <Input
+              <p className="im-field-label">CURRENCY</p>
+              <input
+                className="im-input"
                 value={currency}
                 onChange={e =>
                   setHeader(h => ({ ...h, currency: e.target.value }))
@@ -815,19 +838,29 @@ export function InvoiceWizard({
             </div>
             {selectedShipment && (
               <div>
-                <Label>Shipment Date</Label>
-                <Input
+                <p className="im-field-label">SHIPMENT DATE</p>
+                <input
+                  className="im-input"
                   type="date"
                   value={formatDateForInput(selectedShipment.invoiceDate)}
                   readOnly
-                  className="bg-muted"
+                  style={{ background: 'var(--color-im-panel)' }}
                 />
               </div>
             )}
             {selectedShipment && (
-              <div className="md:col-span-2 lg:col-span-4">
-                <Label>Shipment Invoice Total</Label>
-                <div className="text-muted-foreground bg-muted rounded p-2 text-sm font-medium">
+              <div style={{ gridColumn: '1 / -1' }}>
+                <p className="im-field-label">SHIPMENT INVOICE TOTAL</p>
+                <div
+                  style={{
+                    background: 'var(--color-im-panel)',
+                    border: '1px solid var(--color-im-rule)',
+                    padding: '8px 12px',
+                    fontFamily: 'var(--font-im-mono)',
+                    fontSize: 13,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
                   {new Intl.NumberFormat('en-IN', {
                     style: 'currency',
                     currency:
@@ -835,16 +868,30 @@ export function InvoiceWizard({
                       'INR',
                   }).format(selectedShipment.invoiceValue || 0)}
                 </div>
-                <p className="text-muted-foreground mt-1 text-xs">
+                <p
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--color-im-muted)',
+                    marginTop: 4,
+                  }}
+                >
                   Total invoice value linked to this shipment
                 </p>
               </div>
             )}
             {/* Debug info - remove in production */}
             {process.env.NODE_ENV === 'development' && (
-              <div className="md:col-span-2 lg:col-span-4">
-                <Label>Debug Info</Label>
-                <div className="text-muted-foreground bg-muted rounded p-2 text-xs">
+              <div style={{ gridColumn: '1 / -1' }}>
+                <p className="im-field-label">DEBUG INFO</p>
+                <div
+                  style={{
+                    background: 'var(--color-im-panel)',
+                    border: '1px solid var(--color-im-rule)',
+                    padding: '8px 12px',
+                    fontSize: 11,
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
                   <div>Selected Shipment ID: {header.shipmentId || 'None'}</div>
                   <div>Available Shipments: {availableShipments.length}</div>
                   <div>
@@ -853,9 +900,10 @@ export function InvoiceWizard({
                 </div>
               </div>
             )}
-            <div className="md:col-span-2 lg:col-span-4">
-              <Label>Notes</Label>
-              <Textarea
+            <div style={{ gridColumn: '1 / -1' }}>
+              <p className="im-field-label">NOTES</p>
+              <textarea
+                className="im-textarea"
                 value={header.notes || ''}
                 onChange={e =>
                   setHeader(h => ({ ...h, notes: e.target.value }))
@@ -863,201 +911,266 @@ export function InvoiceWizard({
                 placeholder="Optional notes"
               />
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Step 2: Lines with Multi-line Paste */}
       {step === 2 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Invoice Lines</CardTitle>
-            <CardDescription>
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// INVOICE LINES</span>
+            <span
+              style={{
+                fontSize: 12,
+                color: 'var(--color-im-faint)',
+                marginLeft: 12,
+              }}
+            >
               Paste multiple lines or add manually. Only items of the selected
               supplier are allowed.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            </span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,1fr)',
+                gap: 16,
+              }}
+            >
               <div>
-                <div className="flex items-center gap-2">
-                  <Label>Multi-line Paste</Label>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    marginBottom: 6,
+                  }}
+                >
+                  <p className="im-field-label" style={{ margin: 0 }}>
+                    MULTI-LINE PASTE
+                  </p>
                   {itemsLoading && (
-                    <div className="text-muted-foreground flex items-center gap-1 text-xs">
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        fontSize: 11,
+                        color: 'var(--color-im-muted)',
+                      }}
+                    >
                       <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading
                       Item Master...
                     </div>
                   )}
                 </div>
-                <Textarea
+                <textarea
+                  className="im-textarea"
                   placeholder="Paste lines here: partNumber, quantity, unitPrice, description, unit, hsn, bcd, igst"
                   value={pasteText}
                   onChange={e => setPasteText(e.target.value)}
-                  className="h-36"
+                  style={{ height: 144 }}
                   disabled={itemsLoading}
                 />
-                <div className="mt-2 flex gap-2">
-                  <Button
+                <div style={{ marginTop: 8, display: 'flex', gap: 8 }}>
+                  <button
                     type="button"
-                    variant="default"
-                    useAccentColor
+                    className="im-btn im-btn--primary"
                     onClick={handlePasteParse}
                     disabled={itemsLoading}
                   >
                     Parse
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    variant="default"
-                    useAccentColor
+                    className="im-btn im-btn--primary"
                     onClick={acceptParsedPreview}
                     disabled={!parsedPreview.length || itemsLoading}
                   >
                     Add Parsed Lines
-                  </Button>
+                  </button>
                 </div>
               </div>
               <div>
-                <Label>Parse Preview</Label>
-                <div className="max-h-40 overflow-auto rounded border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Part No</TableHead>
-                        <TableHead>Qty</TableHead>
-                        <TableHead>Unit Price</TableHead>
-                        <TableHead>Errors</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                <p className="im-field-label">PARSE PREVIEW</p>
+                <div className="im-table-scroll" style={{ maxHeight: 160 }}>
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">PART NO</th>
+                        <th className="im-th">QTY</th>
+                        <th className="im-th">UNIT PRICE</th>
+                        <th className="im-th">ERRORS</th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {parsedPreview.map((p, idx) => (
-                        <TableRow
+                        <tr
                           key={idx}
-                          className={
+                          className="im-tr"
+                          style={
                             p.errors?.length
-                              ? 'bg-destructive/10'
+                              ? { background: 'rgba(220,38,38,0.08)' }
                               : p.matched === false
-                                ? 'bg-warning/10'
-                                : ''
+                                ? { background: 'rgba(234,179,8,0.08)' }
+                                : undefined
                           }
                         >
-                          <TableCell>
+                          <td className="im-td">
                             {p.matched === false ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-warning-foreground">
-                                      {p.partNumber || '-'}
-                                    </span>
-                                    <span className="text-warning-foreground text-xs">
-                                      ⚠️
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <div className="text-xs">
-                                    Item not found in Item Master
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                }}
+                              >
+                                <span
+                                  style={{ color: 'var(--color-im-accent)' }}
+                                >
+                                  {p.partNumber || '-'}
+                                </span>
+                                <span style={{ fontSize: 11 }}>⚠️</span>
+                              </div>
                             ) : (
                               p.partNumber || '-'
                             )}
-                          </TableCell>
-                          <TableCell>{p.quantity ?? '-'}</TableCell>
-                          <TableCell>
+                          </td>
+                          <td className="im-td">{p.quantity ?? '-'}</td>
+                          <td className="im-td">
                             {p.priceWarning ? (
-                              <Tooltip>
-                                <TooltipTrigger asChild>
-                                  <div className="flex items-center gap-1">
-                                    <span className="text-warning-foreground">
-                                      {p.unitPrice}
-                                    </span>
-                                    <span className="text-warning-foreground text-xs">
-                                      ⚠️
-                                    </span>
-                                  </div>
-                                </TooltipTrigger>
-                                <TooltipContent>
-                                  <div className="text-xs">
-                                    <div>
-                                      Item Master:{' '}
-                                      {p.priceWarning.itemMasterPrice}
-                                    </div>
-                                    <div>
-                                      Pasted: {p.priceWarning.pastedPrice}
-                                    </div>
-                                    <div
-                                      className={
-                                        p.priceWarning.difference > 0
-                                          ? 'text-destructive'
-                                          : 'text-green-600'
-                                      }
-                                    >
-                                      Difference:{' '}
-                                      {p.priceWarning.difference > 0 ? '+' : ''}
-                                      {p.priceWarning.difference}
-                                    </div>
-                                  </div>
-                                </TooltipContent>
-                              </Tooltip>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                }}
+                              >
+                                <span
+                                  style={{ color: 'var(--color-im-accent)' }}
+                                >
+                                  {p.unitPrice}
+                                </span>
+                                <span style={{ fontSize: 11 }}>⚠️</span>
+                                <span
+                                  style={{
+                                    fontSize: 10,
+                                    color: 'var(--color-im-muted)',
+                                  }}
+                                >
+                                  (master: {p.priceWarning.itemMasterPrice},
+                                  diff:{' '}
+                                  {p.priceWarning.difference > 0 ? '+' : ''}
+                                  {p.priceWarning.difference})
+                                </span>
+                              </div>
                             ) : (
                               (p.unitPrice ?? '-')
                             )}
-                          </TableCell>
-                          <TableCell className="text-destructive text-xs">
+                          </td>
+                          <td
+                            className="im-td"
+                            style={{
+                              color: 'var(--color-im-bad)',
+                              fontSize: 11,
+                            }}
+                          >
                             {p.errors?.join(', ')}
-                          </TableCell>
-                        </TableRow>
+                          </td>
+                        </tr>
                       ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
 
-            <div className="max-h-[min(22rem,45vh)] overflow-auto rounded border">
-              <Table className="min-w-[1180px] table-fixed">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-[168px] min-w-[168px] px-2">
-                      Part No
-                    </TableHead>
-                    <TableHead className="w-[220px] min-w-[220px] px-2">
-                      Description
-                    </TableHead>
-                    <TableHead className="w-[72px] min-w-[72px] px-2">
-                      Unit
-                    </TableHead>
-                    <TableHead className="w-[112px] min-w-[112px] px-2">
-                      Qty
-                    </TableHead>
-                    <TableHead className="w-[128px] min-w-[128px] px-2">
-                      Unit Price
-                    </TableHead>
-                    <TableHead className="w-[96px] min-w-[96px] px-2">
-                      Duty %
-                    </TableHead>
-                    <TableHead className="w-[96px] min-w-[96px] px-2">
+            <div
+              className="im-table-scroll"
+              style={{ maxHeight: 'min(22rem, 45vh)' }}
+            >
+              <table
+                className="im-table"
+                style={{ minWidth: 1180, tableLayout: 'fixed' }}
+              >
+                <thead>
+                  <tr>
+                    <th
+                      className="im-th"
+                      style={{ width: 168, minWidth: 168, padding: '0 8px' }}
+                    >
+                      PART NO
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 220, minWidth: 220, padding: '0 8px' }}
+                    >
+                      DESCRIPTION
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 72, minWidth: 72, padding: '0 8px' }}
+                    >
+                      UNIT
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 112, minWidth: 112, padding: '0 8px' }}
+                    >
+                      QTY
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 128, minWidth: 128, padding: '0 8px' }}
+                    >
+                      UNIT PRICE
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 96, minWidth: 96, padding: '0 8px' }}
+                    >
+                      DUTY %
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 96, minWidth: 96, padding: '0 8px' }}
+                    >
                       SWS %
-                    </TableHead>
-                    <TableHead className="w-[96px] min-w-[96px] px-2">
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 96, minWidth: 96, padding: '0 8px' }}
+                    >
                       IGST %
-                    </TableHead>
-                    <TableHead className="w-[140px] min-w-[140px] px-2">
-                      Total
-                    </TableHead>
-                    <TableHead className="w-[52px] min-w-[52px] px-1">
-                      Action
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 140, minWidth: 140, padding: '0 8px' }}
+                    >
+                      TOTAL
+                    </th>
+                    <th
+                      className="im-th"
+                      style={{ width: 52, minWidth: 52, padding: '0 4px' }}
+                    >
+                      ACT
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
                   {lines.map(line => {
                     const item = items.find(i => i.id === line.itemId);
                     return (
-                      <TableRow key={line.id}>
-                        <TableCell className="px-2 align-top">
+                      <tr key={line.id} className="im-tr">
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
                           <Combobox
                             options={itemIdOptions}
                             value={line.itemId}
@@ -1065,18 +1178,39 @@ export function InvoiceWizard({
                             placeholder="Select part"
                             disabled={!header.supplierId}
                           />
-                        </TableCell>
-                        <TableCell
-                          className="max-w-[220px] truncate px-2 align-top text-sm"
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 220,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            padding: '4px 8px',
+                            verticalAlign: 'top',
+                            fontSize: 12,
+                          }}
                           title={item?.itemDescription || undefined}
                         >
                           {item?.itemDescription || '-'}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap px-2 align-top text-sm">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            whiteSpace: 'nowrap',
+                            padding: '4px 8px',
+                            verticalAlign: 'top',
+                            fontSize: 12,
+                          }}
+                        >
                           {item?.unit || '-'}
-                        </TableCell>
-                        <TableCell className="px-2 align-top">
-                          <Input
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
+                          <input
+                            className="im-input"
                             type="number"
                             value={line.quantity}
                             onChange={e =>
@@ -1086,18 +1220,34 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="min-w-22 h-9 font-mono tabular-nums"
+                            style={{
+                              minWidth: 88,
+                              height: 36,
+                              fontFamily: 'var(--font-im-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
                           />
-                        </TableCell>
-                        <TableCell className="px-2 align-top">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
                           {(() => {
                             const item = items.find(i => i.id === line.itemId);
                             const hasPriceDifference =
                               item && line.unitPrice !== item.unitPrice;
 
                             return (
-                              <div className="flex min-w-0 items-center gap-1">
-                                <Input
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  minWidth: 0,
+                                }}
+                              >
+                                <input
+                                  className="im-input"
                                   type="number"
                                   value={line.unitPrice}
                                   onChange={e =>
@@ -1107,49 +1257,41 @@ export function InvoiceWizard({
                                       parseFloat(e.target.value) || 0
                                     )
                                   }
-                                  className={`h-9 min-w-24 shrink-0 font-mono tabular-nums ${hasPriceDifference ? 'border-warning' : ''}`}
+                                  style={{
+                                    minWidth: 96,
+                                    height: 36,
+                                    flexShrink: 0,
+                                    fontFamily: 'var(--font-im-mono)',
+                                    fontVariantNumeric: 'tabular-nums',
+                                    ...(hasPriceDifference
+                                      ? {
+                                          borderColor: 'var(--color-im-accent)',
+                                        }
+                                      : {}),
+                                  }}
                                 />
                                 {hasPriceDifference && (
-                                  <Tooltip>
-                                    <TooltipTrigger asChild>
-                                      <span className="text-warning-foreground cursor-help text-xs">
-                                        ⚠️
-                                      </span>
-                                    </TooltipTrigger>
-                                    <TooltipContent>
-                                      <div className="text-xs">
-                                        <div>
-                                          Item Master: {item?.unitPrice}
-                                        </div>
-                                        <div>Current: {line.unitPrice}</div>
-                                        <div
-                                          className={
-                                            line.unitPrice -
-                                              (item?.unitPrice || 0) >
-                                            0
-                                              ? 'text-destructive'
-                                              : 'text-green-600'
-                                          }
-                                        >
-                                          Difference:{' '}
-                                          {line.unitPrice -
-                                            (item?.unitPrice || 0) >
-                                          0
-                                            ? '+'
-                                            : ''}
-                                          {line.unitPrice -
-                                            (item?.unitPrice || 0)}
-                                        </div>
-                                      </div>
-                                    </TooltipContent>
-                                  </Tooltip>
+                                  <span
+                                    style={{
+                                      color: 'var(--color-im-accent)',
+                                      fontSize: 11,
+                                      cursor: 'help',
+                                    }}
+                                    title={`Item Master: ${item?.unitPrice} | Current: ${line.unitPrice} | Diff: ${line.unitPrice - (item?.unitPrice || 0) > 0 ? '+' : ''}${line.unitPrice - (item?.unitPrice || 0)}`}
+                                  >
+                                    ⚠️
+                                  </span>
                                 )}
                               </div>
                             );
                           })()}
-                        </TableCell>
-                        <TableCell className="px-2 align-top">
-                          <Input
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
+                          <input
+                            className="im-input"
                             type="number"
                             step="0.01"
                             value={line.dutyPercent ?? 0}
@@ -1160,11 +1302,20 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="min-w-18 h-9 font-mono tabular-nums"
+                            style={{
+                              minWidth: 72,
+                              height: 36,
+                              fontFamily: 'var(--font-im-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
                           />
-                        </TableCell>
-                        <TableCell className="px-2 align-top">
-                          <Input
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
+                          <input
+                            className="im-input"
                             type="number"
                             step="0.01"
                             value={line.swsPercent ?? 0}
@@ -1175,11 +1326,20 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="min-w-18 h-9 font-mono tabular-nums"
+                            style={{
+                              minWidth: 72,
+                              height: 36,
+                              fontFamily: 'var(--font-im-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
                           />
-                        </TableCell>
-                        <TableCell className="px-2 align-top">
-                          <Input
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
+                          <input
+                            className="im-input"
                             type="number"
                             step="0.01"
                             value={line.igstPercent ?? 0}
@@ -1190,41 +1350,82 @@ export function InvoiceWizard({
                                 parseFloat(e.target.value) || 0
                               )
                             }
-                            className="min-w-18 h-9 font-mono tabular-nums"
+                            style={{
+                              minWidth: 72,
+                              height: 36,
+                              fontFamily: 'var(--font-im-mono)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
                           />
-                        </TableCell>
-                        <TableCell className="px-2 align-top">
-                          <Input
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 8px', verticalAlign: 'top' }}
+                        >
+                          <input
+                            className="im-input"
                             value={(
                               (line.quantity || 0) * (line.unitPrice || 0)
                             ).toFixed(2)}
                             readOnly
-                            className="bg-muted h-9 min-w-28 font-mono text-sm tabular-nums"
+                            style={{
+                              minWidth: 112,
+                              height: 36,
+                              fontFamily: 'var(--font-im-mono)',
+                              fontSize: 12,
+                              fontVariantNumeric: 'tabular-nums',
+                              background: 'var(--color-im-panel)',
+                            }}
                           />
-                        </TableCell>
-                        <TableCell className="px-1 align-top">
-                          <Button
-                            variant="default"
-                            useAccentColor
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ padding: '4px 4px', verticalAlign: 'top' }}
+                        >
+                          <button
+                            type="button"
+                            className="im-btn"
                             onClick={() => removeLine(line.id)}
                           >
                             Remove
-                          </Button>
-                        </TableCell>
-                      </TableRow>
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
-            <div className="flex justify-end text-sm">
-              <div className="space-x-6">
-                <span className="text-muted-foreground">Currency:</span>
-                <span className="font-semibold">{currency}</span>
-                <span className="text-muted-foreground ml-6">
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                fontSize: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+                <span style={{ color: 'var(--color-im-muted)' }}>
+                  Currency:
+                </span>
+                <span
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontWeight: 700,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
+                  {currency}
+                </span>
+                <span style={{ color: 'var(--color-im-muted)' }}>
                   Calculated Total:
                 </span>
-                <span className="font-semibold">
+                <span
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontWeight: 700,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
                     currency: normalizeCurrencyCode(currency),
@@ -1232,17 +1433,24 @@ export function InvoiceWizard({
                 </span>
               </div>
             </div>
-            <div className="mt-4 flex items-center justify-between">
-              <div className="text-muted-foreground text-xs">
+            <div
+              style={{
+                marginTop: 16,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
                 {invoiceFinalized
                   ? 'Invoice finalized'
                   : 'Invoice not finalized'}{' '}
                 • {shipmentFrozen ? 'Shipment frozen' : 'Shipment not frozen'}
               </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="default"
-                  useAccentColor
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  className="im-btn im-btn--primary"
                   disabled={
                     finalizing ||
                     invoiceFinalized ||
@@ -1299,10 +1507,10 @@ export function InvoiceWizard({
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}{' '}
                   Finalize Invoice
-                </Button>
-                <Button
-                  variant="default"
-                  useAccentColor
+                </button>
+                <button
+                  type="button"
+                  className="im-btn im-btn--primary"
                   disabled={finalizing || shipmentFrozen || !header.shipmentId}
                   onClick={async () => {
                     const sh = header.shipmentId
@@ -1329,77 +1537,130 @@ export function InvoiceWizard({
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}{' '}
                   Finalize Shipment
-                </Button>
+                </button>
               </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Step 3: Review */}
       {step === 3 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Review & Save</CardTitle>
-            <CardDescription>Confirm details before submit.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-              <div>
-                <Label>Supplier</Label>
-                <div className="text-sm font-medium">
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// REVIEW &amp; SAVE</span>
+            <span
+              style={{
+                fontSize: 12,
+                color: 'var(--color-im-faint)',
+                marginLeft: 12,
+              }}
+            >
+              Confirm details before submit.
+            </span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3,1fr)',
+                gap: 24,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">SUPPLIER</p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontSize: 12,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
                   {suppliers.find(s => s.id === header.supplierId)
                     ?.supplierName || '-'}
-                </div>
+                </p>
               </div>
-              <div>
-                <Label>Invoice Number</Label>
-                <div className="text-sm font-medium">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">INVOICE NUMBER</p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontSize: 12,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
                   {header.invoiceNumber}
-                </div>
+                </p>
               </div>
-              <div>
-                <Label>Invoice Date</Label>
-                <div className="text-sm font-medium">{header.invoiceDate}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label">INVOICE DATE</p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontSize: 12,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
+                  {header.invoiceDate}
+                </p>
               </div>
             </div>
-            <div className="rounded border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Part No</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Unit Price</TableHead>
-                    <TableHead>Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div
+              className="im-table-scroll"
+              style={{ border: '1px solid var(--color-im-rule)' }}
+            >
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th">PART NO</th>
+                    <th className="im-th">DESCRIPTION</th>
+                    <th className="im-th">QTY</th>
+                    <th className="im-th">UNIT PRICE</th>
+                    <th className="im-th">TOTAL</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {lines.map(l => {
                     const item = items.find(i => i.id === l.itemId);
                     const lineTotal = (l.quantity || 0) * (l.unitPrice || 0);
                     return (
-                      <TableRow key={l.id}>
-                        <TableCell>{item?.partNumber}</TableCell>
-                        <TableCell>{item?.itemDescription}</TableCell>
-                        <TableCell>{l.quantity}</TableCell>
-                        <TableCell>{l.unitPrice.toFixed(2)}</TableCell>
-                        <TableCell>{lineTotal.toFixed(2)}</TableCell>
-                      </TableRow>
+                      <tr key={l.id} className="im-tr">
+                        <td className="im-td">{item?.partNumber}</td>
+                        <td className="im-td">{item?.itemDescription}</td>
+                        <td className="im-td">{l.quantity}</td>
+                        <td className="im-td">{l.unitPrice.toFixed(2)}</td>
+                        <td className="im-td">{lineTotal.toFixed(2)}</td>
+                      </tr>
                     );
                   })}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
-            <div className="flex items-center justify-between">
-              <div className="text-muted-foreground text-sm">
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <div style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
                 Currency: {currency}
               </div>
-              <div className="text-right">
-                <div className="text-muted-foreground text-sm">
+              <div style={{ textAlign: 'right' }}>
+                <div style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
                   Calculated Total
                 </div>
-                <div className="text-lg font-semibold">
+                <div
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: 'var(--color-im-text)',
+                  }}
+                >
                   {new Intl.NumberFormat('en-US', {
                     style: 'currency',
                     currency: normalizeCurrencyCode(currency),
@@ -1407,17 +1668,19 @@ export function InvoiceWizard({
                 </div>
               </div>
             </div>
-            <div className="flex justify-end gap-2">
-              <Button
-                variant="default"
-                useAccentColor
+            <div
+              style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}
+            >
+              <button
+                type="button"
+                className="im-btn"
                 onClick={() => setStep(2)}
               >
                 Back
-              </Button>
-              <Button
-                variant="default"
-                useAccentColor
+              </button>
+              <button
+                type="button"
+                className="im-btn im-btn--primary"
                 onClick={handleSubmit}
                 disabled={submitting}
               >
@@ -1425,39 +1688,53 @@ export function InvoiceWizard({
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}{' '}
                 Submit
-              </Button>
+              </button>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Footer Nav */}
-      <div className="flex justify-between">
-        <div className="flex items-center gap-2 text-xs">
-          <span className="text-muted-foreground">Recent Drafts:</span>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            fontSize: 11,
+          }}
+        >
+          <span style={{ color: 'var(--color-im-muted)' }}>Recent Drafts:</span>
           {draftList.slice(0, 3).map(d => (
-            <Button
+            <button
               key={d.id}
-              size="sm"
-              variant="ghost"
+              type="button"
+              className="im-btn"
               onClick={() => restoreDraft(d.id)}
+              style={{ fontSize: 11 }}
             >
               {new Date(d.updatedAt).toLocaleString()}
-            </Button>
+            </button>
           ))}
         </div>
-        <div className="flex gap-2">
-          <Button
-            variant="default"
-            useAccentColor
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            type="button"
+            className="im-btn"
             onClick={() => setStep(s => (s > 1 ? ((s - 1) as WizardStep) : s))}
             disabled={step === 1}
           >
             Previous
-          </Button>
-          <Button
-            variant="default"
-            useAccentColor
+          </button>
+          <button
+            type="button"
+            className="im-btn im-btn--primary"
             onClick={() => {
               if (step === 1 && !validateHeader()) {
                 toast.error('Please complete header fields');
@@ -1480,7 +1757,7 @@ export function InvoiceWizard({
             }
           >
             {step < 3 ? 'Next' : 'Finish'}
-          </Button>
+          </button>
         </div>
       </div>
     </div>

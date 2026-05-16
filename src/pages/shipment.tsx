@@ -1,5 +1,4 @@
 // src/pages/shipment/index.tsx
-// react-table imports not used here; table lives in a shared component
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import {
   useNativeFileDialogs,
@@ -8,24 +7,13 @@ import {
   writeTextFile,
 } from '@/lib/tauri-bridge';
 import {
-  ArrowLeft,
+  Copy,
+  Database,
   Download,
   Plus,
-  Upload,
   RefreshCw,
   Settings,
-  Database,
-  AlertTriangle,
-  Search,
-  Package,
-  Clock,
-  Truck,
-  Globe,
-  Calendar,
-  DollarSign,
-  Activity,
-  Copy,
-  Ship,
+  Upload,
 } from 'lucide-react';
 import Papa from 'papaparse';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
@@ -44,65 +32,34 @@ import {
   useSearchParams,
 } from 'react-router-dom';
 
-import { ResponsiveDataTable } from '@/components/ui/responsive-table';
-import { getShipmentColumns } from '@/components/shipment/columns';
+import { ShipmentDataTable } from '@/components/shipment/table-shipment';
 import { ProfessionalShipmentForm } from '@/components/shipment/form-professional';
 import { ProfessionalShipmentViewDialog } from '@/components/shipment/view-professional';
 import { ShipmentMultilineForm } from '@/components/shipment/shipment-multiline-form';
 import { ModuleSettings } from '@/components/module-settings';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { logDashboardActivity } from '@/lib/dashboard-activity';
 import { isShipmentEtaOverdue } from '@/lib/shipment-exception-helpers';
 import { formatDateForInput } from '@/lib/date-format';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import { useUser } from '@/lib/user-context';
-import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 import type { Option } from '@/types/options';
 import type { Shipment } from '@/types/shipment';
 import type { Supplier } from '@/types/supplier';
+import { createShipmentColumns } from '@/pages/shipment-columns';
 
 /** URL path for shipment view or edit (bookmarkable). */
 export function shipmentDetailPath(shipmentId: string, mode: 'view' | 'edit') {
   return `/shipment/${encodeURIComponent(shipmentId)}/${mode}`;
 }
 
-/** ZIP local file header: PK + bytes 0x03 0x04; optional leading BOM (no control chars in RegExp sources). */
+/** ZIP local file header: PK + bytes 0x03 0x04; optional leading BOM. */
 function sampleLooksLikeZipLocalHeader(s: string): boolean {
   let i = 0;
   if (s.charCodeAt(0) === 0xfeff) {
@@ -137,16 +94,6 @@ type PaginatedResult<T> = {
   totalCount: number;
 };
 
-type ShipmentItemLite = {
-  id: string;
-  invoiceId: string;
-  itemId: string;
-  partNumber: string;
-  itemDescription: string;
-  quantity: number;
-  unitPrice: number;
-};
-
 type ShipmentExceptionSummary = {
   overdueCount: number;
   boeMissingCount: number;
@@ -161,7 +108,6 @@ const ShipmentPage = () => {
   const { shipmentId: shipmentIdParam } = useParams<{ shipmentId: string }>();
 
   const { settings } = useSettings();
-  const { getButtonClass } = useResponsiveContext();
   const notifications = useUnifiedNotifications();
   const [shipments, setShipments] = React.useState<Shipment[]>([]);
   const [suppliers, setSuppliers] = React.useState<Option[]>([]);
@@ -218,28 +164,17 @@ const ShipmentPage = () => {
     () => new Set<string>()
   );
   const skipUrlWriteRef = React.useRef(true);
-  const [viewMode, setViewMode] = React.useState<'table' | 'cards'>('cards');
   const [searchInput, setSearchInput] = React.useState('');
   const [searchTerm, setSearchTerm] = React.useState('');
   const [page, setPage] = React.useState(1);
-  const [pageSize, setPageSize] = React.useState(50);
+  const [pageSize] = React.useState(50);
   const [totalCount, setTotalCount] = React.useState(0);
-  const [expandedShipmentIds, setExpandedShipmentIds] = React.useState<
-    Set<string>
-  >(() => new Set());
-  const [, setExpandedShipmentOrder] = React.useState<string[]>([]);
-  const [shipmentItemsById, setShipmentItemsById] = React.useState<
-    Record<string, ShipmentItemLite[]>
-  >({});
-  const [, setShipmentItemsCacheOrder] = React.useState<string[]>([]);
   const [exceptionSummary, setExceptionSummary] =
     React.useState<ShipmentExceptionSummary>({
       overdueCount: 0,
       boeMissingCount: 0,
       expenseMissingCount: 0,
     });
-  const [loadingShipmentItemsById, setLoadingShipmentItemsById] =
-    React.useState<Record<string, boolean>>({});
 
   React.useEffect(() => {
     const timer = window.setTimeout(() => setSearchTerm(searchInput), 300);
@@ -258,7 +193,7 @@ const ShipmentPage = () => {
     skipUrlWriteRef.current = false;
   }, [searchParams]);
 
-  /** Deep link `/shipment?id=<shipmentId>` → canonical `/shipment/:id/view` (preserves other query params). */
+  /** Deep link `/shipment?id=<shipmentId>` → canonical `/shipment/:id/view`. */
   React.useEffect(() => {
     const idQ = searchParams.get('id')?.trim();
     if (!idQ || shipmentIdParam) return;
@@ -415,7 +350,7 @@ const ShipmentPage = () => {
   const handleMarkAsDelivered = React.useCallback(
     async (shipment: Shipment) => {
       try {
-        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        const today = new Date().toISOString().split('T')[0];
         await invoke('update_shipment_status', {
           shipmentId: shipment.id,
           status: 'delivered',
@@ -459,94 +394,15 @@ const ShipmentPage = () => {
     }
   }, [fetchShipments, notifications]);
 
-  const handleCopyShipmentId = async (shipmentId: string) => {
-    try {
-      await navigator.clipboard.writeText(shipmentId);
-      notifications.success(
-        'Copied',
-        `Shipment ID "${shipmentId}" copied to clipboard!`
-      );
-    } catch (error) {
-      console.error('Failed to copy shipment ID:', error);
-      notifications.error(
-        'Copy Failed',
-        'Failed to copy shipment ID to clipboard.'
-      );
-    }
-  };
-
-  // Calculate metrics
-  const metrics = React.useMemo(() => {
-    const docsReceived = shipments.filter(
-      s => s.status === 'docs-rcvd' || s.status === 'docu-received'
-    ).length;
-    const inTransit = shipments.filter(s => s.status === 'in-transit').length;
-    const customsClearance = shipments.filter(
-      s => s.status === 'customs-clearance'
-    ).length;
-    const readyForDelivery = shipments.filter(
-      s => s.status === 'ready-dly'
-    ).length;
-
-    return {
-      docsReceived,
-      inTransit,
-      customsClearance,
-      readyForDelivery,
-    };
-  }, [shipments]);
-
-  // Filter only within current page results; status/supplier/date/exception filtering is server-side.
-  const filteredShipments = React.useMemo(() => {
-    let filtered = shipments;
-
-    // Search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        shipment =>
-          shipment.invoiceNumber
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          shipment.blAwbNumber
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          shipment.containerNumber
-            ?.toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          shipment.vesselName?.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    return filtered;
-  }, [shipments, searchTerm]);
-
-  const totalPages = React.useMemo(
-    () => Math.max(1, Math.ceil(totalCount / pageSize)),
-    [totalCount, pageSize]
-  );
-
-  React.useEffect(() => {
-    if (page > totalPages) {
-      setPage(totalPages);
-    }
-  }, [page, totalPages]);
-
   const columns = React.useMemo(
     () =>
-      getShipmentColumns(
+      createShipmentColumns(
         suppliers,
         handleView,
         handleOpenFormForEdit,
-        handleMarkAsDelivered,
-        settings
+        handleMarkAsDelivered
       ),
-    [
-      suppliers,
-      handleView,
-      handleOpenFormForEdit,
-      handleMarkAsDelivered,
-      settings,
-    ]
+    [suppliers, handleView, handleOpenFormForEdit, handleMarkAsDelivered]
   );
 
   const fetchOptions = React.useCallback(async () => {
@@ -803,7 +659,6 @@ const ShipmentPage = () => {
         seenInvoiceNumbers.add(normalizedInvoiceNumber);
         maxId++;
 
-        // Use supplier ID as is - validation will catch invalid values
         const supplierId = row.supplierId || '';
 
         newShipments.push({
@@ -863,7 +718,6 @@ const ShipmentPage = () => {
         try {
           const totalRows = importRows.length;
           const skippedRows = duplicateRows.length + missingInvoiceRows.length;
-          // First validate the shipments
           const validationErrors = (await invoke('validate_shipment_import', {
             shipments: newShipments,
           })) as string[];
@@ -884,7 +738,6 @@ const ShipmentPage = () => {
                 logError
               );
             }
-            // Show validation errors in a detailed notification
             const errorMessage = validationErrors.join('\n');
             notifications.error('Import Validation Failed', errorMessage, {
               duration: 10000,
@@ -892,7 +745,6 @@ const ShipmentPage = () => {
             return;
           }
 
-          // If validation passes, proceed with import
           await invoke('add_shipments_bulk', {
             shipments: newShipments,
             file_name: importFileName,
@@ -924,10 +776,6 @@ const ShipmentPage = () => {
     }
   }
 
-  // Helper used by export buttons
-  // Export helper used by inline handlers (kept for future toolbar wiring)
-  // Reference from commented toolbar below; kept for future use
-  // Declare and immediately use; keeps function referenced so TS doesn't flag unused in strict mode
   const exportShipmentsData = async (
     _dataToExport: Shipment[]
   ): Promise<void> => {
@@ -1053,361 +901,95 @@ const ShipmentPage = () => {
     }
   }
 
-  // Helper function to format currency
-  const formatCurrency = (amount: number, currency: string) => {
-    try {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: currency?.toUpperCase() || 'USD',
-      }).format(amount);
-    } catch {
-      return `${currency} ${amount.toFixed(2)}`;
-    }
-  };
+  // Filter only within current page results; status/supplier/date/exception filtering is server-side.
+  const filteredShipments = React.useMemo(() => {
+    if (!searchTerm) return shipments;
+    return shipments.filter(
+      shipment =>
+        shipment.invoiceNumber
+          .toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        shipment.blAwbNumber
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        shipment.containerNumber
+          ?.toLowerCase()
+          .includes(searchTerm.toLowerCase()) ||
+        shipment.vesselName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [shipments, searchTerm]);
 
-  // Helper function to get status badge variant
-  const getStatusBadgeVariant = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'delivered':
-        return 'success';
-      case 'in-transit':
-        return 'default';
-      case 'ready-dly':
-        return 'warning';
-      case 'customs-clearance':
-        return 'secondary';
-      case 'docs-rcvd':
-      case 'docu-received':
-        return 'info';
-      default:
-        return 'outline';
-    }
-  };
-
-  // Helper function to get status display name
-  const getStatusDisplayName = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'delivered':
-        return 'Delivered';
-      case 'in-transit':
-        return 'In Transit';
-      case 'ready-dly':
-        return 'Ready for Delivery';
-      case 'customs-clearance':
-        return 'Customs Clearance';
-      case 'docs-rcvd':
-      case 'docu-received':
-        return 'Document Received';
-      default:
-        return status || 'Unknown';
-    }
-  };
-
-  // CRM Card Component
-  type ShipmentExceptionFlags = {
-    overdue: boolean;
-    boeMissing: boolean;
-    expenseMissing: boolean;
-    any: boolean;
-  };
-
-  const toggleShipmentItems = React.useCallback(
-    async (shipmentId: string) => {
-      const willExpand = !expandedShipmentIds.has(shipmentId);
-      setExpandedShipmentIds(prev => {
-        const next = new Set(prev);
-        if (next.has(shipmentId)) {
-          next.delete(shipmentId);
-        } else {
-          next.add(shipmentId);
-        }
-        return next;
-      });
-      setExpandedShipmentOrder(prev => {
-        const next = prev.filter(id => id !== shipmentId);
-        if (willExpand) {
-          next.push(shipmentId);
-          const MAX_EXPANDED_ROWS = 12;
-          if (next.length > MAX_EXPANDED_ROWS) {
-            const evicted = next.shift();
-            if (evicted) {
-              setExpandedShipmentIds(current => {
-                const updated = new Set(current);
-                updated.delete(evicted);
-                return updated;
-              });
-            }
-          }
-        }
-        return next;
-      });
-
-      const touchLru = () => {
-        setShipmentItemsCacheOrder(prev => {
-          const next = prev.filter(id => id !== shipmentId);
-          next.push(shipmentId);
-          return next;
-        });
-      };
-
-      if (!willExpand) {
-        return;
-      }
-      if (shipmentItemsById[shipmentId]) {
-        touchLru();
-        return;
-      }
-      if (loadingShipmentItemsById[shipmentId]) return;
-      try {
-        setLoadingShipmentItemsById(prev => ({ ...prev, [shipmentId]: true }));
-        const rows = await invoke<ShipmentItemLite[]>(
-          'get_shipment_items_by_shipment_id',
-          { shipmentId }
-        );
-        setShipmentItemsById(prev => ({ ...prev, [shipmentId]: rows }));
-        const evicted: string[] = [];
-        setShipmentItemsCacheOrder(prev => {
-          const MAX_CACHE_ENTRIES = 40;
-          const nextOrder = prev.filter(id => id !== shipmentId);
-          nextOrder.push(shipmentId);
-          while (nextOrder.length > MAX_CACHE_ENTRIES) {
-            const candidate = nextOrder[0];
-            if (!candidate) break;
-            if (expandedShipmentIds.has(candidate)) break;
-            evicted.push(candidate);
-            nextOrder.shift();
-          }
-          return nextOrder;
-        });
-        if (evicted.length > 0) {
-          setShipmentItemsById(prev => {
-            const next = { ...prev };
-            for (const key of evicted) {
-              delete next[key];
-            }
-            return next;
-          });
-        }
-      } catch (error) {
-        notifications.shipment.error('load shipment items', String(error));
-      } finally {
-        setLoadingShipmentItemsById(prev => ({ ...prev, [shipmentId]: false }));
-      }
-    },
-    [
-      expandedShipmentIds,
-      shipmentItemsById,
-      loadingShipmentItemsById,
-      notifications.shipment,
-    ]
+  const totalPages = React.useMemo(
+    () => Math.max(1, Math.ceil(totalCount / pageSize)),
+    [totalCount, pageSize]
   );
 
-  const ShipmentCard = ({
-    shipment,
-    flags,
-  }: {
-    shipment: Shipment;
-    flags: ShipmentExceptionFlags;
-  }) => {
-    const supplier = suppliers.find(s => s.value === shipment.supplierId);
-    const isExpanded = expandedShipmentIds.has(shipment.id);
-    const isItemsLoading = loadingShipmentItemsById[shipment.id] === true;
-    const items = shipmentItemsById[shipment.id] ?? [];
+  React.useEffect(() => {
+    if (page > totalPages) {
+      setPage(totalPages);
+    }
+  }, [page, totalPages]);
 
-    return (
-      <Card
-        className={`cursor-pointer transition-shadow duration-200 hover:shadow-lg ${
-          flags.overdue
-            ? 'ring-2 ring-amber-400/80'
-            : flags.any
-              ? 'ring-1 ring-sky-400/70'
-              : ''
-        }`}
-      >
-        <CardHeader className="pb-3">
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <CardTitle className="mb-1 text-lg font-semibold text-white">
-                {shipment.invoiceNumber}
-              </CardTitle>
-              <CardDescription className="mb-2 text-sm text-white/80">
-                {supplier?.label || 'Unknown Supplier'}
-              </CardDescription>
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge
-                  variant={getStatusBadgeVariant(shipment.status || '')}
-                  className="text-xs"
-                >
-                  {getStatusDisplayName(shipment.status || '')}
-                </Badge>
-                {flags.overdue && (
-                  <Badge variant="warning" className="text-xs">
-                    Overdue ETA
-                  </Badge>
-                )}
-                {flags.boeMissing && (
-                  <Badge variant="secondary" className="text-xs">
-                    No BOE
-                  </Badge>
-                )}
-                {flags.expenseMissing && (
-                  <Badge variant="outline" className="text-xs">
-                    No expenses
-                  </Badge>
-                )}
-                <div className="flex items-center gap-1">
-                  <span className="text-xs text-white/70">#{shipment.id}</span>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    onClick={e => {
-                      e.stopPropagation();
-                      handleCopyShipmentId(shipment.id);
-                    }}
-                    className="h-6 w-6 p-0"
-                    title="Copy Shipment ID"
-                    useAccentColor
-                  >
-                    <Copy className="h-3 w-3 text-white/60 hover:text-white" />
-                  </Button>
-                </div>
-              </div>
-            </div>
-            <div className="flex gap-1">
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => handleView(shipment)}
-                className="h-8 w-8 p-0"
-                useAccentColor
-              >
-                <Search className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => handleOpenFormForEdit(shipment)}
-                className="h-8 w-8 p-0"
-                useAccentColor
-              >
-                <Activity className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-3">
-            {/* Key Information */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <DollarSign className="h-4 w-4 text-white/70" />
-                <span className="font-medium text-white">
-                  {formatCurrency(
-                    shipment.invoiceValue || 0,
-                    shipment.invoiceCurrency || 'USD'
-                  )}
-                </span>
-              </div>
-              <div className="flex items-center gap-2 text-sm">
-                <Package className="h-4 w-4 text-white/70" />
-                <span className="font-medium text-white">
-                  {shipment.goodsCategory}
-                </span>
-              </div>
-              {shipment.grossWeightKg && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Ship className="h-4 w-4 text-white/70" />
-                  <span className="font-medium text-white">
-                    {shipment.grossWeightKg} kg
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Dates */}
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm">
-                <Calendar className="h-4 w-4 text-white/70" />
-                <span className="font-medium text-white">
-                  Invoice: {shipment.invoiceDate}
-                </span>
-              </div>
-              {shipment.eta && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Clock className="h-4 w-4 text-white/70" />
-                  <span className="font-medium text-white">
-                    ETA: {shipment.eta}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Shipping Details */}
-            {(shipment.blAwbNumber ||
-              shipment.vesselName ||
-              shipment.containerNumber) && (
-              <div className="border-t border-white/20 pt-2">
-                <div className="mb-2 flex items-center gap-2 text-sm">
-                  <Ship className="h-4 w-4 text-white/70" />
-                  <span className="font-medium text-white">
-                    Shipping Details
-                  </span>
-                </div>
-                {shipment.blAwbNumber && (
-                  <div className="mb-1 text-xs text-white/60">
-                    <span className="font-medium">B/L:</span>{' '}
-                    {shipment.blAwbNumber}
-                  </div>
-                )}
-                {shipment.vesselName && (
-                  <div className="mb-1 text-xs text-white/60">
-                    <span className="font-medium">Vessel:</span>{' '}
-                    {shipment.vesselName}
-                  </div>
-                )}
-                {shipment.containerNumber && (
-                  <div className="text-xs text-white/60">
-                    <span className="font-medium">Container:</span>{' '}
-                    {shipment.containerNumber}
-                  </div>
-                )}
-              </div>
-            )}
-            <div className="border-t border-white/20 pt-2">
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => toggleShipmentItems(shipment.id)}
-                className="text-xs"
-              >
-                {isExpanded ? 'Hide items' : 'Show items'}
-              </Button>
-              {isExpanded && (
-                <div className="mt-2 space-y-1 text-xs text-white/80">
-                  {isItemsLoading ? (
-                    <p>Loading items...</p>
-                  ) : items.length === 0 ? (
-                    <p>No linked invoice items.</p>
-                  ) : (
-                    items.map(item => (
-                      <div
-                        key={item.id}
-                        className="rounded bg-black/10 px-2 py-1"
-                      >
-                        {item.partNumber || item.itemId} - Qty {item.quantity} @{' '}
-                        {item.unitPrice}
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+  const renderEmptyState = React.useCallback(() => {
+    const hasFilters = Boolean(
+      searchTerm ||
+      statusFilter !== 'All' ||
+      supplierFilterId ||
+      dateFromFilter ||
+      dateToFilter ||
+      urlOverdue ||
+      urlBoeMissing ||
+      urlExpenseMissing
     );
-  };
+    return (
+      <div className="im-empty-state">
+        <div className="im-empty-state__icon">
+          <svg
+            width="40"
+            height="40"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
+            <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+            <line x1="12" y1="22.08" x2="12" y2="12" />
+          </svg>
+        </div>
+        <div className="im-empty-state__title">
+          {hasFilters ? 'NO MATCHING SHIPMENTS' : 'NO SHIPMENTS'}
+        </div>
+        <div className="im-empty-state__body">
+          {hasFilters
+            ? 'No shipments match the current filters. Try adjusting the search or clearing the active filters.'
+            : 'No shipments have been added yet. Import a CSV or add your first shipment.'}
+        </div>
+        {!hasFilters && (
+          <div className="im-empty-state__actions">
+            <button
+              className="im-hdr-btn im-hdr-btn--primary"
+              onClick={handleOpenFormForAdd}
+            >
+              + Add Shipment
+            </button>
+          </div>
+        )}
+      </div>
+    );
+  }, [
+    searchTerm,
+    statusFilter,
+    supplierFilterId,
+    dateFromFilter,
+    dateToFilter,
+    urlOverdue,
+    urlBoeMissing,
+    urlExpenseMissing,
+    handleOpenFormForAdd,
+  ]);
 
   const settingsDialog = (
     <Dialog open={isSettingsOpen} onOpenChange={setSettingsOpen}>
@@ -1428,58 +1010,105 @@ const ShipmentPage = () => {
 
   if (shipmentPanel !== 'none') {
     return (
-      <div className="from-background to-muted/20 bg-linear-to-br flex min-h-screen flex-col">
-        <div className="container mx-auto flex min-h-0 flex-1 flex-col px-4 py-6">
-          <div className="mb-4 flex shrink-0 flex-wrap items-center gap-3">
-            <Button
-              type="button"
-              variant="outline"
-              useAccentColor
-              onClick={closeShipmentPanel}
-              className="gap-2"
-            >
-              <ArrowLeft className="size-4" aria-hidden />
-              Back to shipments
-            </Button>
-            <span className="text-muted-foreground text-sm">
-              {shipmentPanel === 'view'
-                ? 'Viewing shipment record'
-                : 'Editing shipment record'}
-            </span>
-          </div>
-
+      <div className="im-page">
+        <div
+          style={{
+            padding: '8px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            borderBottom: '1px solid var(--color-im-rule)',
+            flexShrink: 0,
+            background: 'var(--color-im-sub)',
+          }}
+        >
+          <button
+            type="button"
+            className="im-btn im-btn--sm"
+            onClick={closeShipmentPanel}
+          >
+            ← Back to shipments
+          </button>
+          <span style={{ color: 'var(--color-im-faint)', fontSize: 12 }}>
+            {shipmentPanel === 'view'
+              ? 'Viewing shipment record'
+              : 'Editing shipment record'}
+          </span>
+        </div>
+        <div
+          style={{
+            flex: 1,
+            minHeight: 0,
+            display: 'flex',
+            flexDirection: 'column',
+            overflow: 'auto',
+          }}
+        >
           {isInitialLoad ? (
             <div
-              className="border-border bg-card text-muted-foreground flex min-h-[240px] w-full max-w-6xl flex-1 items-center justify-center self-center rounded-xl border text-sm shadow-sm"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: 'var(--color-im-faint)',
+                fontSize: 13,
+                fontFamily: 'var(--font-im-mono)',
+              }}
               role="status"
               aria-live="polite"
             >
-              Loading shipment…
+              LOADING SHIPMENT…
             </div>
           ) : !selectedShipmentFromUrl ? (
-            <div className="border-border bg-card mx-auto flex w-full max-w-lg flex-col gap-4 rounded-xl border p-8 shadow-sm">
-              <h2 className="text-card-foreground text-lg font-semibold">
-                Shipment not found
+            <div
+              style={{
+                maxWidth: 480,
+                margin: '32px auto',
+                padding: 24,
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+              }}
+            >
+              <h2
+                style={{
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 13,
+                  color: 'var(--color-im-text)',
+                  letterSpacing: '0.05em',
+                }}
+              >
+                SHIPMENT NOT FOUND
               </h2>
-              <p className="text-muted-foreground text-sm">
+              <p style={{ fontSize: 12, color: 'var(--color-im-faint)' }}>
                 No shipment with ID{' '}
-                <span className="text-foreground font-mono">
+                <span style={{ fontFamily: 'var(--font-im-mono)' }}>
                   {decodedShipmentId ?? shipmentIdParam}
                 </span>
                 .
               </p>
-              <Button
+              <button
                 type="button"
-                variant="default"
-                useAccentColor
+                className="im-btn"
                 onClick={closeShipmentPanel}
-                className="w-fit"
+                style={{ alignSelf: 'flex-start' }}
               >
-                Back to shipments
-              </Button>
+                ← Back to shipments
+              </button>
             </div>
           ) : shipmentPanel === 'view' ? (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-6xl flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <ProfessionalShipmentViewDialog
                 isOpen={true}
                 onOpenChange={open => {
@@ -1497,7 +1126,15 @@ const ShipmentPage = () => {
               />
             </div>
           ) : (
-            <div className="border-border bg-card flex min-h-0 w-full max-w-6xl flex-1 flex-col self-center overflow-hidden rounded-xl border shadow-sm">
+            <div
+              style={{
+                flex: 1,
+                minHeight: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                overflow: 'hidden',
+              }}
+            >
               <ProfessionalShipmentForm
                 isOpen={true}
                 presentation="page"
@@ -1525,486 +1162,174 @@ const ShipmentPage = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-6">
-      {/* CRM Header */}
-      <div className="mb-8">
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h1 className="mb-2 text-xl font-semibold text-blue-600">
-              Shipment Management
-            </h1>
-            <p className="text-muted-foreground">
-              Track and manage your international shipments and logistics
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
-            <Button
-              variant="default"
-              onClick={handleDownloadTemplate}
-              className={getButtonClass()}
-              useAccentColor
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Template
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleImport}
-              className={getButtonClass()}
-              useAccentColor
-            >
-              <Upload className="mr-2 h-4 w-4" />
-              Import
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => exportShipmentsData(filteredShipments)}
-              className={getButtonClass()}
-              useAccentColor
-            >
-              <Download className="mr-2 h-4 w-4" />
-              Export CSV
-            </Button>
-            <Button
-              variant="default"
-              onClick={() => setMultilineFormOpen(true)}
-              className={getButtonClass()}
-              useAccentColor
-            >
-              <Copy className="mr-2 h-4 w-4" />
-              Multi-line Paste
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleOpenFormForAdd}
-              className={getButtonClass()}
-              useAccentColor
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add New
-            </Button>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="default"
-                    size="icon"
-                    onClick={() => setSettingsOpen(true)}
-                    className={getButtonClass()}
-                    useAccentColor
-                  >
-                    <Settings className="h-4 w-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p>Module Settings</p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
-          </div>
+    <div className="im-supplier-page">
+      {/* ── Page header ─────────────────────────────────────────────── */}
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>Shipments</h1>
+          <span className="im-record-badge">{totalCount}</span>
         </div>
-
-        {/* Metrics Dashboard */}
-        <div className="mb-6 grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="bg-linear-to-r border-white/20 from-white/10 to-white/20">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-white/80">
-                    Document Received
-                  </p>
-                  <p className="text-lg font-bold text-white">
-                    {metrics.docsReceived}
-                  </p>
-                </div>
-                <Clock className="h-5 w-5 text-white/70" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-r border-white/20 from-white/10 to-white/20">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-white/80">
-                    In Transit
-                  </p>
-                  <p className="text-lg font-bold text-white">
-                    {metrics.inTransit}
-                  </p>
-                </div>
-                <Truck className="h-5 w-5 text-white/70" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-r border-white/20 from-white/10 to-white/20">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-white/80">
-                    Customs Clearance
-                  </p>
-                  <p className="text-lg font-bold text-white">
-                    {metrics.customsClearance}
-                  </p>
-                </div>
-                <Globe className="h-5 w-5 text-white/70" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-linear-to-r border-white/20 from-white/10 to-white/20">
-            <CardContent className="p-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-medium text-white/80">
-                    Ready for Delivery
-                  </p>
-                  <p className="text-lg font-bold text-white">
-                    {metrics.readyForDelivery}
-                  </p>
-                </div>
-                <Package className="h-5 w-5 text-white/70" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        <Card className="bg-muted/20 mb-4 border-amber-200/60">
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm font-medium">
-              Exception awareness
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Global totals across all shipments. Quick filters align with
-              dashboard exception routes.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <div className="text-muted-foreground flex flex-wrap gap-4 text-sm">
-              <span>
-                Overdue ETA:{' '}
-                <span className="text-foreground font-semibold">
-                  {exceptionSummary.overdueCount}
-                </span>
-              </span>
-              <span>
-                Missing BOE:{' '}
-                <span className="text-foreground font-semibold">
-                  {exceptionSummary.boeMissingCount}
-                </span>
-              </span>
-              <span>
-                Missing expenses:{' '}
-                <span className="text-foreground font-semibold">
-                  {exceptionSummary.expenseMissingCount}
-                </span>
-              </span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                size="sm"
-                variant={urlOverdue ? 'default' : 'outline'}
-                onClick={() => setUrlOverdue(v => !v)}
-                useAccentColor={urlOverdue}
-              >
-                Overdue ETA
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={urlBoeMissing ? 'default' : 'outline'}
-                onClick={() => setUrlBoeMissing(v => !v)}
-                useAccentColor={urlBoeMissing}
-              >
-                Missing BOE
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant={urlExpenseMissing ? 'default' : 'outline'}
-                onClick={() => setUrlExpenseMissing(v => !v)}
-                useAccentColor={urlExpenseMissing}
-              >
-                Missing expenses
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                onClick={() => {
-                  setSupplierFilterId('');
-                  setDateFromFilter('');
-                  setDateToFilter('');
-                  setUrlOverdue(false);
-                  setUrlBoeMissing(false);
-                  setUrlExpenseMissing(false);
-                }}
-              >
-                Clear route filters
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-end gap-3">
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Supplier</p>
-                <Select
-                  value={supplierFilterId || 'all'}
-                  onValueChange={v => setSupplierFilterId(v === 'all' ? '' : v)}
-                >
-                  <SelectTrigger className="w-[200px]">
-                    <SelectValue placeholder="All suppliers" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All suppliers</SelectItem>
-                    {suppliers.map(s => (
-                      <SelectItem key={s.value} value={s.value}>
-                        {s.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Invoice from</p>
-                <Input
-                  type="date"
-                  className="w-[160px]"
-                  value={formatDateForInput(dateFromFilter)}
-                  onChange={e => setDateFromFilter(e.target.value)}
-                />
-              </div>
-              <div className="space-y-1">
-                <p className="text-muted-foreground text-xs">Invoice to</p>
-                <Input
-                  type="date"
-                  className="w-[160px]"
-                  value={formatDateForInput(dateToFilter)}
-                  onChange={e => setDateToFilter(e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Controls */}
-        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-wrap items-center gap-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 transform text-gray-400" />
-              <Input
-                placeholder="Search shipments..."
-                value={searchInput}
-                onChange={e => setSearchInput(e.target.value)}
-                className="w-64 pl-10"
-              />
-            </div>
-            <Select value={statusFilter} onValueChange={setStatusFilter}>
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="All">All Statuses</SelectItem>
-                <SelectItem value="docs-rcvd">Document Received</SelectItem>
-                <SelectItem value="docu-received">
-                  Document Received (Legacy)
-                </SelectItem>
-                <SelectItem value="in-transit">In Transit</SelectItem>
-                <SelectItem value="customs-clearance">
-                  Customs Clearance
-                </SelectItem>
-                <SelectItem value="ready-dly">Ready for Delivery</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              variant={viewMode === 'cards' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('cards')}
-              useAccentColor
-            >
-              Cards
-            </Button>
-            <Button
-              variant={viewMode === 'table' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setViewMode('table')}
-              useAccentColor
-            >
-              Table
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="default" size="sm" useAccentColor>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem onClick={handleCheckStatusUpdates}>
-                  <RefreshCw className="mr-2 h-4 w-4" />
-                  Check Status Updates
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleMigrateStatuses}>
-                  <Database className="mr-2 h-4 w-4" />
-                  Migrate Statuses
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    const uniqueStatuses = [
-                      ...new Set(shipments.map(s => s.status).filter(Boolean)),
-                    ];
-                    notifications.info(
-                      'Debug Statuses',
-                      `Found ${uniqueStatuses.length} unique statuses: ${uniqueStatuses.join(', ')}`
-                    );
-                  }}
-                >
-                  <AlertTriangle className="mr-2 h-4 w-4" />
-                  Debug Statuses
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-
-        {/* Results Summary */}
-        <div className="mb-4">
-          <p className="text-sm text-gray-600">
-            Showing {filteredShipments.length} of {totalCount} shipments
-            {` · page ${page} of ${totalPages}`}
-            {statusFilter !== 'All' && ` (${statusFilter})`}
-            {supplierFilterId && ' · supplier filter'}
-            {(dateFromFilter || dateToFilter) && ' · date range'}
-            {urlOverdue && ' · overdue'}
-            {urlBoeMissing && ' · no BOE'}
-            {urlExpenseMissing && ' · no expenses'}
-            {searchTerm && ` matching "${searchTerm}"`}
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page <= 1}
-            >
-              Previous
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page >= totalPages}
-            >
-              Next
-            </Button>
-            <Select
-              value={String(pageSize)}
-              onValueChange={v => {
-                setPageSize(Number(v));
-                setPage(1);
+        <div className="im-page-header__actions">
+          <button className="im-hdr-btn" onClick={handleDownloadTemplate}>
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
               }}
-            >
-              <SelectTrigger className="w-[110px]">
-                <SelectValue placeholder="Page size" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="25">25</SelectItem>
-                <SelectItem value="50">50</SelectItem>
-                <SelectItem value="100">100</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+            />
+            Template
+          </button>
+          <button className="im-hdr-btn" onClick={() => void handleImport()}>
+            <Upload
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Import
+          </button>
+          <button
+            className="im-hdr-btn"
+            onClick={() => void exportShipmentsData(filteredShipments)}
+          >
+            <Download
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Export CSV
+          </button>
+          <button
+            className="im-hdr-btn"
+            onClick={() => setMultilineFormOpen(true)}
+          >
+            <Copy
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Multi Paste
+          </button>
+          <button
+            className="im-hdr-btn"
+            onClick={() => void handleCheckStatusUpdates()}
+          >
+            <RefreshCw
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Check Status
+          </button>
+          <button
+            className="im-hdr-btn"
+            onClick={() => void handleMigrateStatuses()}
+          >
+            <Database
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Migrate
+          </button>
+          <button className="im-hdr-btn" onClick={() => setSettingsOpen(true)}>
+            <Settings
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Settings
+          </button>
+          <button
+            className="im-hdr-btn im-hdr-btn--primary"
+            onClick={handleOpenFormForAdd}
+          >
+            <Plus
+              style={{
+                width: 12,
+                height: 12,
+                display: 'inline',
+                marginRight: 5,
+              }}
+            />
+            Add New
+          </button>
         </div>
       </div>
 
-      {/* Content */}
-      {viewMode === 'cards' ? (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredShipments.map(shipment => (
-            <ShipmentCard
-              key={shipment.id}
-              shipment={shipment}
-              flags={getShipmentExceptionFlags(shipment)}
-            />
-          ))}
-        </div>
-      ) : (
-        <ResponsiveDataTable
-          columns={columns}
-          data={filteredShipments}
-          showSearch={false}
-          showPagination={false}
-          virtualizeRows={true}
-          isRowExpanded={row => expandedShipmentIds.has(row.original.id)}
-          onRowExpandToggle={row => {
-            void toggleShipmentItems(row.original.id);
-          }}
-          renderExpandedRow={row => {
-            const shipmentId = row.original.id;
-            const isItemsLoading =
-              loadingShipmentItemsById[shipmentId] === true;
-            const items = shipmentItemsById[shipmentId] ?? [];
-            if (isItemsLoading) {
-              return <p className="text-sm">Loading items...</p>;
-            }
-            if (items.length === 0) {
-              return <p className="text-sm">No linked invoice items.</p>;
-            }
-            return (
-              <div className="space-y-1 text-sm">
-                {items.map(item => (
-                  <div
-                    key={item.id}
-                    className="bg-background rounded border px-2 py-1"
-                  >
-                    {item.partNumber || item.itemId} - Qty {item.quantity} @{' '}
-                    {item.unitPrice}
-                  </div>
-                ))}
-              </div>
-            );
-          }}
-          rowClassName={row => {
-            const f = getShipmentExceptionFlags(row.original);
-            if (!f.any) return undefined;
-            if (f.overdue)
-              return 'border-l-4 border-l-amber-500 bg-amber-500/5';
-            return 'border-l-4 border-l-sky-500 bg-sky-500/5';
-          }}
-          searchPlaceholder="Search shipments..."
-          hideColumnsOnSmall={[
-            'supplierName',
-            'category',
-            'incoterm',
-            'mode',
-            'type',
-            'currency',
-            'notes',
-          ]}
-          columnWidths={{
-            invoiceNumber: { minWidth: '120px', maxWidth: '150px' },
-            invoiceDate: { minWidth: '100px', maxWidth: '120px' },
-            eta: { minWidth: '100px', maxWidth: '120px' },
-            etd: { minWidth: '100px', maxWidth: '120px' },
-            supplierId: { minWidth: '150px', maxWidth: '200px' },
-            goodsCategory: { minWidth: '120px', maxWidth: '150px' },
-            invoiceCurrency: { minWidth: '80px', maxWidth: '100px' },
-            invoiceValue: { minWidth: '120px', maxWidth: '150px' },
-            incoterm: { minWidth: '100px', maxWidth: '120px' },
-            vesselName: { minWidth: '120px', maxWidth: '150px' },
-            blAwbNumber: { minWidth: '120px', maxWidth: '150px' },
-            containerNumber: { minWidth: '120px', maxWidth: '150px' },
-            status: { minWidth: '120px', maxWidth: '150px' },
-          }}
-        />
-      )}
+      {/* ── Table ───────────────────────────────────────────────────── */}
+      <ShipmentDataTable
+        columns={columns}
+        data={filteredShipments}
+        searchValue={searchInput}
+        onSearchChange={setSearchInput}
+        statusFilter={statusFilter}
+        onStatusFilterChange={f => {
+          setStatusFilter(f);
+          setPage(1);
+        }}
+        totalCount={totalCount}
+        isLoading={isInitialLoad}
+        getRowClassName={row => {
+          const f = getShipmentExceptionFlags(row);
+          if (f.overdue) return 'is-overdue';
+          if (f.any) return 'is-exception';
+          return '';
+        }}
+        renderEmptyState={renderEmptyState}
+        supplierOptions={suppliers}
+        supplierFilterId={supplierFilterId}
+        onSupplierFilterChange={v => {
+          setSupplierFilterId(v);
+          setPage(1);
+        }}
+        dateFrom={formatDateForInput(dateFromFilter)}
+        onDateFromChange={setDateFromFilter}
+        dateTo={formatDateForInput(dateToFilter)}
+        onDateToChange={setDateToFilter}
+        urlOverdue={urlOverdue}
+        onOverdueToggle={() => setUrlOverdue(v => !v)}
+        urlBoeMissing={urlBoeMissing}
+        onBoeMissingToggle={() => setUrlBoeMissing(v => !v)}
+        urlExpenseMissing={urlExpenseMissing}
+        onExpenseMissingToggle={() => setUrlExpenseMissing(v => !v)}
+        onClearFilters={() => {
+          setSupplierFilterId('');
+          setDateFromFilter('');
+          setDateToFilter('');
+          setUrlOverdue(false);
+          setUrlBoeMissing(false);
+          setUrlExpenseMissing(false);
+          setStatusFilter('All');
+          setPage(1);
+        }}
+        overdueCount={exceptionSummary.overdueCount}
+        boeMissingCount={exceptionSummary.boeMissingCount}
+        expenseMissingCount={exceptionSummary.expenseMissingCount}
+        serverPage={page}
+        serverTotalPages={totalPages}
+        onServerPrevPage={() => setPage(p => Math.max(1, p - 1))}
+        onServerNextPage={() => setPage(p => Math.min(totalPages, p + 1))}
+      />
 
       <ProfessionalShipmentForm
         isOpen={isFormOpen}

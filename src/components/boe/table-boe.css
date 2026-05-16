@@ -1,0 +1,155 @@
+/* Industrial Console — BOE list table extensions.
+ * Import alongside ../supplier/table-industrial.css.
+ */
+
+/* ── Metric cards (shared pattern with invoice) ───────────────────── */
+.im-boe-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px 24px;
+  border-bottom: 1px solid var(--im-rule);
+  flex-shrink: 0;
+  background: var(--im-bg);
+}
+@media (max-width: 1100px) {
+  .im-boe-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+.im-boe-metric {
+  border: 1px solid var(--im-rule);
+  background: var(--im-panel);
+  padding: 10px 12px;
+  min-height: 64px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+.im-boe-metric__label {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--im-faint);
+}
+.im-boe-metric__value {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--im-text);
+  text-align: right;
+}
+.im-boe-metric--accent .im-boe-metric__value {
+  color: var(--im-accent);
+}
+.im-boe-metric--good .im-boe-metric__value {
+  color: var(--im-good);
+}
+.im-boe-metric--warn .im-boe-metric__value {
+  color: var(--im-accent);
+}
+.im-boe-metric--bad .im-boe-metric__value {
+  color: var(--im-bad);
+}
+
+.im-table-search-wrap--grow {
+  flex: 1;
+  min-width: 200px;
+  max-width: 520px;
+}
+
+/* Right-aligned numeric headers / cells */
+.im-th.im-th--num .im-th-inner {
+  justify-content: flex-end;
+  width: 100%;
+}
+.im-th.im-th--num {
+  text-align: right;
+}
+.im-td.im-td--num {
+  text-align: right;
+}
+.im-boe-num {
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+.im-td.im-td--actions {
+  overflow: visible;
+}
+
+/* BOE status pills */
+.im-boe-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  text-transform: uppercase;
+}
+.im-boe-pill__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex-shrink: 0;
+}
+.im-boe-pill--filed {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+}
+.im-boe-pill--assessed {
+  background: rgba(232, 162, 58, 0.1);
+  color: #e8a23a;
+  border: 1px solid rgba(232, 162, 58, 0.25);
+}
+.im-boe-pill--cleared {
+  background: var(--im-good-bg);
+  color: var(--im-good);
+  border: 1px solid var(--im-good-bdr);
+}
+.im-boe-pill--hold {
+  background: var(--im-bad-bg);
+  color: var(--im-bad);
+  border: 1px solid var(--im-bad-bdr);
+}
+
+/* Exception rows */
+.im-tr.is-boe-hold {
+  box-shadow: inset 3px 0 0 var(--im-accent);
+}
+.im-tr.is-boe-pending-overdue {
+  box-shadow: inset 3px 0 0 #60a5fa;
+}
+
+.im-boe-toolbar-row2 {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 8px 24px;
+  border-bottom: 1px solid var(--im-rule);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+.im-boe-clear-btn {
+  padding: 4px 10px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--im-faint);
+  cursor: pointer;
+  text-transform: uppercase;
+}
+.im-boe-clear-btn:hover {
+  color: var(--im-muted);
+}

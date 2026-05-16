@@ -1,7 +1,7 @@
 // src/components/invoice/columns.tsx (MODIFIED - Formats tax numbers as percentages)
 import type { ColumnDef } from '@tanstack/react-table';
 
-import { Badge } from '@/components/ui/badge';
+import type { InvoiceTableColumnMeta } from '@/components/invoice/table-invoice';
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +38,40 @@ const formatCurrency = (amount: number, currency: string) => {
   }
 };
 
+function InvoiceStatusPill({
+  status,
+}: {
+  status: 'Draft' | 'Finalized' | 'Mismatch';
+}) {
+  if (status === 'Draft') {
+    return (
+      <span className="im-inv-pill im-inv-pill--draft">
+        <span className="im-inv-pill__dot" />
+        DRAFT
+      </span>
+    );
+  }
+  if (status === 'Finalized') {
+    return (
+      <span className="im-inv-pill im-inv-pill--sent">
+        <span className="im-inv-pill__dot" />
+        SENT
+      </span>
+    );
+  }
+  return (
+    <span className="im-inv-pill im-inv-pill--overdue">
+      <span className="im-inv-pill__dot" />
+      OVERDUE
+    </span>
+  );
+}
+
+const numMeta: InvoiceTableColumnMeta = {
+  thClass: 'im-th--num',
+  tdClass: 'im-td--num',
+};
+
 // The columns now expect the flattened data structure
 export const getInvoiceColumns = ({
   onView,
@@ -50,6 +84,8 @@ export const getInvoiceColumns = ({
   const allColumns: ColumnDef<FlattenedInvoiceLine>[] = [
     {
       id: 'actions',
+      size: 120,
+      meta: { tdClass: 'im-td--actions' },
       cell: ({ row }) => (
         <InvoiceLineActions
           lineItem={row.original}
@@ -166,65 +202,76 @@ export const getInvoiceColumns = ({
     {
       accessorKey: 'quantity',
       header: 'Qty',
-      cell: ({ row }) =>
-        formatNumber(row.getValue('quantity'), settings?.numberFormat, {
-          numberFormat: 'integer',
-          precision: 0,
-          showSign: false,
-        }),
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">
+          {formatNumber(row.getValue('quantity'), settings?.numberFormat, {
+            numberFormat: 'integer',
+            precision: 0,
+            showSign: false,
+          })}
+        </span>
+      ),
     },
     {
       accessorKey: 'unitPrice',
       header: 'Unit Price',
-      cell: ({ row }) =>
-        formatCurrency(row.original.unitPrice, row.original.currency),
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">
+          {formatCurrency(row.original.unitPrice, row.original.currency)}
+        </span>
+      ),
     },
     {
       accessorKey: 'lineTotal',
       header: 'Line Total',
-      cell: ({ row }) =>
-        formatCurrency(row.original.lineTotal, row.original.currency),
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">
+          {formatCurrency(row.original.lineTotal, row.original.currency)}
+        </span>
+      ),
     },
     // FIX: Added a cell renderer to display the BCD number as a percentage
     {
       accessorKey: 'bcd',
       header: 'Duty %',
-      cell: ({ row }) => `${row.original.bcd}%`,
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">{row.original.bcd}%</span>
+      ),
     },
     {
       accessorKey: 'sws',
       header: 'SWS %',
-      cell: ({ row }) => `${row.original.sws}%`,
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">{row.original.sws}%</span>
+      ),
     },
     {
       accessorKey: 'igst',
       header: 'IGST %',
-      cell: ({ row }) => `${row.original.igst}%`,
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">{row.original.igst}%</span>
+      ),
     },
     {
       accessorKey: 'invoiceTotal',
       header: 'Invoice Total',
-      cell: ({ row }) =>
-        formatCurrency(row.original.invoiceTotal, row.original.currency),
+      meta: numMeta,
+      cell: ({ row }) => (
+        <span className="im-inv-num">
+          {formatCurrency(row.original.invoiceTotal, row.original.currency)}
+        </span>
+      ),
     },
     {
       accessorKey: 'status',
       header: 'Status',
-      cell: ({ row }) => {
-        const status = row.original.status as
-          | 'Draft'
-          | 'Finalized'
-          | 'Mismatch';
-
-        const colorClass =
-          {
-            Draft: 'bg-warning text-warning-foreground',
-            Finalized: 'bg-success text-success-foreground',
-            Mismatch: 'bg-destructive text-destructive-foreground',
-          }[status] ?? 'bg-muted text-muted-foreground'; // fallback
-
-        return <Badge className={colorClass}>{status}</Badge>;
-      },
+      cell: ({ row }) => <InvoiceStatusPill status={row.original.status} />,
     },
     {
       accessorKey: 'matchStatus',
@@ -243,61 +290,55 @@ export const getInvoiceColumns = ({
         const difference = roundedShipmentTotal - row.original.invoiceTotal;
 
         if (!isDraft) {
-          return <span className="text-muted-foreground text-xs">-</span>;
+          return (
+            <span className="im-inv-match-muted" style={{ fontSize: 11 }}>
+              —
+            </span>
+          );
         }
 
         if (isMatched) {
           return (
-            <div className="flex items-center gap-1">
-              <div className="h-2 w-2 rounded-full bg-green-500"></div>
-              <span className="text-xs font-medium text-green-700">
-                Ready to Finalize
-              </span>
+            <div className="im-inv-match im-inv-match--ok">
+              <span className="im-inv-match-dot" />
+              <span className="im-inv-match-label">READY TO FINALIZE</span>
             </div>
           );
-        } else {
-          return (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <div className="flex cursor-help items-center gap-1">
-                  <div className="h-2 w-2 rounded-full bg-red-500"></div>
-                  <span className="text-xs font-medium text-red-700">
-                    Mismatch
-                  </span>
-                </div>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="text-xs">
-                  <div>
-                    Shipment Total:{' '}
-                    {formatCurrency(
-                      row.original.shipmentTotal,
-                      row.original.currency
-                    )}
-                  </div>
-                  <div>
-                    Invoice Total:{' '}
-                    {formatCurrency(
-                      row.original.invoiceTotal,
-                      row.original.currency
-                    )}
-                  </div>
-                  <div
-                    className={
-                      difference > 0 ? 'text-red-600' : 'text-green-600'
-                    }
-                  >
-                    Difference: {difference > 0 ? '+' : ''}
-                    {formatCurrency(
-                      Math.abs(difference),
-                      row.original.currency
-                    )}
-                  </div>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          );
         }
+        return (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="im-inv-match im-inv-match--bad im-inv-match--click">
+                <span className="im-inv-match-dot" />
+                <span className="im-inv-match-label">MISMATCH</span>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <div className="text-xs">
+                <div>
+                  Shipment Total:{' '}
+                  {formatCurrency(
+                    row.original.shipmentTotal,
+                    row.original.currency
+                  )}
+                </div>
+                <div>
+                  Invoice Total:{' '}
+                  {formatCurrency(
+                    row.original.invoiceTotal,
+                    row.original.currency
+                  )}
+                </div>
+                <div
+                  className={difference > 0 ? 'text-red-600' : 'text-green-600'}
+                >
+                  Difference: {difference > 0 ? '+' : ''}
+                  {formatCurrency(Math.abs(difference), row.original.currency)}
+                </div>
+              </div>
+            </TooltipContent>
+          </Tooltip>
+        );
       },
     },
   ];

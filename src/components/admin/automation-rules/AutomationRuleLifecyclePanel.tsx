@@ -1,26 +1,6 @@
 import { memo, useMemo, type Dispatch, type SetStateAction } from 'react';
 import { History, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   clearCanaryRuleDeployment,
   compareRuleVersions,
@@ -185,9 +165,9 @@ export const AutomationRuleLifecyclePanel = memo(
     const ruleSelectOptions = useMemo(
       () =>
         filteredRules.map(rule => (
-          <SelectItem key={rule.ruleId} value={rule.ruleId}>
+          <option key={rule.ruleId} value={rule.ruleId}>
             {rule.ruleName} ({rule.ruleId})
-          </SelectItem>
+          </option>
         )),
       [filteredRules]
     );
@@ -195,32 +175,65 @@ export const AutomationRuleLifecyclePanel = memo(
     const stagingStatusOptions = useMemo(
       () =>
         LC_STAGING_STATUS_OPTIONS.map(s => (
-          <SelectItem key={s} value={s}>
+          <option key={s} value={s}>
             {s}
-          </SelectItem>
+          </option>
         )),
       []
     );
 
     return (
-      <Card>
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <History className="h-4 w-4 shrink-0" />
-            Rule deployment lifecycle
-          </CardTitle>
+      <div className="im-section">
+        <div
+          className="im-section__header"
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 8,
+          }}
+        >
+          <span
+            className="im-section__label"
+            style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+          >
+            <History style={{ width: 14, height: 14, flexShrink: 0 }} />
+            // Rule Deployment Lifecycle
+          </span>
           {lcLoading ? (
-            <span className="text-muted-foreground text-xs">Loading…</span>
+            <span style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
+              Loading…
+            </span>
           ) : null}
-        </CardHeader>
-        <CardContent className="space-y-4 text-sm">
+        </div>
+        <div
+          className="im-section__body"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 16,
+            fontSize: 12,
+          }}
+        >
           {depGov ? (
-            <div className="flex flex-wrap items-center gap-6 border-b pb-3">
-              <div className="flex items-center gap-2">
-                <Switch
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                gap: 24,
+                borderBottom: '1px solid var(--color-im-rule)',
+                paddingBottom: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
                   checked={depGov.deploymentFrozen}
                   disabled={!mutateOk}
-                  onCheckedChange={async v => {
+                  onChange={async e => {
+                    const v = e.target.checked;
                     if (!mutateOk) return;
                     try {
                       await setDeploymentFreeze(v, callerRole);
@@ -230,18 +243,30 @@ export const AutomationRuleLifecyclePanel = memo(
                           : 'Deployment freeze off'
                       );
                       await loadCore();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: 'var(--color-im-accent)',
+                  }}
                 />
-                <Label className="text-foreground">Deployment freeze</Label>
+                <p
+                  className="im-field-label"
+                  style={{ color: 'var(--color-im-text)' }}
+                >
+                  Deployment freeze
+                </p>
               </div>
-              <div className="flex items-center gap-2">
-                <Switch
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="checkbox"
                   checked={depGov.requiresApproval}
                   disabled={!mutateOk}
-                  onCheckedChange={async v => {
+                  onChange={async e => {
+                    const v = e.target.checked;
                     if (!mutateOk) return;
                     try {
                       await setDeploymentRequiresApproval(v, callerRole);
@@ -251,89 +276,154 @@ export const AutomationRuleLifecyclePanel = memo(
                           : 'Direct deploy allowed'
                       );
                       await loadCore();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
+                  style={{
+                    width: 16,
+                    height: 16,
+                    accentColor: 'var(--color-im-accent)',
+                  }}
                 />
-                <Label className="text-foreground">Require approval</Label>
+                <p
+                  className="im-field-label"
+                  style={{ color: 'var(--color-im-text)' }}
+                >
+                  Require approval
+                </p>
               </div>
             </div>
           ) : null}
 
-          <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
-            <div className="space-y-2 md:col-span-2">
-              <Label>Rule</Label>
-              <Select value={lcRuleId || undefined} onValueChange={setLcRuleId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Select rule for versions & deployments" />
-                </SelectTrigger>
-                <SelectContent>{ruleSelectOptions}</SelectContent>
-              </Select>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4,1fr)',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                gridColumn: 'span 2',
+              }}
+            >
+              <p className="im-field-label">Rule</p>
+              <div className="im-select-wrap">
+                <select
+                  className="im-select"
+                  value={lcRuleId || ''}
+                  onChange={e => setLcRuleId(e.target.value)}
+                >
+                  <option value="">
+                    Select rule for versions &amp; deployments
+                  </option>
+                  {ruleSelectOptions}
+                </select>
+              </div>
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label" style={{ fontSize: 11 }}>
                 Version list — tenant id (optional)
-              </Label>
-              <Input
+              </p>
+              <input
+                className="im-input"
                 placeholder="e.g. tenant-default"
                 value={lcVersionTenantFilter}
                 onChange={e => setLcVersionTenantFilter(e.target.value)}
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs">
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label" style={{ fontSize: 11 }}>
                 Version list — environment id (optional)
-              </Label>
-              <Input
+              </p>
+              <input
+                className="im-input"
                 placeholder="e.g. env-dev"
                 value={lcVersionEnvFilter}
                 onChange={e => setLcVersionEnvFilter(e.target.value)}
               />
             </div>
-            <div className="flex items-end gap-2 lg:col-span-4">
-              <Button
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-end',
+                gap: 8,
+                gridColumn: 'span 4',
+              }}
+            >
+              <button
                 type="button"
-                variant="secondary"
-                className="w-full sm:w-auto"
+                className="im-btn im-btn--sm"
                 disabled={!viewOk}
                 onClick={onRefreshLifecycle}
               >
                 <RefreshCw className="mr-1 h-4 w-4" />
                 Refresh lifecycle
-              </Button>
+              </button>
             </div>
           </div>
 
           {mutateOk && lcRuleId.trim() ? (
-            <div className="bg-muted/40 space-y-2 rounded-md border p-3">
-              <p className="text-xs font-medium">New version from live rule</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Tenant id (optional)</Label>
-                  <Input
+            <div
+              style={{
+                background: 'var(--color-im-panel)',
+                border: '1px solid var(--color-im-rule)',
+                padding: 12,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+              }}
+            >
+              <p style={{ fontSize: 11, fontWeight: 500 }}>
+                New version from live rule
+              </p>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2,1fr)',
+                  gap: 8,
+                }}
+              >
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  <p className="im-field-label" style={{ fontSize: 11 }}>
+                    Tenant id (optional)
+                  </p>
+                  <input
+                    className="im-input"
                     placeholder="default: matching rule tenant"
                     value={lcSnapTenant}
                     onChange={e => setLcSnapTenant(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Environment id (optional)</Label>
-                  <Input
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  <p className="im-field-label" style={{ fontSize: 11 }}>
+                    Environment id (optional)
+                  </p>
+                  <input
+                    className="im-input"
                     placeholder="e.g. env-dev"
                     value={lcSnapEnv}
                     onChange={e => setLcSnapEnv(e.target.value)}
                   />
                 </div>
               </div>
-              <Input
+              <input
+                className="im-input"
                 placeholder="Change reason"
                 value={lcChangeReason}
                 onChange={e => setLcChangeReason(e.target.value)}
               />
-              <Button
+              <button
                 type="button"
-                size="sm"
+                className="im-btn im-btn--sm im-btn--primary"
                 onClick={async () => {
                   const rid = lcRuleId.trim();
                   const rule = rules.find(x => x.ruleId === rid);
@@ -363,38 +453,49 @@ export const AutomationRuleLifecyclePanel = memo(
                     );
                     toast.success('Version created');
                     await loadLifecycle();
-                  } catch (e) {
-                    toast.error(String(e));
+                  } catch (err) {
+                    toast.error(String(err));
                   }
                 }}
               >
                 Snapshot live as new version
-              </Button>
+              </button>
             </div>
           ) : null}
 
-          <div className="grid gap-3 lg:grid-cols-2">
-            <div className="space-y-2">
-              <Label className="text-xs">Compare version A</Label>
-              <Input
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2,1fr)',
+              gap: 12,
+            }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label" style={{ fontSize: 11 }}>
+                Compare version A
+              </p>
+              <input
+                className="im-input"
                 value={lcCompareA}
                 onChange={e => setLcCompareA(e.target.value)}
                 placeholder="version_id"
               />
             </div>
-            <div className="space-y-2">
-              <Label className="text-xs">Compare version B</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label" style={{ fontSize: 11 }}>
+                Compare version B
+              </p>
+              <input
+                className="im-input"
                 value={lcCompareB}
                 onChange={e => setLcCompareB(e.target.value)}
                 placeholder="version_id"
               />
             </div>
           </div>
-          <Button
+          <button
             type="button"
-            variant="outline"
-            size="sm"
+            className="im-btn im-btn--sm"
             disabled={!viewOk}
             onClick={async () => {
               try {
@@ -404,36 +505,55 @@ export const AutomationRuleLifecyclePanel = memo(
                   callerRole
                 );
                 setLcCompareResult(r);
-              } catch (e) {
-                toast.error(String(e));
+              } catch (err) {
+                toast.error(String(err));
               }
             }}
           >
             Compare versions
-          </Button>
+          </button>
           {lcCompareResult ? (
-            <pre className="bg-muted max-h-36 overflow-auto rounded-md p-2 text-xs">
+            <pre
+              style={{
+                background: 'var(--color-im-panel)',
+                maxHeight: 144,
+                overflow: 'auto',
+                padding: 8,
+                fontSize: 10,
+              }}
+            >
               {JSON.stringify(lcCompareResult, null, 2)}
             </pre>
           ) : null}
 
           {mutateOk && lcRuleId.trim() ? (
-            <div className="grid gap-3 border-t pt-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-xs">Stage version id</Label>
-                <Input
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,1fr)',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 12,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Stage version id
+                </p>
+                <input
+                  className="im-input"
                   value={lcVersionForStaging}
                   onChange={e => setLcVersionForStaging(e.target.value)}
                 />
-                <Input
+                <input
+                  className="im-input"
                   placeholder="Environment (default)"
                   value={lcStagingEnv}
                   onChange={e => setLcStagingEnv(e.target.value)}
                 />
-                <Button
+                <button
                   type="button"
-                  size="sm"
-                  variant="secondary"
+                  className="im-btn im-btn--sm"
                   onClick={async () => {
                     try {
                       await createWorkflowRuleStaging(
@@ -444,34 +564,36 @@ export const AutomationRuleLifecyclePanel = memo(
                       );
                       toast.success('Staging row created');
                       await loadLifecycle();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
                 >
                   Create staging
-                </Button>
+                </button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Update staging status</Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Update staging status
+                </p>
+                <input
+                  className="im-input"
                   placeholder="staging_id"
                   value={lcStagingId}
                   onChange={e => setLcStagingId(e.target.value)}
                 />
-                <Select
-                  value={lcStagingStatus}
-                  onValueChange={setLcStagingStatus}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>{stagingStatusOptions}</SelectContent>
-                </Select>
-                <Button
+                <div className="im-select-wrap">
+                  <select
+                    className="im-select"
+                    value={lcStagingStatus}
+                    onChange={e => setLcStagingStatus(e.target.value)}
+                  >
+                    {stagingStatusOptions}
+                  </select>
+                </div>
+                <button
                   type="button"
-                  size="sm"
-                  variant="outline"
+                  className="im-btn im-btn--sm"
                   onClick={async () => {
                     try {
                       await updateWorkflowRuleStagingStatus(
@@ -481,28 +603,39 @@ export const AutomationRuleLifecyclePanel = memo(
                       );
                       toast.success('Staging status updated');
                       await loadLifecycle();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
                 >
                   Apply staging status
-                </Button>
+                </button>
               </div>
             </div>
           ) : null}
 
           {mutateOk && lcRuleId.trim() ? (
-            <div className="grid gap-3 border-t pt-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-xs">Request approval (version id)</Label>
-                <Input
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,1fr)',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 12,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Request approval (version id)
+                </p>
+                <input
+                  className="im-input"
                   value={lcDeployVid}
                   onChange={e => setLcDeployVid(e.target.value)}
                 />
-                <Button
+                <button
                   type="button"
-                  size="sm"
+                  className="im-btn im-btn--sm im-btn--primary"
                   onClick={async () => {
                     try {
                       await submitRuleVersionApproval(
@@ -513,25 +646,27 @@ export const AutomationRuleLifecyclePanel = memo(
                       );
                       toast.success('Approval requested');
                       await loadLifecycle();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
                 >
                   Submit for approval
-                </Button>
+                </button>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Record decision (approval id)</Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Record decision (approval id)
+                </p>
+                <input
+                  className="im-input"
                   value={lcApprovalId}
                   onChange={e => setLcApprovalId(e.target.value)}
                 />
-                <div className="flex flex-wrap gap-2">
-                  <Button
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
                     type="button"
-                    size="sm"
-                    variant="secondary"
+                    className="im-btn im-btn--sm"
                     onClick={async () => {
                       try {
                         await recordRuleApprovalDecision(
@@ -542,17 +677,16 @@ export const AutomationRuleLifecyclePanel = memo(
                         );
                         toast.success('Marked approved');
                         await loadLifecycle();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     }}
                   >
                     Approve
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    size="sm"
-                    variant="outline"
+                    className="im-btn im-btn--sm"
                     onClick={async () => {
                       try {
                         await recordRuleApprovalDecision(
@@ -563,31 +697,41 @@ export const AutomationRuleLifecyclePanel = memo(
                         );
                         toast.success('Marked rejected');
                         await loadLifecycle();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     }}
                   >
                     Reject
-                  </Button>
+                  </button>
                 </div>
               </div>
             </div>
           ) : null}
 
           {mutateOk && lcRuleId.trim() ? (
-            <div className="grid gap-3 border-t pt-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-xs">Deploy version id</Label>
-                <Input
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,1fr)',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 12,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Deploy version id
+                </p>
+                <input
+                  className="im-input"
                   value={lcDeployVid}
                   onChange={e => setLcDeployVid(e.target.value)}
                 />
-                <div className="flex flex-wrap gap-2">
-                  <Button
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
                     type="button"
-                    size="sm"
-                    variant="outline"
+                    className="im-btn im-btn--sm"
                     onClick={async () => {
                       try {
                         const vr = await validateRuleDeployment(
@@ -603,17 +747,17 @@ export const AutomationRuleLifecyclePanel = memo(
                             'Validation reported issues — see JSON'
                           );
                         }
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     }}
                   >
                     Validate deploy
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    size="sm"
-                    className="bg-emerald-700 hover:bg-emerald-800"
+                    className="im-btn im-btn--sm im-btn--primary"
+                    style={{ background: '#15803d' }}
                     onClick={async () => {
                       try {
                         await deployRuleVersion(
@@ -628,57 +772,89 @@ export const AutomationRuleLifecyclePanel = memo(
                         setLcSafetyOverride(false);
                         await loadLifecycle();
                         await loadCore();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     }}
                   >
                     Deploy version
-                  </Button>
+                  </button>
                 </div>
                 {isAdminRole ? (
-                  <div className="flex items-center gap-2 rounded-md border border-amber-200/80 bg-amber-50/50 px-2 py-1.5 dark:bg-amber-950/20">
-                    <Switch
-                      checked={lcSafetyOverride}
-                      onCheckedChange={setLcSafetyOverride}
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
+                      border: '1px solid rgba(232,162,58,0.4)',
+                      background: 'rgba(232,162,58,0.06)',
+                      padding: '6px 8px',
+                    }}
+                  >
+                    <input
+                      type="checkbox"
                       id="lc-safety-override"
+                      checked={lcSafetyOverride}
+                      onChange={e => setLcSafetyOverride(e.target.checked)}
+                      style={{
+                        width: 16,
+                        height: 16,
+                        accentColor: 'var(--color-im-accent)',
+                      }}
                     />
-                    <Label
+                    <label
                       htmlFor="lc-safety-override"
-                      className="cursor-pointer text-[11px] leading-tight"
+                      style={{
+                        cursor: 'pointer',
+                        fontSize: 11,
+                        lineHeight: 1.3,
+                      }}
                     >
                       Admin: acknowledge HIGH/CRITICAL safety override for this
                       deploy (audited)
-                    </Label>
+                    </label>
                   </div>
                 ) : null}
                 {lcValidateResult ? (
-                  <pre className="bg-muted max-h-32 overflow-auto rounded-md p-2 text-[10px]">
+                  <pre
+                    style={{
+                      background: 'var(--color-im-panel)',
+                      maxHeight: 128,
+                      overflow: 'auto',
+                      padding: 8,
+                      fontSize: 10,
+                    }}
+                  >
                     {JSON.stringify(lcValidateResult, null, 2)}
                   </pre>
                 ) : null}
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Rollback to version id</Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Rollback to version id
+                </p>
+                <input
+                  className="im-input"
                   value={lcRollbackVid}
                   onChange={e => setLcRollbackVid(e.target.value)}
                 />
-                <div className="space-y-1">
-                  <Label className="text-xs">
+                <div
+                  style={{ display: 'flex', flexDirection: 'column', gap: 4 }}
+                >
+                  <p className="im-field-label" style={{ fontSize: 11 }}>
                     Rollback environment id (optional; must match target
                     version)
-                  </Label>
-                  <Input
+                  </p>
+                  <input
+                    className="im-input"
                     placeholder="e.g. env-prod"
                     value={lcRollbackEnv}
                     onChange={e => setLcRollbackEnv(e.target.value)}
                   />
                 </div>
-                <Button
+                <button
                   type="button"
-                  size="sm"
-                  variant="destructive"
+                  className="im-btn im-btn--sm im-btn--danger"
                   onClick={async () => {
                     try {
                       await rollbackRuleVersion(
@@ -691,36 +867,47 @@ export const AutomationRuleLifecyclePanel = memo(
                       toast.success('Rollback complete');
                       await loadLifecycle();
                       await loadCore();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
                 >
                   Rollback
-                </Button>
+                </button>
               </div>
             </div>
           ) : null}
 
           {mutateOk && lcRuleId.trim() ? (
-            <div className="grid gap-3 border-t pt-3 md:grid-cols-2">
-              <div className="space-y-2">
-                <Label className="text-xs">Canary — version id</Label>
-                <Input
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(2,1fr)',
+                gap: 12,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 12,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Canary — version id
+                </p>
+                <input
+                  className="im-input"
                   value={lcCanaryVid}
                   onChange={e => setLcCanaryVid(e.target.value)}
                 />
-                <Input
+                <input
+                  className="im-input"
                   placeholder="Sample % (0–100)"
                   value={lcCanaryPct}
                   onChange={e => setLcCanaryPct(e.target.value)}
                   inputMode="decimal"
                 />
-                <div className="flex flex-wrap gap-2">
-                  <Button
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  <button
                     type="button"
-                    size="sm"
-                    variant="secondary"
+                    className="im-btn im-btn--sm"
                     onClick={async () => {
                       try {
                         await setCanaryRuleDeployment(
@@ -731,17 +918,16 @@ export const AutomationRuleLifecyclePanel = memo(
                         );
                         toast.success('Canary set');
                         await loadLifecycle();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     }}
                   >
                     Set canary
-                  </Button>
-                  <Button
+                  </button>
+                  <button
                     type="button"
-                    size="sm"
-                    variant="outline"
+                    className="im-btn im-btn--sm"
                     onClick={async () => {
                       try {
                         await clearCanaryRuleDeployment(
@@ -750,21 +936,22 @@ export const AutomationRuleLifecyclePanel = memo(
                         );
                         toast.success('Canary cleared');
                         await loadLifecycle();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     }}
                   >
                     Clear canary
-                  </Button>
+                  </button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Label className="text-xs">Impact metrics</Label>
-                <Button
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Impact metrics
+                </p>
+                <button
                   type="button"
-                  size="sm"
-                  variant="outline"
+                  className="im-btn im-btn--sm"
                   onClick={async () => {
                     try {
                       await refreshRuleDeploymentImpactMetrics(
@@ -773,135 +960,282 @@ export const AutomationRuleLifecyclePanel = memo(
                       );
                       toast.success('Impact refreshed');
                       await loadLifecycle();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   }}
                 >
                   Refresh impact (7d aggregates)
-                </Button>
+                </button>
               </div>
             </div>
           ) : null}
 
-          <div className="grid gap-4 border-t pt-3 lg:grid-cols-2">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2,1fr)',
+              gap: 16,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 12,
+            }}
+          >
             <div>
-              <p className="mb-1 text-xs font-medium">Versions</p>
-              <div className="max-h-48 overflow-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">#</TableHead>
-                      <TableHead className="text-xs">Tenant</TableHead>
-                      <TableHead className="text-xs">Env</TableHead>
-                      <TableHead className="text-xs">Active</TableHead>
-                      <TableHead className="text-xs">Created</TableHead>
-                      <TableHead className="text-xs">Reason</TableHead>
-                      <TableHead className="text-xs">Version id</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                Versions
+              </p>
+              <div
+                style={{
+                  maxHeight: 192,
+                  overflow: 'auto',
+                  border: '1px solid var(--color-im-rule)',
+                }}
+              >
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        #
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Tenant
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Env
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Active
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Created
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Reason
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Version id
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {lcVersions.map(v => (
-                      <TableRow key={v.versionId}>
-                        <TableCell className="text-xs">
+                      <tr className="im-tr" key={v.versionId}>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {v.versionNumber}
-                        </TableCell>
-                        <TableCell className="max-w-[72px] truncate text-xs">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 72,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: 11,
+                          }}
+                        >
                           {v.tenantId}
-                        </TableCell>
-                        <TableCell className="max-w-[64px] truncate text-xs">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 64,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: 11,
+                          }}
+                        >
                           {v.environmentId}
-                        </TableCell>
-                        <TableCell className="text-xs">
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {v.isActive ? 'yes' : 'no'}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-xs">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ whiteSpace: 'nowrap', fontSize: 11 }}
+                        >
                           {v.createdAt}
-                        </TableCell>
-                        <TableCell className="max-w-[120px] truncate text-xs">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 120,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: 11,
+                          }}
+                        >
                           {v.changeReason}
-                        </TableCell>
-                        <TableCell className="max-w-[140px] truncate font-mono text-[10px]">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 140,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontFamily: 'var(--font-im-mono)',
+                            fontSize: 10,
+                          }}
+                        >
                           {v.versionId}
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
                 {lcVersions.length === 0 ? (
-                  <p className="text-muted-foreground p-2 text-xs">
+                  <p
+                    style={{
+                      color: 'var(--color-im-muted)',
+                      padding: 8,
+                      fontSize: 11,
+                    }}
+                  >
                     No rows — pick a rule and refresh.
                   </p>
                 ) : null}
               </div>
-              <p className="text-muted-foreground mt-1 text-[10px]">
+              <p
+                style={{
+                  color: 'var(--color-im-muted)',
+                  marginTop: 4,
+                  fontSize: 10,
+                }}
+              >
                 Version ids are scoped per tenant/environment (see Version id
                 column).
               </p>
             </div>
             <div>
-              <p className="mb-1 text-xs font-medium">Approvals</p>
-              <div className="max-h-48 overflow-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="text-xs">Status</TableHead>
-                      <TableHead className="text-xs">Version</TableHead>
-                      <TableHead className="text-xs">Requested</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
+              <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                Approvals
+              </p>
+              <div
+                style={{
+                  maxHeight: 192,
+                  overflow: 'auto',
+                  border: '1px solid var(--color-im-rule)',
+                }}
+              >
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Status
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Version
+                      </th>
+                      <th className="im-th" style={{ fontSize: 11 }}>
+                        Requested
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
                     {lcApprovals.map(a => (
-                      <TableRow key={a.approvalId}>
-                        <TableCell className="text-xs">
+                      <tr className="im-tr" key={a.approvalId}>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {a.approvalStatus}
-                        </TableCell>
-                        <TableCell className="max-w-[120px] truncate text-xs">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 120,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: 11,
+                          }}
+                        >
                           {a.versionId}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-xs">
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{ whiteSpace: 'nowrap', fontSize: 11 }}
+                        >
                           {a.createdAt}
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))}
-                  </TableBody>
-                </Table>
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(2,1fr)',
+              gap: 16,
+            }}
+          >
             <div>
-              <p className="mb-1 text-xs font-medium">Staging</p>
-              <pre className="bg-muted max-h-40 overflow-auto rounded-md p-2 text-xs">
+              <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                Staging
+              </p>
+              <pre
+                style={{
+                  background: 'var(--color-im-panel)',
+                  maxHeight: 160,
+                  overflow: 'auto',
+                  padding: 8,
+                  fontSize: 11,
+                }}
+              >
                 {JSON.stringify(lcStaging, null, 2)}
               </pre>
             </div>
             <div>
-              <p className="mb-1 text-xs font-medium">Deployment log</p>
-              <pre className="bg-muted max-h-40 overflow-auto rounded-md p-2 text-xs">
+              <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+                Deployment log
+              </p>
+              <pre
+                style={{
+                  background: 'var(--color-im-panel)',
+                  maxHeight: 160,
+                  overflow: 'auto',
+                  padding: 8,
+                  fontSize: 11,
+                }}
+              >
                 {JSON.stringify(lcDeployLog, null, 2)}
               </pre>
             </div>
           </div>
 
           <div>
-            <p className="mb-1 text-xs font-medium">
+            <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
               Active canaries (all rules)
             </p>
-            <pre className="bg-muted max-h-32 overflow-auto rounded-md p-2 text-xs">
+            <pre
+              style={{
+                background: 'var(--color-im-panel)',
+                maxHeight: 128,
+                overflow: 'auto',
+                padding: 8,
+                fontSize: 11,
+              }}
+            >
               {JSON.stringify(lcCanary, null, 2)}
             </pre>
           </div>
 
           <div>
-            <p className="mb-1 text-xs font-medium">Deployment impact</p>
-            <pre className="bg-muted max-h-40 overflow-auto rounded-md p-2 text-xs">
+            <p style={{ marginBottom: 4, fontSize: 11, fontWeight: 500 }}>
+              Deployment impact
+            </p>
+            <pre
+              style={{
+                background: 'var(--color-im-panel)',
+                maxHeight: 160,
+                overflow: 'auto',
+                padding: 8,
+                fontSize: 11,
+              }}
+            >
               {JSON.stringify(lcImpact, null, 2)}
             </pre>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 );

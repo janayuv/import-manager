@@ -3,22 +3,7 @@ import { toast } from 'sonner';
 
 import { useEffect, useState } from 'react';
 
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import type { Shipment } from '@/types/shipment';
 
 const FrozenShipmentsPage = () => {
@@ -54,53 +39,77 @@ const FrozenShipmentsPage = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl font-semibold text-blue-600">
-            Frozen Shipments
-          </CardTitle>
-          <CardDescription>
-            Manage locked shipments and resolve processing issues
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div>Loading...</div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice #</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {shipments.length ? (
-                  shipments.map(s => (
-                    <TableRow key={s.id}>
-                      <TableCell>{s.invoiceNumber}</TableCell>
-                      <TableCell>{s.status}</TableCell>
-                      <TableCell>
-                        <Button size="sm" onClick={() => handleUnfreeze(s.id)}>
-                          Unfreeze
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center">
-                      No frozen shipments
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Frozen Shipments']} />
+      <PageHeader
+        title="Frozen Shipments"
+        subtitle="Manage locked shipments and resolve processing issues"
+        count={shipments.length}
+      />
+      <div className="im-dashboard-body">
+        <div className="im-section">
+          <div className="im-section__body" style={{ padding: 0 }}>
+            {loading ? (
+              <div
+                style={{
+                  padding: 24,
+                  color: 'var(--color-im-muted)',
+                  fontSize: 13,
+                }}
+              >
+                Loading...
+              </div>
+            ) : (
+              <div className="im-table-scroll">
+                <table className="im-table">
+                  <thead>
+                    <tr>
+                      <th className="im-th">Invoice #</th>
+                      <th className="im-th">Status</th>
+                      <th className="im-th">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shipments.length ? (
+                      shipments.map((s, idx) => (
+                        <tr
+                          key={s.id}
+                          className={`im-tr${idx % 2 === 1 ? 'is-alt' : ''}`}
+                        >
+                          <td className="im-td">{s.invoiceNumber}</td>
+                          <td className="im-td">{s.status}</td>
+                          <td className="im-td">
+                            <button
+                              type="button"
+                              className="im-btn im-btn--sm"
+                              onClick={() => handleUnfreeze(s.id)}
+                            >
+                              Unfreeze
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr className="im-tr">
+                        <td
+                          className="im-td"
+                          colSpan={3}
+                          style={{
+                            textAlign: 'center',
+                            color: 'var(--color-im-muted)',
+                          }}
+                        >
+                          No frozen shipments
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
     </div>
   );
 };

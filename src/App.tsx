@@ -221,6 +221,10 @@ function App() {
                           <Route element={<AppLayout />}>
                             <Route path="/" element={<DashboardPage />} />
                             <Route
+                              path="/supplier/new"
+                              element={<SupplierPage />}
+                            />
+                            <Route
                               path="/supplier/:supplierId/view"
                               element={<SupplierPage />}
                             />

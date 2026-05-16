@@ -30,33 +30,7 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 import { useResponsiveContext } from '@/providers/ResponsiveProvider';
 
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { Combobox } from '@/components/ui/combobox';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import type {
@@ -539,23 +513,34 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
   return (
     <div className={getSpacingClass('lg')}>
       {/* Action Buttons */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-end">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="default"
-            size="sm"
-            useAccentColor
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div
+          style={{
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            gap: 8,
+            justifyContent: 'flex-end',
+          }}
+        >
+          <button
+            className="im-btn im-btn--sm"
             onClick={() => generateReport(true)}
             disabled={loading}
           >
             <RefreshCw
-              className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+              style={{
+                marginRight: 8,
+                width: 14,
+                height: 14,
+                display: 'inline',
+                animation: loading ? 'spin 1s linear infinite' : 'none',
+              }}
             />
             Refresh
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
+            className="im-btn im-btn--sm"
             onClick={async () => {
               try {
                 await invoke<string>('create_test_expense_data');
@@ -571,13 +556,11 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
-            useAccentColor
           >
             Create Test Data
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
+            className="im-btn im-btn--sm"
             onClick={async () => {
               try {
                 await invoke<string>('debug_expense_data_counts');
@@ -586,13 +569,11 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
-            useAccentColor
           >
             Debug Data
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
+            className="im-btn im-btn--sm"
             onClick={async () => {
               try {
                 await invoke<string>('debug_expense_dates');
@@ -601,13 +582,11 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
-            useAccentColor
           >
             Debug Dates
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
+            className="im-btn im-btn--sm"
             onClick={async () => {
               try {
                 // Test filtering with specific criteria
@@ -627,13 +606,11 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
-            useAccentColor
           >
             Test Filters
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
+          </button>
+          <button
+            className="im-btn im-btn--sm"
             onClick={async () => {
               try {
                 // Test the exact date range from the image (2025-05-01 to 2025-05-01)
@@ -649,59 +626,87 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               }
             }}
             disabled={loading}
-            useAccentColor
           >
             Test Exact Date
-          </Button>
-          <div className="flex items-center space-x-2">
-            <Button
-              variant="default"
-              size="sm"
-              useAccentColor
+          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button
+              className="im-btn im-btn--sm im-btn--primary"
               onClick={() => exportReport('csv')}
               disabled={loading}
             >
-              <Download className="mr-2 h-4 w-4" />
+              <Download
+                style={{
+                  marginRight: 8,
+                  width: 14,
+                  height: 14,
+                  display: 'inline',
+                }}
+              />
               CSV
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              useAccentColor
+            </button>
+            <button
+              className="im-btn im-btn--sm im-btn--primary"
               onClick={() => exportReport('excel')}
               disabled={loading}
             >
-              <FileText className="mr-2 h-4 w-4" />
+              <FileText
+                style={{
+                  marginRight: 8,
+                  width: 14,
+                  height: 14,
+                  display: 'inline',
+                }}
+              />
               Excel
-            </Button>
-            <Button
-              variant="default"
-              size="sm"
-              useAccentColor
+            </button>
+            <button
+              className="im-btn im-btn--sm im-btn--primary"
               onClick={() => exportReport('pdf')}
               disabled={loading}
             >
-              <BarChart3 className="mr-2 h-4 w-4" />
+              <BarChart3
+                style={{
+                  marginRight: 8,
+                  width: 14,
+                  height: 14,
+                  display: 'inline',
+                }}
+              />
               PDF
-            </Button>
+            </button>
           </div>
         </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Filter className="h-5 w-5" />
-            Filters
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="im-section">
+        <div className="im-section__header">
+          <span className="im-section__label">
+            <Filter
+              style={{
+                display: 'inline',
+                width: 14,
+                height: 14,
+                marginRight: 6,
+              }}
+            />
+            // Filters
+          </span>
+        </div>
+        <div className="im-section__body">
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(4, 1fr)',
+              gap: 16,
+            }}
+          >
             {/* Date Range */}
-            <div className="space-y-2">
-              <Label htmlFor="dateFrom">Date From</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Date From</p>
+              <input
+                className="im-input"
                 id="dateFrom"
                 type="date"
                 value={filters.dateFrom || ''}
@@ -710,9 +715,10 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="dateTo">Date To</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Date To</p>
+              <input
+                className="im-input"
                 id="dateTo"
                 type="date"
                 value={filters.dateTo || ''}
@@ -723,34 +729,33 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             </div>
 
             {/* Shipment */}
-            <div className="space-y-2">
-              <Label htmlFor="shipment">Shipment</Label>
-              <Select
-                value={filters.shipmentId || 'all'}
-                onValueChange={value =>
-                  setFilters(prev => ({
-                    ...prev,
-                    shipmentId: value === 'all' ? undefined : value,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Shipments" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Shipments</SelectItem>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Shipment</p>
+              <div className="im-select-wrap">
+                <select
+                  className="im-select"
+                  value={filters.shipmentId || 'all'}
+                  onChange={e =>
+                    setFilters(prev => ({
+                      ...prev,
+                      shipmentId:
+                        e.target.value === 'all' ? undefined : e.target.value,
+                    }))
+                  }
+                >
+                  <option value="all">All Shipments</option>
                   {shipments.map(shipment => (
-                    <SelectItem key={shipment.id} value={shipment.id}>
+                    <option key={shipment.id} value={shipment.id}>
                       {shipment.invoiceNumber || shipment.id}
-                    </SelectItem>
+                    </option>
                   ))}
-                </SelectContent>
-              </Select>
+                </select>
+              </div>
             </div>
 
             {/* Service Provider */}
-            <div className="space-y-2">
-              <Label htmlFor="provider">Service Provider</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Service Provider</p>
               <Combobox
                 options={[
                   { value: '', label: 'All Providers' },
@@ -773,8 +778,8 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             </div>
 
             {/* Expense Type */}
-            <div className="space-y-2">
-              <Label htmlFor="expenseType">Expense Type</Label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Expense Type</p>
               <Combobox
                 options={[
                   { value: '', label: 'All Types' },
@@ -797,33 +802,33 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             </div>
 
             {/* Currency */}
-            <div className="space-y-2">
-              <Label htmlFor="currency">Currency</Label>
-              <Select
-                value={filters.currency || 'all'}
-                onValueChange={value =>
-                  setFilters(prev => ({
-                    ...prev,
-                    currency: value === 'all' ? undefined : value,
-                  }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="All Currencies" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Currencies</SelectItem>
-                  <SelectItem value="INR">INR</SelectItem>
-                  <SelectItem value="USD">USD</SelectItem>
-                  <SelectItem value="EUR">EUR</SelectItem>
-                </SelectContent>
-              </Select>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Currency</p>
+              <div className="im-select-wrap">
+                <select
+                  className="im-select"
+                  value={filters.currency || 'all'}
+                  onChange={e =>
+                    setFilters(prev => ({
+                      ...prev,
+                      currency:
+                        e.target.value === 'all' ? undefined : e.target.value,
+                    }))
+                  }
+                >
+                  <option value="all">All Currencies</option>
+                  <option value="INR">INR</option>
+                  <option value="USD">USD</option>
+                  <option value="EUR">EUR</option>
+                </select>
+              </div>
             </div>
 
             {/* Amount Range */}
-            <div className="space-y-2">
-              <Label htmlFor="minAmount">Min Amount (₹)</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Min Amount (₹)</p>
+              <input
+                className="im-input"
                 id="minAmount"
                 type="number"
                 placeholder="0"
@@ -838,9 +843,10 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                 }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="maxAmount">Max Amount (₹)</Label>
-              <Input
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <p className="im-field-label">Max Amount (₹)</p>
+              <input
+                className="im-input"
                 id="maxAmount"
                 type="number"
                 placeholder="∞"
@@ -858,10 +864,15 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
           </div>
 
           {/* Clear Filters Button */}
-          <div className="mt-4 flex justify-end">
-            <Button
-              variant="outline"
-              size="sm"
+          <div
+            style={{
+              marginTop: 16,
+              display: 'flex',
+              justifyContent: 'flex-end',
+            }}
+          >
+            <button
+              className="im-btn im-btn--sm"
               onClick={() => {
                 const today = new Date();
                 const startOfYear = new Date(2024, 0, 1); // January 1st of 2024 to include test data
@@ -871,17 +882,16 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                   dateTo: today.toISOString().split('T')[0],
                 });
               }}
-              useAccentColor
             >
               Clear Filters
-            </Button>
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Report Type Selector */}
-      <Card>
-        <CardContent className="pt-6">
+      <div className="im-section">
+        <div className="im-section__body" style={{ paddingTop: 24 }}>
           <Tabs
             value={reportType}
             onValueChange={value => setReportType(value as ExpenseReportType)}
@@ -925,193 +935,263 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
             </TabsList>
 
             {/* Detailed Report */}
-            <TabsContent value="detailed" className="space-y-4">
+            <TabsContent
+              value="detailed"
+              style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+            >
               {detailedReport && detailedReport.rows.length > 0 ? (
                 <>
                   {/* Summary Cards */}
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          Total Amount
-                        </CardTitle>
-                        <Badge variant="secondary">
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(4, 1fr)',
+                      gap: 16,
+                    }}
+                  >
+                    <div className="im-section">
+                      <div
+                        className="im-section__header"
+                        style={{ justifyContent: 'space-between' }}
+                      >
+                        <span className="im-section__label">Total Amount</span>
+                        <span className="im-badge">
                           {detailedReport.totals.invoice_count} invoices
-                        </Badge>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
+                        </span>
+                      </div>
+                      <div className="im-section__body">
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
                           {formatCurrency(
                             (detailedReport.totals.total_amount_paise || 0) /
                               100
                           )}
                         </div>
-                        <p className="text-muted-foreground text-xs">
+                        <p
+                          style={{
+                            color: 'var(--color-im-muted)',
+                            fontSize: 12,
+                            margin: 0,
+                          }}
+                        >
                           {detailedReport.totals.expense_line_count || 0}{' '}
                           expense lines
                         </p>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          Total CGST
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
+                      </div>
+                    </div>
+                    <div className="im-section">
+                      <div className="im-section__header">
+                        <span className="im-section__label">Total CGST</span>
+                      </div>
+                      <div className="im-section__body">
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
                           {formatCurrency(
                             (detailedReport.totals.total_cgst_amount_paise ||
                               0) / 100
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          Total SGST
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
+                      </div>
+                    </div>
+                    <div className="im-section">
+                      <div className="im-section__header">
+                        <span className="im-section__label">Total SGST</span>
+                      </div>
+                      <div className="im-section__body">
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
                           {formatCurrency(
                             (detailedReport.totals.total_sgst_amount_paise ||
                               0) / 100
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
-                    <Card>
-                      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">
-                          Total IGST
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="text-2xl font-bold">
+                      </div>
+                    </div>
+                    <div className="im-section">
+                      <div className="im-section__header">
+                        <span className="im-section__label">Total IGST</span>
+                      </div>
+                      <div className="im-section__body">
+                        <div style={{ fontSize: 22, fontWeight: 700 }}>
                           {formatCurrency(
                             (detailedReport.totals.total_igst_amount_paise ||
                               0) / 100
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Detailed Table */}
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Detailed Expense Report</CardTitle>
-                      <CardDescription>
+                  <div className="im-section">
+                    <div className="im-section__header">
+                      <span className="im-section__label">
+                        // Detailed Expense Report
+                      </span>
+                      <span
+                        style={{
+                          color: 'var(--color-im-muted)',
+                          fontSize: 12,
+                          marginLeft: 8,
+                        }}
+                      >
                         {detailedReport.rows.length} expense lines found
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="overflow-x-auto rounded-md border">
-                        <Table className={getTableClass('auto')}>
-                          <TableHeader>
-                            <TableRow>
-                              <TableHead>Invoice</TableHead>
-                              <TableHead>Date</TableHead>
+                      </span>
+                    </div>
+                    <div className="im-section__body">
+                      <div className="im-table-scroll">
+                        <table className={`im-table ${getTableClass('auto')}`}>
+                          <thead>
+                            <tr>
+                              <th className="im-th">Invoice</th>
+                              <th className="im-th">Date</th>
                               {!isSmallScreen && (
-                                <TableHead>Shipment</TableHead>
+                                <th className="im-th">Shipment</th>
                               )}
-                              <TableHead>Provider</TableHead>
-                              <TableHead>Type</TableHead>
-                              <TableHead className="text-right">
+                              <th className="im-th">Provider</th>
+                              <th className="im-th">Type</th>
+                              <th
+                                className="im-th"
+                                style={{ textAlign: 'right' }}
+                              >
                                 Amount
-                              </TableHead>
+                              </th>
                               {!isSmallScreen && (
                                 <>
-                                  <TableHead className="text-right">
+                                  <th
+                                    className="im-th"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     CGST
-                                  </TableHead>
-                                  <TableHead className="text-right">
+                                  </th>
+                                  <th
+                                    className="im-th"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     SGST
-                                  </TableHead>
-                                  <TableHead className="text-right">
+                                  </th>
+                                  <th
+                                    className="im-th"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     IGST
-                                  </TableHead>
+                                  </th>
                                 </>
                               )}
-                              <TableHead className="text-right">
+                              <th
+                                className="im-th"
+                                style={{ textAlign: 'right' }}
+                              >
                                 Total
-                              </TableHead>
-                            </TableRow>
-                          </TableHeader>
-                          <TableBody>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
                             {detailedReport.rows.map(row => (
-                              <TableRow
+                              <tr
+                                className="im-tr"
                                 key={`${row.invoice_id}-${row.expense_type_id}`}
                               >
-                                <TableCell className="font-medium">
+                                <td
+                                  className="im-td"
+                                  style={{ fontWeight: 500 }}
+                                >
                                   {row.invoice_number || 'N/A'}
-                                </TableCell>
-                                <TableCell>
+                                </td>
+                                <td className="im-td">
                                   {formatDate(row.invoice_date)}
-                                </TableCell>
+                                </td>
                                 {!isSmallScreen && (
-                                  <TableCell>
+                                  <td className="im-td">
                                     {row.shipment_number ||
                                       row.shipment_id ||
                                       'N/A'}
-                                  </TableCell>
+                                  </td>
                                 )}
-                                <TableCell>
+                                <td className="im-td">
                                   {row.service_provider_name || 'N/A'}
-                                </TableCell>
-                                <TableCell>
+                                </td>
+                                <td className="im-td">
                                   {row.expense_type_name || 'N/A'}
-                                </TableCell>
-                                <TableCell className="text-right">
+                                </td>
+                                <td
+                                  className="im-td"
+                                  style={{ textAlign: 'right' }}
+                                >
                                   {formatCurrency(
                                     (row.amount_paise || 0) / 100
                                   )}
-                                </TableCell>
+                                </td>
                                 {!isSmallScreen && (
                                   <>
-                                    <TableCell className="text-right">
+                                    <td
+                                      className="im-td"
+                                      style={{ textAlign: 'right' }}
+                                    >
                                       {formatCurrency(
                                         (row.cgst_amount_paise || 0) / 100
                                       )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
+                                    </td>
+                                    <td
+                                      className="im-td"
+                                      style={{ textAlign: 'right' }}
+                                    >
                                       {formatCurrency(
                                         (row.sgst_amount_paise || 0) / 100
                                       )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
+                                    </td>
+                                    <td
+                                      className="im-td"
+                                      style={{ textAlign: 'right' }}
+                                    >
                                       {formatCurrency(
                                         (row.igst_amount_paise || 0) / 100
                                       )}
-                                    </TableCell>
+                                    </td>
                                   </>
                                 )}
-                                <TableCell className="text-right font-medium">
+                                <td
+                                  className="im-td"
+                                  style={{
+                                    textAlign: 'right',
+                                    fontWeight: 500,
+                                  }}
+                                >
                                   {formatCurrency(
                                     (row.total_amount_paise || 0) / 100
                                   )}
-                                </TableCell>
-                              </TableRow>
+                                </td>
+                              </tr>
                             ))}
-                          </TableBody>
-                        </Table>
+                          </tbody>
+                        </table>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 </>
               ) : detailedReport ? (
-                <Card>
-                  <CardContent className="flex flex-col items-center justify-center py-8">
-                    <p className="text-muted-foreground">
+                <div className="im-section">
+                  <div
+                    className="im-section__body"
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      padding: '32px 0',
+                    }}
+                  >
+                    <p style={{ color: 'var(--color-im-muted)', margin: 0 }}>
                       No expense data found for the selected filters.
                     </p>
-                    <p className="text-muted-foreground mt-2 text-sm">
+                    <p
+                      style={{
+                        color: 'var(--color-im-muted)',
+                        fontSize: 13,
+                        marginTop: 8,
+                      }}
+                    >
                       Try adjusting your filters or add some expense data.
                     </p>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               ) : null}
             </TabsContent>
 
@@ -1122,14 +1202,24 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
               'summary-by-shipment',
               'summary-by-month',
             ].map(type => (
-              <TabsContent key={type} value={type} className="space-y-4">
+              <TabsContent
+                key={type}
+                value={type}
+                style={{ display: 'flex', flexDirection: 'column', gap: 24 }}
+              >
                 {/* Charts */}
-                <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Bar Chart</CardTitle>
-                    </CardHeader>
-                    <CardContent>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(2, 1fr)',
+                    gap: 24,
+                  }}
+                >
+                  <div className="im-section">
+                    <div className="im-section__header">
+                      <span className="im-section__label">// Bar Chart</span>
+                    </div>
+                    <div className="im-section__body">
                       <ResponsiveContainer
                         width="100%"
                         height={300}
@@ -1158,15 +1248,15 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                           />
                         </BarChart>
                       </ResponsiveContainer>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
 
                   {type === 'summary-by-type' && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle>Pie Chart</CardTitle>
-                      </CardHeader>
-                      <CardContent>
+                    <div className="im-section">
+                      <div className="im-section__header">
+                        <span className="im-section__label">// Pie Chart</span>
+                      </div>
+                      <div className="im-section__body">
                         <ResponsiveContainer
                           width="100%"
                           height={300}
@@ -1199,240 +1289,383 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
                             />
                           </PieChart>
                         </ResponsiveContainer>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   )}
                 </div>
 
                 {/* Summary Table */}
-                <Card>
-                  <CardHeader>
-                    <CardTitle>
-                      {type === 'summary-by-type' && 'Summary by Expense Type'}
+                <div className="im-section">
+                  <div className="im-section__header">
+                    <span className="im-section__label">
+                      {type === 'summary-by-type' &&
+                        '// Summary by Expense Type'}
                       {type === 'summary-by-provider' &&
-                        'Summary by Service Provider'}
-                      {type === 'summary-by-shipment' && 'Summary by Shipment'}
-                      {type === 'summary-by-month' && 'Summary by Month'}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="overflow-x-auto rounded-md border">
-                      <Table className={getTableClass('auto')}>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Name</TableHead>
-                            <TableHead className="text-right">Amount</TableHead>
+                        '// Summary by Service Provider'}
+                      {type === 'summary-by-shipment' &&
+                        '// Summary by Shipment'}
+                      {type === 'summary-by-month' && '// Summary by Month'}
+                    </span>
+                  </div>
+                  <div className="im-section__body">
+                    <div className="im-table-scroll">
+                      <table className={`im-table ${getTableClass('auto')}`}>
+                        <thead>
+                          <tr>
+                            <th className="im-th">Name</th>
+                            <th
+                              className="im-th"
+                              style={{ textAlign: 'right' }}
+                            >
+                              Amount
+                            </th>
                             {!isSmallScreen && (
                               <>
-                                <TableHead className="text-right">
+                                <th
+                                  className="im-th"
+                                  style={{ textAlign: 'right' }}
+                                >
                                   CGST
-                                </TableHead>
-                                <TableHead className="text-right">
+                                </th>
+                                <th
+                                  className="im-th"
+                                  style={{ textAlign: 'right' }}
+                                >
                                   SGST
-                                </TableHead>
-                                <TableHead className="text-right">
+                                </th>
+                                <th
+                                  className="im-th"
+                                  style={{ textAlign: 'right' }}
+                                >
                                   IGST
-                                </TableHead>
+                                </th>
                               </>
                             )}
-                            <TableHead className="text-right">Total</TableHead>
+                            <th
+                              className="im-th"
+                              style={{ textAlign: 'right' }}
+                            >
+                              Total
+                            </th>
                             {type !== 'summary-by-type' && !isSmallScreen && (
-                              <TableHead className="text-right">
+                              <th
+                                className="im-th"
+                                style={{ textAlign: 'right' }}
+                              >
                                 Invoices
-                              </TableHead>
+                              </th>
                             )}
-                            <TableHead className="text-right">Lines</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
+                            <th
+                              className="im-th"
+                              style={{ textAlign: 'right' }}
+                            >
+                              Lines
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody>
                           {(() => {
                             if (type === 'summary-by-type') {
                               return summaryByType.map(item => (
-                                <TableRow key={item.expense_type_id}>
-                                  <TableCell className="font-medium">
+                                <tr
+                                  className="im-tr"
+                                  key={item.expense_type_id}
+                                >
+                                  <td
+                                    className="im-td"
+                                    style={{ fontWeight: 500 }}
+                                  >
                                     {item.expense_type_name}
-                                  </TableCell>
-                                  <TableCell className="text-right">
+                                  </td>
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {formatCurrency(
                                       item.total_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
                                     <>
-                                      <TableCell className="text-right">
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_cgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_sgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_igst_amount_paise / 100
                                         )}
-                                      </TableCell>
+                                      </td>
                                     </>
                                   )}
-                                  <TableCell className="text-right font-medium">
+                                  <td
+                                    className="im-td"
+                                    style={{
+                                      textAlign: 'right',
+                                      fontWeight: 500,
+                                    }}
+                                  >
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
-                                  </TableCell>
-                                  <TableCell className="text-right">
+                                  </td>
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {item.line_count}
-                                  </TableCell>
-                                </TableRow>
+                                  </td>
+                                </tr>
                               ));
                             } else if (type === 'summary-by-provider') {
                               return summaryByProvider.map(item => (
-                                <TableRow key={item.service_provider_id}>
-                                  <TableCell className="font-medium">
+                                <tr
+                                  className="im-tr"
+                                  key={item.service_provider_id}
+                                >
+                                  <td
+                                    className="im-td"
+                                    style={{ fontWeight: 500 }}
+                                  >
                                     {item.service_provider_name}
-                                  </TableCell>
-                                  <TableCell className="text-right">
+                                  </td>
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {formatCurrency(
                                       item.total_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
                                     <>
-                                      <TableCell className="text-right">
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_cgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_sgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_igst_amount_paise / 100
                                         )}
-                                      </TableCell>
+                                      </td>
                                     </>
                                   )}
-                                  <TableCell className="text-right font-medium">
+                                  <td
+                                    className="im-td"
+                                    style={{
+                                      textAlign: 'right',
+                                      fontWeight: 500,
+                                    }}
+                                  >
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
-                                    <TableCell className="text-right">
+                                    <td
+                                      className="im-td"
+                                      style={{ textAlign: 'right' }}
+                                    >
                                       {item.invoice_count}
-                                    </TableCell>
+                                    </td>
                                   )}
-                                  <TableCell className="text-right">
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {item.line_count}
-                                  </TableCell>
-                                </TableRow>
+                                  </td>
+                                </tr>
                               ));
                             } else if (type === 'summary-by-shipment') {
                               return summaryByShipment.map(item => (
-                                <TableRow key={item.shipment_id}>
-                                  <TableCell className="font-medium">
+                                <tr className="im-tr" key={item.shipment_id}>
+                                  <td
+                                    className="im-td"
+                                    style={{ fontWeight: 500 }}
+                                  >
                                     {item.shipment_number || item.shipment_id}
-                                  </TableCell>
-                                  <TableCell className="text-right">
+                                  </td>
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {formatCurrency(
                                       item.total_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
                                     <>
-                                      <TableCell className="text-right">
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_cgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_sgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_igst_amount_paise / 100
                                         )}
-                                      </TableCell>
+                                      </td>
                                     </>
                                   )}
-                                  <TableCell className="text-right font-medium">
+                                  <td
+                                    className="im-td"
+                                    style={{
+                                      textAlign: 'right',
+                                      fontWeight: 500,
+                                    }}
+                                  >
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
-                                    <TableCell className="text-right">
+                                    <td
+                                      className="im-td"
+                                      style={{ textAlign: 'right' }}
+                                    >
                                       {item.invoice_count}
-                                    </TableCell>
+                                    </td>
                                   )}
-                                  <TableCell className="text-right">
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {item.line_count}
-                                  </TableCell>
-                                </TableRow>
+                                  </td>
+                                </tr>
                               ));
                             } else {
                               return summaryByMonth.map(item => (
-                                <TableRow key={`${item.year}-${item.month}`}>
-                                  <TableCell className="font-medium">
+                                <tr
+                                  className="im-tr"
+                                  key={`${item.year}-${item.month}`}
+                                >
+                                  <td
+                                    className="im-td"
+                                    style={{ fontWeight: 500 }}
+                                  >
                                     {item.month_name}
-                                  </TableCell>
-                                  <TableCell className="text-right">
+                                  </td>
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {formatCurrency(
                                       item.total_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
                                     <>
-                                      <TableCell className="text-right">
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_cgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_sgst_amount_paise / 100
                                         )}
-                                      </TableCell>
-                                      <TableCell className="text-right">
+                                      </td>
+                                      <td
+                                        className="im-td"
+                                        style={{ textAlign: 'right' }}
+                                      >
                                         {formatCurrency(
                                           item.total_igst_amount_paise / 100
                                         )}
-                                      </TableCell>
+                                      </td>
                                     </>
                                   )}
-                                  <TableCell className="text-right font-medium">
+                                  <td
+                                    className="im-td"
+                                    style={{
+                                      textAlign: 'right',
+                                      fontWeight: 500,
+                                    }}
+                                  >
                                     {formatCurrency(
                                       item.total_net_amount_paise / 100
                                     )}
-                                  </TableCell>
+                                  </td>
                                   {!isSmallScreen && (
-                                    <TableCell className="text-right">
+                                    <td
+                                      className="im-td"
+                                      style={{ textAlign: 'right' }}
+                                    >
                                       {item.invoice_count}
-                                    </TableCell>
+                                    </td>
                                   )}
-                                  <TableCell className="text-right">
+                                  <td
+                                    className="im-td"
+                                    style={{ textAlign: 'right' }}
+                                  >
                                     {item.line_count}
-                                  </TableCell>
-                                </TableRow>
+                                  </td>
+                                </tr>
                               ));
                             }
                           })()}
-                        </TableBody>
-                      </Table>
+                        </tbody>
+                      </table>
                     </div>
-                  </CardContent>
-                </Card>
+                  </div>
+                </div>
               </TabsContent>
             ))}
           </Tabs>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };

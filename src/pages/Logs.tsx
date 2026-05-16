@@ -5,15 +5,7 @@ import { RefreshCw, ScrollText } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
+import { AppBar, PageHeader } from '@/components/shared/im';
 import { isTauriEnvironment } from '@/lib/tauri-bridge';
 
 const REFRESH_MS = 5000;
@@ -93,79 +85,97 @@ function LogsContent() {
   }, [displayLines, filter, cleared]);
 
   return (
-    <div className="container mx-auto max-w-5xl py-10">
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-2">
-          <ScrollText className="h-6 w-6 text-blue-600" />
-          <h1 className="text-xl font-semibold text-blue-600">
-            Application Logs
-          </h1>
+    <div className="im-page">
+      <AppBar crumbs={['Import Manager', 'Logs']} />
+      <PageHeader
+        title="Application Logs"
+        subtitle="Last 500 lines from app.log — auto-refresh every 5s; newest at bottom."
+        actions={
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            <button
+              type="button"
+              className="im-btn im-btn--sm"
+              onClick={() => void loadLogs()}
+              disabled={loading}
+            >
+              <RefreshCw
+                className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`}
+              />
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="im-btn im-btn--sm"
+              onClick={() => {
+                setCleared(true);
+                toast.message(
+                  'View cleared. Click Refresh to load logs again.'
+                );
+              }}
+            >
+              Clear View
+            </button>
+            <div className="im-select-wrap" style={{ width: 160 }}>
+              <select
+                className="im-select"
+                value={filter}
+                onChange={e => setFilter(e.target.value as LogFilter)}
+              >
+                <option value="all">All</option>
+                <option value="recycle_bin">recycle_bin</option>
+                <option value="restore">restore</option>
+                <option value="delete">delete</option>
+                <option value="schema">schema</option>
+              </select>
+            </div>
+          </div>
+        }
+      />
+      <div className="im-dashboard-body flex flex-col gap-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <ScrollText className="text-im-muted h-6 w-6" aria-hidden />
+          <span className="text-im-faint font-im-mono text-xs">
+            Raw log stream
+          </span>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void loadLogs()}
-            disabled={loading}
-          >
-            <RefreshCw
-              className={`mr-1 h-4 w-4 ${loading ? 'animate-spin' : ''}`}
-            />
-            Refresh
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => {
-              setCleared(true);
-              toast.message('View cleared. Click Refresh to load logs again.');
-            }}
-          >
-            Clear View
-          </Button>
-          <Select value={filter} onValueChange={v => setFilter(v as LogFilter)}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All</SelectItem>
-              <SelectItem value="recycle_bin">recycle_bin</SelectItem>
-              <SelectItem value="restore">restore</SelectItem>
-              <SelectItem value="delete">delete</SelectItem>
-              <SelectItem value="schema">schema</SelectItem>
-            </SelectContent>
-          </Select>
+
+        <p style={{ fontSize: 12.5, color: 'var(--color-im-faint)' }}>
+          Last 500 lines from <code className="text-xs">app.log</code> in the
+          app log directory. Auto-refresh every {REFRESH_MS / 1000}s. Newest
+          lines appear at the bottom.
+        </p>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Log output</span>
+          </div>
+          <div className="im-section__body" style={{ padding: 0 }}>
+            <pre
+              ref={scrollerRef}
+              style={{
+                fontFamily: 'var(--font-im-mono)',
+                fontSize: 11,
+                lineHeight: 1.6,
+                maxHeight: 'min(70vh, 32rem)',
+                overflow: 'auto',
+                padding: 12,
+                margin: 0,
+                color: 'var(--color-im-muted)',
+                background: 'var(--color-im-bg)',
+              }}
+            >
+              {cleared
+                ? 'View cleared. Click Refresh to load logs again.\n'
+                : displayLines.length === 0
+                  ? (isTauriEnvironment
+                      ? 'No log lines to display. If the file is new, use Refresh after taking actions in the app.'
+                      : 'Logs are only available in the desktop app (Tauri).') +
+                    '\n'
+                  : displayLines.join('\n') + '\n'}
+            </pre>
+          </div>
         </div>
       </div>
-
-      <p className="text-muted-foreground mb-4 text-sm">
-        Last 500 lines from <code className="text-xs">app.log</code> in the app
-        log directory. Auto-refresh every {REFRESH_MS / 1000}s. Newest lines
-        appear at the bottom.
-      </p>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Log output</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre
-            ref={scrollerRef}
-            className="bg-muted/50 max-h-[min(70vh,32rem)] overflow-auto rounded-md border p-3 font-mono text-xs leading-relaxed"
-          >
-            {cleared
-              ? 'View cleared. Click Refresh to load logs again.\n'
-              : displayLines.length === 0
-                ? (isTauriEnvironment
-                    ? 'No log lines to display. If the file is new, use Refresh after taking actions in the app.'
-                    : 'Logs are only available in the desktop app (Tauri).') +
-                  '\n'
-                : displayLines.join('\n') + '\n'}
-          </pre>
-        </CardContent>
-      </Card>
     </div>
   );
 }

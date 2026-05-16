@@ -1,26 +1,5 @@
 import { memo, type Dispatch, type SetStateAction } from 'react';
 import { toast } from 'sonner';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
 import {
   exportWorkflowJobRecoveryLogCsv,
   recoveryGuardOverrideReenable,
@@ -91,52 +70,69 @@ export const AutomationGovernancePanel = memo(
     govExecLog,
   }: AutomationGovernancePanelProps) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Job operations control</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-8">
-          <p className="text-muted-foreground text-sm">
+      <div className="im-section">
+        <div className="im-section__header">
+          <span className="im-section__label">// Job Operations Control</span>
+        </div>
+        <div
+          className="im-section__body"
+          style={{ display: 'flex', flexDirection: 'column', gap: 32 }}
+        >
+          <p style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
             Enable or disable registry jobs, retry failures, reset schedule
             anchors, tune recovery timing, inspect execution history, and export
             recovery audits. Recovery guard override is admin-only.
           </p>
 
-          <div className="space-y-2">
-            <h3 className="text-sm font-medium">Registry</h3>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Job</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Status</TableHead>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>Registry</h3>
+            <div className="im-table-scroll">
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th">Job</th>
+                    <th className="im-th">Name</th>
+                    <th className="im-th">Status</th>
                     {mutateOk && (
-                      <TableHead className="text-right">Enabled</TableHead>
+                      <th className="im-th" style={{ textAlign: 'right' }}>
+                        Enabled
+                      </th>
                     )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+                  </tr>
+                </thead>
+                <tbody>
                   {govRegistry.map(j => (
-                    <TableRow key={j.jobId}>
-                      <TableCell className="font-mono text-xs">
+                    <tr className="im-tr" key={j.jobId}>
+                      <td
+                        className="im-td"
+                        style={{
+                          fontFamily: 'var(--font-im-mono)',
+                          fontSize: 11,
+                        }}
+                      >
                         {j.jobId}
-                      </TableCell>
-                      <TableCell className="text-sm">{j.jobName}</TableCell>
-                      <TableCell>
+                      </td>
+                      <td className="im-td" style={{ fontSize: 12 }}>
+                        {j.jobName}
+                      </td>
+                      <td className="im-td">
                         {j.isEnabled ? (
-                          <Badge className="bg-emerald-600 hover:bg-emerald-600">
+                          <span className="im-status-pill is-active">
                             ACTIVE
-                          </Badge>
+                          </span>
                         ) : (
-                          <Badge variant="secondary">DISABLED</Badge>
+                          <span className="im-status-pill is-neutral">
+                            DISABLED
+                          </span>
                         )}
-                      </TableCell>
+                      </td>
                       {mutateOk && (
-                        <TableCell className="text-right">
-                          <Switch
+                        <td className="im-td" style={{ textAlign: 'right' }}>
+                          <input
+                            type="checkbox"
                             checked={j.isEnabled !== 0}
-                            onCheckedChange={v => {
+                            onChange={e => {
+                              const v = e.target.checked;
                               void (async () => {
                                 try {
                                   await setWorkflowBackgroundJobEnabled(
@@ -148,28 +144,59 @@ export const AutomationGovernancePanel = memo(
                                     v ? 'Job enabled' : 'Job disabled'
                                   );
                                   await loadCore();
-                                } catch (e) {
-                                  toast.error(String(e));
+                                } catch (err) {
+                                  toast.error(String(err));
                                 }
                               })();
                             }}
                             disabled={loading}
+                            style={{
+                              width: 16,
+                              height: 16,
+                              accentColor: 'var(--color-im-accent)',
+                            }}
                           />
-                        </TableCell>
+                        </td>
                       )}
-                    </TableRow>
+                    </tr>
                   ))}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="space-y-3 border-t pt-6">
-            <h3 className="text-sm font-medium">Manual retry</h3>
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="min-w-[200px] flex-1 space-y-1">
-                <Label className="text-xs">Execution ID</Label>
-                <Input
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>Manual retry</h3>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'flex-end',
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  minWidth: 200,
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Execution ID
+                </p>
+                <input
+                  className="im-input"
                   value={govRetryExecId}
                   onChange={e => setGovRetryExecId(e.target.value)}
                   placeholder="uuid…"
@@ -177,10 +204,9 @@ export const AutomationGovernancePanel = memo(
                 />
               </div>
               {mutateOk && (
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
-                  size="sm"
+                  className="im-btn im-btn--sm"
                   disabled={loading || !govRetryExecId.trim()}
                   onClick={() => {
                     void (async () => {
@@ -192,40 +218,54 @@ export const AutomationGovernancePanel = memo(
                         toast.success(`Retry started: ${id}`);
                         setGovRetryExecId('');
                         await loadCore();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     })();
                   }}
                 >
                   Retry job
-                </Button>
+                </button>
               )}
             </div>
-            <div className="flex flex-wrap items-end gap-2">
-              <div className="min-w-[220px] space-y-1">
-                <Label className="text-xs">Job (latest failed)</Label>
-                <Select
-                  value={govPanelJobId}
-                  onValueChange={setGovPanelJobId}
-                  disabled={!mutateOk}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'flex-end',
+                gap: 8,
+              }}
+            >
+              <div
+                style={{
+                  minWidth: 220,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Job (latest failed)
+                </p>
+                <div className="im-select-wrap">
+                  <select
+                    className="im-select"
+                    value={govPanelJobId}
+                    onChange={e => setGovPanelJobId(e.target.value)}
+                    disabled={!mutateOk}
+                  >
                     {govRegistry.map(j => (
-                      <SelectItem key={j.jobId} value={j.jobId}>
+                      <option key={j.jobId} value={j.jobId}>
                         {j.jobId}
-                      </SelectItem>
+                      </option>
                     ))}
-                  </SelectContent>
-                </Select>
+                  </select>
+                </div>
               </div>
               {mutateOk && (
-                <Button
+                <button
                   type="button"
-                  size="sm"
+                  className="im-btn im-btn--sm im-btn--primary"
                   disabled={loading}
                   onClick={() => {
                     void (async () => {
@@ -236,28 +276,35 @@ export const AutomationGovernancePanel = memo(
                         );
                         toast.success(`Retry started: ${id}`);
                         await loadCore();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     })();
                   }}
                 >
                   Retry latest failed
-                </Button>
+                </button>
               )}
             </div>
           </div>
 
-          <div className="space-y-3 border-t pt-6">
-            <h3 className="text-sm font-medium">
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>
               Schedule anchor and recovery tuning
             </h3>
-            <div className="flex flex-wrap gap-2">
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {mutateOk && (
-                <Button
+                <button
                   type="button"
-                  variant="outline"
-                  size="sm"
+                  className="im-btn im-btn--sm"
                   disabled={loading}
                   onClick={() => {
                     void (async () => {
@@ -270,38 +317,53 @@ export const AutomationGovernancePanel = memo(
                           'Schedule anchor reset; pending missed cleared'
                         );
                         await loadCore();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     })();
                   }}
                 >
                   Reset schedule anchor
-                </Button>
+                </button>
               )}
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Grace (minutes)</Label>
-                <Input
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(3,1fr)',
+                gap: 12,
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Grace (minutes)
+                </p>
+                <input
+                  className="im-input"
                   value={govTuneGrace}
                   onChange={e => setGovTuneGrace(e.target.value)}
                   disabled={!mutateOk}
                   inputMode="numeric"
                 />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Recovery delay (sec)</Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Recovery delay (sec)
+                </p>
+                <input
+                  className="im-input"
                   value={govTuneDelay}
                   onChange={e => setGovTuneDelay(e.target.value)}
                   disabled={!mutateOk}
                   inputMode="numeric"
                 />
               </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Max recovery attempts</Label>
-                <Input
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <p className="im-field-label" style={{ fontSize: 11 }}>
+                  Max recovery attempts
+                </p>
+                <input
+                  className="im-input"
                   value={govTuneMax}
                   onChange={e => setGovTuneMax(e.target.value)}
                   disabled={!mutateOk}
@@ -310,9 +372,9 @@ export const AutomationGovernancePanel = memo(
               </div>
             </div>
             {mutateOk && (
-              <Button
+              <button
                 type="button"
-                size="sm"
+                className="im-btn im-btn--sm im-btn--primary"
                 disabled={loading}
                 onClick={() => {
                   void (async () => {
@@ -334,37 +396,45 @@ export const AutomationGovernancePanel = memo(
                       );
                       toast.success('Schedule expectations updated');
                       await loadCore();
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   })();
                 }}
               >
                 Save recovery tuning
-              </Button>
+              </button>
             )}
           </div>
 
           {isAdminRole && (
-            <div className="space-y-2 border-t pt-6">
-              <h3 className="text-sm font-medium">
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 8,
+                borderTop: '1px solid var(--color-im-rule)',
+                paddingTop: 24,
+              }}
+            >
+              <h3 style={{ fontSize: 12, fontWeight: 500 }}>
                 Recovery guard override (admin)
               </h3>
-              <p className="text-muted-foreground text-xs">
+              <p style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
                 Re-enables a job disabled by the recovery guard. Logged as
                 manual_override_event.
               </p>
-              <div className="flex flex-wrap gap-2">
-                <Input
-                  className="max-w-md"
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                <input
+                  className="im-input"
+                  style={{ maxWidth: 448 }}
                   value={govOverrideReason}
                   onChange={e => setGovOverrideReason(e.target.value)}
                   placeholder="Reason for override (required)"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="destructive"
-                  size="sm"
+                  className="im-btn im-btn--sm im-btn--danger"
                   disabled={loading || !govOverrideReason.trim()}
                   onClick={() => {
                     void (async () => {
@@ -377,162 +447,275 @@ export const AutomationGovernancePanel = memo(
                         toast.success('Job re-enabled (override logged)');
                         setGovOverrideReason('');
                         await loadCore();
-                      } catch (e) {
-                        toast.error(String(e));
+                      } catch (err) {
+                        toast.error(String(err));
                       }
                     })();
                   }}
                 >
                   Override and re-enable job
-                </Button>
+                </button>
               </div>
             </div>
           )}
 
-          <div className="space-y-2 border-t pt-6">
-            <h3 className="text-sm font-medium">Manual override log</h3>
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Job</TableHead>
-                    <TableHead>Action</TableHead>
-                    <TableHead>Role</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>
+              Manual override log
+            </h3>
+            <div className="im-table-scroll">
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th">Time</th>
+                    <th className="im-th">Job</th>
+                    <th className="im-th">Action</th>
+                    <th className="im-th">Role</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {govOverrideLog.length === 0 ? (
-                    <TableRow>
-                      <TableCell
+                    <tr className="im-tr">
+                      <td
                         colSpan={4}
-                        className="text-muted-foreground text-sm"
+                        className="im-td"
+                        style={{ color: 'var(--color-im-muted)', fontSize: 12 }}
                       >
                         No manual overrides yet.
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ) : (
                     govOverrideLog.map(o => (
-                      <TableRow key={o.id}>
-                        <TableCell className="text-xs">{o.createdAt}</TableCell>
-                        <TableCell className="font-mono text-xs">
+                      <tr className="im-tr" key={o.id}>
+                        <td className="im-td" style={{ fontSize: 11 }}>
+                          {o.createdAt}
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            fontFamily: 'var(--font-im-mono)',
+                            fontSize: 11,
+                          }}
+                        >
                           {o.jobId}
-                        </TableCell>
-                        <TableCell className="text-xs">{o.action}</TableCell>
-                        <TableCell className="text-xs">
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
+                          {o.action}
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {o.callerRole}
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="space-y-2 border-t pt-6">
-            <h3 className="text-sm font-medium">Job dependencies</h3>
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>Job dependencies</h3>
             {govDependencies ? (
-              <ul className="text-muted-foreground list-inside list-disc text-sm">
+              <ul
+                style={{
+                  color: 'var(--color-im-muted)',
+                  fontSize: 12,
+                  listStylePosition: 'inside',
+                  listStyleType: 'disc',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 4,
+                }}
+              >
                 {govDependencies.edges.map((e, i) => (
                   <li key={`${e.parentJobId}-${e.dependentJobId}-${i}`}>
-                    <span className="font-mono">{e.parentJobId}</span> →{' '}
-                    <span className="font-mono">{e.dependentJobId}</span>{' '}
-                    <span className="text-xs">({e.dependencyType})</span>
+                    <span style={{ fontFamily: 'var(--font-im-mono)' }}>
+                      {e.parentJobId}
+                    </span>{' '}
+                    →{' '}
+                    <span style={{ fontFamily: 'var(--font-im-mono)' }}>
+                      {e.dependentJobId}
+                    </span>{' '}
+                    <span style={{ fontSize: 11 }}>({e.dependencyType})</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <span className="text-muted-foreground text-sm">—</span>
+              <span style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
+                —
+              </span>
             )}
             {govDependencies && (
-              <p className="text-muted-foreground text-xs">
+              <p style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
                 Suggested daily order:{' '}
                 {govDependencies.suggestedDailyOrder.join(' → ')}
               </p>
             )}
           </div>
 
-          <div className="space-y-2 border-t pt-6">
-            <h3 className="text-sm font-medium">
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>
               Failure root-cause hints (7d)
             </h3>
             {govFailureInsights ? (
-              <div className="grid gap-4 lg:grid-cols-2">
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Job</TableHead>
-                        <TableHead>Errors</TableHead>
-                        <TableHead className="text-right">Count</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2,1fr)',
+                  gap: 16,
+                }}
+              >
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Job</th>
+                        <th className="im-th">Errors</th>
+                        <th className="im-th" style={{ textAlign: 'right' }}>
+                          Count
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {govFailureInsights.failureClusters7d
                         .slice(0, 20)
                         .map((c, i) => (
-                          <TableRow key={`${c.jobId}-${i}`}>
-                            <TableCell className="font-mono text-xs">
+                          <tr className="im-tr" key={`${c.jobId}-${i}`}>
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily: 'var(--font-im-mono)',
+                                fontSize: 11,
+                              }}
+                            >
                               {c.jobId}
-                            </TableCell>
-                            <TableCell
-                              className="max-w-[240px] truncate text-xs"
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{
+                                maxWidth: 240,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                fontSize: 11,
+                              }}
                               title={c.errorMessage}
                             >
                               {c.errorMessage || '—'}
-                            </TableCell>
-                            <TableCell className="text-right text-xs">
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{ textAlign: 'right', fontSize: 11 }}
+                            >
                               {c.count}
-                            </TableCell>
-                          </TableRow>
+                            </td>
+                          </tr>
                         ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
-                <div className="overflow-x-auto rounded-md border">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Job</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Count</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                <div className="im-table-scroll">
+                  <table className="im-table">
+                    <thead>
+                      <tr>
+                        <th className="im-th">Job</th>
+                        <th className="im-th">Status</th>
+                        <th className="im-th" style={{ textAlign: 'right' }}>
+                          Count
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
                       {govFailureInsights.countsByStatus7d
                         .slice(0, 30)
                         .map((c, i) => (
-                          <TableRow key={`${c.jobId}-${c.status}-${i}`}>
-                            <TableCell className="font-mono text-xs">
+                          <tr
+                            className="im-tr"
+                            key={`${c.jobId}-${c.status}-${i}`}
+                          >
+                            <td
+                              className="im-td"
+                              style={{
+                                fontFamily: 'var(--font-im-mono)',
+                                fontSize: 11,
+                              }}
+                            >
                               {c.jobId}
-                            </TableCell>
-                            <TableCell className="text-xs">
+                            </td>
+                            <td className="im-td" style={{ fontSize: 11 }}>
                               {c.status}
-                            </TableCell>
-                            <TableCell className="text-right text-xs">
+                            </td>
+                            <td
+                              className="im-td"
+                              style={{ textAlign: 'right', fontSize: 11 }}
+                            >
                               {c.count}
-                            </TableCell>
-                          </TableRow>
+                            </td>
+                          </tr>
                         ))}
-                    </TableBody>
-                  </Table>
+                    </tbody>
+                  </table>
                 </div>
               </div>
             ) : (
-              <span className="text-muted-foreground text-sm">Loading…</span>
+              <span style={{ fontSize: 12, color: 'var(--color-im-muted)' }}>
+                Loading…
+              </span>
             )}
-            <p className="text-muted-foreground text-xs">
+            <p style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
               {govFailureInsights?.notes}
             </p>
           </div>
 
-          <div className="space-y-3 border-t pt-6">
-            <h3 className="text-sm font-medium">
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 12,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
+            <h3 style={{ fontSize: 12, fontWeight: 500 }}>
               Execution history and timeline ({govPanelJobId})
             </h3>
             {govTimeline && govTimeline.events.length > 0 ? (
-              <div className="bg-muted/30 flex h-8 w-full items-end gap-px overflow-x-auto rounded border p-1">
+              <div
+                style={{
+                  display: 'flex',
+                  height: 32,
+                  width: '100%',
+                  alignItems: 'flex-end',
+                  gap: 1,
+                  overflow: 'auto',
+                  background: 'var(--color-im-panel)',
+                  border: '1px solid var(--color-im-rule)',
+                  padding: 4,
+                }}
+              >
                 {govTimeline.events.map(ev => {
                   const w = Math.max(
                     2,
@@ -541,110 +724,138 @@ export const AutomationGovernancePanel = memo(
                   const st = ev.status.toUpperCase();
                   const bg =
                     st === 'SUCCESS'
-                      ? 'bg-emerald-500'
+                      ? '#10b981'
                       : st === 'FAILED'
-                        ? 'bg-red-500'
+                        ? '#ef4444'
                         : st === 'TIMEOUT'
-                          ? 'bg-amber-500'
+                          ? '#f59e0b'
                           : st === 'MISSED'
-                            ? 'bg-violet-500'
+                            ? '#8b5cf6'
                             : st === 'RETRY'
-                              ? 'bg-sky-500'
-                              : 'bg-muted-foreground';
+                              ? '#0ea5e9'
+                              : 'var(--color-im-muted)';
                   return (
                     <div
                       key={ev.executionId}
-                      className={`${bg} shrink-0 rounded-sm opacity-90`}
-                      style={{ width: `${w}px`, minHeight: '22px' }}
+                      style={{
+                        width: `${w}px`,
+                        minHeight: 22,
+                        background: bg,
+                        flexShrink: 0,
+                        opacity: 0.9,
+                      }}
                       title={`${ev.status} @ ${ev.startedAt}`}
                     />
                   );
                 })}
               </div>
             ) : (
-              <p className="text-muted-foreground text-xs">
+              <p style={{ fontSize: 11, color: 'var(--color-im-muted)' }}>
                 No events in window.
               </p>
             )}
-            <div className="overflow-x-auto rounded-md border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Execution</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Started</TableHead>
-                    <TableHead>Ms</TableHead>
-                    <TableHead>Records</TableHead>
-                    <TableHead>Retry</TableHead>
-                    <TableHead>Error</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
+            <div className="im-table-scroll">
+              <table className="im-table">
+                <thead>
+                  <tr>
+                    <th className="im-th">Execution</th>
+                    <th className="im-th">Status</th>
+                    <th className="im-th">Started</th>
+                    <th className="im-th">Ms</th>
+                    <th className="im-th">Records</th>
+                    <th className="im-th">Retry</th>
+                    <th className="im-th">Error</th>
+                  </tr>
+                </thead>
+                <tbody>
                   {govExecLog.length === 0 ? (
-                    <TableRow>
-                      <TableCell
+                    <tr className="im-tr">
+                      <td
                         colSpan={7}
-                        className="text-muted-foreground text-sm"
+                        className="im-td"
+                        style={{ color: 'var(--color-im-muted)', fontSize: 12 }}
                       >
                         No rows (pick a job above).
-                      </TableCell>
-                    </TableRow>
+                      </td>
+                    </tr>
                   ) : (
                     govExecLog.map(r => (
-                      <TableRow key={r.executionId}>
-                        <TableCell className="font-mono text-[10px]">
+                      <tr className="im-tr" key={r.executionId}>
+                        <td
+                          className="im-td"
+                          style={{
+                            fontFamily: 'var(--font-im-mono)',
+                            fontSize: 10,
+                          }}
+                        >
                           {r.executionId.slice(0, 8)}…
-                        </TableCell>
-                        <TableCell className="text-xs">{r.status}</TableCell>
-                        <TableCell className="text-xs">{r.startedAt}</TableCell>
-                        <TableCell className="text-xs">
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
+                          {r.status}
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
+                          {r.startedAt}
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {r.executionTimeMs ?? '—'}
-                        </TableCell>
-                        <TableCell className="text-xs">
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {r.recordsProcessed}
-                        </TableCell>
-                        <TableCell className="text-xs">
+                        </td>
+                        <td className="im-td" style={{ fontSize: 11 }}>
                           {r.retryCount}
-                        </TableCell>
-                        <TableCell
-                          className="max-w-[200px] truncate text-xs"
+                        </td>
+                        <td
+                          className="im-td"
+                          style={{
+                            maxWidth: 200,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            fontSize: 11,
+                          }}
                           title={r.errorMessage ?? ''}
                         >
                           {r.errorMessage ?? '—'}
-                        </TableCell>
-                      </TableRow>
+                        </td>
+                      </tr>
                     ))
                   )}
-                </TableBody>
-              </Table>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t pt-6">
+          <div
+            style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: 8,
+              borderTop: '1px solid var(--color-im-rule)',
+              paddingTop: 24,
+            }}
+          >
             {mutateOk && (
-              <Button
+              <button
                 type="button"
-                variant="outline"
-                size="sm"
+                className="im-btn im-btn--sm"
                 disabled={loading}
                 onClick={() => {
                   void (async () => {
                     try {
                       await simulateBackgroundJobs(callerRole);
                       toast.success('Simulation complete (read-only)');
-                    } catch (e) {
-                      toast.error(String(e));
+                    } catch (err) {
+                      toast.error(String(err));
                     }
                   })();
                 }}
               >
                 Simulate recovery (read-only)
-              </Button>
+              </button>
             )}
-            <Button
+            <button
               type="button"
-              variant="secondary"
-              size="sm"
+              className="im-btn im-btn--sm"
               disabled={loading}
               onClick={() => {
                 void (async () => {
@@ -661,17 +872,17 @@ export const AutomationGovernancePanel = memo(
                     a.click();
                     URL.revokeObjectURL(url);
                     toast.success('Recovery log exported');
-                  } catch (e) {
-                    toast.error(String(e));
+                  } catch (err) {
+                    toast.error(String(err));
                   }
                 })();
               }}
             >
               Export recovery log CSV
-            </Button>
+            </button>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
     );
   }
 );

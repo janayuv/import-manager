@@ -1,25 +1,97 @@
-// src/components/boe/columns.tsx (MODIFIED - Added module-specific settings)
+// src/components/boe/columns.tsx (MODIFIED - Industrial Console + derived status)
 import { type ColumnDef } from '@tanstack/react-table';
-import { MoreHorizontal } from 'lucide-react';
+import { Eye, Pencil, Trash2 } from 'lucide-react';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import type { BoeTableColumnMeta } from '@/components/boe/table-boe';
 import { formatDateForDisplay } from '@/lib/date-format';
 import { formatNumber, formatText, getFieldConfig } from '@/lib/settings';
 import type { AppSettings } from '@/lib/settings';
 import type { BoeDetails } from '@/types/boe';
+import type { SavedBoe } from '@/types/boe-entry';
 
 interface GetBoeColumnsProps {
   onView: (boe: BoeDetails) => void;
   onEdit: (boe: BoeDetails) => void;
   onDelete: (boe: BoeDetails) => void;
   settings?: AppSettings;
+  getWorkflowStatus: (boe: BoeDetails) => SavedBoe['status'];
+}
+
+const numMeta: BoeTableColumnMeta = {
+  thClass: 'im-th--num',
+  tdClass: 'im-td--num',
+};
+
+function BoeStatusPill({ status }: { status: SavedBoe['status'] }) {
+  const map = {
+    'Awaiting BOE Data': {
+      cls: 'im-boe-pill--filed',
+      label: 'AWAITING BOE DATA',
+    },
+    'Discrepancy Found': {
+      cls: 'im-boe-pill--hold',
+      label: 'DISCREPANCY FOUND',
+    },
+    Reconciled: { cls: 'im-boe-pill--assessed', label: 'RECONCILED' },
+    Investigation: { cls: 'im-boe-pill--hold', label: 'INVESTIGATION' },
+    Closed: { cls: 'im-boe-pill--cleared', label: 'CLEARED' },
+  }[status];
+  return (
+    <span className={`im-boe-pill ${map.cls}`}>
+      <span className="im-boe-pill__dot" />
+      {map.label}
+    </span>
+  );
+}
+
+function BoeRowActions({
+  boe,
+  onView,
+  onEdit,
+  onDelete,
+}: {
+  boe: BoeDetails;
+  onView: (b: BoeDetails) => void;
+  onEdit: (b: BoeDetails) => void;
+  onDelete: (b: BoeDetails) => void;
+}) {
+  return (
+    <div className="im-row-actions">
+      <button
+        type="button"
+        className="im-row-act-btn"
+        title="View"
+        onClick={e => {
+          e.stopPropagation();
+          onView(boe);
+        }}
+      >
+        <Eye size={11} />
+      </button>
+      <button
+        type="button"
+        className="im-row-act-btn"
+        title="Edit"
+        onClick={e => {
+          e.stopPropagation();
+          onEdit(boe);
+        }}
+      >
+        <Pencil size={11} />
+      </button>
+      <button
+        type="button"
+        className="im-row-act-btn im-row-act-btn--danger"
+        title="Delete"
+        onClick={e => {
+          e.stopPropagation();
+          onDelete(boe);
+        }}
+      >
+        <Trash2 size={11} />
+      </button>
+    </div>
+  );
 }
 
 export const getBoeColumns = ({
@@ -27,21 +99,22 @@ export const getBoeColumns = ({
   onEdit,
   onDelete,
   settings,
+  getWorkflowStatus,
 }: GetBoeColumnsProps): ColumnDef<BoeDetails>[] => {
-  // Get all possible columns
   const allColumns: ColumnDef<BoeDetails>[] = [
     {
       accessorKey: 'id',
       header: 'ID',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'id');
-        if (fieldConfig?.case === 'none') {
-          return row.getValue('id');
-        }
-        return formatText(row.getValue('id'), {
-          case: fieldConfig?.case || 'sentencecase',
-          trimWhitespace: fieldConfig?.trimWhitespace || false,
-        });
+        const raw =
+          fieldConfig?.case === 'none'
+            ? (row.getValue('id') as string)
+            : formatText(row.getValue('id'), {
+                case: fieldConfig?.case || 'sentencecase',
+                trimWhitespace: fieldConfig?.trimWhitespace || false,
+              });
+        return <span className="im-td-id">{raw}</span>;
       },
     },
     {
@@ -58,11 +131,20 @@ export const getBoeColumns = ({
                 trimWhitespace: fieldConfig?.trimWhitespace || false,
               });
         return (
-          <span className="block max-w-[15ch] truncate" title={value}>
+          <span className="im-td-id block max-w-[18ch] truncate" title={value}>
             {value}
           </span>
         );
       },
+    },
+    {
+      id: 'workflowStatus',
+      accessorFn: row => getWorkflowStatus(row),
+      header: 'Status',
+      cell: ({ row }) => (
+        <BoeStatusPill status={getWorkflowStatus(row.original)} />
+      ),
+      enableSorting: true,
     },
     {
       accessorKey: 'beDate',
@@ -79,9 +161,6 @@ export const getBoeColumns = ({
         const fieldConfig = getFieldConfig('boe', 'location');
         const globalCase = settings?.textFormat?.case || 'sentencecase';
         const fieldCase = fieldConfig?.case || 'sentencecase';
-
-        // If global case is 'uppercase', it should override field-specific case
-        // unless field-specific case is also 'uppercase'
         const finalCase = globalCase === 'uppercase' ? 'uppercase' : fieldCase;
 
         const value = formatText(row.getValue('location'), {
@@ -102,32 +181,38 @@ export const getBoeColumns = ({
     {
       accessorKey: 'totalAssessmentValue',
       header: 'Total Assessment Value',
+      meta: numMeta,
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'totalAssessmentValue');
-        return formatNumber(
-          row.getValue('totalAssessmentValue'),
-          settings?.numberFormat,
-          {
-            numberFormat: fieldConfig?.numberFormat || 'currency',
-            precision: fieldConfig?.precision, // Let formatNumber use global setting if not specified
-            showSign: fieldConfig?.showSign || false,
-          }
+        return (
+          <span className="im-boe-num">
+            {formatNumber(
+              row.getValue('totalAssessmentValue'),
+              settings?.numberFormat,
+              {
+                numberFormat: fieldConfig?.numberFormat || 'currency',
+                precision: fieldConfig?.precision,
+                showSign: fieldConfig?.showSign || false,
+              }
+            )}
+          </span>
         );
       },
     },
     {
       accessorKey: 'dutyAmount',
       header: 'Duty Amount',
+      meta: numMeta,
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'dutyAmount');
-        return formatNumber(
-          row.getValue('dutyAmount'),
-          settings?.numberFormat,
-          {
-            numberFormat: fieldConfig?.numberFormat || 'currency',
-            precision: fieldConfig?.precision, // Let formatNumber use global setting if not specified
-            showSign: fieldConfig?.showSign || false,
-          }
+        return (
+          <span className="im-boe-num">
+            {formatNumber(row.getValue('dutyAmount'), settings?.numberFormat, {
+              numberFormat: fieldConfig?.numberFormat || 'currency',
+              precision: fieldConfig?.precision,
+              showSign: fieldConfig?.showSign || false,
+            })}
+          </span>
         );
       },
     },
@@ -141,13 +226,18 @@ export const getBoeColumns = ({
     {
       accessorKey: 'dutyPaid',
       header: 'Duty Paid',
+      meta: numMeta,
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'dutyPaid');
-        return formatNumber(row.getValue('dutyPaid'), settings?.numberFormat, {
-          numberFormat: fieldConfig?.numberFormat || 'currency',
-          precision: fieldConfig?.precision, // Let formatNumber use global setting if not specified
-          showSign: fieldConfig?.showSign || false,
-        });
+        return (
+          <span className="im-boe-num">
+            {formatNumber(row.getValue('dutyPaid'), settings?.numberFormat, {
+              numberFormat: fieldConfig?.numberFormat || 'currency',
+              precision: fieldConfig?.precision,
+              showSign: fieldConfig?.showSign || false,
+            })}
+          </span>
+        );
       },
     },
     {
@@ -155,13 +245,18 @@ export const getBoeColumns = ({
       header: 'Challan No.',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'challanNumber');
-        if (fieldConfig?.case === 'none') {
-          return row.getValue('challanNumber');
-        }
-        return formatText(row.getValue('challanNumber'), {
-          case: fieldConfig?.case || 'sentencecase',
-          trimWhitespace: fieldConfig?.trimWhitespace || false,
-        });
+        const v =
+          fieldConfig?.case === 'none'
+            ? (row.getValue('challanNumber') as string)
+            : formatText(row.getValue('challanNumber'), {
+                case: fieldConfig?.case || 'sentencecase',
+                trimWhitespace: fieldConfig?.trimWhitespace || false,
+              });
+        return (
+          <span className="im-td-id" title={v}>
+            {v}
+          </span>
+        );
       },
     },
     {
@@ -169,13 +264,18 @@ export const getBoeColumns = ({
       header: 'Ref ID',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'refId');
-        if (fieldConfig?.case === 'none') {
-          return row.getValue('refId');
-        }
-        return formatText(row.getValue('refId'), {
-          case: fieldConfig?.case || 'sentencecase',
-          trimWhitespace: fieldConfig?.trimWhitespace || false,
-        });
+        const v =
+          fieldConfig?.case === 'none'
+            ? (row.getValue('refId') as string)
+            : formatText(row.getValue('refId'), {
+                case: fieldConfig?.case || 'sentencecase',
+                trimWhitespace: fieldConfig?.trimWhitespace || false,
+              });
+        return (
+          <span className="im-td-id" title={v}>
+            {v}
+          </span>
+        );
       },
     },
     {
@@ -183,54 +283,41 @@ export const getBoeColumns = ({
       header: 'Transaction ID',
       cell: ({ row }) => {
         const fieldConfig = getFieldConfig('boe', 'transactionId');
-        if (fieldConfig?.case === 'none') {
-          return row.getValue('transactionId');
-        }
-        return formatText(row.getValue('transactionId'), {
-          case: fieldConfig?.case || 'sentencecase',
-          trimWhitespace: fieldConfig?.trimWhitespace || false,
-        });
+        const v =
+          fieldConfig?.case === 'none'
+            ? (row.getValue('transactionId') as string)
+            : formatText(row.getValue('transactionId'), {
+                case: fieldConfig?.case || 'sentencecase',
+                trimWhitespace: fieldConfig?.trimWhitespace || false,
+              });
+        return (
+          <span className="im-td-id" title={v}>
+            {v}
+          </span>
+        );
       },
     },
     {
       id: 'actions',
-      cell: ({ row }) => {
-        const boe = row.original;
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-8 w-8 p-0">
-                <span className="sr-only">Open menu</span>
-                <MoreHorizontal className="h-4 w-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Actions</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onView(boe)}>
-                View
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onEdit(boe)}>
-                Edit
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onDelete(boe)}>
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
+      size: 100,
+      meta: { tdClass: 'im-td--actions' },
+      cell: ({ row }) => (
+        <BoeRowActions
+          boe={row.original}
+          onView={onView}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
+      ),
     },
   ];
 
-  // Filter columns based on visibility settings and sort by order
   const boeFields = settings?.modules?.boe?.fields || {};
   const visibleColumns = allColumns.filter(column => {
-    // Always show actions column
-    if (column.id === 'actions') {
+    if (column.id === 'actions' || column.id === 'boeUiStatus') {
       return true;
     }
 
-    // Check if the column has an accessorKey and if it's visible in settings
     if (
       'accessorKey' in column &&
       column.accessorKey &&
@@ -240,25 +327,27 @@ export const getBoeColumns = ({
       return fieldSettings?.visible !== false;
     }
 
-    // If no accessorKey, show the column (fallback)
     return true;
   });
 
-  // Sort columns by their order property
   const sortedColumns = visibleColumns.sort((a, b) => {
-    // Actions column should always be last
     if (a.id === 'actions') return 1;
     if (b.id === 'actions') return -1;
+    if (a.id === 'boeUiStatus' && b.id === 'actions') return -1;
+    if (b.id === 'boeUiStatus' && a.id === 'actions') return 1;
 
-    // Get order values from settings
     const aOrder =
       'accessorKey' in a && a.accessorKey && typeof a.accessorKey === 'string'
         ? boeFields[a.accessorKey]?.order || 999
-        : 999;
+        : a.id === 'boeUiStatus'
+          ? 850
+          : 999;
     const bOrder =
       'accessorKey' in b && b.accessorKey && typeof b.accessorKey === 'string'
         ? boeFields[b.accessorKey]?.order || 999
-        : 999;
+        : b.id === 'boeUiStatus'
+          ? 850
+          : 999;
 
     return aOrder - bOrder;
   });
