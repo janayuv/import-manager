@@ -19,7 +19,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
-    load('ui-prefs.json', { autoSave: true })
+    load('ui-prefs.json', { autoSave: true, defaults: {} })
       .then(store => {
         Promise.all([
           store.get<DesignTheme>('theme'),
@@ -58,7 +58,10 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const persist = async (key: string, value: string) => {
     try {
-      const store = await load('ui-prefs.json', { autoSave: true });
+      const store = await load('ui-prefs.json', {
+        autoSave: true,
+        defaults: {},
+      });
       await store.set(key, value);
     } catch {
       // Graceful degradation: preference lost on restart, theme still applied
