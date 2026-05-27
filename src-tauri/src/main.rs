@@ -77,6 +77,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Native file + message/confirm dialogs (JS: @tauri-apps/plugin-dialog via src/lib/tauri-bridge.ts).
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             log::info!(
                 target: "import_manager",

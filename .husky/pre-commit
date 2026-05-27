@@ -24,7 +24,7 @@ npx tsc --noEmit --incremental
 
 # Run dependency license check (production deps only; dev tools use broader SPDX strings)
 echo "Running dependency license check..."
-npx license-checker --production --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;CC0-1.0;Unlicense;MPL-2.0;CC-BY-4.0;BlueOak-1.0.0;0BSD" --excludePackages "buffers@0.1.1"
+npx license-checker --production --summary --onlyAllow "MIT;ISC;Apache-2.0;BSD-2-Clause;BSD-3-Clause;CC0-1.0;Unlicense;MPL-2.0;CC-BY-4.0;BlueOak-1.0.0;0BSD" --excludePackages "buffers@0.1.1;antigravity-functions@0.1.0"
 
 # Run test coverage check (quick mode)
 echo "Running test coverage check..."

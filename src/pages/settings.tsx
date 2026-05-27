@@ -3,6 +3,7 @@
 
 import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { toast } from 'sonner';
+import { useThemeDesign } from '@/components/ThemeProvider';
 
 import * as React from 'react';
 
@@ -34,6 +35,7 @@ import { useSettings } from '@/lib/use-settings';
 
 export default function SettingsPage() {
   const userId = useCurrentUserId();
+  const { theme, mode, setTheme, setMode } = useThemeDesign();
   const {
     settings,
     updateSettings,
@@ -145,6 +147,251 @@ export default function SettingsPage() {
         className="im-settings-body"
         style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
       >
+        {/* Appearance */}
+        <section aria-labelledby="appearance-heading" className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label" id="appearance-heading">
+              // Appearance
+            </span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 16 }}
+          >
+            <div style={{ display: 'flex', gap: 12 }}>
+              {/* Default theme card */}
+              <button
+                onClick={() => setTheme('default')}
+                aria-pressed={theme === 'default'}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  padding: '12px 16px',
+                  border:
+                    theme === 'default'
+                      ? '2px solid var(--primary)'
+                      : '2px solid var(--border)',
+                  borderRadius: 6,
+                  background: 'var(--card)',
+                  cursor: 'pointer',
+                  minWidth: 160,
+                  textAlign: 'left',
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--foreground)',
+                    fontFamily: 'var(--font-im-mono)',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  shadcn Default
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#ffffff',
+                      border: '1px solid #e2e8f0',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#f1f5f9',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#e2e8f0',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#7c3aed',
+                      display: 'inline-block',
+                    }}
+                  />
+                </div>
+                {theme === 'default' && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 8,
+                      fontSize: 11,
+                      color: 'var(--primary)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+              </button>
+
+              {/* Steel theme card */}
+              <button
+                onClick={() => setTheme('steel')}
+                aria-pressed={theme === 'steel'}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                  padding: '12px 16px',
+                  border:
+                    theme === 'steel'
+                      ? '2px solid #2563eb'
+                      : '2px solid var(--border)',
+                  borderRadius: 6,
+                  background: 'var(--card)',
+                  cursor: 'pointer',
+                  minWidth: 160,
+                  textAlign: 'left',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 6,
+                    right: theme === 'steel' ? 28 : 8,
+                    fontSize: 9,
+                    fontWeight: 700,
+                    background: '#2563eb',
+                    color: '#fff',
+                    borderRadius: 3,
+                    padding: '1px 5px',
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                  }}
+                >
+                  New
+                </span>
+                {theme === 'steel' && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: 6,
+                      right: 8,
+                      fontSize: 11,
+                      color: '#2563eb',
+                      fontWeight: 700,
+                    }}
+                  >
+                    ✓
+                  </span>
+                )}
+                <span
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--foreground)',
+                    fontFamily: 'var(--font-im-mono)',
+                    letterSpacing: '0.04em',
+                  }}
+                >
+                  IM Steel
+                </span>
+                <div style={{ display: 'flex', gap: 4 }}>
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#ffffff',
+                      border: '1px solid #e3e8ef',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#fafbfc',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#e3e8ef',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#2563eb',
+                      display: 'inline-block',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: 3,
+                      background: '#1e40af',
+                      display: 'inline-block',
+                    }}
+                  />
+                </div>
+              </button>
+            </div>
+
+            {/* Mode segmented control */}
+            <div
+              role="group"
+              aria-label="Color mode"
+              style={{ display: 'flex', gap: 4 }}
+            >
+              {(['light', 'dark', 'system'] as const).map(m => (
+                <button
+                  key={m}
+                  className={`im-btn${mode === m ? 'im-btn--primary' : ''}`}
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  style={{ minWidth: 72, fontSize: 12 }}
+                >
+                  {m.charAt(0).toUpperCase() + m.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            <button
+              className="im-btn"
+              style={{ alignSelf: 'flex-start', fontSize: 12 }}
+              onClick={() => {
+                setTheme('default');
+                setMode('system');
+              }}
+            >
+              Reset to default
+            </button>
+          </div>
+        </section>
+
         {/* Module Selection */}
         <div className="im-section">
           <div className="im-section__header">

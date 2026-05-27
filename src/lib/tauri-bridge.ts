@@ -44,6 +44,7 @@ const isPlaywrightBrowser =
  * When true, use `@tauri-apps/plugin-dialog` open/save and disk read/write.
  */
 export const useNativeFileDialogs = isTauri && !isPlaywrightBrowser;
+export const isTauriShell = useNativeFileDialogs;
 
 /** Sync browser confirm; never throws (WebView / policy edge cases). */
 function browserConfirm(message: string): boolean {

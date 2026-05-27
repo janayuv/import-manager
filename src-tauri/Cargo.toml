@@ -35,10 +35,12 @@ refinery = { version = "0.8", features = ["rusqlite"] }
 
 # Keep major.minor aligned with npm `@tauri-apps/api` / CLI (see package.json).
 tauri = { version = "2.11.1", features = ["protocol-asset"] }
+tauri-plugin-store = "2"
 tauri-plugin-log = "2.8"
 # Keep in sync with npm `@tauri-apps/plugin-dialog` major.minor (see package.json).
 tauri-plugin-dialog = "2.7"
 tauri-plugin-fs = "2.5"
+tauri-plugin-updater = "2"
 chrono = { version = "0.4.41", features = ["serde"] }
 chrono-tz = "0.10"
 uuid = { version = "1.17.0", features = ["v4", "serde"] }

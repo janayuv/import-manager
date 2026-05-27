@@ -5,8 +5,12 @@ import ReactDOM from 'react-dom/client';
 
 import { appQueryClient } from './lib/query-client';
 import { applyCustomAccentFromLocalStorage } from './lib/theme-hydration';
+import { ThemeProvider } from './components/ThemeProvider';
 import App from './App.tsx';
 import './index.css';
+import { testAntigravity } from 'antigravity-functions';
+
+console.log('Import-Manager Test:', testAntigravity());
 
 applyCustomAccentFromLocalStorage();
 
@@ -16,9 +20,11 @@ async function bootstrap() {
   }
   ReactDOM.createRoot(document.getElementById('root')!).render(
     <React.StrictMode>
-      <QueryClientProvider client={appQueryClient}>
-        <App />
-      </QueryClientProvider>
+      <ThemeProvider>
+        <QueryClientProvider client={appQueryClient}>
+          <App />
+        </QueryClientProvider>
+      </ThemeProvider>
     </React.StrictMode>
   );
 }

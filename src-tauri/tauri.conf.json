@@ -43,7 +43,8 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["msi", "nsis"],
+    "createUpdaterArtifacts": true,
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -59,13 +60,13 @@
     ]
   },
   "plugins": {
+    "store": {},
     "dialog": null,
     "fs": null,
     "updater": {
-      "active": true,
-      "pubkey": "${TAURI_SIGNING_PUBLIC_KEY}",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDhGQjUwNzRCNjdGM0VDMDEKUldRQjdQTm5Td2UxajRLNXVVd1preDZveEdubDlXQ1FJbWhiQTE3WmdWM3V0KzFQancxWGNBamgK",
       "endpoints": [
-        "https://github.com/janayuv/import-manager/releases/latest/download/{{target}}/{{current_version}}"
+        "https://github.com/janayuv/import-manager/releases/latest/download/latest.json"
       ]
     }
   }

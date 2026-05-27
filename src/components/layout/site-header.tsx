@@ -4,6 +4,7 @@ import {
   Moon,
   Palette,
   Plus,
+  RefreshCw,
   SidebarIcon,
   Sun,
 } from 'lucide-react';
@@ -33,6 +34,9 @@ import {
   useNativeFileDialogs,
 } from '@/lib/tauri-bridge';
 import { useUser } from '@/lib/user-context';
+import { useUpdater } from '@/hooks/useUpdater';
+import { isTauriShell } from '@/lib/tauri-bridge';
+import { cn } from '@/lib/utils';
 
 export function SiteHeader({
   onToggleSidebar,
@@ -47,6 +51,10 @@ export function SiteHeader({
   const [aboutOpen, setAboutOpen] = useState(false);
   const [exportingDiagnostics, setExportingDiagnostics] = useState(false);
   const { user } = useUser();
+  const { state: updaterState, checkForUpdates } = useUpdater();
+  const isUpdating =
+    updaterState.phase === 'checking' || updaterState.phase === 'downloading';
+  const hasUpdate = updaterState.phase === 'available';
 
   useEffect(() => {
     if (!import.meta.env.DEV) return;
@@ -244,6 +252,27 @@ export function SiteHeader({
               <DropdownMenuItem onSelect={() => setAboutOpen(true)}>
                 About Import Manager
               </DropdownMenuItem>
+              {isTauriShell && (
+                <DropdownMenuItem
+                  onSelect={() => void checkForUpdates()}
+                  disabled={isUpdating || updaterState.phase === 'done'}
+                >
+                  <RefreshCw
+                    className={cn(
+                      'mr-2 h-4 w-4',
+                      isUpdating && 'animate-spin',
+                      hasUpdate && 'text-primary'
+                    )}
+                  />
+                  {updaterState.phase === 'downloading'
+                    ? 'Downloading...'
+                    : isUpdating
+                      ? 'Checking...'
+                      : hasUpdate
+                        ? 'Update available'
+                        : 'Check for updates'}
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
