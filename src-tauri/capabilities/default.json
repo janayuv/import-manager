@@ -21,6 +21,10 @@
     {
       "identifier": "fs:allow-write-text-file",
       "allow": [{ "path": "**" }]
-    }
+    },
+    "updater:default",
+    "updater:allow-check",
+    "updater:allow-download",
+    "updater:allow-install"
   ]
 }
