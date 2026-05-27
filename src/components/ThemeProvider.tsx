@@ -14,7 +14,7 @@ interface ThemeContextValue {
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<DesignTheme>('default');
+  const [theme, setThemeState] = useState<DesignTheme>('steel');
   const [mode, setModeState] = useState<ColorMode>('system');
   const [ready, setReady] = useState(false);
 
