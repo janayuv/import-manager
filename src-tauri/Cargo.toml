@@ -52,7 +52,7 @@ futures-util = "0.3"
 tokio = { version = "1", features = ["time"] }
 urlencoding = "2.1"
 open = "5"
-cron = "0.12"
+cron = "0.16"
 sha2 = "0.10"
 fs4 = "0.8"
 aes-gcm = "0.10"
