@@ -8,10 +8,6 @@ import { applyCustomAccentFromLocalStorage } from './lib/theme-hydration';
 import { ThemeProvider } from './components/ThemeProvider';
 import App from './App.tsx';
 import './index.css';
-import { testAntigravity } from 'antigravity-functions';
-
-console.log('Import-Manager Test:', testAntigravity());
-
 applyCustomAccentFromLocalStorage();
 
 async function bootstrap() {
