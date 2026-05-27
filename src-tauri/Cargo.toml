@@ -75,4 +75,4 @@ tempfile = "3"
 custom-protocol = ["tauri/custom-protocol"]
 
 [dev-dependencies]
-rust_xlsxwriter = "0.66.0"
+rust_xlsxwriter = "0.95.0"
