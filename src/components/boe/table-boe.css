@@ -25,6 +25,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
   gap: 4px;
 }
 .im-boe-metric__label {
@@ -34,13 +35,14 @@
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--im-faint);
+  text-align: center;
 }
 .im-boe-metric__value {
   font-family: 'Consolas', 'Courier New', monospace;
   font-size: 14px;
   font-weight: 600;
   color: var(--im-text);
-  text-align: right;
+  text-align: center;
 }
 .im-boe-metric--accent .im-boe-metric__value {
   color: var(--im-accent);
