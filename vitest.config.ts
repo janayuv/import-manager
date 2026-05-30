@@ -32,6 +32,16 @@ export default defineConfig({
         '**/*.config.*',
         '**/types/**',
       ],
+      // Global floor — enforces no regression. Raise each phase as tests are added.
+      // Current baseline (Phase 1): ~37% lines / ~32% branches / ~31% functions
+      // Phase 2 target: 45 / 38 / 40 / 45
+      // v1.0 target:    60 / 50 / 55 / 60
+      thresholds: {
+        lines: 30,
+        functions: 25,
+        branches: 25,
+        statements: 30,
+      },
     },
   },
 });

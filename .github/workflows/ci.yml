@@ -132,7 +132,7 @@ jobs:
           files: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
-          fail_ci_if_error: false
+          fail_ci_if_error: true
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw
