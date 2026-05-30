@@ -41,7 +41,7 @@ import { WorkflowHealthPanel } from '@/components/dashboard/WorkflowHealthPanel'
 import { WorkflowAlertSignalsPanel } from '@/components/dashboard/WorkflowAlertSignalsPanel';
 import { WorkflowObservabilityAdminCard } from '@/components/dashboard/WorkflowObservabilityAdminCard';
 import { getExceptionNavigationTarget } from '@/lib/exception-navigation';
-import { AppBar, KpiTile } from '@/components/shared/im';
+import { AppBar, KpiTile, PageHeader } from '@/components/shared/im';
 import { formatDateForDisplay } from '@/lib/date-format';
 import { ipcErrorMessage } from '@/lib/ipc-error';
 import { useUser, useHasPermission } from '@/lib/user-context';
@@ -790,6 +790,7 @@ const DashboardPage = () => {
     return (
       <div data-testid="dashboard-page" className="im-page">
         <AppBar crumbs={['Import Manager', 'Dashboard']} />
+        <PageHeader title="DASHBOARD" subtitle="Operational overview" />
         <div className="im-dashboard-body">
           <LoadingSkeleton />
         </div>
@@ -802,76 +803,40 @@ const DashboardPage = () => {
   return (
     <div data-testid="dashboard-page" className="im-page">
       <AppBar crumbs={['Import Manager', 'Dashboard']} />
-      <div
-        style={{
-          padding: '16px 24px 14px',
-          borderBottom: '1px solid var(--color-im-rule)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 16,
-          flexWrap: 'wrap',
-        }}
-      >
-        <div style={{ minWidth: 0, flex: 1 }}>
-          <h1
-            style={{
-              margin: 0,
-              fontSize: 18,
-              fontWeight: 700,
-              color: 'var(--color-im-text)',
-            }}
-          >
-            Dashboard
-          </h1>
-          <p
-            style={{
-              margin: '3px 0 0',
-              fontSize: 11.5,
-              color: 'var(--color-im-faint)',
-            }}
-          >
-            Operational overview
-            {freshness ? ` · ${freshness}` : ''} — aggregates match filtered
-            scope; duty totals align with the consolidated report view.
-          </p>
-        </div>
-        <div
-          style={{
-            marginLeft: 'auto',
-            display: 'flex',
-            gap: 8,
-            flexWrap: 'wrap',
-            alignItems: 'center',
-          }}
-        >
-          <div className="im-select-wrap" style={{ width: 220 }}>
-            <select
-              className="im-select"
-              value={moduleFilter}
-              onChange={e => setModuleFilter(e.target.value as ModuleFilter)}
+      <PageHeader
+        title="DASHBOARD"
+        subtitle={`Operational overview${freshness ? ` · ${freshness}` : ''}`}
+        actions={
+          <>
+            <div className="im-select-wrap" style={{ width: 220 }}>
+              <select
+                className="im-select"
+                value={moduleFilter}
+                onChange={e => setModuleFilter(e.target.value as ModuleFilter)}
+              >
+                <option value="all">Include all modules</option>
+                <option value="shipment-invoice">Shipment &amp; Invoice</option>
+                <option value="items">Items</option>
+                <option value="expenses">Expenses</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              className="im-btn im-btn--sm"
+              onClick={handleExportCsv}
             >
-              <option value="all">Include all modules</option>
-              <option value="shipment-invoice">Shipment &amp; Invoice</option>
-              <option value="items">Items</option>
-              <option value="expenses">Expenses</option>
-            </select>
-          </div>
-          <button
-            type="button"
-            className="im-btn im-btn--sm"
-            onClick={handleExportCsv}
-          >
-            Export CSV
-          </button>
-          <button
-            type="button"
-            className="im-btn im-btn--sm"
-            onClick={handleRefresh}
-          >
-            ↺ Refresh
-          </button>
-        </div>
-      </div>
+              Export CSV
+            </button>
+            <button
+              type="button"
+              className="im-btn im-btn--sm"
+              onClick={handleRefresh}
+            >
+              ↺ Refresh
+            </button>
+          </>
+        }
+      />
 
       <div
         className="im-dashboard-body"

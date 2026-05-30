@@ -4,7 +4,25 @@ import { toast } from 'sonner';
 import { useEffect, useState } from 'react';
 
 import { AppBar, PageHeader } from '@/components/shared/im';
+import { ipcErrorMessage } from '@/lib/ipc-error';
 import type { Shipment } from '@/types/shipment';
+
+function shipmentStatusPill(status: string): React.ReactNode {
+  const s = (status ?? '').toUpperCase();
+  const cls =
+    s === 'DOCS RCVD'
+      ? 'im-status-pill im-status-pill--teal'
+      : s === 'IN TRANSIT'
+        ? 'im-status-pill im-status-pill--blue'
+        : s === 'CUSTOMS'
+          ? 'im-status-pill im-status-pill--purple'
+          : s === 'READY'
+            ? 'im-status-pill im-status-pill--amber'
+            : s === 'DELIVERED'
+              ? 'im-status-pill im-status-pill--green'
+              : 'im-status-pill im-status-pill--gray';
+  return <span className={cls}>{s || '—'}</span>;
+}
 
 const FrozenShipmentsPage = () => {
   const [shipments, setShipments] = useState<Shipment[]>([]);
@@ -16,8 +34,7 @@ const FrozenShipmentsPage = () => {
       const all: Shipment[] = await invoke('get_shipments');
       setShipments(all.filter(s => s.isFrozen));
     } catch (e) {
-      console.error(e);
-      toast.error('Failed to load frozen shipments');
+      toast.error(ipcErrorMessage(e, 'Failed to load frozen shipments'));
     } finally {
       setLoading(false);
     }
@@ -33,8 +50,7 @@ const FrozenShipmentsPage = () => {
       toast.success('Shipment unfrozen');
       await refresh();
     } catch (e) {
-      console.error(e);
-      toast.error('Failed to unfreeze');
+      toast.error(ipcErrorMessage(e, 'Failed to unfreeze shipment'));
     }
   };
 
@@ -77,7 +93,9 @@ const FrozenShipmentsPage = () => {
                           className={`im-tr${idx % 2 === 1 ? 'is-alt' : ''}`}
                         >
                           <td className="im-td">{s.invoiceNumber}</td>
-                          <td className="im-td">{s.status}</td>
+                          <td className="im-td">
+                            {shipmentStatusPill(s.status ?? '')}
+                          </td>
                           <td className="im-td">
                             <button
                               type="button"
