@@ -5,6 +5,7 @@ use crate::db::{
     DbState, Expense, ExpenseAttachment, ExpenseInvoice, ExpenseType, ExpenseWithInvoice,
     ServiceProvider,
 };
+use crate::desktop_session::{require_session_user_id, DesktopSessionState};
 use rusqlite::params;
 use tauri::Manager;
 use tauri::State;
@@ -1114,7 +1115,9 @@ fn update_invoice_total(conn: &rusqlite::Connection, invoice_id: &str) -> Result
 pub fn add_expense_invoice_with_expenses(
     payload: ExpenseInvoiceWithExpensesPayload,
     state: State<'_, DbState>,
+    session: State<'_, DesktopSessionState>,
 ) -> Result<ExpenseInvoice, String> {
+    let created_by = require_session_user_id(&session)?;
     let mut conn = state.db.lock().unwrap();
 
     // First, check if an expense invoice with the same service provider and invoice number already exists
@@ -1199,7 +1202,7 @@ pub fn add_expense_invoice_with_expenses(
                 &expense_payload.igst_rate.unwrap_or(0.0),
                 &expense_payload.tds_rate.unwrap_or(0.0),
                 &expense_payload.remarks,
-                Option::<String>::None, // created_by
+                &created_by,
             ],
         ).map_err(|e| e.to_string())?;
     }
@@ -1241,7 +1244,8 @@ pub fn add_expense_invoice_with_expenses(
 // --- NEW: Add individual expense to existing invoice
 #[tauri::command]
 #[allow(dead_code)] // This is called from the frontend
-pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result<Expense, String> {
+pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>, session: State<'_, DesktopSessionState>) -> Result<Expense, String> {
+    let created_by = require_session_user_id(&session)?;
     let conn = state.db.lock().unwrap();
 
     let new_id = generate_id(Some("EXP".to_string()));
@@ -1278,7 +1282,7 @@ pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>) -> Result
             &payload.igst_rate.unwrap_or(0.0),
             &payload.tds_rate.unwrap_or(0.0),
             &payload.remarks,
-            Option::<String>::None, // created_by
+            &created_by,
         ],
     ).map_err(|e| e.to_string())?;
 
@@ -1952,4 +1956,21 @@ pub fn get_shipment_ids_with_expense_lines(state: State<DbState>) -> Result<Vec<
         .map_err(|e| e.to_string())?;
     rows.collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())
+}
+
+#[cfg(test)]
+mod command_session_tests {
+    use crate::desktop_session::{require_session_user_id, DesktopSessionState};
+
+    #[test]
+    fn mutating_expense_commands_require_session_user() {
+        let session = DesktopSessionState::default();
+        assert!(require_session_user_id(&session).is_err());
+
+        session.inject_test_session("cmd-layer-user");
+        assert_eq!(
+            require_session_user_id(&session).unwrap(),
+            "cmd-layer-user"
+        );
+    }
 }

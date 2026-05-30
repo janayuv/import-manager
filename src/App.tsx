@@ -74,6 +74,7 @@ const SecurityCenterPage = lazy(() => import('@/pages/admin/security-center'));
 const RolesPermissionsPage = lazy(
   () => import('@/pages/admin/roles-permissions')
 );
+const NotificationsPage = lazy(() => import('@/pages/notifications'));
 
 function RouteLoadingSpinner() {
   return (
@@ -330,8 +331,8 @@ function App() {
                             />
                             <Route path="/report" element={<ReportsPage />} />
                             <Route
-                              path="/frozen-shipments"
-                              element={<FrozenShipmentsPage />}
+                              path="/notifications"
+                              element={<NotificationsPage />}
                             />
                             <Route
                               path="/account"

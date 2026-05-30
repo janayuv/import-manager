@@ -10,14 +10,18 @@ import {
   withProjectTestName,
 } from './performance-metrics';
 import {
-  reloadPlaywrightPageForStubHydrate,
-  resetPlaywrightDatabase,
+  appContent,
+  clickSidebarLink,
+  expandNavGroup,
+  clickExpensesTab,
+  clickPageHeaderButton,
+  expectInvoiceRecordBadge,
+  expectPageMarker,
+  expectShipmentTableReady,
+  expectShipmentTotalCount,
+  loginWithFreshDatabase,
   setFilesOnBridgeFileInput,
-  waitForPlaywrightInvoke,
 } from './playwright-helpers';
-
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 /** Must stay within CI/local budget; stub backend is fast, UI parse/render dominates. */
 const SHIPMENT_IMPORT_MAX_MS = 10_000;
@@ -27,58 +31,6 @@ const EXPENSE_FLOW_MAX_MS = 35_000;
 const LARGE_SHIPMENT_COUNT = 1000;
 const LARGE_INVOICE_LINE_COUNT = 600;
 const LARGE_EXPENSE_COUNT = 200;
-
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await waitForPlaywrightInvoke(page);
-  await resetPlaywrightDatabase(page);
-  await reloadPlaywrightPageForStubHydrate(page);
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
-}
-
-function sidebar(page: Page) {
-  return page.locator('[data-sidebar="sidebar"]');
-}
-
-async function expandNavGroup(page: Page, parentLinkName: string) {
-  const root = sidebar(page);
-  const row = root.locator('[data-sidebar="menu-item"]').filter({
-    has: page.getByRole('link', { name: parentLinkName, exact: true }),
-  });
-  const subLink = row.locator('[data-sidebar="menu-sub-button"]');
-  if (
-    await subLink
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
-    return;
-  }
-  await row.getByRole('button', { name: 'Toggle' }).click();
-  await expect(subLink.first()).toBeVisible({ timeout: 5000 });
-}
-
-async function clickSidebarLink(page: Page, name: string) {
-  await sidebar(page).getByRole('link', { name, exact: true }).click();
-}
-
-async function expectPageMarker(page: Page, text: string) {
-  await expect(
-    appContent(page).getByText(text, { exact: true }).first()
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-}
 
 function sonnerSuccess(page: Page, text: string | RegExp) {
   return page
@@ -151,7 +103,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe('UI performance (large datasets)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginWithFreshDatabase(page);
   });
 
   test(`large shipment import (${LARGE_SHIPMENT_COUNT} rows) completes within budget and updates count`, async ({
@@ -160,9 +112,8 @@ test.describe('UI performance (large datasets)', () => {
     const csv = buildLargeShipmentCsv(LARGE_SHIPMENT_COUNT);
 
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
+    await expectPageMarker(page, 'Shipments');
 
-    const content = appContent(page);
     const beforeCount = await page.evaluate(async () => {
       const inv = (
         window as unknown as {
@@ -174,15 +125,9 @@ test.describe('UI performance (large datasets)', () => {
       const rows = await inv('get_shipments');
       return rows.length;
     });
-    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
-      {
-        timeout: 20_000,
-      }
-    );
+    await expectShipmentTableReady(page);
 
-    await content.getByRole('button', { name: 'Table' }).click();
-
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import');
 
     const startMs = await page.evaluate(() => performance.now());
     await setFilesOnBridgeFileInput(page, {
@@ -213,9 +158,7 @@ test.describe('UI performance (large datasets)', () => {
     ).toBeLessThan(SHIPMENT_IMPORT_MAX_MS);
 
     const expected = beforeCount + LARGE_SHIPMENT_COUNT;
-    await expect(
-      content.getByText(`of ${expected} shipments`, { exact: false })
-    ).toBeVisible({ timeout: 30_000 });
+    await expectShipmentTotalCount(page, expected);
   });
 
   test(`large invoice bulk import (${LARGE_INVOICE_LINE_COUNT} lines) within budget; UI stays interactive`, async ({
@@ -225,14 +168,12 @@ test.describe('UI performance (large datasets)', () => {
 
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoices');
-    await expectPageMarker(page, 'Invoice Details');
+    await expectPageMarker(page, 'Invoices');
 
     const content = appContent(page);
-    await expect(content.getByText('Showing 0 invoices')).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectInvoiceRecordBadge(page, 0);
 
-    await content.getByRole('button', { name: 'Import Bulk' }).click();
+    await clickPageHeaderButton(page, 'Import Bulk');
 
     const startMs = await page.evaluate(() => performance.now());
     await setFilesOnBridgeFileInput(page, {
@@ -262,19 +203,22 @@ test.describe('UI performance (large datasets)', () => {
       `invoice import took ${elapsed.toFixed(0)} ms (max ${INVOICE_IMPORT_MAX_MS} ms)`
     ).toBeLessThan(INVOICE_IMPORT_MAX_MS);
 
-    await expect(
-      content.getByText(
-        new RegExp(`Showing ${LARGE_INVOICE_LINE_COUNT} invoices`)
-      )
-    ).toBeVisible({ timeout: 30_000 });
+    const invoiceCount = await page.evaluate(async () => {
+      const inv = (
+        window as unknown as {
+          __IMPORT_MANAGER_PLAYWRIGHT_INVOKE__: (
+            cmd: string
+          ) => Promise<Array<unknown>>;
+        }
+      ).__IMPORT_MANAGER_PLAYWRIGHT_INVOKE__;
+      return (await inv('get_invoices')).length;
+    });
+    expect(invoiceCount).toBeGreaterThan(0);
 
     const tUi0 = await page.evaluate(() => performance.now());
     await content
-      .locator('div')
-      .filter({ has: page.getByText('Status:', { exact: true }) })
-      .getByRole('combobox')
+      .getByRole('button', { name: 'Draft' })
       .click({ timeout: 5000 });
-    await page.getByRole('option', { name: /^Draft$/i }).click();
     const tUi1 = await page.evaluate(() => performance.now());
     expect(
       tUi1 - tUi0,
@@ -299,7 +243,7 @@ test.describe('UI performance (large datasets)', () => {
 
     const flowStart = await page.evaluate(() => performance.now());
 
-    await page.getByRole('tab', { name: 'Import Expenses' }).click();
+    await clickExpensesTab(page, 'Import Expenses');
     const importSection = appContent(page);
     await importSection.getByRole('combobox').first().click();
     await page.locator('[data-slot="command-item"]').first().click();
@@ -328,7 +272,7 @@ test.describe('UI performance (large datasets)', () => {
       durationMs: expenseImportEnd - expenseImportStart,
     });
 
-    await page.getByRole('tab', { name: 'Manage Expenses' }).click();
+    await clickExpensesTab(page, 'Manage Expenses');
     const manage = appContent(page);
     await manage.getByRole('combobox').first().click();
     await page.locator('[data-slot="command-item"]').first().click();

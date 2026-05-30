@@ -1,6 +1,7 @@
 'use client';
 
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { open as openDialog } from '@/lib/tauri-bridge';
 import * as ExcelJS from 'exceljs';
 import { toast } from 'sonner';

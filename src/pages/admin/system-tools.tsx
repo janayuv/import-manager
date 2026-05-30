@@ -8,6 +8,8 @@ import { ipcErrorMessage, parseIpcError } from '@/lib/ipc-error';
 import { rebuildDashboardSnapshots } from '@/lib/ops-admin';
 import { useUser, useHasPermission } from '@/lib/user-context';
 import { AppBar } from '@/components/shared/im';
+import { ExpenseDataManagerAdminPanel } from '@/components/expenses/expense-data-manager-admin';
+import { ExpenseDebugPanel } from '@/components/expenses/expense-debug';
 
 export default function AdminSystemToolsPage() {
   const { user } = useUser();
@@ -65,7 +67,7 @@ export default function AdminSystemToolsPage() {
       <div
         className="im-dashboard-body"
         style={{
-          maxWidth: 768,
+          maxWidth: 960,
           display: 'flex',
           flexDirection: 'column',
           gap: 24,
@@ -98,8 +100,8 @@ export default function AdminSystemToolsPage() {
               color: 'var(--color-im-faint)',
             }}
           >
-            Operational controls for cache recovery. Rebuild runs on the backend
-            and does not block the UI thread.
+            Operational controls for cache recovery and expense diagnostics.
+            Rebuild runs on the backend and does not block the UI thread.
           </p>
         </div>
 
@@ -158,6 +160,26 @@ export default function AdminSystemToolsPage() {
               </button>
               <span className="im-badge is-neutral">Admin only</span>
             </div>
+          </div>
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Expense diagnostics</span>
+          </div>
+          <div className="im-section__body">
+            <ExpenseDebugPanel />
+          </div>
+        </div>
+
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">
+              // Expense data management
+            </span>
+          </div>
+          <div className="im-section__body">
+            <ExpenseDataManagerAdminPanel />
           </div>
         </div>
       </div>

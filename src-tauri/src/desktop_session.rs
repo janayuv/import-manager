@@ -222,6 +222,35 @@ impl DesktopSessionState {
     }
 }
 
+pub(crate) fn require_session_user_id(session: &DesktopSessionState) -> Result<String, String> {
+    session
+        .read_session()
+        .map(|s| s.user_id)
+        .ok_or_else(|| "Not signed in.".to_string())
+}
+
+#[cfg(test)]
+impl DesktopSessionState {
+    pub fn inject_test_session(&self, user_id: &str) {
+        let now = Utc::now();
+        let inner = DesktopSessionInner {
+            user_id: user_id.to_string(),
+            username: "test-user".to_string(),
+            name: "Test User".to_string(),
+            email: "test@importmanager.local".to_string(),
+            role: "administrator".to_string(),
+            expires_at: now + chrono::Duration::hours(8),
+            session_id: Uuid::new_v4().to_string(),
+            last_activity: now,
+            idle_timeout_minutes: 60,
+            session_started_at: now,
+        };
+        if let Ok(mut guard) = self.inner.lock() {
+            *guard = Some(inner);
+        }
+    }
+}
+
 #[tauri::command]
 pub fn get_desktop_auth_setup_status(
     db_state: State<'_, DbState>,
@@ -692,4 +721,21 @@ pub fn clear_desktop_session(
     }
     log::info!(target: "import_manager::auth", "event=desktop_logout");
     Ok(())
+}
+
+#[cfg(test)]
+mod session_tests {
+    use super::*;
+
+    #[test]
+    fn require_session_user_id_returns_active_user() {
+        let session = DesktopSessionState::default();
+        assert!(require_session_user_id(&session).is_err());
+
+        session.inject_test_session("desktop-session-user");
+        assert_eq!(
+            require_session_user_id(&session).unwrap(),
+            "desktop-session-user"
+        );
+    }
 }

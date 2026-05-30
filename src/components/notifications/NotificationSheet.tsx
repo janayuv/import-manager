@@ -1,6 +1,8 @@
 import { X, Bell } from 'lucide-react';
 import { motion } from 'framer-motion';
 
+import { useNavigate } from 'react-router-dom';
+
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -28,6 +30,7 @@ export function NotificationSheet({
   open,
   onOpenChange,
 }: NotificationSheetProps) {
+  const navigate = useNavigate();
   const {
     notifications,
     unreadCount,
@@ -186,8 +189,8 @@ export function NotificationSheet({
               variant="outline"
               className="w-full"
               onClick={() => {
-                // Navigate to full notifications page
                 onOpenChange(false);
+                navigate('/notifications');
               }}
             >
               View all {notifications.length} notifications

@@ -1,5 +1,6 @@
 // src/components/item/form.tsx (MODIFIED - Tax values are now handled as strings)
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { convertFileSrc } from '@tauri-apps/api/core';
+import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { open } from '@/lib/tauri-bridge';
 import { toast } from 'sonner';
 

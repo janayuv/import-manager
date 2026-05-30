@@ -36,7 +36,7 @@ export class ExpensesPage {
   /**
    * Switch to a specific tab
    */
-  async switchToTab(tabName: 'manage' | 'import' | 'debug') {
+  async switchToTab(tabName: 'manage' | 'import') {
     await this.page.click(`[data-testid="tab-${tabName}"]`);
     await this.page.waitForTimeout(500);
   }

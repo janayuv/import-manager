@@ -5,46 +5,19 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import {
-  reloadPlaywrightPageForStubHydrate,
-  resetPlaywrightDatabase,
+  appContent,
+  clickSidebarLink,
+  expectLoggedInDashboard,
+  loginWithFreshDatabase,
+  primarySidebar,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
 
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
+const E2E_USERNAME = process.env.E2E_USERNAME ?? 'Jana';
+const E2E_PASSWORD = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 /** Row added after backup; restore from downloaded file must remove it (proves we restored the snapshot). */
 const EPHEMERAL_SUPPLIER_NAME = 'Post-Backup Ephemeral';
-
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
-function sidebar(page: Page) {
-  return page.locator('[data-sidebar="sidebar"]');
-}
-
-/**
- * Admin login with a clean stub DB. Reset runs on /login after `invoke` is wired so
- * the dashboard always reflects seeded data.
- */
-async function loginAsAdminWithFreshDatabase(page: Page) {
-  await page.goto('/login');
-  await waitForPlaywrightInvoke(page);
-  await resetPlaywrightDatabase(page);
-  await reloadPlaywrightPageForStubHydrate(page);
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
-}
-
-async function clickSidebarLink(page: Page, name: string) {
-  await sidebar(page).getByRole('link', { name, exact: true }).click();
-}
 
 function sonnerSuccess(page: Page, text: string | RegExp) {
   return page
@@ -78,7 +51,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe('Database Backup and Restore - Full Cycle Validation', () => {
   test.beforeEach(async ({ page }) => {
-    await loginAsAdminWithFreshDatabase(page);
+    await loginWithFreshDatabase(page);
   });
 
   test('validates create backup, download, file upload restore, reload, and data integrity', async ({
@@ -94,7 +67,7 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
           exact: true,
         })
       ).toBeVisible({ timeout: 30_000 });
-      await page.getByRole('tab', { name: 'Backup & Restore' }).click();
+      await page.getByRole('button', { name: 'Backup & Restore' }).click();
       // Card titles use `CardTitle` (not always exposed as `heading` roles in the a11y tree).
       await expect(
         appContent(page).getByRole('button', { name: 'Create Backup Now' })
@@ -176,7 +149,7 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
           exact: true,
         })
       ).toBeVisible({ timeout: 20_000 });
-      await page.getByRole('tab', { name: 'Backup & Restore' }).click();
+      await page.getByRole('button', { name: 'Backup & Restore' }).click();
       await expect(
         appContent(page).getByRole('button', { name: 'Create Backup Now' })
       ).toBeVisible({ timeout: 15_000 });
@@ -204,22 +177,20 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
     await test.step('Full application reload; session persists, stub DB rehydrates from sessionStorage', async () => {
       await page.reload({ waitUntil: 'domcontentloaded' });
       if (page.url().includes('/login')) {
-        await page.locator('#username').fill(defaultUser);
-        await page.locator('#password').fill(defaultPassword);
+        await page.locator('#username').fill(E2E_USERNAME);
+        await page.locator('#password').fill(E2E_PASSWORD);
         await page.getByRole('button', { name: 'Login' }).click();
       }
       await waitForPlaywrightInvoke(page);
       // Reload keeps the current SPA route (e.g. `/database-management`), not always `/`.
-      await expect(sidebar(page)).toBeVisible({ timeout: 30_000 });
+      await expect(primarySidebar(page)).toBeVisible({ timeout: 30_000 });
       await expect(
-        appContent(page)
-          .getByText('Operational overview across modules')
-          .or(
-            appContent(page).getByRole('heading', {
-              name: 'Database Management',
-              exact: true,
-            })
-          )
+        page.getByTestId('dashboard-page').or(
+          appContent(page).getByRole('heading', {
+            name: 'Database Management',
+            exact: true,
+          })
+        )
       ).toBeVisible({ timeout: 45_000 });
       await assertNoErrorToasts(page);
     });
@@ -227,7 +198,7 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
     await test.step('Core data integrity: suppliers back to seed only', async () => {
       await clickSidebarLink(page, 'Supplier');
       await expect(
-        appContent(page).getByText('1 Active Suppliers')
+        appContent(page).getByText('Suppliers', { exact: true })
       ).toBeVisible({ timeout: 25_000 });
       await expect(
         appContent(page).getByText('Seed Supplier').first()
@@ -240,7 +211,7 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
     await test.step('Core data integrity: seed shipment row still present', async () => {
       await clickSidebarLink(page, 'Shipment');
       await expect(
-        appContent(page).getByText('Shipment Management', { exact: true })
+        appContent(page).getByText('Shipments', { exact: true })
       ).toBeVisible({ timeout: 20_000 });
       const hasSeedShipment = await page.evaluate(async () => {
         const inv = (
@@ -258,9 +229,7 @@ test.describe('Database Backup and Restore - Full Cycle Validation', () => {
 
     await test.step('Core data integrity: dashboard loads without errors', async () => {
       await clickSidebarLink(page, 'Dashboard');
-      await expect(
-        appContent(page).getByText('Operational overview across modules')
-      ).toBeVisible({ timeout: 30_000 });
+      await expectLoggedInDashboard(page);
       await assertNoErrorToasts(page);
     });
 

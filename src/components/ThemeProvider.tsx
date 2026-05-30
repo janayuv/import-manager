@@ -13,12 +13,16 @@ interface ThemeContextValue {
 
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
+const isPlaywrightStub = import.meta.env.VITE_PLAYWRIGHT === '1';
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setThemeState] = useState<DesignTheme>('steel');
   const [mode, setModeState] = useState<ColorMode>('system');
-  const [ready, setReady] = useState(false);
+  const [ready, setReady] = useState(isPlaywrightStub);
 
   useEffect(() => {
+    if (isPlaywrightStub) return;
+
     load('ui-prefs.json', { autoSave: true, defaults: {} })
       .then(store => {
         Promise.all([
@@ -57,6 +61,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [theme, mode, ready]);
 
   const persist = async (key: string, value: string) => {
+    if (isPlaywrightStub) return;
+
     try {
       const store = await load('ui-prefs.json', {
         autoSave: true,

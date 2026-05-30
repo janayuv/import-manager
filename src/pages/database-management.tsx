@@ -394,10 +394,6 @@ function databaseAuditActionIcon(action: string) {
 }
 
 function DatabaseManagementContent() {
-  useEffect(() => {
-    console.log('[Bulk] Component mounted');
-  }, []);
-
   const userId = useCurrentUserId();
 
   // === Feature Boundary: Overview / Dashboard ownership ===
@@ -546,7 +542,6 @@ function DatabaseManagementContent() {
 
   const handleBrowseTableChange = useCallback(
     (newTable: string) => {
-      console.log('[Bulk] Table changed:', newTable);
       setSelectedTable(newTable);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(LAST_SELECTED_BULK_TABLE_KEY, newTable);
@@ -559,7 +554,6 @@ function DatabaseManagementContent() {
 
   const handleBulkTableChange = useCallback(
     (newTable: string) => {
-      console.log('[Bulk] Table changed:', newTable);
       setSelectedTable(newTable);
       if (typeof window !== 'undefined') {
         window.localStorage.setItem(LAST_SELECTED_BULK_TABLE_KEY, newTable);

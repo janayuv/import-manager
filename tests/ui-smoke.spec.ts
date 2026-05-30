@@ -3,6 +3,12 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+  appContent,
+  clickPageHeaderButton,
+  clickSidebarLink,
+  expandNavGroup,
+  expectPageMarker,
+  expectSupplierRecordBadge,
   loginAsAdmin,
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
@@ -41,50 +47,8 @@ const supplierEdgeUtf8Bom = path.join(
   'test-data/supplier/edge/supplier-edge-utf8-bom.csv'
 );
 
-/** Main outlet from `AppLayout` (excludes sidebar and site chrome strip). */
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
 async function login(page: Page) {
   await loginAsAdmin(page);
-  await expect(page.getByTestId('dashboard-page')).toBeVisible({
-    timeout: 30_000,
-  });
-}
-
-function sidebar(page: Page) {
-  return page.locator('[data-sidebar="sidebar"]');
-}
-
-async function expandNavGroup(page: Page, parentLinkName: string) {
-  const root = sidebar(page);
-  const row = root.locator('[data-sidebar="menu-item"]').filter({
-    has: page.getByRole('link', { name: parentLinkName, exact: true }),
-  });
-  const subLink = row.locator('[data-sidebar="menu-sub-button"]');
-  if (
-    await subLink
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
-    return;
-  }
-  await row.getByRole('button', { name: 'Toggle' }).click();
-  await expect(subLink.first()).toBeVisible({ timeout: 5000 });
-}
-
-async function clickSidebarLink(page: Page, name: string) {
-  await sidebar(page).getByRole('link', { name, exact: true }).click();
-}
-
-async function expectPageMarker(page: Page, text: string) {
-  await expect(
-    appContent(page).getByText(text, { exact: true }).first()
-  ).toBeVisible({
-    timeout: 20_000,
-  });
 }
 
 /** Clears in-memory suppliers from the Playwright `invoke` stub (see `tauri-core-playwright-stub.ts`). */
@@ -104,7 +68,7 @@ async function gotoSupplierPageWithStubReset(page: Page) {
 }
 
 async function pickSupplierCsv(page: Page, csvPath: string) {
-  await appContent(page).getByRole('button', { name: 'Import' }).click();
+  await clickPageHeaderButton(page, 'Import CSV');
   await setFilesOnBridgeFileInput(page, csvPath);
 }
 
@@ -160,11 +124,11 @@ test.describe('UI smoke', () => {
     await expectPageMarker(page, 'Suppliers');
 
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
+    await expectPageMarker(page, 'Shipments');
 
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoices');
-    await expectPageMarker(page, 'Invoice Details');
+    await expectPageMarker(page, 'Invoices');
 
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoice Wizard');
@@ -175,11 +139,11 @@ test.describe('UI smoke', () => {
 
     await expandNavGroup(page, 'BOE');
     await clickSidebarLink(page, 'View All BOE');
-    await expectPageMarker(page, 'Bill of Entry Details');
+    await expectPageMarker(page, 'Bill of Entry');
 
     await expandNavGroup(page, 'BOE');
     await clickSidebarLink(page, 'BOE Entry');
-    await expectPageMarker(page, 'BOE Entry & Calculation');
+    await expectPageMarker(page, 'BOE ENTRY & CALCULATION');
 
     await expandNavGroup(page, 'BOE');
     await clickSidebarLink(page, 'BOE Summary');
@@ -220,7 +184,7 @@ test.describe('UI smoke', () => {
     const template = await templateDownload;
     expect(template.suggestedFilename()).toMatch(/supplier/i);
 
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import CSV');
     await setFilesOnBridgeFileInput(page, supplierFixture);
 
     const toast = page.locator('[data-sonner-toast]');
@@ -250,15 +214,11 @@ test.describe('UI smoke', () => {
 
     await pickSupplierCsv(page, supplierEdgeDuplicateRows);
     await expectSupplierSuccessToast(page);
-    await expect(appContent(page).getByText('2 Active Suppliers')).toBeVisible({
-      timeout: 15_000,
-    });
+    await expectSupplierRecordBadge(page, 2);
 
     await pickSupplierCsv(page, supplierEdgeDuplicateRows);
     await expectSupplierSuccessToast(page);
-    await expect(appContent(page).getByText('4 Active Suppliers')).toBeVisible({
-      timeout: 15_000,
-    });
+    await expectSupplierRecordBadge(page, 4);
   });
 
   test('supplier edge UTF-8 CSV imports preserve names (incl. BOM file)', async ({
@@ -269,9 +229,7 @@ test.describe('UI smoke', () => {
 
     await pickSupplierCsv(page, supplierEdgeUtf8Names);
     await expectSupplierSuccessToast(page);
-    await expect(appContent(page).getByText('2 Active Suppliers')).toBeVisible({
-      timeout: 15_000,
-    });
+    await expectSupplierRecordBadge(page, 2);
     // Default text formatting uses titlecase / sentence rules (see `formatText`).
     await expect(
       appContent(page).getByText(/北京測試供應商 utf-8/i)
@@ -285,9 +243,7 @@ test.describe('UI smoke', () => {
 
     await pickSupplierCsv(page, supplierEdgeUtf8Bom);
     await expectSupplierSuccessToast(page);
-    await expect(appContent(page).getByText('3 Active Suppliers')).toBeVisible({
-      timeout: 15_000,
-    });
+    await expectSupplierRecordBadge(page, 3);
     await expect(
       appContent(page).getByText(/bom\.supplier@example\.com/i)
     ).toBeVisible();

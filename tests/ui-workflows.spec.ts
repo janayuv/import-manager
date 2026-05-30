@@ -3,14 +3,16 @@ import path from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 
 import {
-  reloadPlaywrightPageForStubHydrate,
-  resetPlaywrightDatabase,
+  appContent,
+  clickPageHeaderButton,
+  clickSidebarLink,
+  expandNavGroup,
+  expectInvoiceRecordBadge,
+  expectPageMarker,
+  expectShipmentTableReady,
+  loginWithFreshDatabase,
   setFilesOnBridgeFileInput,
-  waitForPlaywrightInvoke,
 } from './playwright-helpers';
-
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 const shipmentValidCsv = path.join(
   process.cwd(),
@@ -29,58 +31,6 @@ const boeValidCsv = path.join(
   'test-data/boe/valid/boe-valid.csv'
 );
 
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await waitForPlaywrightInvoke(page);
-  await resetPlaywrightDatabase(page);
-  await reloadPlaywrightPageForStubHydrate(page);
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
-}
-
-function sidebar(page: Page) {
-  return page.locator('[data-sidebar="sidebar"]');
-}
-
-async function expandNavGroup(page: Page, parentLinkName: string) {
-  const root = sidebar(page);
-  const row = root.locator('[data-sidebar="menu-item"]').filter({
-    has: page.getByRole('link', { name: parentLinkName, exact: true }),
-  });
-  const subLink = row.locator('[data-sidebar="menu-sub-button"]');
-  if (
-    await subLink
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
-    return;
-  }
-  await row.getByRole('button', { name: 'Toggle' }).click();
-  await expect(subLink.first()).toBeVisible({ timeout: 5000 });
-}
-
-async function clickSidebarLink(page: Page, name: string) {
-  await sidebar(page).getByRole('link', { name, exact: true }).click();
-}
-
-async function expectPageMarker(page: Page, text: string) {
-  await expect(
-    appContent(page).getByText(text, { exact: true }).first()
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-}
-
 function sonnerSuccess(page: Page, text: string | RegExp) {
   return page
     .locator('[data-sonner-toast][data-type="success"]')
@@ -97,14 +47,14 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe('UI workflows', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginWithFreshDatabase(page);
   });
 
   test('shipment: template, import CSV, rows, export CSV + toast', async ({
     page,
   }) => {
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
+    await expectPageMarker(page, 'Shipments');
 
     const content = appContent(page);
     const beforeCount = await page.evaluate(async () => {
@@ -118,18 +68,14 @@ test.describe('UI workflows', () => {
       const rows = await inv('get_shipments');
       return rows.length;
     });
-    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
-      {
-        timeout: 20_000,
-      }
-    );
+    await expectShipmentTableReady(page);
 
     const templateDl = page.waitForEvent('download');
     await content.getByRole('button', { name: 'Template' }).click();
     const template = await templateDl;
     expect(template.suggestedFilename()).toMatch(/shipment|template/i);
 
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import');
     await setFilesOnBridgeFileInput(page, shipmentValidCsv);
 
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
@@ -165,23 +111,18 @@ test.describe('UI workflows', () => {
   }) => {
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoices');
-    await expectPageMarker(page, 'Invoice Details');
+    await expectPageMarker(page, 'Invoices');
 
-    const content = appContent(page);
-    await expect(content.getByText('Showing 0 invoices')).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectInvoiceRecordBadge(page, 0);
 
-    await content.getByRole('button', { name: 'Import Bulk' }).click();
+    await clickPageHeaderButton(page, 'Import Bulk');
     await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
 
     const importToast = sonnerSuccess(page, 'Import Complete');
     await expect(importToast).toBeVisible({ timeout: 20_000 });
     await expect(importToast).toContainText(/invoices imported successfully/i);
 
-    await expect(content.getByText('Showing 2 invoices')).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectInvoiceRecordBadge(page, 2);
   });
 
   test('item master: import then re-import shows duplicate handling', async ({
@@ -214,10 +155,10 @@ test.describe('UI workflows', () => {
   }) => {
     await expandNavGroup(page, 'BOE');
     await clickSidebarLink(page, 'View All BOE');
-    await expectPageMarker(page, 'Bill of Entry Details');
+    await expectPageMarker(page, 'Bill of Entry');
 
     const content = appContent(page);
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import');
     await setFilesOnBridgeFileInput(page, boeValidCsv);
 
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({

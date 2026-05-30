@@ -11,14 +11,18 @@ import {
   withProjectTestName,
 } from './performance-metrics';
 import {
-  reloadPlaywrightPageForStubHydrate,
-  resetPlaywrightDatabase,
+  appContent,
+  clickSidebarLink,
+  expandNavGroup,
+  clickExpensesTab,
+  clickPageHeaderButton,
+  expectInvoiceRecordBadge,
+  expectPageMarker,
+  expectShipmentTableReady,
+  expectShipmentTotalCount,
+  loginWithFreshDatabase,
   setFilesOnBridgeFileInput,
-  waitForPlaywrightInvoke,
 } from './playwright-helpers';
-
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 const shipmentValidCsv = path.join(
   process.cwd(),
@@ -28,58 +32,6 @@ const invoiceBulkValidCsv = path.join(
   process.cwd(),
   'test-data/invoice/valid/invoice-bulk-valid.csv'
 );
-
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await waitForPlaywrightInvoke(page);
-  await resetPlaywrightDatabase(page);
-  await reloadPlaywrightPageForStubHydrate(page);
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
-}
-
-function sidebar(page: Page) {
-  return page.locator('[data-sidebar="sidebar"]');
-}
-
-async function expandNavGroup(page: Page, parentLinkName: string) {
-  const root = sidebar(page);
-  const row = root.locator('[data-sidebar="menu-item"]').filter({
-    has: page.getByRole('link', { name: parentLinkName, exact: true }),
-  });
-  const subLink = row.locator('[data-sidebar="menu-sub-button"]');
-  if (
-    await subLink
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
-    return;
-  }
-  await row.getByRole('button', { name: 'Toggle' }).click();
-  await expect(subLink.first()).toBeVisible({ timeout: 5000 });
-}
-
-async function clickSidebarLink(page: Page, name: string) {
-  await sidebar(page).getByRole('link', { name, exact: true }).click();
-}
-
-async function expectPageMarker(page: Page, text: string) {
-  await expect(
-    appContent(page).getByText(text, { exact: true }).first()
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-}
 
 function sonnerSuccess(page: Page, text: string | RegExp) {
   return page
@@ -145,15 +97,14 @@ test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
 test.describe('UI reliability and stress (repeated operations)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginWithFreshDatabase(page);
   });
 
   test('repeat shipment import stability (5 sequential imports, shipment-valid schema)', async ({
     page,
   }, testInfo) => {
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
-    const content = appContent(page);
+    await expectPageMarker(page, 'Shipments');
     const beforeCount = await page.evaluate(async () => {
       const inv = (
         window as unknown as {
@@ -165,12 +116,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const rows = await inv('get_shipments');
       return rows.length;
     });
-    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
-      {
-        timeout: 20_000,
-      }
-    );
-    await content.getByRole('button', { name: 'Table' }).click();
+    await expectShipmentTableReady(page);
 
     const timings: number[] = [];
 
@@ -181,7 +127,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const buf = Buffer.from(csv, 'utf-8');
 
       const t0 = await page.evaluate(() => performance.now());
-      await content.getByRole('button', { name: 'Import' }).click();
+      await clickPageHeaderButton(page, 'Import');
       await setFilesOnBridgeFileInput(page, {
         name: `reliability-shipment-${i}.csv`,
         mimeType: 'text/csv',
@@ -198,9 +144,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         durationMs: t1 - t0,
       });
       const expected = beforeCount + i;
-      await expect(
-        content.getByText(`Showing ${expected} of ${expected} shipments`)
-      ).toBeVisible({ timeout: 25_000 });
+      await expectShipmentTotalCount(page, expected);
 
       await assertUniqueShipmentIds(page);
       await assertNoErrorOrWarningToasts(page);
@@ -217,17 +161,14 @@ test.describe('UI reliability and stress (repeated operations)', () => {
   }, testInfo) => {
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoices');
-    await expectPageMarker(page, 'Invoice Details');
-    const content = appContent(page);
-    await expect(content.getByText('Showing 0 invoices')).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectPageMarker(page, 'Invoices');
+    await expectInvoiceRecordBadge(page, 0);
 
     const timings: number[] = [];
 
     for (let round = 1; round <= 3; round += 1) {
       const t0 = await page.evaluate(() => performance.now());
-      await content.getByRole('button', { name: 'Import Bulk' }).click();
+      await clickPageHeaderButton(page, 'Import Bulk');
       await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
       await waitForSuccessToastLifecycle(page, 'Import Complete');
       const t1 = await page.evaluate(() => performance.now());
@@ -242,9 +183,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       await assertNoErrorOrWarningToasts(page);
 
       const expectedLines = round * 2;
-      await expect(
-        content.getByText(`Showing ${expectedLines} invoices`)
-      ).toBeVisible({ timeout: 25_000 });
+      await expectInvoiceRecordBadge(page, expectedLines);
     }
 
     await testInfo.attach('reliability-invoice-import-ms.json', {
@@ -257,7 +196,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
     page,
   }, testInfo) => {
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
+    await expectPageMarker(page, 'Shipments');
     const content = appContent(page);
     const beforeCount = await page.evaluate(async () => {
       const inv = (
@@ -270,23 +209,12 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const rows = await inv('get_shipments');
       return rows.length;
     });
-    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
-      {
-        timeout: 20_000,
-      }
-    );
-    await content.getByRole('button', { name: 'Table' }).click();
+    await expectShipmentTableReady(page);
 
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import');
     await setFilesOnBridgeFileInput(page, shipmentValidCsv);
     await waitForSuccessToastLifecycle(page, 'Import Complete');
-    await expect(
-      content.getByText(
-        `Showing ${beforeCount + 1} of ${beforeCount + 1} shipments`
-      )
-    ).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectShipmentTotalCount(page, beforeCount + 1);
 
     const fingerprints: string[] = [];
     const exportMs: number[] = [];
@@ -344,10 +272,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
       const shipCsv = buildShipmentValidStyleRow(invNo, bl);
 
       await clickSidebarLink(page, 'Shipment');
-      await expectPageMarker(page, 'Shipment Management');
-      const shipContent = appContent(page);
-      await shipContent.getByRole('button', { name: 'Table' }).click();
-      await shipContent.getByRole('button', { name: 'Import' }).click();
+      await expectPageMarker(page, 'Shipments');
+      await clickPageHeaderButton(page, 'Import');
       await setFilesOnBridgeFileInput(page, {
         name: `wf-${c}-ship.csv`,
         mimeType: 'text/csv',
@@ -364,9 +290,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
 
       await expandNavGroup(page, 'Invoice');
       await clickSidebarLink(page, 'Invoices');
-      await expectPageMarker(page, 'Invoice Details');
-      const invContent = appContent(page);
-      await invContent.getByRole('button', { name: 'Import Bulk' }).click();
+      await expectPageMarker(page, 'Invoices');
+      await clickPageHeaderButton(page, 'Import Bulk');
       await setFilesOnBridgeFileInput(page, {
         name: `wf-${c}-inv.csv`,
         mimeType: 'text/csv',
@@ -382,9 +307,8 @@ test.describe('UI reliability and stress (repeated operations)', () => {
 
       await expandNavGroup(page, 'BOE');
       await clickSidebarLink(page, 'View All BOE');
-      await expectPageMarker(page, 'Bill of Entry Details');
-      const boeContent = appContent(page);
-      await boeContent.getByRole('button', { name: 'Import' }).click();
+      await expectPageMarker(page, 'Bill of Entry');
+      await clickPageHeaderButton(page, 'Import');
       await setFilesOnBridgeFileInput(page, {
         name: `wf-${c}-boe.csv`,
         mimeType: 'text/csv',
@@ -405,7 +329,7 @@ test.describe('UI reliability and stress (repeated operations)', () => {
         timeout: 20_000,
       });
 
-      await page.getByRole('tab', { name: 'Import Expenses' }).click();
+      await clickExpensesTab(page, 'Import Expenses');
       const importSection = appContent(page);
       await importSection.getByRole('combobox').first().click();
       await page
@@ -439,21 +363,17 @@ test.describe('UI reliability and stress (repeated operations)', () => {
     }
 
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
-    await expect(
-      appContent(page).getByText(/Showing 4 of 4 shipments/)
-    ).toBeVisible({ timeout: 25_000 });
+    await expectPageMarker(page, 'Shipments');
+    await expectShipmentTotalCount(page, 4);
 
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoices');
-    await expectPageMarker(page, 'Invoice Details');
-    await expect(appContent(page).getByText(/Showing 6 invoices/)).toBeVisible({
-      timeout: 25_000,
-    });
+    await expectPageMarker(page, 'Invoices');
+    await expectInvoiceRecordBadge(page, 6);
 
     await expandNavGroup(page, 'BOE');
     await clickSidebarLink(page, 'View All BOE');
-    await expectPageMarker(page, 'Bill of Entry Details');
+    await expectPageMarker(page, 'Bill of Entry');
     const boeMain = appContent(page);
     await expect(boeMain.getByText('BE-WF-CYC1-001')).toBeVisible({
       timeout: 20_000,

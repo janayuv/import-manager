@@ -6,7 +6,6 @@ import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { ModuleErrorBoundary } from '@/components/error-boundary';
 import { ErrorContexts, useErrorHandler } from '@/components/error-boundary';
-import { ExpenseDebug } from '@/components/expenses/expense-debug';
 import ExpenseForm from '@/components/expenses/expense-form';
 import ExpenseImport from '@/components/expenses/expense-import';
 import ExpenseList from '@/components/expenses/expense-list';
@@ -224,13 +223,6 @@ const ExpensesPage = () => {
                 >
                   Import Expenses
                 </button>
-                <button
-                  type="button"
-                  className={`im-tab${activeTab === 'debug' ? 'is-active' : ''}`}
-                  onClick={() => setActiveTab('debug')}
-                >
-                  Debug &amp; Setup
-                </button>
               </div>
 
               <div
@@ -400,8 +392,6 @@ const ExpensesPage = () => {
                     onImportSuccess={handleImportSuccess}
                   />
                 )}
-
-                {activeTab === 'debug' && <ExpenseDebug />}
               </div>
             </>
           )}

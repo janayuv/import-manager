@@ -79,26 +79,6 @@ const fieldLabelStyle: React.CSSProperties = {
   marginBottom: 4,
 };
 
-function StatusPill({ on, label }: { on: boolean; label: string }) {
-  return (
-    <span
-      style={{
-        fontFamily: IM.mono,
-        fontSize: 10,
-        fontWeight: 700,
-        textTransform: 'uppercase',
-        letterSpacing: '0.05em',
-        padding: '1px 6px',
-        background: on ? IM.goodBg : IM.badBg,
-        color: on ? IM.good : IM.bad,
-        border: `1px solid ${on ? IM.goodBdr : IM.badBdr}`,
-      }}
-    >
-      {label}
-    </span>
-  );
-}
-
 function NeutralPill({ label }: { label: string }) {
   return (
     <span
@@ -119,7 +99,7 @@ function NeutralPill({ label }: { label: string }) {
   );
 }
 
-export function ExpenseDebug() {
+export function ExpenseDebugPanel() {
   const notifications = useUnifiedNotifications();
   const [debugInfo, setDebugInfo] = useState<string>('');
   const [loading, setLoading] = useState(false);
@@ -133,9 +113,6 @@ export function ExpenseDebug() {
 
   // Ref to prevent multiple auto-runs
   const hasAutoRun = useRef(false);
-
-  // Get environment config for display
-  const envConfig = getEnvironmentConfig();
 
   // Auto-adjust debug configuration based on environment
   const { config, logger, getSystemInfo, formatDebugInfo } = useDebugUtils(
@@ -424,71 +401,9 @@ export function ExpenseDebug() {
 
   return (
     <div
-      style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}
+      style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 0 }}
+      data-testid="admin-expense-debug-panel"
     >
-      {/* Environment Status */}
-      {config.showEnvironmentInfo && (
-        <div style={panelStyle}>
-          <div style={panelHeaderStyle}>
-            <span style={panelTitleStyle}>Environment Status</span>
-            <StatusPill
-              on={config.enableDebugPanel}
-              label={config.enableDebugPanel ? 'Debug Mode' : 'Production Mode'}
-            />
-          </div>
-          <div style={{ padding: 16 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(3, 1fr)',
-                gap: 16,
-              }}
-            >
-              {/* Environment */}
-              <div>
-                <span style={sectionLabelStyle}>Environment</span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <StatusPill
-                    on={envConfig.isDevelopment}
-                    label={`Dev: ${envConfig.isDevelopment ? 'Yes' : 'No'}`}
-                  />
-                  <StatusPill
-                    on={envConfig.isProduction}
-                    label={`Prod: ${envConfig.isProduction ? 'Yes' : 'No'}`}
-                  />
-                </div>
-              </div>
-              {/* Logging */}
-              <div>
-                <span style={sectionLabelStyle}>Logging</span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <StatusPill
-                    on={config.enableVerboseLogging}
-                    label={`Verbose: ${config.enableVerboseLogging ? 'On' : 'Off'}`}
-                  />
-                  <NeutralPill label={`Level: ${envConfig.logLevel}`} />
-                </div>
-              </div>
-              {/* Monitoring */}
-              <div>
-                <span style={sectionLabelStyle}>Monitoring</span>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  <StatusPill
-                    on={config.enablePerformanceMonitoring}
-                    label={`Perf: ${config.enablePerformanceMonitoring ? 'On' : 'Off'}`}
-                  />
-                  <StatusPill
-                    on={config.enableErrorTracking}
-                    label={`Errors: ${config.enableErrorTracking ? 'On' : 'Off'}`}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Debug & Setup */}
       <div style={panelStyle}>
         <div style={panelHeaderStyle}>
           <span style={panelTitleStyle}>Expense Types — Debug &amp; Setup</span>
@@ -512,6 +427,7 @@ export function ExpenseDebug() {
                   key={action.id}
                   onClick={() => runDebugAction(action.id)}
                   disabled={loading}
+                  data-testid={`admin-expense-debug-${action.id}`}
                   variant={
                     action.variant === 'destructive' ? 'destructive' : 'default'
                   }

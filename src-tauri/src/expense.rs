@@ -352,6 +352,7 @@ impl ExpenseService {
     pub fn create_or_update_invoice(
         conn: &mut Connection,
         payload: ExpenseInvoicePayload,
+        created_by: &str,
     ) -> Result<ExpenseInvoiceResponse, ExpenseError> {
         // Validate payload
         ExpenseValidator::validate_payload(&payload)?;
@@ -379,7 +380,7 @@ impl ExpenseService {
             ));
         } else {
             // Create new invoice
-            Self::create_invoice_in_transaction(&tx, &payload)?
+            Self::create_invoice_in_transaction(&tx, &payload, created_by)?
         };
 
         tx.commit()?;
@@ -1394,6 +1395,7 @@ impl ExpenseService {
     fn create_invoice_in_transaction(
         tx: &rusqlite::Transaction,
         payload: &ExpenseInvoicePayload,
+        created_by: &str,
     ) -> Result<ExpenseInvoiceResponse, ExpenseError> {
         let invoice_id = Uuid::new_v4().to_string();
 
@@ -1516,7 +1518,7 @@ impl ExpenseService {
                         (line.igst_rate as f64) / 100.0,
                         (line.tds_rate as f64) / 100.0,
                         &line.remarks,
-                        Option::<String>::None, // created_by
+                        created_by,
                     ],
                 )?;
             } else {
@@ -1549,7 +1551,7 @@ impl ExpenseService {
                         total_amount,
                         net_amount,
                         &line.remarks,
-                        Option::<String>::None, // created_by
+                        created_by,
                     ],
                 )?;
             }
@@ -1563,133 +1565,6 @@ impl ExpenseService {
             total_igst_amount_paise: preview.total_igst_amount_paise,
             total_tds_amount_paise: preview.total_tds_amount_paise,
             version: 1,
-        })
-    }
-
-    #[allow(dead_code)]
-    fn update_invoice_in_transaction(
-        tx: &rusqlite::Transaction,
-        invoice_id: &str,
-        payload: &ExpenseInvoicePayload,
-    ) -> Result<ExpenseInvoiceResponse, ExpenseError> {
-        // First, delete existing expense lines
-        tx.execute(
-            "DELETE FROM expenses WHERE expense_invoice_id = ?",
-            [invoice_id],
-        )
-        .map_err(ExpenseError::Database)?;
-
-        // Update the invoice header
-        let preview = ExpenseService::calculate_totals(&payload.lines);
-
-        tx.execute(
-            "UPDATE expense_invoices SET 
-                total_amount_paise = ?, 
-                total_cgst_amount_paise = ?, 
-                total_sgst_amount_paise = ?, 
-                total_igst_amount_paise = ?, 
-                total_tds_amount_paise = ?,
-                version = version + 1,
-                updated_at = CURRENT_TIMESTAMP
-             WHERE id = ?",
-            rusqlite::params![
-                preview.total_amount_paise,
-                preview.total_cgst_amount_paise,
-                preview.total_sgst_amount_paise,
-                preview.total_igst_amount_paise,
-                preview.total_tds_amount_paise,
-                invoice_id,
-            ],
-        )
-        .map_err(ExpenseError::Database)?;
-
-        // Insert new expense lines
-        for line in &payload.lines {
-            let cgst_amount_paise =
-                TaxCalculator::calculate_tax_amount(line.amount_paise, line.cgst_rate);
-            let sgst_amount_paise =
-                TaxCalculator::calculate_tax_amount(line.amount_paise, line.sgst_rate);
-            let igst_amount_paise =
-                TaxCalculator::calculate_tax_amount(line.amount_paise, line.igst_rate);
-            let tds_amount_paise =
-                TaxCalculator::calculate_tax_amount(line.amount_paise, line.tds_rate);
-            let total_amount_paise = TaxCalculator::calculate_total_amount(
-                line.amount_paise,
-                cgst_amount_paise,
-                sgst_amount_paise,
-                igst_amount_paise,
-            );
-            let net_amount_paise = TaxCalculator::calculate_net_amount(
-                line.amount_paise,
-                cgst_amount_paise,
-                sgst_amount_paise,
-                igst_amount_paise,
-                tds_amount_paise,
-            );
-
-            tx.execute(
-                "INSERT INTO expenses (
-                    id, expense_invoice_id, shipment_id, service_provider_id, 
-                    invoice_no, invoice_date, expense_type_id, amount_paise,
-                    cgst_rate, sgst_rate, igst_rate, tds_rate,
-                    cgst_amount_paise, sgst_amount_paise, igst_amount_paise, tds_amount_paise,
-                    total_amount_paise, net_amount_paise, remarks, created_by
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                rusqlite::params![
-                    Uuid::new_v4().to_string(),
-                    invoice_id,
-                    payload.shipment_id,
-                    payload.service_provider_id,
-                    payload.invoice_number,
-                    payload.invoice_date,
-                    line.expense_type_id,
-                    line.amount_paise,
-                    line.cgst_rate,
-                    line.sgst_rate,
-                    line.igst_rate,
-                    line.tds_rate,
-                    cgst_amount_paise,
-                    sgst_amount_paise,
-                    igst_amount_paise,
-                    tds_amount_paise,
-                    total_amount_paise,
-                    net_amount_paise,
-                    line.remarks,
-                    "admin-001", // TODO: Get actual user from frontend context
-                ],
-            )
-            .map_err(ExpenseError::Database)?;
-        }
-
-        // Log the update
-        tx.execute(
-            "INSERT INTO invoice_audit (id, invoice_id, action, details) VALUES (?, ?, ?, ?)",
-            rusqlite::params![
-                Uuid::new_v4().to_string(),
-                invoice_id,
-                "update",
-                &format!("Updated invoice with {} lines", payload.lines.len()),
-            ],
-        )
-        .map_err(ExpenseError::Database)?;
-
-        // Get the updated version
-        let version: i32 = tx
-            .query_row(
-                "SELECT version FROM expense_invoices WHERE id = ?",
-                [invoice_id],
-                |row| row.get(0),
-            )
-            .map_err(ExpenseError::Database)?;
-
-        Ok(ExpenseInvoiceResponse {
-            invoice_id: invoice_id.to_string(),
-            total_amount_paise: preview.total_amount_paise,
-            total_cgst_amount_paise: preview.total_cgst_amount_paise,
-            total_sgst_amount_paise: preview.total_sgst_amount_paise,
-            total_igst_amount_paise: preview.total_igst_amount_paise,
-            total_tds_amount_paise: preview.total_tds_amount_paise,
-            version,
         })
     }
 
@@ -1803,9 +1678,12 @@ impl ExpenseService {
 pub async fn create_expense_invoice(
     payload: ExpenseInvoicePayload,
     state: State<'_, DbState>,
+    session: State<'_, crate::desktop_session::DesktopSessionState>,
 ) -> Result<ExpenseInvoiceResponse, String> {
+    let created_by = crate::desktop_session::require_session_user_id(&session)?;
     let mut conn = state.db.lock().unwrap();
-    ExpenseService::create_or_update_invoice(&mut conn, payload).map_err(|e| e.to_string())
+    ExpenseService::create_or_update_invoice(&mut conn, payload, &created_by)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -2029,7 +1907,7 @@ mod tests {
             ],
         };
 
-        let result = ExpenseService::create_or_update_invoice(&mut conn, payload).unwrap();
+        let result = ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
 
         assert!(!result.invoice_id.is_empty());
         assert_eq!(result.total_amount_paise, 150000); // 1000 + 500 = 1500 rupees
@@ -2037,6 +1915,44 @@ mod tests {
         assert_eq!(result.total_sgst_amount_paise, 9000); // 90 rupees
         assert_eq!(result.total_igst_amount_paise, 9000); // 90 rupees
         assert_eq!(result.version, 1);
+    }
+
+    #[test]
+    fn test_created_by_persisted_in_transaction() {
+        let conn = create_test_db();
+        let mut conn = conn;
+
+        let payload = ExpenseInvoicePayload {
+            shipment_id: "shipment1".to_string(),
+            service_provider_id: "provider1".to_string(),
+            invoice_number: "INV-CREATED-BY".to_string(),
+            invoice_date: "2025-01-01".to_string(),
+            currency: "INR".to_string(),
+            idempotency_key: Some("created-by-key".to_string()),
+            lines: vec![ExpenseLine {
+                expense_type_id: "type1".to_string(),
+                amount_paise: 100000,
+                cgst_rate: 900,
+                sgst_rate: 900,
+                igst_rate: 0,
+                tds_rate: 0,
+                remarks: None,
+            }],
+        };
+
+        let session_user = "operator-session-42";
+        let result =
+            ExpenseService::create_or_update_invoice(&mut conn, payload, session_user).unwrap();
+
+        let created_by: String = conn
+            .query_row(
+                "SELECT created_by FROM expenses WHERE expense_invoice_id = ?1 LIMIT 1",
+                [&result.invoice_id],
+                |row| row.get(0),
+            )
+            .unwrap();
+
+        assert_eq!(created_by, session_user);
     }
 
     #[test]
@@ -2063,10 +1979,10 @@ mod tests {
         };
 
         // First call
-        let result1 = ExpenseService::create_or_update_invoice(&mut conn, payload.clone()).unwrap();
+        let result1 = ExpenseService::create_or_update_invoice(&mut conn, payload.clone(), "test-user-001").unwrap();
 
         // Second call with same idempotency key
-        let result2 = ExpenseService::create_or_update_invoice(&mut conn, payload).unwrap();
+        let result2 = ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
 
         // Should return same invoice
         assert_eq!(result1.invoice_id, result2.invoice_id);
@@ -2131,7 +2047,7 @@ mod tests {
             }],
         };
 
-        let invoice1 = ExpenseService::create_or_update_invoice(&mut conn, payload1).unwrap();
+        let invoice1 = ExpenseService::create_or_update_invoice(&mut conn, payload1, "test-user-001").unwrap();
 
         // Second invoice with same expense type
         let payload2 = ExpenseInvoicePayload {
@@ -2152,7 +2068,7 @@ mod tests {
             }],
         };
 
-        let _invoice2 = ExpenseService::create_or_update_invoice(&mut conn, payload2).unwrap();
+        let _invoice2 = ExpenseService::create_or_update_invoice(&mut conn, payload2, "test-user-001").unwrap();
 
         // Now test combine duplicates on the first invoice
         // This should work even though there's only one line (no duplicates to combine)
@@ -2200,7 +2116,7 @@ mod tests {
             }],
         };
 
-        let created = ExpenseService::create_or_update_invoice(&mut conn, payload).unwrap();
+        let created = ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
         let retrieved = ExpenseService::get_invoice(&conn, &created.invoice_id).unwrap();
 
         assert_eq!(created.invoice_id, retrieved.invoice_id);
@@ -2232,14 +2148,15 @@ mod tests {
         };
 
         let _invoice =
-            ExpenseService::create_or_update_invoice(&mut conn, payload.clone()).unwrap();
+            ExpenseService::create_or_update_invoice(&mut conn, payload.clone(), "test-user-001").unwrap();
 
         // Try to update with wrong version
         let mut wrong_payload = payload;
         wrong_payload.invoice_number = "INV-007".to_string();
 
         // This should fail due to optimistic locking
-        let result = ExpenseService::create_or_update_invoice(&mut conn, wrong_payload);
+        let result =
+            ExpenseService::create_or_update_invoice(&mut conn, wrong_payload, "test-user-001");
         assert!(result.is_ok()); // Actually, this will succeed because it's a different invoice number
 
         // Let's test the actual optimistic locking by updating the same invoice
@@ -2262,7 +2179,8 @@ mod tests {
         };
 
         // This should fail because update is not implemented
-        let result = ExpenseService::create_or_update_invoice(&mut conn, update_payload);
+        let result =
+            ExpenseService::create_or_update_invoice(&mut conn, update_payload, "test-user-001");
         assert!(result.is_err());
         assert!(matches!(result.unwrap_err(), ExpenseError::Validation(_)));
     }

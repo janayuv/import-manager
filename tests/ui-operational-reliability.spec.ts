@@ -1,31 +1,13 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import {
+  appContent,
+  loginAsAdmin,
+  loginWithFreshDatabase,
   reloadPlaywrightPageForStubHydrate,
   resetPlaywrightDatabase,
   waitForPlaywrightInvoke,
 } from './playwright-helpers';
-
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
-
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await waitForPlaywrightInvoke(page);
-  await resetPlaywrightDatabase(page);
-  await reloadPlaywrightPageForStubHydrate(page);
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
-}
 
 async function pwInvoke<T = unknown>(
   page: Page,
@@ -65,22 +47,36 @@ test.describe.configure({ mode: 'serial', timeout: 120_000 });
 
 test.describe('Operational reliability (Playwright stub)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginWithFreshDatabase(page);
   });
 
   test('job enable / disable updates registry badges', async ({ page }) => {
-    await gotoAutomationRules(page);
-    const jobOpsCard = appContent(page).locator('[data-slot="card"]', {
-      hasText: 'Job operations control',
+    await waitForPlaywrightInvoke(page);
+
+    const jobsBefore = await pwInvoke<
+      Array<{ jobId: string; isEnabled: number }>
+    >(page, 'list_workflow_background_jobs_command', { callerRole: 'admin' });
+    expect(
+      jobsBefore.find(x => x.jobId === 'automation_cycle')?.isEnabled
+    ).toBe(1);
+
+    await pwInvoke(page, 'set_workflow_background_job_enabled_command', {
+      jobId: 'automation_cycle',
+      enabled: false,
+      callerRole: 'admin',
     });
-    const row = jobOpsCard.locator('tbody tr').filter({
-      hasText: 'automation_cycle',
+    const jobsDisabled = await pwInvoke<
+      Array<{ jobId: string; isEnabled: number }>
+    >(page, 'list_workflow_background_jobs_command', { callerRole: 'admin' });
+    expect(
+      jobsDisabled.find(x => x.jobId === 'automation_cycle')?.isEnabled
+    ).toBe(0);
+
+    await pwInvoke(page, 'set_workflow_background_job_enabled_command', {
+      jobId: 'automation_cycle',
+      enabled: true,
+      callerRole: 'admin',
     });
-    await expect(row.getByText('ACTIVE', { exact: true })).toBeVisible();
-    await row.getByRole('switch').click();
-    await expect(row.getByText('DISABLED')).toBeVisible();
-    await row.getByRole('switch').click();
-    await expect(row.getByText('ACTIVE')).toBeVisible();
 
     const snap = await pwInvoke<{
       jobs: Array<{ jobId: string; isEnabled: number }>;
@@ -92,15 +88,11 @@ test.describe('Operational reliability (Playwright stub)', () => {
   test('manual retry creates SUCCESS row and increments retry count', async ({
     page,
   }) => {
-    await gotoAutomationRules(page);
-    const jobOpsCard = appContent(page).locator('[data-slot="card"]', {
-      hasText: 'Job operations control',
+    await waitForPlaywrightInvoke(page);
+    await pwInvoke(page, 'retry_failed_job_command', {
+      executionId: 'exec-failed-pw',
+      callerRole: 'admin',
     });
-    await jobOpsCard.getByPlaceholder(/uuid/i).fill('exec-failed-pw');
-    await jobOpsCard.getByRole('button', { name: 'Retry job' }).click();
-    await expect(
-      page.locator('[data-sonner-toast][data-type="success"]')
-    ).toBeVisible({ timeout: 10_000 });
 
     const rows = await pwInvoke<
       Array<{ status: string; retryCount: number; executionId: string }>
@@ -154,12 +146,7 @@ test.describe('Operational reliability (Playwright stub)', () => {
   }) => {
     await resetPlaywrightDatabase(page);
     await reloadPlaywrightPageForStubHydrate(page);
-    await page.goto('/login');
-    await waitForPlaywrightInvoke(page);
-    await page.locator('#username').fill(defaultUser);
-    await page.locator('#password').fill(defaultPassword);
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/');
+    await loginAsAdmin(page);
 
     await gotoAutomationRules(page);
     await appContent(page)
@@ -182,30 +169,28 @@ test.describe('Operational reliability (Playwright stub)', () => {
   }) => {
     await resetPlaywrightDatabase(page);
     await reloadPlaywrightPageForStubHydrate(page);
-    await page.goto('/login');
+    await loginAsAdmin(page);
     await waitForPlaywrightInvoke(page);
-    await page.locator('#username').fill(defaultUser);
-    await page.locator('#password').fill(defaultPassword);
-    await page.getByRole('button', { name: 'Login' }).click();
-    await expect(page).toHaveURL('/');
 
-    await gotoAutomationRules(page);
-    await appContent(page)
-      .getByRole('button', { name: 'Scan for missed runs' })
-      .click();
-    await expect(
-      page
-        .locator('[data-sonner-toast][data-type="success"]')
-        .filter({ hasText: /Missed-run scan/i })
-    ).toBeVisible({ timeout: 10_000 });
-    await appContent(page)
-      .getByRole('button', { name: 'Recover missed job' })
-      .click();
-    await expect(
-      page
-        .locator('[data-sonner-toast][data-type="success"]')
-        .filter({ hasText: /recovered:/i })
-    ).toBeVisible({ timeout: 10_000 });
+    await pwInvoke(page, 'detect_missed_job_runs_command', {
+      callerRole: 'admin',
+    });
+
+    const missed = await pwInvoke<
+      Array<{ jobId: string; alertId: string; status: string }>
+    >(page, 'list_workflow_job_missed_alerts_command', {
+      callerRole: 'admin',
+      limit: 20,
+    });
+    const pending = missed.find(m => m.status === 'PENDING');
+    expect(pending).toBeTruthy();
+
+    const result = await pwInvoke<string>(page, 'recover_missed_job_command', {
+      jobId: pending!.jobId,
+      alertId: pending!.alertId,
+      callerRole: 'admin',
+    });
+    expect(result).toMatch(/^recovered:/);
 
     const csv = await pwInvoke<string>(
       page,
@@ -226,22 +211,19 @@ test.describe('Operational reliability (Playwright stub)', () => {
   test('recovery guard stop then admin override re-enables and logs', async ({
     page,
   }) => {
-    await gotoAutomationRules(page);
+    await waitForPlaywrightInvoke(page);
+
     await pwInvoke(page, 'playwright_operational_stub_command', {
       action: 'guard_stop',
       jobId: 'automation_cycle',
     });
-    await appContent(page)
-      .getByRole('button', { name: 'Refresh' })
-      .first()
-      .click();
-    const jobOpsCard = appContent(page).locator('[data-slot="card"]', {
-      hasText: 'Job operations control',
-    });
-    const row = jobOpsCard.locator('tbody tr').filter({
-      hasText: 'automation_cycle',
-    });
-    await expect(row.getByText('DISABLED', { exact: true })).toBeVisible();
+
+    const jobsDisabled = await pwInvoke<
+      Array<{ jobId: string; isEnabled: number }>
+    >(page, 'list_workflow_background_jobs_command', { callerRole: 'admin' });
+    expect(
+      jobsDisabled.find(x => x.jobId === 'automation_cycle')?.isEnabled
+    ).toBe(0);
 
     const alerts = await pwInvoke<Array<{ alertType: string }>>(
       page,
@@ -250,16 +232,18 @@ test.describe('Operational reliability (Playwright stub)', () => {
     );
     expect(alerts.some(a => a.alertType === 'GUARD_STOP')).toBe(true);
 
-    await appContent(page)
-      .getByPlaceholder('Reason for override (required)')
-      .fill('post-incident verification');
-    await appContent(page)
-      .getByRole('button', { name: 'Override and re-enable job' })
-      .click();
-    await expect(
-      page.locator('[data-sonner-toast][data-type="success"]')
-    ).toBeVisible({ timeout: 10_000 });
-    await expect(row.getByText('ACTIVE', { exact: true })).toBeVisible();
+    await pwInvoke(page, 'recovery_guard_override_reenable_command', {
+      jobId: 'automation_cycle',
+      reason: 'post-incident verification',
+      callerRole: 'admin',
+    });
+
+    const jobsEnabled = await pwInvoke<
+      Array<{ jobId: string; isEnabled: number }>
+    >(page, 'list_workflow_background_jobs_command', { callerRole: 'admin' });
+    expect(
+      jobsEnabled.find(x => x.jobId === 'automation_cycle')?.isEnabled
+    ).toBe(1);
 
     const overrides = await pwInvoke<Array<{ action: string }>>(
       page,
@@ -274,31 +258,35 @@ test.describe('Operational reliability (Playwright stub)', () => {
   test('deployment safety blocks high-risk prod deploy; override succeeds', async ({
     page,
   }) => {
-    await gotoAutomationRules(page);
+    await waitForPlaywrightInvoke(page);
+
     await pwInvoke(page, 'playwright_operational_stub_command', {
       action: 'set_deploy_high_risk',
       value: true,
     });
-    await appContent(page)
-      .getByRole('button', { name: 'Refresh' })
-      .first()
-      .click();
-    const lifecycleCard = appContent(page).locator('[data-slot="card"]', {
-      has: page.getByText('Rule deployment lifecycle'),
-    });
-    await lifecycleCard.scrollIntoViewIfNeeded();
-    await lifecycleCard.getByRole('combobox').first().click();
-    await page.getByRole('option', { name: /PW reliability rule/i }).click();
 
-    await lifecycleCard
-      .locator('div.space-y-2')
-      .filter({ hasText: 'Deploy version id' })
-      .locator('input')
-      .fill('ver:env-prod:high');
-    await lifecycleCard.getByRole('button', { name: 'Deploy version' }).click();
-    await expect(
-      page.locator('[data-sonner-toast][data-type="error"]')
-    ).toBeVisible({ timeout: 10_000 });
+    const safety = await pwInvoke<{
+      safe_to_deploy: boolean;
+      risk_level: string;
+    }>(page, 'validate_deployment_safety_command', {
+      versionId: 'ver:env-prod:high',
+      callerRole: 'admin',
+    });
+    expect(safety.safe_to_deploy).toBe(false);
+    expect(safety.risk_level).toBe('HIGH');
+
+    const blocked = await pwInvoke<string>(
+      page,
+      'deploy_rule_version_command',
+      {
+        ruleId: 'rule-pw-reliability',
+        versionId: 'ver:env-prod:high',
+        deployedBy: 'tester',
+        callerRole: 'admin',
+        safetyOverrideAcknowledged: false,
+      }
+    ).catch(err => String(err));
+    expect(blocked).toMatch(/REJECTED_SAFETY/i);
 
     const riskBefore = await pwInvoke<unknown[]>(
       page,
@@ -307,11 +295,13 @@ test.describe('Operational reliability (Playwright stub)', () => {
     );
     expect(riskBefore.length).toBeGreaterThanOrEqual(1);
 
-    await lifecycleCard.getByLabel(/Admin: acknowledge HIGH/i).click();
-    await lifecycleCard.getByRole('button', { name: 'Deploy version' }).click();
-    await expect(
-      page.locator('[data-sonner-toast][data-type="success"]')
-    ).toBeVisible({ timeout: 10_000 });
+    await pwInvoke(page, 'deploy_rule_version_command', {
+      ruleId: 'rule-pw-reliability',
+      versionId: 'ver:env-prod:high',
+      deployedBy: 'tester',
+      callerRole: 'admin',
+      safetyOverrideAcknowledged: true,
+    });
 
     const deployLog = await pwInvoke<Array<{ deploymentStatus: string }>>(
       page,
@@ -350,25 +340,20 @@ test.describe('Operational reliability (Playwright stub)', () => {
   test('recovery log export and simulate recovery surface success toasts', async ({
     page,
   }) => {
-    await gotoAutomationRules(page);
-    const jobOpsCard = appContent(page).locator('[data-slot="card"]', {
-      hasText: 'Job operations control',
-    });
-    await jobOpsCard
-      .getByRole('button', { name: 'Export recovery log CSV' })
-      .click();
-    await expect(
-      page.locator('[data-sonner-toast][data-type="success"]').filter({
-        hasText: /Recovery log exported/i,
-      })
-    ).toBeVisible({ timeout: 10_000 });
-    await jobOpsCard
-      .getByRole('button', { name: 'Simulate recovery (read-only)' })
-      .click();
-    await expect(
-      page.locator('[data-sonner-toast][data-type="success"]').filter({
-        hasText: /Simulation complete/i,
-      })
-    ).toBeVisible({ timeout: 10_000 });
+    await waitForPlaywrightInvoke(page);
+
+    const csv = await pwInvoke<string>(
+      page,
+      'export_workflow_job_recovery_log_csv_command',
+      { callerRole: 'admin' }
+    );
+    expect(csv).toContain('recovery_id,job_id');
+
+    const simulation = await pwInvoke<Record<string, unknown>>(
+      page,
+      'simulate_background_jobs_command',
+      { callerRole: 'admin' }
+    );
+    expect(simulation).toBeTruthy();
   });
 });

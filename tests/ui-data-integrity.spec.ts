@@ -6,14 +6,18 @@ import Papa from 'papaparse';
 import { expect, test, type Download, type Page } from '@playwright/test';
 
 import {
-  reloadPlaywrightPageForStubHydrate,
-  resetPlaywrightDatabase,
+  appContent,
+  clickSidebarLink,
+  expandNavGroup,
+  clickExpensesTab,
+  clickPageHeaderButton,
+  expectInvoiceRecordBadge,
+  expectPageMarker,
+  expectShipmentTableReady,
+  expectShipmentTotalCount,
+  loginWithFreshDatabase,
   setFilesOnBridgeFileInput,
-  waitForPlaywrightInvoke,
 } from './playwright-helpers';
-
-const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
-const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 const shipmentValidCsv = path.join(
   process.cwd(),
@@ -31,58 +35,6 @@ const expenseImportValidCsv = path.join(
   process.cwd(),
   'test-data/expenses/valid/expense-import-valid.csv'
 );
-
-function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
-}
-
-async function login(page: Page) {
-  await page.goto('/login');
-  await waitForPlaywrightInvoke(page);
-  await resetPlaywrightDatabase(page);
-  await reloadPlaywrightPageForStubHydrate(page);
-  await page.locator('#username').fill(defaultUser);
-  await page.locator('#password').fill(defaultPassword);
-  await page.getByRole('button', { name: 'Login' }).click();
-  await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
-}
-
-function sidebar(page: Page) {
-  return page.locator('[data-sidebar="sidebar"]');
-}
-
-async function expandNavGroup(page: Page, parentLinkName: string) {
-  const root = sidebar(page);
-  const row = root.locator('[data-sidebar="menu-item"]').filter({
-    has: page.getByRole('link', { name: parentLinkName, exact: true }),
-  });
-  const subLink = row.locator('[data-sidebar="menu-sub-button"]');
-  if (
-    await subLink
-      .first()
-      .isVisible()
-      .catch(() => false)
-  ) {
-    return;
-  }
-  await row.getByRole('button', { name: 'Toggle' }).click();
-  await expect(subLink.first()).toBeVisible({ timeout: 5000 });
-}
-
-async function clickSidebarLink(page: Page, name: string) {
-  await sidebar(page).getByRole('link', { name, exact: true }).click();
-}
-
-async function expectPageMarker(page: Page, text: string) {
-  await expect(
-    appContent(page).getByText(text, { exact: true }).first()
-  ).toBeVisible({
-    timeout: 20_000,
-  });
-}
 
 function sonnerSuccess(page: Page, text: string | RegExp) {
   return page
@@ -119,7 +71,7 @@ test.describe.configure({ mode: 'serial' });
 
 test.describe('UI data integrity (import vs export)', () => {
   test.beforeEach(async ({ page }) => {
-    await login(page);
+    await loginWithFreshDatabase(page);
   });
 
   test('shipment: import then export preserves row count and key fields', async ({
@@ -130,7 +82,7 @@ test.describe('UI data integrity (import vs export)', () => {
     expect(importRows.length).toBeGreaterThan(0);
 
     await clickSidebarLink(page, 'Shipment');
-    await expectPageMarker(page, 'Shipment Management');
+    await expectPageMarker(page, 'Shipments');
 
     const content = appContent(page);
     const beforeCount = await page.evaluate(async () => {
@@ -144,24 +96,16 @@ test.describe('UI data integrity (import vs export)', () => {
       const rows = await inv('get_shipments');
       return rows.length;
     });
-    await expect(content.getByText(/Showing \d+ of \d+ shipments/)).toBeVisible(
-      {
-        timeout: 20_000,
-      }
-    );
+    await expectShipmentTableReady(page);
 
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import');
     await setFilesOnBridgeFileInput(page, shipmentValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
     });
 
     const expectedTotal = beforeCount + importRows.length;
-    await expect(
-      content.getByText(
-        `Showing ${expectedTotal} of ${expectedTotal} shipments`
-      )
-    ).toBeVisible({ timeout: 20_000 });
+    await expectShipmentTotalCount(page, expectedTotal);
 
     const exportDl = page.waitForEvent('download');
     await content.getByRole('button', { name: 'Export CSV' }).click();
@@ -199,22 +143,18 @@ test.describe('UI data integrity (import vs export)', () => {
 
     await expandNavGroup(page, 'Invoice');
     await clickSidebarLink(page, 'Invoices');
-    await expectPageMarker(page, 'Invoice Details');
+    await expectPageMarker(page, 'Invoices');
 
     const content = appContent(page);
-    await expect(content.getByText('Showing 0 invoices')).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectInvoiceRecordBadge(page, 0);
 
-    await content.getByRole('button', { name: 'Import Bulk' }).click();
+    await clickPageHeaderButton(page, 'Import Bulk');
     await setFilesOnBridgeFileInput(page, invoiceBulkValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
     });
 
-    await expect(content.getByText('Showing 2 invoices')).toBeVisible({
-      timeout: 20_000,
-    });
+    await expectInvoiceRecordBadge(page, 2);
 
     await expect(content.getByText('TEST-INV-SHP-001').first()).toBeVisible({
       timeout: 25_000,
@@ -222,10 +162,9 @@ test.describe('UI data integrity (import vs export)', () => {
 
     await content
       .locator('tbody')
-      .getByRole('button', { name: 'Open menu' })
+      .getByRole('button', { name: 'View' })
       .first()
       .click();
-    await page.getByRole('menuitem', { name: /^View$/i }).click();
 
     await expect(
       page.getByRole('heading', { name: /View invoice:/i })
@@ -274,10 +213,10 @@ test.describe('UI data integrity (import vs export)', () => {
 
     await expandNavGroup(page, 'BOE');
     await clickSidebarLink(page, 'View All BOE');
-    await expectPageMarker(page, 'Bill of Entry Details');
+    await expectPageMarker(page, 'Bill of Entry');
 
     const content = appContent(page);
-    await content.getByRole('button', { name: 'Import' }).click();
+    await clickPageHeaderButton(page, 'Import');
     await setFilesOnBridgeFileInput(page, boeValidCsv);
     await expect(sonnerSuccess(page, 'Import Complete')).toBeVisible({
       timeout: 20_000,
@@ -345,7 +284,7 @@ test.describe('UI data integrity (import vs export)', () => {
       timeout: 20_000,
     });
 
-    await page.getByRole('tab', { name: 'Import Expenses' }).click();
+    await clickExpensesTab(page, 'Import Expenses');
     const importSection = appContent(page);
     const shipmentCombo = importSection.getByRole('combobox').first();
     await shipmentCombo.click();
@@ -364,7 +303,7 @@ test.describe('UI data integrity (import vs export)', () => {
       timeout: 25_000,
     });
 
-    await page.getByRole('tab', { name: 'Manage Expenses' }).click();
+    await clickExpensesTab(page, 'Manage Expenses');
     const manage = appContent(page);
     await manage.getByRole('combobox').first().click();
     await page.locator('[data-slot="command-item"]').first().click();

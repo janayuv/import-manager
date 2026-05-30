@@ -1,4 +1,4 @@
-# Import Manager — CLAUDE.md
+# Import Manager — AGENTS.md
 
 ## Project Overview
 

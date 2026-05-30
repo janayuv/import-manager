@@ -152,10 +152,7 @@ const SupplierPage = () => {
   }, [navigate]);
 
   const fetchSuppliers = React.useCallback(async () => {
-    const fetchStarted = performance.now();
     setIsLoadingSuppliers(true);
-    const searchingActive = debouncedSearchText.trim().length > 0;
-    const paginatingActive = currentPage > 0;
     try {
       const trimmedSearchText = debouncedSearchText.trim();
       const [fetchedSuppliers, fetchedCount] = await Promise.all([
@@ -175,14 +172,6 @@ const SupplierPage = () => {
       notifications.supplier.error('fetch', String(error));
     } finally {
       setIsLoadingSuppliers(false);
-      const elapsedMs = (performance.now() - fetchStarted).toFixed(2);
-      if (searchingActive) {
-        console.log(`supplier_search execution time: ${elapsedMs} ms`);
-      } else if (paginatingActive) {
-        console.log(`supplier_pagination execution time: ${elapsedMs} ms`);
-      } else {
-        console.log(`get_suppliers execution time: ${elapsedMs} ms`);
-      }
     }
     // Context `notifications` changes identity each render; listing it recreated this callback
     // every render and retriggered effects.
