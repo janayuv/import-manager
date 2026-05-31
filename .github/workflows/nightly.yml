@@ -28,3 +28,9 @@ jobs:
 
       - name: Run full test suite
         run: npm run test:ci
+
+      - name: Run full E2E suite
+        run: npm run test:e2e
+
+      - name: Run performance baselines
+        run: npm run test:performance
