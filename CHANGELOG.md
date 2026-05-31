@@ -1,5 +1,48 @@
 # Changelog
 
+## v1.0.0 (planned)
+
+Production release. Requires manual operator sign-off:
+
+- Run `.\scripts\bump-version.ps1 -Version "1.0.0"` then tag `v1.0.0`
+- Run `npm run release:local` (gitleaks + npm audit + drift report + build)
+- Complete restore drill on both PCs — see `docs/OPERATOR_RUNBOOK.md`
+- Confirm `TAURI_PRIVATE_KEY` set in GitHub Secrets before pushing tag
+- MSI + NSIS smoke test: install on clean VM → login → one CRUD cycle per module
+
+---
+
+## v0.4.10 — 2026-05-31
+
+Production-grade hardening across 6 phases (Phases 0–6).
+
+**Phase 0 — Baseline hygiene:** Updated docs to v0.4.10 (79 migrations); removed
+duplicate `/frozen-shipments` route; gated `ExpenseDebug` behind `DEV`; removed
+hardcoded `admin-001`; stripped stray `console.log`; IPC invoke audit (70 sites).
+
+**Phase 1 — Test & quality gates:** 5 new Vitest test files (`parse-percentage`,
+`ipc-error`, `date-format`, `multiline-paste`, `csv-helpers`); 75 → 129 tests;
+coverage thresholds enforced; CI Codecov gate hardened; E2E CI expanded 8 → 11 specs.
+
+**Phase 2 — Industrial Console UX:** Dashboard `PageHeader` (`im-page-header`);
+frozen-shipments status pills + `is-alt` className fix + `ipcErrorMessage` error handling.
+
+**Phase 3 — Data integrity:** Operator runbook v0.4.10 with cross-PC guide, single-writer
+rule, restore drill checklist, encryption key export/import; drift-report in release pipeline.
+
+**Phase 4 — Security hardening:** `prebuild-check.ps1` gitleaks + npm audit gates; IPC
+migration verified complete (all pages use `safeInvoke`); CSP audited clean; notification
+audit items closed with dated decision log.
+
+**Phase 5 — Performance & observability:** Nightly CI adds full E2E + performance baselines;
+dashboard cache TTL documented (180s + 60s = ~4 min worst-case); error memory (V78) already
+wired in error-center.
+
+**Phase 6 — Release engineering:** `scripts/bump-version.ps1` syncs `package.json`,
+`Cargo.toml`, `tauri.conf.json`; changelog format established.
+
+---
+
 ## v0.3.1
 
 - **Session hardening:** Each desktop login gets a new `sessionId`; role is loaded from `user_roles`; `get_desktop_session` drops the session on expiry or DB role drift; IPC callers must match the active session user for gated commands (spoof-resistant `callerUserId`).
