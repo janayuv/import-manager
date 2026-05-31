@@ -2,7 +2,7 @@ import { safeInvoke as invoke } from '@/lib/ipc-safe';
 import { confirm } from '@/lib/tauri-bridge';
 import { AlertTriangle } from 'lucide-react';
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
