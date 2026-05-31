@@ -1,12 +1,3 @@
-﻿RELEASE BUILD METADATA
-========================================
-Version: 0.4.7
-Commit: 874d025e651619affdd1fd2b1476dc6d96e275f0
-Build Date: 2026-05-16 07:27:05
-
-Node: v22.14.0
-npm: 11.5.2
-Rust: rustc 1.88.0 (6b00bc388 2025-06-23)
-Tauri: tauri-cli 2.11.1
-
-========================================
+Tag: local-test
+Commit: 08464f79f62ea63c8898ba8689c5841ff047132a
+Date: 2026-05-31T10:05:46Z
