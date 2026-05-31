@@ -83,7 +83,7 @@ function Assert-Installers {
     exit 1
   }
 
-  $nsisExeFiles = Get-ChildItem -Path "$bundleRoot/**/nsis/**/*.exe" -File -ErrorAction SilentlyContinue
+  $nsisExeFiles = Get-ChildItem -Path "$bundleRoot/nsis/*.exe" -File -ErrorAction SilentlyContinue
   if ($null -eq $nsisExeFiles -or $nsisExeFiles.Count -eq 0) {
     Write-Error "NSIS installer missing"
     exit 1
