@@ -2,15 +2,8 @@
 <#
 .SYNOPSIS
     Bumps the version in package.json, src-tauri/Cargo.toml, and src-tauri/tauri.conf.json atomically.
-
-.DESCRIPTION
-    Single command to keep all three version sources in sync before tagging a release.
-    Validates semver format, updates all files, shows a diff summary, and prints the
-    next git commands to run.
-
 .PARAMETER Version
-    The new semver version string, e.g. "1.0.0" or "0.5.0-beta.1".
-
+    The new semver version string, e.g. "1.0.0"
 .EXAMPLE
     .\scripts\bump-version.ps1 -Version "1.0.0"
 #>
@@ -25,26 +18,25 @@ $ErrorActionPreference = "Stop"
 function Update-JsonVersion {
     param([string]$FilePath, [string]$NewVersion)
     $content = Get-Content $FilePath -Raw
-    $updated = $content -replace '"version"\s*:\s*"[^"]+"', "`"version`": `"$NewVersion`""
+    $updated = $content -replace '"version"\s*:\s*"[^"]+"', ('"version": "' + $NewVersion + '"')
     if ($content -eq $updated) {
-        Write-Warning "$FilePath: no version field found or already at $NewVersion"
+        Write-Warning ("${FilePath}: no version field found or already at " + $NewVersion)
     }
-    Set-Content -Path $FilePath -Value $updated -Encoding utf8 -NoNewline
+    [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.UTF8Encoding]::new($false))
 }
 
 function Update-CargoVersion {
     param([string]$FilePath, [string]$NewVersion)
     $content = Get-Content $FilePath -Raw
-    # Only replace the first occurrence (the crate's own [package] version, not dependencies)
-    $updated = $content -replace '(?m)^version\s*=\s*"[^"]+"', "version = `"$NewVersion`""
+    $updated = $content -replace '(?m)^version\s*=\s*"[^"]+"', ('version = "' + $NewVersion + '"')
     if ($content -eq $updated) {
-        Write-Warning "$FilePath: no version field found or already at $NewVersion"
+        Write-Warning ("${FilePath}: no version field found or already at " + $NewVersion)
     }
-    Set-Content -Path $FilePath -Value $updated -Encoding utf8 -NoNewline
+    [System.IO.File]::WriteAllText($FilePath, $updated, [System.Text.UTF8Encoding]::new($false))
 }
 
 # --- Resolve paths -------------------------------------------------------
-$root = Split-Path $PSScriptRoot -Parent
+$root        = Split-Path $PSScriptRoot -Parent
 $packageJson = Join-Path $root "package.json"
 $cargoToml   = Join-Path $root "src-tauri\Cargo.toml"
 $tauriConf   = Join-Path $root "src-tauri\tauri.conf.json"
@@ -56,7 +48,7 @@ foreach ($f in $packageJson, $cargoToml, $tauriConf) {
     }
 }
 
-# --- Read current version from package.json ------------------------------
+# --- Read current version ------------------------------------------------
 $pkg = Get-Content $packageJson -Raw | ConvertFrom-Json
 $currentVersion = $pkg.version
 Write-Host ""
@@ -65,7 +57,7 @@ Write-Host "New version     : $Version"
 Write-Host ""
 
 if ($currentVersion -eq $Version) {
-    Write-Warning "Already at $Version — nothing to do."
+    Write-Warning "Already at $Version -- nothing to do."
     exit 0
 }
 
@@ -88,15 +80,15 @@ Write-Host "=== Verification ==="
     @{ File = "src-tauri/tauri.conf.json"; Pattern = '"version"' }
 ) | ForEach-Object {
     $line = Select-String -Path (Join-Path $root $_.File) -Pattern $_.Pattern | Select-Object -First 1
-    Write-Host "  $($_.File): $($line.Line.Trim())"
+    Write-Host ("  " + $_.File + ": " + $line.Line.Trim())
 }
 
-# --- Next steps hint ------------------------------------------------------
+# --- Next steps -----------------------------------------------------------
 Write-Host ""
 Write-Host "=== Next steps ==="
 Write-Host "  1. Update CHANGELOG.md with v$Version release notes"
 Write-Host "  2. git add package.json src-tauri/Cargo.toml src-tauri/tauri.conf.json CHANGELOG.md"
-Write-Host "  3. git commit -m `"chore: bump version to v$Version`""
+Write-Host ('  3. git commit -m "chore: bump version to v' + $Version + '"')
 Write-Host "  4. git tag v$Version"
 Write-Host "  5. git push origin main --tags"
 Write-Host ""
