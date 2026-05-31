@@ -146,6 +146,10 @@ Set-Content -Path $metadataPath -Value $metadataContent -Encoding ascii
 Write-Host ""
 Write-Host "Wrote $metadataPath"
 
+Invoke-Step -Name "Generate schema drift report" -Action {
+  npm run generate:drift-report
+}
+
 Write-Host ""
 Write-Host "LOCAL RELEASE CHECK PASSED"
 Write-Host "Installers generated successfully"
