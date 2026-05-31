@@ -157,6 +157,24 @@ if ($targets -eq "all") {
   Write-Host "Bundle targets OK"
 }
 
+# ── Security gate ────────────────────────────────────────────────────
+Write-Host ""
+Write-Host "==> Security: gitleaks scan"
+node scripts/gitleaks-scan.mjs
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "gitleaks found potential secrets — resolve before building a release."
+  exit 1
+}
+Write-Host "No secrets detected."
+
+Write-Host ""
+Write-Host "==> Security: npm audit (production deps, high+ threshold)"
+npm audit --omit=dev --audit-level=high
+if ($LASTEXITCODE -ne 0) {
+  Write-Error "npm audit found HIGH or CRITICAL vulnerabilities — resolve before release."
+  exit 1
+}
+
 Write-Host ""
 Write-Host "=== PRE-BUILD VERIFICATION PASSED ==="
 Write-Host ""

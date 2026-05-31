@@ -1,6 +1,22 @@
-# 🚨 **CRITICAL AUDIT FINDINGS - MAJOR ISSUES DISCOVERED**
+# CRITICAL AUDIT FINDINGS — CLOSED
 
-## ❌ **AUDIT FAILURE ACKNOWLEDGED**
+## Decision log — 2026-05-31 (Phase 4 review)
+
+All items reviewed and accepted/closed:
+
+| Finding | Decision | Rationale |
+|---------|----------|-----------|
+| Expense duplicate notifications (35 remaining) | **ACCEPTED — RESOLVED** | `ExpenseDebug` tab gated behind `import.meta.env.DEV` in Phase 0 (commit `26dbe0a`). Debug-only duplicates never fire in production. |
+| Missing template download notifications | **ACCEPTED** | Template downloads trigger file-save dialogs — sufficient feedback for operator workflow. Additional toast is redundant noise. |
+| Missing consolidated report download notification | **ACCEPTED** | Same rationale — file-save dialog is sufficient. |
+
+No further code changes required. Document kept for historical reference.
+
+---
+
+# ORIGINAL FINDINGS (archived)
+
+## AUDIT FAILURE ACKNOWLEDGED
 
 You were absolutely right! My previous audit was **incomplete and failed** to identify critical missing notifications and remaining duplicates.
 
