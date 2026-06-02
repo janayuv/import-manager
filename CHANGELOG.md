@@ -1,5 +1,13 @@
 # Changelog
 
+## v1.0.1 — 2026-06-01
+
+Updater verification release. No functional changes — published to confirm the
+GitHub-based in-app updater detects, downloads, and installs a newer version
+over an installed v1.0.0 build (minisign-signed, no Windows Authenticode cert).
+
+---
+
 ## v1.0.0 (planned)
 
 Production release. Requires manual operator sign-off:

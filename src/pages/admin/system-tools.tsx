@@ -67,7 +67,6 @@ export default function AdminSystemToolsPage() {
       <div
         className="im-dashboard-body"
         style={{
-          maxWidth: 960,
           display: 'flex',
           flexDirection: 'column',
           gap: 24,
