@@ -2578,13 +2578,16 @@ async fn create_backup_impl(
             )
         }
         "google_drive" => {
-            if !super::google_drive::is_configured() {
-                fs::remove_file(&enc_path).ok();
-                fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
-                return Err(
-                    "Google Drive is not configured for this build (set IMPORT_MANAGER_GOOGLE_CLIENT_ID)."
-                        .to_string(),
-                );
+            {
+                let db = db_state.db.lock().map_err(|e| e.to_string())?;
+                if !super::google_drive::is_configured_with_conn(&db) {
+                    fs::remove_file(&enc_path).ok();
+                    fs::remove_file(sidecar_sha256_path(&enc_path)).ok();
+                    return Err(
+                        "Google Drive is not configured. Set your OAuth credentials in Settings > Google Drive."
+                            .to_string(),
+                    );
+                }
             }
             {
                 let db = db_state.db.lock().map_err(|e| e.to_string())?;

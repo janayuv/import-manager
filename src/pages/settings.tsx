@@ -7,6 +7,13 @@ import { useThemeDesign } from '@/components/ThemeProvider';
 
 import * as React from 'react';
 
+interface GoogleOAuthCredentialsInfo {
+  configured: boolean;
+  runtimeOverride: boolean;
+  clientId: string;
+  hasRuntimeSecret: boolean;
+}
+
 import { ModuleSettings } from '@/components/module-settings';
 import {
   AppBar,
@@ -51,6 +58,13 @@ export default function SettingsPage() {
     2
   );
 
+  const [oauthInfo, setOauthInfo] =
+    React.useState<GoogleOAuthCredentialsInfo | null>(null);
+  const [oauthClientId, setOauthClientId] = React.useState('');
+  const [oauthClientSecret, setOauthClientSecret] = React.useState('');
+  const [oauthSaving, setOauthSaving] = React.useState(false);
+  const [showSecret, setShowSecret] = React.useState(false);
+
   React.useEffect(() => {
     let isMounted = true;
     invoke<{ lineTotalDecimals: 0 | 2; invoiceTotalDecimals: 0 | 2 }>(
@@ -68,6 +82,65 @@ export default function SettingsPage() {
       isMounted = false;
     };
   }, []);
+
+  React.useEffect(() => {
+    let isMounted = true;
+    invoke<GoogleOAuthCredentialsInfo>('get_google_oauth_credentials', {
+      userId,
+    })
+      .then(info => {
+        if (!isMounted) return;
+        setOauthInfo(info);
+        setOauthClientId(info.clientId);
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, [userId]);
+
+  const handleSaveOauth = React.useCallback(async () => {
+    if (!oauthClientId.trim()) {
+      toast.error('Client ID is required');
+      return;
+    }
+    setOauthSaving(true);
+    try {
+      await invoke('set_google_oauth_credentials', {
+        clientId: oauthClientId.trim(),
+        clientSecret: oauthClientSecret.trim(),
+        userId,
+      });
+      const updated = await invoke<GoogleOAuthCredentialsInfo>(
+        'get_google_oauth_credentials',
+        { userId }
+      );
+      setOauthInfo(updated);
+      setOauthClientId(updated.clientId);
+      setOauthClientSecret('');
+      toast.success('Google OAuth credentials saved');
+    } catch {
+      toast.error('Failed to save credentials');
+    } finally {
+      setOauthSaving(false);
+    }
+  }, [oauthClientId, oauthClientSecret, userId]);
+
+  const handleClearOauth = React.useCallback(async () => {
+    try {
+      await invoke('clear_google_oauth_credentials', { userId });
+      const updated = await invoke<GoogleOAuthCredentialsInfo>(
+        'get_google_oauth_credentials',
+        { userId }
+      );
+      setOauthInfo(updated);
+      setOauthClientId(updated.clientId);
+      setOauthClientSecret('');
+      toast.success('Google OAuth credentials cleared');
+    } catch {
+      toast.error('Failed to clear credentials');
+    }
+  }, [userId]);
 
   const persistInvoiceCalculationSettings = React.useCallback(
     async (lineDecimals: 0 | 2, invoiceDecimals: 0 | 2) => {
@@ -638,6 +711,149 @@ export default function SettingsPage() {
               </span>
             </SettingRow>
           </SettingsSection>
+        </div>
+
+        {/* Google Drive OAuth Credentials */}
+        <div className="im-section">
+          <div className="im-section__header">
+            <span className="im-section__label">// Google Drive OAuth</span>
+          </div>
+          <div
+            className="im-section__body"
+            style={{ display: 'flex', flexDirection: 'column', gap: 12 }}
+          >
+            {/* Status badge */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {oauthInfo?.configured ? (
+                oauthInfo.runtimeOverride ? (
+                  <span className="im-pill im-pill--green">
+                    Runtime credentials active
+                  </span>
+                ) : (
+                  <span className="im-pill im-pill--blue">
+                    Build-time credentials active
+                  </span>
+                )
+              ) : (
+                <span className="im-pill im-pill--red">Not configured</span>
+              )}
+              {oauthInfo?.runtimeOverride && (
+                <button
+                  className="im-btn im-btn--danger"
+                  style={{ fontSize: 11, padding: '2px 10px' }}
+                  onClick={() => void handleClearOauth()}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            <p
+              style={{
+                fontSize: 12,
+                color: 'var(--color-im-muted)',
+                margin: 0,
+                lineHeight: 1.5,
+              }}
+            >
+              Create a <strong>Desktop</strong> OAuth 2.0 client in Google Cloud
+              Console and paste the credentials below. Add{' '}
+              <code
+                style={{
+                  fontFamily: 'var(--font-im-mono)',
+                  fontSize: 11,
+                  background: 'var(--muted)',
+                  padding: '1px 4px',
+                  borderRadius: 3,
+                }}
+              >
+                http://127.0.0.1:8765/
+              </code>{' '}
+              as a redirect URI.
+            </p>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'var(--font-im-mono)',
+                  color: 'var(--color-im-label)',
+                }}
+              >
+                CLIENT ID
+              </label>
+              <input
+                className="im-input"
+                placeholder="xxxxxxxxxx.apps.googleusercontent.com"
+                value={oauthClientId}
+                onChange={e => setOauthClientId(e.target.value)}
+                style={{ fontFamily: 'var(--font-im-mono)', fontSize: 12 }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <label
+                style={{
+                  fontSize: 12,
+                  fontFamily: 'var(--font-im-mono)',
+                  color: 'var(--color-im-label)',
+                }}
+              >
+                CLIENT SECRET{' '}
+                {oauthInfo?.hasRuntimeSecret && (
+                  <span
+                    style={{ color: 'var(--color-im-muted)', fontWeight: 400 }}
+                  >
+                    (stored — enter new value to replace)
+                  </span>
+                )}
+              </label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  className="im-input"
+                  type={showSecret ? 'text' : 'password'}
+                  placeholder={
+                    oauthInfo?.hasRuntimeSecret
+                      ? '••••••••••••••••'
+                      : 'GOCSPX-...'
+                  }
+                  value={oauthClientSecret}
+                  onChange={e => setOauthClientSecret(e.target.value)}
+                  style={{
+                    fontFamily: 'var(--font-im-mono)',
+                    fontSize: 12,
+                    paddingRight: 72,
+                    width: '100%',
+                  }}
+                />
+                <button
+                  type="button"
+                  className="im-btn"
+                  onClick={() => setShowSecret(v => !v)}
+                  style={{
+                    position: 'absolute',
+                    right: 4,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    fontSize: 11,
+                    padding: '2px 8px',
+                  }}
+                >
+                  {showSecret ? 'Hide' : 'Show'}
+                </button>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <button
+                className="im-btn im-btn--primary"
+                onClick={() => void handleSaveOauth()}
+                disabled={oauthSaving || !oauthClientId.trim()}
+              >
+                {oauthSaving ? 'Saving…' : 'Save Credentials'}
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>

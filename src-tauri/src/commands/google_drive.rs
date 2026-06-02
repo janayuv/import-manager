@@ -40,6 +40,9 @@ const META_GDRIVE_REFRESH: &str = "gdrive_refresh_token";
 const META_GDRIVE_EXPIRY: &str = "gdrive_token_expiry";
 /// Last resolved `ImportManagerBackups` folder id (debug/support only). Never used to skip API discovery.
 const META_GDRIVE_BACKUP_FOLDER_ID: &str = "gdrive_backup_folder_id";
+/// Runtime-stored OAuth client credentials (override build-time env vars).
+const META_GDRIVE_CLIENT_ID: &str = "gdrive_oauth_client_id";
+const META_GDRIVE_CLIENT_SECRET: &str = "gdrive_oauth_client_secret";
 const PERM_BACKUP_SETTINGS: Permission = Permission::BackupSettings;
 
 static OPERATION_CANCEL: AtomicBool = AtomicBool::new(false);
@@ -147,6 +150,34 @@ fn read_gdrive_refresh_from_path_file() -> Option<String> {
     read_gdrive_refresh_from_metadata(&c)
 }
 
+/// Read effective client ID using the recorded DB path (for use outside of command handlers).
+fn get_effective_client_id_from_path() -> Option<String> {
+    if let Some(p) = GDRIVE_TOKEN_DB_PATH.get() {
+        if let Ok(c) = Connection::open(p) {
+            if let Some(v) = read_gdrive_metadata_str(&c, META_GDRIVE_CLIENT_ID) {
+                if !v.is_empty() {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    build_client_id().filter(|s| !s.is_empty()).map(|s| s.to_string())
+}
+
+/// Read effective client secret using the recorded DB path (for use outside of command handlers).
+fn get_effective_client_secret_from_path() -> Option<String> {
+    if let Some(p) = GDRIVE_TOKEN_DB_PATH.get() {
+        if let Ok(c) = Connection::open(p) {
+            if let Some(v) = read_gdrive_metadata_str(&c, META_GDRIVE_CLIENT_SECRET) {
+                if !v.is_empty() {
+                    return Some(v);
+                }
+            }
+        }
+    }
+    build_client_secret().filter(|s| !s.is_empty()).map(|s| s.to_string())
+}
+
 /// Resolve refresh token: keyring first, then [app_metadata], then on-disk path fallback.
 fn get_refresh_token_unified(db: Option<&Mutex<Connection>>) -> Result<String, String> {
     if let Ok(e) = keyring_entry_refresh() {
@@ -204,16 +235,37 @@ pub struct GoogleDriveStatus {
     pub email: Option<String>,
 }
 
-fn client_id() -> Option<&'static str> {
+fn build_client_id() -> Option<&'static str> {
     option_env!("IMPORT_MANAGER_GOOGLE_CLIENT_ID")
 }
 
-fn client_secret() -> Option<&'static str> {
+fn build_client_secret() -> Option<&'static str> {
     option_env!("IMPORT_MANAGER_GOOGLE_CLIENT_SECRET")
 }
 
-pub fn is_configured() -> bool {
-    client_id().map(|s| !s.is_empty()).unwrap_or(false)
+/// Effective client ID: runtime DB value first, then build-time env var.
+fn get_effective_client_id(conn: &Connection) -> Option<String> {
+    if let Some(v) = read_gdrive_metadata_str(conn, META_GDRIVE_CLIENT_ID) {
+        if !v.is_empty() {
+            return Some(v);
+        }
+    }
+    build_client_id().filter(|s| !s.is_empty()).map(|s| s.to_string())
+}
+
+/// Effective client secret: runtime DB value first, then build-time env var.
+fn get_effective_client_secret(conn: &Connection) -> Option<String> {
+    if let Some(v) = read_gdrive_metadata_str(conn, META_GDRIVE_CLIENT_SECRET) {
+        if !v.is_empty() {
+            return Some(v);
+        }
+    }
+    build_client_secret().filter(|s| !s.is_empty()).map(|s| s.to_string())
+}
+
+/// Returns true if a client ID is available (runtime DB or build-time env var).
+pub fn is_configured_with_conn(conn: &Connection) -> bool {
+    get_effective_client_id(conn).is_some()
 }
 
 fn keyring_entry_refresh() -> Result<Entry, String> {
@@ -295,7 +347,13 @@ pub async fn google_drive_status(
             .map_err(|e| IpcError::new("internal", e.to_string()))?;
         crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
     }
-    let configured = is_configured();
+    let configured = {
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
+        is_configured_with_conn(&db)
+    };
     let connected = {
         let db = db_state
             .db
@@ -407,18 +465,21 @@ pub async fn google_drive_connect(
             .map_err(|e| IpcError::new("internal", e.to_string()))?;
         crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
     }
-    let id = client_id()
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| IpcError::new(
+    let (id, secret) = {
+        let db = db_state
+            .db
+            .lock()
+            .map_err(|e| IpcError::new("internal", e.to_string()))?;
+        let id = get_effective_client_id(&db).ok_or_else(|| IpcError::new(
             "google_drive_oauth",
             user_message(
                 "oauth",
-                "OAuth is not configured for this build (IMPORT_MANAGER_GOOGLE_CLIENT_ID).",
+                "OAuth is not configured. Set your Google OAuth credentials in Settings > Google Drive.",
             ),
-        ))?
-        .to_string();
-
-    let secret = client_secret().map(|s| s.to_string());
+        ))?;
+        let secret = get_effective_client_secret(&db);
+        (id, secret)
+    };
 
     let auth_url = format!(
         "https://accounts.google.com/o/oauth2/v2/auth?client_id={}&redirect_uri={}&response_type=code&scope={}&access_type=offline&prompt=consent",
@@ -597,9 +658,8 @@ async fn fetch_user_email(access_token: &str) -> Result<String, String> {
 }
 
 async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
-    let id = client_id()
-        .filter(|s| !s.is_empty())
-        .ok_or_else(|| user_message("token", "OAuth client id missing at build time."))?;
+    let id = get_effective_client_id_from_path()
+        .ok_or_else(|| user_message("token", "OAuth client id not configured."))?;
 
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(60))
@@ -608,13 +668,11 @@ async fn refresh_access_token(refresh_token: &str) -> Result<String, String> {
 
     let mut form: Vec<(&str, String)> = vec![
         ("refresh_token", refresh_token.to_string()),
-        ("client_id", id.to_string()),
+        ("client_id", id.clone()),
         ("grant_type", "refresh_token".to_string()),
     ];
-    if let Some(s) = client_secret() {
-        if !s.is_empty() {
-            form.push(("client_secret", s.to_string()));
-        }
+    if let Some(s) = get_effective_client_secret_from_path() {
+        form.push(("client_secret", s));
     }
 
     let res = client
@@ -1401,4 +1459,102 @@ async fn download_get_with_auth(
         .send()
         .await
         .map_err(|e| user_message("network", e.to_string()))
+}
+
+// ── Runtime OAuth credential management ────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GoogleOAuthCredentialsInfo {
+    /// Whether a client ID is available (build-time or runtime).
+    pub configured: bool,
+    /// Whether the client ID comes from runtime DB (vs build-time env var).
+    pub runtime_override: bool,
+    /// The stored client ID (empty string if not set at runtime).
+    pub client_id: String,
+    /// Whether a client secret is stored at runtime.
+    pub has_runtime_secret: bool,
+}
+
+/// Return current OAuth credential state (never returns the secret value).
+#[tauri::command]
+pub async fn get_google_oauth_credentials(
+    db_state: State<'_, DbState>,
+    user_id: Option<String>,
+) -> Result<GoogleOAuthCredentialsInfo, IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+
+    let runtime_id = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_ID);
+    let runtime_secret = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_SECRET);
+    let runtime_override = runtime_id.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+    let configured = get_effective_client_id(&db).is_some();
+
+    Ok(GoogleOAuthCredentialsInfo {
+        configured,
+        runtime_override,
+        client_id: runtime_id.unwrap_or_default(),
+        has_runtime_secret: runtime_secret.map(|s| !s.is_empty()).unwrap_or(false),
+    })
+}
+
+/// Save runtime OAuth credentials into app_metadata (overrides build-time env vars).
+#[tauri::command]
+pub async fn set_google_oauth_credentials(
+    db_state: State<'_, DbState>,
+    client_id: String,
+    client_secret: String,
+    user_id: Option<String>,
+) -> Result<(), IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+
+    let id = client_id.trim().to_string();
+    let secret = client_secret.trim().to_string();
+
+    if id.is_empty() {
+        return Err(IpcError::new("validation", "Client ID cannot be empty."));
+    }
+
+    db.execute(
+        "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
+        params![META_GDRIVE_CLIENT_ID, id],
+    )
+    .map_err(|e| IpcError::new("db", e.to_string()))?;
+
+    db.execute(
+        "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
+        params![META_GDRIVE_CLIENT_SECRET, secret],
+    )
+    .map_err(|e| IpcError::new("db", e.to_string()))?;
+
+    log::info!(target: "google_drive", "event=runtime_credentials_saved");
+    Ok(())
+}
+
+/// Remove runtime OAuth credentials (reverts to build-time env vars or unconfigured).
+#[tauri::command]
+pub async fn clear_google_oauth_credentials(
+    db_state: State<'_, DbState>,
+    user_id: Option<String>,
+) -> Result<(), IpcError> {
+    let db = db_state
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
+    crate::safety::guard_permission(&db, user_id.as_deref(), PERM_BACKUP_SETTINGS)?;
+
+    for key in [META_GDRIVE_CLIENT_ID, META_GDRIVE_CLIENT_SECRET] {
+        db.execute("DELETE FROM app_metadata WHERE key = ?1", params![key])
+            .map_err(|e| IpcError::new("db", e.to_string()))?;
+    }
+
+    log::info!(target: "google_drive", "event=runtime_credentials_cleared");
+    Ok(())
 }
