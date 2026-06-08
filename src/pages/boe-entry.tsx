@@ -354,6 +354,7 @@ export default function BoeEntryPage() {
                 <div className="border-im-rule bg-im-panel mt-3 flex min-h-0 flex-1 flex-col border">
                   <ViewBoeDialog
                     boe={selectedSavedBoeFromUrl}
+                    allBoes={allBoes}
                     onClose={closeEntryPanel}
                     presentation="page"
                     className="min-h-0 flex-1"
@@ -511,6 +512,7 @@ export default function BoeEntryPage() {
 
         <SavedBoeList
           savedBoes={savedBoes}
+          allBoes={allBoes}
           onView={handleViewBoe}
           onEdit={handleEditBoe}
           onDelete={handleDeleteBoe}

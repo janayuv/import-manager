@@ -12,12 +12,15 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
+import type { BoeDetails } from '@/types/boe';
 import type { SavedBoe } from '@/types/boe-entry';
 
 import { CalculationResults } from './calculation-results';
 
 interface ViewBoeDialogProps {
   boe: SavedBoe;
+  // Fix: allBoes needed to resolve boe.boeId → beNumber for display
+  allBoes: BoeDetails[];
   onClose: () => void;
   presentation?: 'dialog' | 'page';
   className?: string;
@@ -26,6 +29,7 @@ interface ViewBoeDialogProps {
 
 export function ViewBoeDialog({
   boe,
+  allBoes,
   onClose,
   presentation = 'dialog',
   className,
@@ -43,6 +47,11 @@ export function ViewBoeDialog({
     </div>
   );
 
+  // Resolve boeId → beNumber; show fallback when not linked or record missing
+  const linkedBeNumber = boe.boeId
+    ? (allBoes.find(b => b.id === boe.boeId)?.beNumber ?? boe.boeId)
+    : null;
+
   const headerBlock = isPage ? (
     <>
       <h2
@@ -53,6 +62,12 @@ export function ViewBoeDialog({
       </h2>
       <p className="text-muted-foreground text-sm">
         Summary for {boe.supplierName}.
+        {linkedBeNumber && (
+          <>
+            {' '}
+            · BE no. <span className="font-mono">{linkedBeNumber}</span>
+          </>
+        )}
       </p>
     </>
   ) : (
@@ -61,6 +76,12 @@ export function ViewBoeDialog({
       <DialogDescription>
         Calculation summary for Invoice #{boe.invoiceNumber} from{' '}
         {boe.supplierName}.
+        {linkedBeNumber && (
+          <>
+            {' '}
+            · BE no. <span className="font-mono">{linkedBeNumber}</span>
+          </>
+        )}
       </DialogDescription>
     </>
   );

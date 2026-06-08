@@ -13,10 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import type { BoeDetails } from '@/types/boe';
 import type { SavedBoe } from '@/types/boe-entry';
 
 interface SavedBoeListProps {
   savedBoes: SavedBoe[];
+  // Fix: allBoes needed to resolve boeId → beNumber; SavedBoe only carries the FK reference
+  allBoes: BoeDetails[];
   onView: (boeId: string) => void;
   onEdit: (boeId: string) => void;
   onDelete: (boeId: string) => void;
@@ -31,6 +34,7 @@ const formatCurrency = (amount: number) => {
 
 export function SavedBoeList({
   savedBoes,
+  allBoes,
   onView,
   onEdit,
   onDelete,
@@ -90,6 +94,10 @@ export function SavedBoeList({
                 <TableHead className="im-th !h-9 rounded-none font-mono">
                   Supplier
                 </TableHead>
+                {/* Fix: BOE Number column; resolved via allBoes lookup on boeId */}
+                <TableHead className="im-th !h-9 rounded-none font-mono">
+                  BOE no.
+                </TableHead>
                 <TableHead className="im-th !h-9 rounded-none text-right font-mono">
                   Total duty
                 </TableHead>
@@ -126,6 +134,13 @@ export function SavedBoeList({
                     </TableCell>
                     <TableCell className="im-td text-im-text !max-w-[min(280px,40vw)]">
                       {boe.supplierName}
+                    </TableCell>
+                    <TableCell className="im-td text-im-text !max-w-none font-mono">
+                      {/* Resolve boeId → beNumber; show '—' when not linked or record missing */}
+                      {boe.boeId
+                        ? (allBoes.find(b => b.id === boe.boeId)?.beNumber ??
+                          '—')
+                        : '—'}
                     </TableCell>
                     <TableCell className="im-td im-td-mono text-right">
                       {formatCurrency(boe.calculationResult.customsDutyTotal)}

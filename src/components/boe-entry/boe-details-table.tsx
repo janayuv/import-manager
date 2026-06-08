@@ -34,6 +34,10 @@ export function BoeDetailsTable({ boe }: BoeDetailsTableProps) {
         <Table className="im-table text-xs">
           <TableHeader>
             <TableRow className="border-0 hover:bg-transparent">
+              {/* Fix: beNumber was only in the section subtitle; now a dedicated column */}
+              <TableHead className="im-th !h-9 rounded-none font-mono">
+                BE number
+              </TableHead>
               <TableHead className="im-th !h-9 rounded-none font-mono">
                 BE date
               </TableHead>
@@ -50,6 +54,9 @@ export function BoeDetailsTable({ boe }: BoeDetailsTableProps) {
           </TableHeader>
           <TableBody>
             <TableRow className="hover:bg-im-hover border-0">
+              <TableCell className="im-td text-im-text !max-w-none font-mono font-semibold">
+                {boe.beNumber}
+              </TableCell>
               <TableCell className="im-td text-im-text !max-w-none font-mono">
                 {formatDateForDisplay(boe.beDate)}
               </TableCell>

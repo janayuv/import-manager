@@ -44,7 +44,10 @@ const minimalSaved = (
   }) as SavedBoe;
 
 describe('selectBoesForEntryDropdown', () => {
-  it('omits CLEARED register BOEs for new entry', () => {
+  it('includes fully paid (CLEARED) but unused BOEs for new entry', () => {
+    // Fix: a fully paid BOE (dutyPaid == dutyAmount) must remain selectable —
+    // the BOE Entry form reconciles the calculated duty against dutyPaid, so a
+    // paid BOE is the normal linkable case. Only "already used" BOEs are hidden.
     const cleared = baseBoe({
       id: 'b-cleared',
       dutyPaid: 1000,
@@ -61,7 +64,7 @@ describe('selectBoesForEntryDropdown', () => {
       b => b.id
     );
     expect(ids).toContain('b-open');
-    expect(ids).not.toContain('b-cleared');
+    expect(ids).toContain('b-cleared');
   });
 
   it('still includes the linked BOE when editing that saved record (even if CLEARED)', () => {

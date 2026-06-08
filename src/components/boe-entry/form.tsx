@@ -170,6 +170,9 @@ export function BoeEntryForm({
     ]);
   }, [shipments, settings.textFormat]);
 
+  // Effect 1: full form reset/restore when initialData or shipment list changes.
+  // allBoes is intentionally excluded — including it would reset the form every time
+  // the BOE master data loads asynchronously, overwriting any user edits in progress.
   React.useEffect(() => {
     if (initialData) {
       form.reset(initialData.formValues);
@@ -185,10 +188,8 @@ export function BoeEntryForm({
       setItemInputs(initialData.itemInputs);
       setCalculationResult(initialData.calculationResult);
       if (initialData.boeId) {
-        const boeDetails =
-          allBoes.find(b => b.id === initialData.boeId) || null;
+        // Set boeId immediately; Effect 2 resolves the full BoeDetails once allBoes loads
         setSelectedBoeId(initialData.boeId);
-        setSelectedBoeDetails(boeDetails);
       }
     } else {
       form.reset({
@@ -207,7 +208,16 @@ export function BoeEntryForm({
       setSelectedBoeId('');
       setSelectedBoeDetails(null);
     }
-  }, [initialData, shipments, allBoes, form, settings.textFormat]);
+  }, [initialData, shipments, form, settings.textFormat]);
+
+  // Effect 2: resolve boeId → BoeDetails when allBoes loads or changes.
+  // Runs independently so that an async allBoes load does not trigger a full form reset.
+  React.useEffect(() => {
+    if (initialData?.boeId) {
+      const boeDetails = allBoes.find(b => b.id === initialData.boeId) ?? null;
+      setSelectedBoeDetails(boeDetails);
+    }
+  }, [allBoes, initialData?.boeId]);
 
   const handleSupplierChange = React.useCallback(
     (supplierName: string) => {

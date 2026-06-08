@@ -860,9 +860,13 @@ impl ExpenseService {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
-        // Build the main query - handle both old and new data formats robustly
+        // Build the main query - handle both old and new data formats robustly.
+        // NULLIF(col, 0) converts a zeroed legacy paise column to NULL so the
+        // COALESCE can fall back to the original decimal column multiplied by 100.
+        // Legacy rows have amount_paise = 0 (not NULL) because ALTER TABLE DEFAULT 0
+        // filled existing rows before the backfill migration (V80) could run.
         let query = format!(
-            "SELECT 
+            "SELECT
                 ei.id as invoice_id,
                 COALESCE(ei.invoice_number, ei.invoice_no) as invoice_number,
                 ei.invoice_date,
@@ -872,13 +876,14 @@ impl ExpenseService {
                 sp.name as service_provider_name,
                 e.expense_type_id,
                 et.name as expense_type_name,
-                COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) as amount_paise,
-                COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0) as cgst_amount_paise,
-                COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0) as sgst_amount_paise,
-                COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0) as igst_amount_paise,
-                COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0) as tds_amount_paise,
-                COALESCE(e.total_amount_paise, CAST(e.total_amount * 100 AS INTEGER), 0) as total_amount_paise,
-                COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0) as net_amount_paise,
+                COALESCE(NULLIF(e.amount_paise, 0),       CAST(e.amount       * 100 AS INTEGER), 0) as amount_paise,
+                COALESCE(NULLIF(e.cgst_amount_paise, 0),  CAST(e.cgst_amount  * 100 AS INTEGER), 0) as cgst_amount_paise,
+                COALESCE(NULLIF(e.sgst_amount_paise, 0),  CAST(e.sgst_amount  * 100 AS INTEGER), 0) as sgst_amount_paise,
+                COALESCE(NULLIF(e.igst_amount_paise, 0),  CAST(e.igst_amount  * 100 AS INTEGER), 0) as igst_amount_paise,
+                COALESCE(NULLIF(e.tds_amount_paise, 0),   CAST(e.tds_amount   * 100 AS INTEGER), 0) as tds_amount_paise,
+                COALESCE(NULLIF(e.total_amount_paise, 0), CAST(e.total_amount * 100 AS INTEGER), 0) as total_amount_paise,
+                -- net_amount decimal column was never added on upgraded installs; derive from GENERATED columns.
+                COALESCE(NULLIF(e.net_amount_paise, 0),   CAST((e.total_amount - e.tds_amount) * 100 AS INTEGER), 0) as net_amount_paise,
                 COALESCE(ei.currency, 'INR') as currency,
                 e.remarks,
                 COALESCE(e.created_at, e.updated_at) as created_at
@@ -1020,16 +1025,18 @@ impl ExpenseService {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
+        // NULLIF fallback: legacy rows have *_paise = 0 (not NULL); fall back to
+        // decimal columns so pre-migration data is included correctly in summaries.
         let query = format!(
-            "SELECT 
+            "SELECT
                 e.expense_type_id,
                 et.name as expense_type_name,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
+                SUM(COALESCE(NULLIF(e.amount_paise, 0),       CAST(e.amount       * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(NULLIF(e.cgst_amount_paise, 0),  CAST(e.cgst_amount  * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.sgst_amount_paise, 0),  CAST(e.sgst_amount  * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.igst_amount_paise, 0),  CAST(e.igst_amount  * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(NULLIF(e.tds_amount_paise, 0),   CAST(e.tds_amount   * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(NULLIF(e.net_amount_paise, 0),   CAST((e.total_amount - e.tds_amount) * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(*) as line_count
             FROM expense_invoices ei
             JOIN expenses e ON ei.id = e.expense_invoice_id
@@ -1099,16 +1106,17 @@ impl ExpenseService {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
+        // NULLIF fallback: legacy rows have *_paise = 0; fall back to decimal columns.
         let query = format!(
-            "SELECT 
+            "SELECT
                 ei.service_provider_id,
                 sp.name as service_provider_name,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
+                SUM(COALESCE(NULLIF(e.amount_paise, 0),       CAST(e.amount       * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(NULLIF(e.cgst_amount_paise, 0),  CAST(e.cgst_amount  * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.sgst_amount_paise, 0),  CAST(e.sgst_amount  * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.igst_amount_paise, 0),  CAST(e.igst_amount  * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(NULLIF(e.tds_amount_paise, 0),   CAST(e.tds_amount   * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(NULLIF(e.net_amount_paise, 0),   CAST((e.total_amount - e.tds_amount) * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(DISTINCT ei.id) as invoice_count,
                 COUNT(*) as line_count
             FROM expense_invoices ei
@@ -1181,16 +1189,17 @@ impl ExpenseService {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
+        // NULLIF fallback: legacy rows have *_paise = 0; fall back to decimal columns.
         let query = format!(
-            "SELECT 
+            "SELECT
                 ei.shipment_id,
                 s.invoice_number as shipment_number,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
+                SUM(COALESCE(NULLIF(e.amount_paise, 0),       CAST(e.amount       * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(NULLIF(e.cgst_amount_paise, 0),  CAST(e.cgst_amount  * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.sgst_amount_paise, 0),  CAST(e.sgst_amount  * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.igst_amount_paise, 0),  CAST(e.igst_amount  * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(NULLIF(e.tds_amount_paise, 0),   CAST(e.tds_amount   * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(NULLIF(e.net_amount_paise, 0),   CAST((e.total_amount - e.tds_amount) * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(DISTINCT ei.id) as invoice_count,
                 COUNT(*) as line_count
             FROM expense_invoices ei
@@ -1286,17 +1295,18 @@ impl ExpenseService {
             format!("WHERE {}", conditions.join(" AND "))
         };
 
+        // NULLIF fallback: legacy rows have *_paise = 0; fall back to decimal columns.
         let query = format!(
-            "SELECT 
+            "SELECT
                 CAST(strftime('%Y', ei.invoice_date) AS INTEGER) as year,
                 CAST(strftime('%m', ei.invoice_date) AS INTEGER) as month,
                 strftime('%Y-%m', ei.invoice_date) as month_name,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_amount_paise,
-                SUM(COALESCE(e.cgst_amount_paise, CAST(e.cgst_amount * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
-                SUM(COALESCE(e.sgst_amount_paise, CAST(e.sgst_amount * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
-                SUM(COALESCE(e.igst_amount_paise, CAST(e.igst_amount * 100 AS INTEGER), 0)) as total_igst_amount_paise,
-                SUM(COALESCE(e.tds_amount_paise, CAST(e.tds_amount * 100 AS INTEGER), 0)) as total_tds_amount_paise,
-                SUM(COALESCE(e.amount_paise, CAST(e.amount * 100 AS INTEGER), 0)) as total_net_amount_paise,
+                SUM(COALESCE(NULLIF(e.amount_paise, 0),       CAST(e.amount       * 100 AS INTEGER), 0)) as total_amount_paise,
+                SUM(COALESCE(NULLIF(e.cgst_amount_paise, 0),  CAST(e.cgst_amount  * 100 AS INTEGER), 0)) as total_cgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.sgst_amount_paise, 0),  CAST(e.sgst_amount  * 100 AS INTEGER), 0)) as total_sgst_amount_paise,
+                SUM(COALESCE(NULLIF(e.igst_amount_paise, 0),  CAST(e.igst_amount  * 100 AS INTEGER), 0)) as total_igst_amount_paise,
+                SUM(COALESCE(NULLIF(e.tds_amount_paise, 0),   CAST(e.tds_amount   * 100 AS INTEGER), 0)) as total_tds_amount_paise,
+                SUM(COALESCE(NULLIF(e.net_amount_paise, 0),   CAST((e.total_amount - e.tds_amount) * 100 AS INTEGER), 0)) as total_net_amount_paise,
                 COUNT(DISTINCT ei.id) as invoice_count,
                 COUNT(*) as line_count
             FROM expense_invoices ei
