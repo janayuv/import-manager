@@ -8,7 +8,6 @@ import { useLocation, useNavigate, useParams } from 'react-router-dom';
 
 import { DeleteConfirmDialog } from '@/components/boe-entry/delete-confirm-dialog';
 import { BoeEntryForm } from '@/components/boe-entry/form';
-import { SavedBoeList } from '@/components/boe-entry/saved-boe-list';
 import { ViewBoeDialog } from '@/components/boe-entry/view-boe-dialog';
 import {
   AppBar,
@@ -171,27 +170,8 @@ export default function BoeEntryPage() {
     }
   };
 
-  const handleViewBoe = React.useCallback(
-    (boeId: string) => {
-      navigate(boeEntryDetailPath(boeId, 'view'));
-    },
-    [navigate]
-  );
-
-  const handleEditBoe = React.useCallback(
-    (boeId: string) => {
-      navigate(boeEntryDetailPath(boeId, 'edit'));
-    },
-    [navigate]
-  );
-
   const handleCancelEdit = () => {
     closeEntryPanel();
-  };
-
-  const handleDeleteBoe = (boeId: string) => {
-    const boeToDelete = savedBoes.find(b => b.id === boeId) || null;
-    setDeletingBoe(boeToDelete);
   };
 
   const handleConfirmDelete = async () => {
@@ -510,13 +490,22 @@ export default function BoeEntryPage() {
           />
         </div>
 
-        <SavedBoeList
-          savedBoes={savedBoes}
-          allBoes={allBoes}
-          onView={handleViewBoe}
-          onEdit={handleEditBoe}
-          onDelete={handleDeleteBoe}
-        />
+        <div style={{ padding: '16px 24px' }}>
+          <a
+            href="/saved-boe"
+            onClick={e => {
+              e.preventDefault();
+              navigate('/saved-boe');
+            }}
+            style={{
+              color: 'var(--im-accent)',
+              fontFamily: 'monospace',
+              fontSize: 13,
+            }}
+          >
+            VIEW ALL SAVED CALCULATIONS →
+          </a>
+        </div>
       </div>
 
       <StatusBar

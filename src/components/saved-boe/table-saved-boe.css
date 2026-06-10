@@ -1,0 +1,48 @@
+@import '../supplier/table-industrial.css';
+
+/* ── Status pill base + color variants ─────────────────────────────── */
+.im-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.im-pill--green {
+  background: rgba(95, 203, 125, 0.1);
+  color: #5fcb7d;
+  border: 1px solid rgba(95, 203, 125, 0.22);
+}
+.im-pill--red {
+  background: rgba(248, 113, 113, 0.09);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+}
+.im-pill--blue {
+  background: rgba(96, 165, 250, 0.1);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.2);
+}
+.im-pill--amber {
+  background: rgba(232, 162, 58, 0.1);
+  color: #e8a23a;
+  border: 1px solid rgba(232, 162, 58, 0.25);
+}
+.im-pill--teal {
+  background: rgba(45, 212, 191, 0.1);
+  color: #2dd4bf;
+  border: 1px solid rgba(45, 212, 191, 0.22);
+}
+.im-pill--purple {
+  background: rgba(167, 139, 250, 0.1);
+  color: #a78bfa;
+  border: 1px solid rgba(167, 139, 250, 0.22);
+}
+.im-pill--gray {
+  background: rgba(31, 30, 26, 0.8);
+  color: #8c8a82;
+  border: 1px solid #1f1e1a;
+}

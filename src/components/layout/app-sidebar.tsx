@@ -25,6 +25,7 @@ const GROUPS: { label: string; urls: string[] }[] = [
       '/invoice',
       '/item-master',
       '/boe',
+      '/saved-boe',
       '/expenses',
     ],
   },

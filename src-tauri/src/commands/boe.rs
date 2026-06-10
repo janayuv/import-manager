@@ -345,6 +345,7 @@ fn map_row_to_saved_boe(row: &rusqlite::Row) -> Result<SavedBoe, RusqliteError> 
     let item_inputs_json: String = row.get("item_inputs_json")?;
     let calculation_result_json: String = row.get("calculation_result_json")?;
     let attachments_json: Option<String> = row.get("attachments_json")?;
+    let created_at: String = row.get("created_at")?;
 
     let cache_key = format!(
         "{}:{}:{}:{}",
@@ -382,6 +383,7 @@ fn map_row_to_saved_boe(row: &rusqlite::Row) -> Result<SavedBoe, RusqliteError> 
         item_inputs,
         calculation_result,
         attachments: attachments_json.and_then(|s| serde_json::from_str(&s).ok()),
+        created_at,
     };
     if let Ok(mut cache) = BOE_JSON_CACHE
         .get_or_init(|| Mutex::new(HashMap::new()))
@@ -401,7 +403,7 @@ pub fn get_boe_calculations(state: State<DbState>) -> Result<Vec<SavedBoe>, Stri
     let started = Instant::now();
     let mut stmt = conn
         .prepare(
-            "SELECT id, shipment_id, boe_id, supplier_name, invoice_number, status, form_values_json, item_inputs_json, calculation_result_json, attachments_json
+            "SELECT id, shipment_id, boe_id, supplier_name, invoice_number, status, form_values_json, item_inputs_json, calculation_result_json, attachments_json, created_at
              FROM boe_calculations
              ORDER BY created_at DESC",
         )
@@ -439,7 +441,7 @@ pub fn get_boe_calculations_paginated(
 
     let mut stmt = conn
         .prepare(
-            "SELECT id, shipment_id, boe_id, supplier_name, invoice_number, status, form_values_json, item_inputs_json, calculation_result_json, attachments_json
+            "SELECT id, shipment_id, boe_id, supplier_name, invoice_number, status, form_values_json, item_inputs_json, calculation_result_json, attachments_json, created_at
              FROM boe_calculations
              ORDER BY created_at DESC
              LIMIT ?1 OFFSET ?2",

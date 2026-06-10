@@ -69,6 +69,7 @@ export const navItems: AppNavItem[] = [
       { title: 'View All BOE', url: '/boe' },
       { title: 'BOE Entry', url: '/boe-entry' },
       { title: 'BOE Summary', url: '/boe-summary' },
+      { title: 'Saved Calculations', url: '/saved-boe' },
     ],
   },
   {

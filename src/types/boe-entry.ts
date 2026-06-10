@@ -115,4 +115,5 @@ export interface SavedBoe {
   itemInputs: BoeItemInput[];
   calculationResult: CalculationResult;
   attachments?: Attachment[]; // NEW: linked documents
+  createdAt: string;
 }

@@ -245,6 +245,7 @@ pub struct SavedBoe {
     pub item_inputs: Vec<BoeItemInput>,
     pub calculation_result: CalculationResult,
     pub attachments: Option<Vec<Attachment>>,
+    pub created_at: String,
 }
 
 // --- Structs for the specialized BOE Entry command ---

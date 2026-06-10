@@ -41,6 +41,7 @@ import {
 import BOEPage from '@/pages/boe';
 import BOEEntrypage from '@/pages/boe-entry';
 import BoeSummaryPage from '@/pages/boe-summary';
+import SavedBoePage from '@/pages/saved-boe';
 import ExpenseDataManagerPage from '@/pages/expense-data-manager';
 import ExpenseReportsPage from '@/pages/expense-reports';
 import ExpensesPage from '@/pages/expenses';
@@ -312,6 +313,14 @@ function App() {
                             <Route
                               path="/boe-summary"
                               element={<BoeSummaryPage />}
+                            />
+                            <Route
+                              path="/saved-boe"
+                              element={<SavedBoePage />}
+                            />
+                            <Route
+                              path="/saved-boe/:savedBoeId/:mode"
+                              element={<SavedBoePage />}
                             />
                             <Route
                               path="/expenses"
