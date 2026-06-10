@@ -1,1 +1,2 @@
 npm run security:gitleaks
+pwsh -NonInteractive -File scripts/verify-release-versions.ps1
