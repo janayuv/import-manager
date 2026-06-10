@@ -545,6 +545,7 @@ export function BoeEntryForm({
       itemInputs,
       calculationResult,
       attachments: initialData?.attachments ?? [],
+      createdAt: initialData?.createdAt ?? new Date().toISOString(),
     });
     if (!isEditing) {
       form.reset();

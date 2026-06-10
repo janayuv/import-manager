@@ -24,7 +24,7 @@ function getLastY(doc: jsPDF): number {
 
 function drawPageHeader(
   doc: jsPDF,
-  savedBoe: SavedBoe,
+  _savedBoe: SavedBoe,
   boeDetails: BoeDetails | undefined,
   shipment: Shipment
 ): void {
