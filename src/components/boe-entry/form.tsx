@@ -461,14 +461,15 @@ export function BoeEntryForm({
       setEditingBoe({
         id: `DRAFT-${Date.now()}`,
         shipmentId: selectedShipment.id,
-        boeId: selectedBoeId, // <-- FIX: Add boeId to the top level
+        boeId: selectedBoeId,
         invoiceNumber: selectedShipment.invoiceNumber,
         supplierName: selectedShipment.supplierName,
         status: 'Awaiting BOE Data',
-        formValues: values, // <-- FIX: No longer pass boeId inside here
+        formValues: values,
         itemInputs: finalInputs,
         calculationResult: results,
         attachments: [],
+        createdAt: new Date().toISOString(),
       });
       toast.info('Import Successful', {
         description: `Verify imported details and click "Update BOE" to save.`,
