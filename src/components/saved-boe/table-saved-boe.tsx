@@ -92,6 +92,9 @@ export function SavedBoeTable({
   const [dateTo, setDateTo] = React.useState('');
   const [currentPage, setCurrentPage] = React.useState(1);
   const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [confirmDeleteId, setConfirmDeleteId] = React.useState<string | null>(
+    null
+  );
 
   function lookupBeNumber(boeId?: string): string {
     if (!boeId) return '—';
@@ -154,6 +157,7 @@ export function SavedBoeTable({
   async function handleExcelExport(boe: SavedBoe) {
     try {
       await exportSavedBoeToExcel(boe);
+      toast.success('Excel exported successfully');
     } catch {
       toast.error('Failed to export Excel');
     }
@@ -175,6 +179,7 @@ export function SavedBoeTable({
         ? allBoes.find(b => b.id === boe.boeId)
         : undefined;
       await exportSavedBoeToPdf(boe, boeDetails, shipment);
+      toast.success('PDF exported successfully');
     } catch {
       toast.error('Failed to export PDF');
     }
@@ -487,7 +492,7 @@ export function SavedBoeTable({
                         <button
                           className="im-row-act-btn im-row-act-btn--danger"
                           title="Delete"
-                          onClick={() => onDelete(boe.id)}
+                          onClick={() => setConfirmDeleteId(boe.id)}
                         >
                           <Trash2 size={13} />
                         </button>
@@ -514,6 +519,75 @@ export function SavedBoeTable({
           </tbody>
         </table>
       </div>
+
+      {confirmDeleteId && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+          }}
+          onClick={() => setConfirmDeleteId(null)}
+        >
+          <div
+            style={{
+              background: 'var(--im-panel, #0D0D0B)',
+              border: '1px solid var(--im-rule)',
+              padding: '28px 32px',
+              minWidth: 320,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 20,
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontFamily: 'Consolas, "Courier New", monospace',
+                fontSize: 13,
+                fontWeight: 700,
+                color: 'var(--im-text)',
+                letterSpacing: '0.04em',
+              }}
+            >
+              DELETE RECORD?
+            </div>
+            <div
+              style={{
+                fontFamily: 'Consolas, "Courier New", monospace',
+                fontSize: 11,
+                color: 'var(--im-muted)',
+              }}
+            >
+              This action cannot be undone.
+            </div>
+            <div
+              style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}
+            >
+              <button
+                className="im-hdr-btn"
+                onClick={() => setConfirmDeleteId(null)}
+              >
+                CANCEL
+              </button>
+              <button
+                className="im-hdr-btn im-row-act-btn--danger"
+                style={{ color: '#ef4444', borderColor: '#ef4444' }}
+                onClick={() => {
+                  onDelete(confirmDeleteId);
+                  setConfirmDeleteId(null);
+                }}
+              >
+                DELETE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="im-table-statusbar">
         <span>

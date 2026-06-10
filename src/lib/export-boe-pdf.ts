@@ -25,44 +25,31 @@ function getLastY(doc: jsPDF): number {
 function drawPageHeader(
   doc: jsPDF,
   _savedBoe: SavedBoe,
-  boeDetails: BoeDetails | undefined,
-  shipment: Shipment
+  boeDetails: BoeDetails | undefined
 ): void {
-  doc.rect(10, 10, 190, 22);
+  doc.rect(10, 10, 190, 18);
+
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(9);
-  doc.text('INDIAN CUSTOMS', 12, 17);
+  doc.setFontSize(10);
+  doc.text('IMPORT MANAGER', 12, 18);
+
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(7);
-  doc.text('PORT : BILL OF ENTRY FOR HOME CONSUMPTION', 12, 22);
+  doc.setFontSize(8);
+  doc.text('BILL OF ENTRY', 12, 24);
 
   const beNumber = boeDetails?.beNumber ?? '—';
   const beDate = boeDetails?.beDate ? formatDate(boeDetails.beDate) : '—';
-  const itemCount = shipment.items.length;
-  const iecBar = '—';
-  const gstin = '—';
-  const cb = '—';
-  const pkgNos = '—';
-  const gwtKgs = '—';
 
-  const rx = 100;
-  doc.setFontSize(6);
-  doc.text('Port Code', rx, 14);
-  doc.text('BE No', rx + 20, 14);
-  doc.text('BE Date', rx + 55, 14);
-  doc.text('BE Type', rx + 85, 14);
-  doc.text('INMAA1', rx, 18);
-  doc.text(beNumber, rx + 20, 18);
-  doc.text(beDate, rx + 55, 18);
-  doc.text('H', rx + 85, 18);
-  doc.text('IEC/Bar', rx, 23);
-  doc.text('GSTIN', rx + 40, 23);
-  doc.text(iecBar, rx, 27);
-  doc.text(gstin, rx + 40, 27);
-  doc.text('CB CODE', rx + 80, 23);
-  doc.text(cb, rx + 80, 27);
-  doc.text(`ITEMS: ${itemCount}`, rx + 100, 23);
-  doc.text(`PKG: ${pkgNos}  GWT: ${gwtKgs}`, rx + 100, 27);
+  doc.setFontSize(7);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Port Code', 120, 15);
+  doc.text('BE No', 150, 15);
+  doc.text('BE Date', 175, 15);
+
+  doc.setFont('helvetica', 'normal');
+  doc.text('INMAA1', 120, 21);
+  doc.text(beNumber, 150, 21);
+  doc.text(beDate, 175, 21);
 }
 
 export async function exportSavedBoeToPdf(
@@ -77,42 +64,13 @@ export async function exportSavedBoeToPdf(
     0
   );
 
-  drawPageHeader(doc, savedBoe, boeDetails, shipment);
-  let yPos = 35;
+  drawPageHeader(doc, savedBoe, boeDetails);
+  let yPos = 32;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
   doc.text('PART - I - BILL OF ENTRY SUMMARY', 105, yPos, { align: 'center' });
   yPos += 5;
-
-  autoTable(doc, {
-    startY: yPos,
-    head: [
-      [
-        'A. STATUS',
-        'BE STATUS',
-        'MODE',
-        'DEF BE',
-        'KACHA',
-        'SEC 48',
-        'REIMP',
-        'ADV BE (Y/N/P)',
-        'ASSESS',
-        'EXAM',
-        'HSS',
-        'FIRST CHECK',
-        'PROV/FINAL',
-      ],
-    ],
-    body: [
-      ['', 'OOC COPY', 'Sea', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N', 'N'],
-    ],
-    theme: 'grid',
-    styles: { fontSize: 6, cellPadding: 1 },
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 6 },
-    margin: { left: 10, right: 10 },
-  });
-  yPos = getLastY(doc) + 2;
 
   autoTable(doc, {
     startY: yPos,
@@ -218,32 +176,6 @@ export async function exportSavedBoeToPdf(
   autoTable(doc, {
     startY: yPos,
     head: [
-      [
-        'D. MANIFEST',
-        'IGM NO',
-        'IGM DATE',
-        'INW DATE',
-        'GIGMNO',
-        'GIGMDT',
-        'MAWB NO',
-        'DATE',
-        'HAWB NO',
-        'DATE',
-        'PKG',
-        'GW',
-      ],
-    ],
-    body: [['DETAILS', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—', '—']],
-    theme: 'grid',
-    styles: { fontSize: 6, cellPadding: 1 },
-    headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 6 },
-    margin: { left: 10, right: 10 },
-  });
-  yPos = getLastY(doc) + 2;
-
-  autoTable(doc, {
-    startY: yPos,
-    head: [
       ['F. PAYMENT DETAILS', 'SR NO', 'CHALLAN NO', 'PAID ON', 'AMOUNT (Rs.)'],
     ],
     body: [
@@ -285,13 +217,13 @@ export async function exportSavedBoeToPdf(
     startY: yPos,
     head: [['H. PROCESSING DETAILS', 'EVENT', 'DATE', 'TIME', 'EXCHANGE RATE']],
     body: [
-      ['', 'Submission', '—', '—', 'INR=INR'],
+      ['', '', '', '', 'INR=INR'],
       [
         '',
-        'Assessment',
+        '',
         boeDetails?.beDate ?? '—',
-        '—',
-        `1 USD=${savedBoe.formValues.exchangeRate} INR`,
+        '',
+        `1 ${shipment.invoiceCurrency}=${savedBoe.formValues.exchangeRate} INR`,
       ],
     ],
     theme: 'grid',
@@ -301,8 +233,8 @@ export async function exportSavedBoeToPdf(
   });
 
   doc.addPage();
-  drawPageHeader(doc, savedBoe, boeDetails, shipment);
-  yPos = 35;
+  drawPageHeader(doc, savedBoe, boeDetails);
+  yPos = 32;
 
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(9);
@@ -410,8 +342,9 @@ export async function exportSavedBoeToPdf(
     head: [
       [
         'S.NO',
-        'CTH (HS Code)',
+        'PART NO',
         'DESCRIPTION',
+        'CTH (HS Code)',
         'UNIT PRICE',
         'QUANTITY',
         'UQC',
@@ -420,8 +353,9 @@ export async function exportSavedBoeToPdf(
     ],
     body: shipment.items.map((item, i) => [
       String(i + 1),
-      item.hsCode,
+      item.partNo,
       item.description,
+      item.hsCode,
       item.unitPrice.toFixed(3),
       item.qty.toFixed(3),
       'PCS',
@@ -438,8 +372,8 @@ export async function exportSavedBoeToPdf(
 
   while (itemIndex < calcItems.length) {
     doc.addPage();
-    drawPageHeader(doc, savedBoe, boeDetails, shipment);
-    yPos = 35;
+    drawPageHeader(doc, savedBoe, boeDetails);
+    yPos = 32;
 
     if (itemIndex === 0) {
       doc.setFont('helvetica', 'bold');
@@ -448,7 +382,7 @@ export async function exportSavedBoeToPdf(
       yPos += 5;
     }
 
-    const pageItems = calcItems.slice(itemIndex, itemIndex + 2);
+    const pageItems = calcItems.slice(itemIndex, itemIndex + 4);
 
     for (const item of pageItems) {
       const currentItemIndex = calcItems.indexOf(item);
@@ -459,7 +393,7 @@ export async function exportSavedBoeToPdf(
       const hsCode = shipmentItem?.hsCode ?? '—';
       const unitPrice = shipmentItem?.unitPrice ?? 0;
       const qty = shipmentItem?.qty ?? 0;
-      const stdQty = qty;
+
       const bcdValue = item.bcdValue;
       const swsValue = item.swsValue;
       const igstValue = item.igstValue;
@@ -497,60 +431,43 @@ export async function exportSavedBoeToPdf(
             'N',
           ],
           [
+            'PART NO',
             'UPI',
             'COO',
             'C.QTY',
             'C.UQC',
             'S.QTY',
             'S.UQC',
-            'SCH',
-            'STND/PR',
-            'RSP',
-            'REIMP',
-            'PROV',
-            'END USE',
+            '',
+            '',
+            '',
+            '',
           ],
           [
+            item.partNo,
             String(unitPrice),
             'KR',
             String(qty),
             'PCS',
-            String(stdQty),
+            String(qty),
             'KGS',
-            '—',
-            'S',
-            'N',
-            'N',
-            'N',
-            'GNX200',
+            '',
+            '',
+            '',
+            '',
           ],
           [
-            'PRODN',
-            'CNTRL',
-            'QUALFR',
-            'CONTNT',
-            'STMNT',
-            'SUP DOCS',
+            '',
+            '',
+            '',
+            '',
+            '',
             'ASSESS VALUE',
-            '',
-            '',
-            '',
-            'TOTAL DUTY',
-            '',
-          ],
-          [
-            'N',
-            'N',
-            'Y',
-            'N',
-            'N',
-            'N',
             formatINR(item.assessableValue),
             '',
             '',
-            '',
+            'TOTAL DUTY',
             formatINR(totalDuty),
-            '',
           ],
         ],
         theme: 'grid',
@@ -578,7 +495,6 @@ export async function exportSavedBoeToPdf(
           ],
         ],
         body: [
-          ['Notn No', '009/2025', '', '', '', '001/2017', '', '', '', '', ''],
           [
             'Rate',
             boeItemInput ? String(boeItemInput.boeBcdRate) : '—',
@@ -612,52 +528,10 @@ export async function exportSavedBoeToPdf(
         headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 6 },
         margin: { left: 10, right: 10 },
       });
-      yPos = getLastY(doc) + 2;
-
-      autoTable(doc, {
-        startY: yPos,
-        head: [
-          [
-            'C. OTHER DUTIES',
-            'SP EXD',
-            'CHCESS',
-            'TTA',
-            'CESS',
-            'CAIDC',
-            'EAIDC',
-            'CUS EDC',
-            'CUS HEC',
-            'NCD',
-            'AGGR',
-          ],
-        ],
-        body: [
-          ['Notn No', '', '', '', '011/2021', '', '', '', '', '', ''],
-          ['Rate', '0', '', '', '17', '', '', '', '', '', ''],
-          [
-            'Amount',
-            '0',
-            '0',
-            '0',
-            '0',
-            '0',
-            '0',
-            '0',
-            '0',
-            '0',
-            formatINR(totalDuty),
-          ],
-          ['Duty Fg', '', '', '', '', '', '', '', '', '', ''],
-        ],
-        theme: 'grid',
-        styles: { fontSize: 6, cellPadding: 1 },
-        headStyles: { fillColor: [41, 128, 185], textColor: 255, fontSize: 6 },
-        margin: { left: 10, right: 10 },
-      });
       yPos = getLastY(doc) + 4;
     }
 
-    itemIndex += 2;
+    itemIndex += 4;
   }
 
   const totalPages = doc.getNumberOfPages();
@@ -666,7 +540,7 @@ export async function exportSavedBoeToPdf(
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(6);
     doc.text(
-      `Page ${i} of ${totalPages}   Verify using ICETRAK Mobile App (Google Play Store) for authentication & latest version details from ICEGATE Enquiry`,
+      `Page ${i} of ${totalPages}   Verify using Import Manager Application`,
       105,
       285,
       { align: 'center' }
