@@ -352,7 +352,7 @@ pub fn delete_shipment(state: State<DbState>, id: String) -> Result<(), String> 
         "[HARD_DELETE] Begin transaction"
     );
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    crate::commands::reference_scan::delete_fk_dependent_children(&tx, "shipments", &[id.clone()])?;
+    crate::commands::reference_scan::delete_fk_dependent_children(&tx, "shipments", std::slice::from_ref(&id))?;
     let exec_started = std::time::Instant::now();
     tx.execute("DELETE FROM shipments WHERE id = ?1", params![id.as_str()])
         .map_err(|e| e.to_string())?;

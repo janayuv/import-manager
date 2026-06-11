@@ -172,6 +172,6 @@ pnpm-lock.yaml
 .editorconfig
 .gitattributes
 
-# Scripts where prettier-plugin-tailwindcss version skew causes CI/local divergence
+# Scripts with version-skew sensitive formatting (prettier-plugin-tailwindcss)
 .lintstagedrc.mjs
 scripts/gitleaks-scan.mjs
