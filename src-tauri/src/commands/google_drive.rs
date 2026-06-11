@@ -1284,11 +1284,9 @@ async fn upload_from_init(
         }
         body_buf.extend_from_slice(&buf[..n]);
         uploaded += n as u64;
-        let pct = if file_len > 0 {
-            ((uploaded.min(file_len) * 100) / file_len) as u32
-        } else {
-            100
-        };
+        let pct = ((uploaded.min(file_len) * 100)
+            .checked_div(file_len)
+            .unwrap_or(100)) as u32;
         emit_progress(
             window,
             &DriveTransferProgress {
@@ -1374,13 +1372,10 @@ pub async fn download_file_by_id(
         file.write_all(&chunk)
             .map_err(|e| user_message("download", e.to_string()))?;
         written += chunk.len() as u64;
-        let pct = if total > 0 {
-            ((written.min(total) * 100) / total) as u32
-        } else if written > 0 {
-            50
-        } else {
-            0
-        };
+        let pct = (written.min(total) * 100)
+            .checked_div(total)
+            .map(|v| v as u32)
+            .unwrap_or(if written > 0 { 50 } else { 0 });
         emit_progress(
             window,
             &DriveTransferProgress {
