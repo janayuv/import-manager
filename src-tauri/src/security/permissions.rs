@@ -215,10 +215,7 @@ pub fn role_has(role: Role, perm: Permission) -> bool {
                 | P::AutomationSystemAgent
                 | P::SecuritySessionRead
         ),
-        R::Operator => matches!(
-            perm,
-            P::DataRead | P::DataWrite | P::RecycleBinView
-        ),
+        R::Operator => matches!(perm, P::DataRead | P::DataWrite | P::RecycleBinView),
         R::Viewer => matches!(
             perm,
             P::DataRead | P::AuditView | P::RecycleBinView | P::AutomationView
@@ -287,17 +284,17 @@ mod tests {
     fn manager_cannot_manage_roles() {
         assert!(!role_has(Role::Manager, Permission::RoleWrite));
         assert!(!role_has(Role::Manager, Permission::RoleBootstrap));
-        assert!(!role_has(
-            Role::Manager,
-            Permission::SecurityChangePassword
-        ));
+        assert!(!role_has(Role::Manager, Permission::SecurityChangePassword));
     }
 
     #[test]
     fn role_aliases_resolve() {
         assert_eq!(Role::from_db_str("admin"), Some(Role::Administrator));
         assert_eq!(Role::from_db_str("ADMIN"), Some(Role::Administrator));
-        assert_eq!(Role::from_db_str("Administrator"), Some(Role::Administrator));
+        assert_eq!(
+            Role::from_db_str("Administrator"),
+            Some(Role::Administrator)
+        );
         assert_eq!(Role::from_db_str("db_manager"), Some(Role::Manager));
         assert_eq!(Role::from_db_str("Manager"), Some(Role::Manager));
         assert_eq!(Role::from_db_str(" user "), Some(Role::Operator));

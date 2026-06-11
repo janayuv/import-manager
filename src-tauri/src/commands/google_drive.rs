@@ -113,7 +113,10 @@ fn clear_gdrive_metadata_tokens(conn: &Connection) {
 }
 
 /// Record last resolved folder id for debugging. Resolution always uses Drive API search by folder name first.
-fn persist_last_resolved_backup_folder_id(conn: &Connection, folder_id: &str) -> Result<(), String> {
+fn persist_last_resolved_backup_folder_id(
+    conn: &Connection,
+    folder_id: &str,
+) -> Result<(), String> {
     conn.execute(
         "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
         params![META_GDRIVE_BACKUP_FOLDER_ID, folder_id.trim()],
@@ -462,7 +465,12 @@ pub async fn google_drive_connect(
         crate::commands::oauth_callback::capture_oauth_code(&auth_url)
     })
     .await
-    .map_err(|_| IpcError::new("google_drive_oauth", user_message("oauth", "Sign-in task panicked")))?
+    .map_err(|_| {
+        IpcError::new(
+            "google_drive_oauth",
+            user_message("oauth", "Sign-in task panicked"),
+        )
+    })?
     .map_err(|m| IpcError::new("google_drive_oauth", m))?;
 
     log::info!(target: "google_drive", "event=oauth_code_received");
@@ -496,9 +504,7 @@ pub async fn google_drive_connect(
         target: "import_manager::gdrive",
         "Google Drive connected successfully"
     );
-    if let Err(e) =
-        resolve_import_manager_backup_folder_id(Some(&db_state.db)).await
-    {
+    if let Err(e) = resolve_import_manager_backup_folder_id(Some(&db_state.db)).await {
         log::warn!(
             target: "google_drive",
             "Backup folder discovery after connect failed: {}",
@@ -1453,7 +1459,10 @@ pub async fn get_google_oauth_credentials(
 
     let runtime_id = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_ID);
     let runtime_secret = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_SECRET);
-    let runtime_override = runtime_id.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+    let runtime_override = runtime_id
+        .as_deref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let configured = get_effective_client_id(&db).is_some();
 
     Ok(GoogleOAuthCredentialsInfo {

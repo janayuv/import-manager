@@ -631,9 +631,8 @@ pub(crate) fn ensure_command_permission(
     actor_user_id: Option<&str>,
     permission: &str,
 ) -> Result<(), String> {
-    let perm = crate::security::Permission::from_str(permission).ok_or_else(|| {
-        format!("Invalid permission key: {permission} (bug; not a user error)")
-    })?;
+    let perm = crate::security::Permission::from_str(permission)
+        .ok_or_else(|| format!("Invalid permission key: {permission} (bug; not a user error)"))?;
     crate::security::ensure_command_permission(db, actor_user_id, perm)
 }
 
@@ -1090,8 +1089,7 @@ fn primary_local_backup_dir() -> PathBuf {
 
 fn prepare_local_backup_directory(dir: &Path, db_size_bytes: u64) -> Result<(), String> {
     if !dir.exists() {
-        fs::create_dir_all(dir)
-            .map_err(|e| format!("Failed to create backup directory: {}", e))?;
+        fs::create_dir_all(dir).map_err(|e| format!("Failed to create backup directory: {}", e))?;
     }
     ensure_free_space_for_main_db_backup(dir, db_size_bytes)
 }
@@ -1632,14 +1630,13 @@ fn run_post_backup_validation_sync(app: &AppHandle, backup_id: i64, enc_path: &P
         return;
     }
     let schema_ok = match Connection::open(tmp_path.as_path()) {
-        Ok(c) => c
-            .query_row(
-                "SELECT COUNT(*) FROM refinery_schema_history",
-                [],
-                |r| r.get::<_, i64>(0),
-            )
+        Ok(c) => {
+            c.query_row("SELECT COUNT(*) FROM refinery_schema_history", [], |r| {
+                r.get::<_, i64>(0)
+            })
             .unwrap_or(0)
-            > 0,
+                > 0
+        }
         Err(e) => {
             fail(&format!("open decrypted snapshot: {}", e));
             return;
@@ -1710,7 +1707,8 @@ async fn run_due_backup_schedules(app: AppHandle) -> Result<(), String> {
     };
 
     for schedule_id in due_ids {
-        if let Err(e) = run_scheduled_backup_internal(app.clone(), db_state.clone(), schedule_id).await
+        if let Err(e) =
+            run_scheduled_backup_internal(app.clone(), db_state.clone(), schedule_id).await
         {
             log::warn!("scheduled backup id {} failed: {}", schedule_id, e);
         }
@@ -1729,7 +1727,14 @@ async fn run_scheduled_backup_internal(
         db.query_row(
             "SELECT id, name, destination, enabled FROM backup_schedules WHERE id = ?",
             params![schedule_id],
-            |row| Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?, row.get::<_, i64>(3)?)),
+            |row| {
+                Ok((
+                    row.get::<_, i64>(0)?,
+                    row.get::<_, String>(1)?,
+                    row.get::<_, String>(2)?,
+                    row.get::<_, i64>(3)?,
+                ))
+            },
         )
         .map_err(|e| e.to_string())?
     };
@@ -2304,16 +2309,9 @@ pub async fn get_backup_health_metrics(
         last_restore_simulation_status,
         last_restore_simulation_at,
     ) = match row {
-        Some((id, fnam, ca, sz, vs, va, rs, ra)) => (
-            Some(id),
-            Some(fnam),
-            Some(ca),
-            sz,
-            vs,
-            va,
-            rs,
-            ra,
-        ),
+        Some((id, fnam, ca, sz, vs, va, rs, ra)) => {
+            (Some(id), Some(fnam), Some(ca), sz, vs, va, rs, ra)
+        }
         None => (None, None, None, None, None, None, None, None),
     };
 
@@ -2392,12 +2390,13 @@ pub async fn get_backup_health_metrics(
         }
     }
 
-    let secondary_redundancy_enabled = read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_ENABLED)
-        .map(|s| {
-            let t = s.to_ascii_lowercase();
-            t == "1" || t == "true" || t == "yes"
-        })
-        .unwrap_or(false);
+    let secondary_redundancy_enabled =
+        read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_ENABLED)
+            .map(|s| {
+                let t = s.to_ascii_lowercase();
+                t == "1" || t == "true" || t == "yes"
+            })
+            .unwrap_or(false);
     let secondary_redundancy_path =
         read_app_setting_trim(&db, SETTINGS_BACKUP_SECONDARY_PATH).unwrap_or_default();
 
@@ -2851,9 +2850,7 @@ async fn backup_info_for_gdrive_preview_without_db_row(
                 )
             }
         };
-    let size_bytes = fs::metadata(local_artifact)
-        .map(|m| m.len() as i64)
-        .ok();
+    let size_bytes = fs::metadata(local_artifact).map(|m| m.len() as i64).ok();
     Ok(BackupInfo {
         id: None,
         filename,
@@ -2994,8 +2991,7 @@ pub async fn get_backup_history(
     }
 
     backups.sort_by(|a, b| {
-        backup_created_at_sort_key(&b.created_at)
-            .cmp(&backup_created_at_sort_key(&a.created_at))
+        backup_created_at_sort_key(&b.created_at).cmp(&backup_created_at_sort_key(&a.created_at))
     });
     backups.truncate(final_limit);
     Ok(backups)
@@ -3068,7 +3064,11 @@ pub async fn hard_delete_record(
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
-        super::reference_scan::ensure_can_hard_delete(&db, &tableName, std::slice::from_ref(&record_id))?;
+        super::reference_scan::ensure_can_hard_delete(
+            &db,
+            &tableName,
+            std::slice::from_ref(&record_id),
+        )?;
     }
 
     let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
@@ -3086,7 +3086,11 @@ pub async fn hard_delete_record(
     let tx = db
         .transaction()
         .map_err(|e| format!("Failed to begin hard delete transaction: {}", e))?;
-    super::reference_scan::delete_fk_dependent_children(&tx, &tableName, std::slice::from_ref(&record_id))?;
+    super::reference_scan::delete_fk_dependent_children(
+        &tx,
+        &tableName,
+        std::slice::from_ref(&record_id),
+    )?;
 
     // Perform hard delete
     let query = format!("DELETE FROM {} WHERE id = ?", tableName);
@@ -3454,11 +3458,8 @@ fn restore_user_roles_from_attached_backup(
     }
 
     let table_q = sqlite_double_quote_ident(USER_ROLES_TABLE);
-    tx.execute(
-        &format!("DELETE FROM {}", table_q),
-        [],
-    )
-    .map_err(|e| format!("Failed to clear user_roles for restore: {}", e))?;
+    tx.execute(&format!("DELETE FROM {}", table_q), [])
+        .map_err(|e| format!("Failed to clear user_roles for restore: {}", e))?;
 
     let columns_str = common_columns.join(", ");
     let copy_sql = format!(
@@ -3480,8 +3481,8 @@ fn restore_user_roles_from_attached_backup(
 
 /// Ensures at least one admin row exists after restore. Logs explicitly when inserting recovery admin.
 fn ensure_at_least_one_admin_after_restore(conn: &Connection) -> Result<(), String> {
-    let admin_count =
-        crate::security::count_admin_roles(conn).map_err(|e| format!("user_roles ensure after restore: {}", e))?;
+    let admin_count = crate::security::count_admin_roles(conn)
+        .map_err(|e| format!("user_roles ensure after restore: {}", e))?;
     if admin_count > 0 {
         return Ok(());
     }
@@ -3515,7 +3516,12 @@ fn record_restore_transaction_committed_marker(conn: &Connection) -> Result<(), 
          ON CONFLICT(key) DO UPDATE SET value = excluded.value",
         params![APP_METADATA_RESTORE_TX_COMMITTED_AT, ts],
     )
-    .map_err(|e| format!("Failed to record restore transaction committed marker: {}", e))?;
+    .map_err(|e| {
+        format!(
+            "Failed to record restore transaction committed marker: {}",
+            e
+        )
+    })?;
     log::info!(
         target: "import_manager::restore",
         "event=restore.tx_committed_marker stage=post_commit committed_at={}",
@@ -6680,8 +6686,8 @@ mod restore_user_roles_tests {
         ensure_at_least_one_admin_after_restore, restore_user_roles_from_attached_backup,
         UserRolesRestoreOutcome,
     };
-    use rusqlite::Connection;
     use rusqlite::params;
+    use rusqlite::Connection;
     use std::fs;
     use std::path::PathBuf;
 
@@ -6894,12 +6900,10 @@ mod restore_user_roles_tests {
 /// without altering production restore code paths.
 #[cfg(test)]
 mod restore_atomicity_tests {
-    use super::{
-        ensure_at_least_one_admin_after_restore, restore_user_roles_from_attached_backup,
-    };
+    use super::{ensure_at_least_one_admin_after_restore, restore_user_roles_from_attached_backup};
     use crate::security::ensure_user_roles::ensure_user_roles_table;
-    use rusqlite::Connection;
     use rusqlite::params;
+    use rusqlite::Connection;
     use std::fs;
     use std::path::PathBuf;
 
@@ -7021,10 +7025,7 @@ mod restore_atomicity_tests {
         )
         .unwrap();
         conn.execute(
-            &format!(
-                "ATTACH DATABASE '{}' AS bkp_ur",
-                bak_path.to_string_lossy()
-            ),
+            &format!("ATTACH DATABASE '{}' AS bkp_ur", bak_path.to_string_lossy()),
             [],
         )
         .unwrap();
@@ -7079,9 +7080,7 @@ mod restore_atomicity_tests {
         .unwrap();
         let err = ensure_at_least_one_admin_after_restore(&conn).unwrap_err();
         assert!(
-            err.contains("recovery")
-                || err.contains("blocked")
-                || err.contains("Failed to insert"),
+            err.contains("recovery") || err.contains("blocked") || err.contains("Failed to insert"),
             "unexpected: {err}"
         );
     }
@@ -7095,8 +7094,8 @@ mod restore_outcome_clarity_tests {
         RestoreOutcome, APP_METADATA_RESTORE_TX_COMMITTED_AT, RESTORE_RECOVERY_ADMIN_USER_ID,
     };
     use crate::security::ensure_user_roles::ensure_user_roles_table;
-    use rusqlite::Connection;
     use rusqlite::params;
+    use rusqlite::Connection;
 
     #[test]
     fn tx_commit_marker_exists_before_admin_recovery_and_survives_recovery_failure() {
@@ -7129,7 +7128,10 @@ mod restore_outcome_clarity_tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert!(!marker.is_empty(), "commit marker should be set before admin recovery");
+        assert!(
+            !marker.is_empty(),
+            "commit marker should be set before admin recovery"
+        );
 
         conn.execute_batch(&format!(
             r#"CREATE TRIGGER tr_block_recovery_ins BEFORE INSERT ON user_roles
@@ -7141,9 +7143,7 @@ mod restore_outcome_clarity_tests {
         let admin_result = ensure_at_least_one_admin_after_restore(&conn);
         let err = admin_result.as_ref().unwrap_err();
         assert!(
-            err.contains("recovery")
-                || err.contains("blocked")
-                || err.contains("Failed to insert"),
+            err.contains("recovery") || err.contains("blocked") || err.contains("Failed to insert"),
             "unexpected: {err}"
         );
 
@@ -7160,7 +7160,10 @@ mod restore_outcome_clarity_tests {
                 |r| r.get(0),
             )
             .unwrap();
-        assert_eq!(marker_after, marker, "marker must remain after failed recovery");
+        assert_eq!(
+            marker_after, marker,
+            "marker must remain after failed recovery"
+        );
 
         let role: String = conn
             .query_row(
@@ -7189,8 +7192,7 @@ mod authz_ensure_command_tests {
     #[test]
     fn reserved_internal_actors_are_denied_from_ipc_authz_path() {
         let conn = Connection::open_in_memory().unwrap();
-        let err =
-            ensure_command_permission(&conn, Some("system"), PERM_BACKUP_CREATE).unwrap_err();
+        let err = ensure_command_permission(&conn, Some("system"), PERM_BACKUP_CREATE).unwrap_err();
         assert!(err.to_lowercase().contains("reserved"), "unexpected: {err}");
         let err =
             ensure_command_permission(&conn, Some("scheduler"), PERM_BACKUP_CREATE).unwrap_err();
@@ -7208,6 +7210,9 @@ mod authz_ensure_command_tests {
     fn invalid_permission_key_is_a_bug_error() {
         let conn = Connection::open_in_memory().unwrap();
         let err = ensure_command_permission(&conn, Some("owner"), "nope.nope").unwrap_err();
-        assert!(err.to_lowercase().contains("invalid permission"), "unexpected: {err}");
+        assert!(
+            err.to_lowercase().contains("invalid permission"),
+            "unexpected: {err}"
+        );
     }
 }

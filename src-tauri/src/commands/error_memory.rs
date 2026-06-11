@@ -238,7 +238,9 @@ fn redact_sensitive(raw: &str) -> String {
     ] {
         let pattern = format!(r#"(?i)("{}\s*"\s*:\s*")[^"]+""#, key);
         if let Ok(re) = regex::Regex::new(&pattern) {
-            out = re.replace_all(&out, "${1}<redacted>\"".to_string()).to_string();
+            out = re
+                .replace_all(&out, "${1}<redacted>\"".to_string())
+                .to_string();
         }
     }
     out
@@ -330,8 +332,16 @@ fn upsert_error_event(conn: &Connection, payload: ErrorEventPayload) -> Result<S
                 trim_opt(payload.redacted_input_context, MAX_CONTEXT),
                 trim_opt(payload.affected_entity_ids, 500),
                 severity,
-                if payload.recoverable.unwrap_or(false) { 1 } else { 0 },
-                if payload.retryable.unwrap_or(false) { 1 } else { 0 },
+                if payload.recoverable.unwrap_or(false) {
+                    1
+                } else {
+                    0
+                },
+                if payload.retryable.unwrap_or(false) {
+                    1
+                } else {
+                    0
+                },
                 trim_opt(payload.app_state_snapshot, MAX_CONTEXT),
                 status,
                 trim_opt(payload.ai_summary, 600),
@@ -451,8 +461,16 @@ fn list_cleanup_candidates(conn: &Connection) -> Result<(Vec<CleanupCandidate>, 
         .map_err(|e| e.to_string())?;
 
     for row in rows {
-        let (id, fingerprint, occurrence_count, first_seen_at, last_seen_at, severity, status, age_days) =
-            row.map_err(|e| e.to_string())?;
+        let (
+            id,
+            fingerprint,
+            occurrence_count,
+            first_seen_at,
+            last_seen_at,
+            severity,
+            status,
+            age_days,
+        ) = row.map_err(|e| e.to_string())?;
         let severity_norm = normalize_severity(Some(severity));
         let status_norm = normalize_status(Some(status));
         let retention = retention_days(&status_norm, &severity_norm);
@@ -656,7 +674,14 @@ pub fn record_ipc_error_autolog(code: &str, category: &str, message: &str) {
     let payload = ErrorEventPayload {
         app_version: Some(env!("CARGO_PKG_VERSION").to_string()),
         build_version: Some(env!("IMPORT_MANAGER_BUILD_DATE").to_string()),
-        environment: Some(if cfg!(debug_assertions) { "dev" } else { "local" }.to_string()),
+        environment: Some(
+            if cfg!(debug_assertions) {
+                "dev"
+            } else {
+                "local"
+            }
+            .to_string(),
+        ),
         module_name: Some("backend.ipc".to_string()),
         command_name: None,
         page_name: None,
@@ -783,7 +808,8 @@ pub fn list_error_events(
             })
         })
         .map_err(|e| e.to_string())?;
-    rows.collect::<Result<Vec<_>, _>>().map_err(|e| e.to_string())
+    rows.collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1074,7 +1100,11 @@ mod tests {
         let result = execute_cleanup(&c, false, "test", 100).unwrap();
         assert_eq!(result.deleted_count, 0);
         let n: i64 = c
-            .query_row("SELECT COUNT(*) FROM error_memory WHERE id = 'a'", [], |r| r.get(0))
+            .query_row(
+                "SELECT COUNT(*) FROM error_memory WHERE id = 'a'",
+                [],
+                |r| r.get(0),
+            )
             .unwrap();
         assert_eq!(n, 1);
     }

@@ -686,7 +686,9 @@ fn build_audit_verification_summary(conn: &Connection) -> Result<AuditVerificati
     })
 }
 
-fn build_ai_consistency_audit_report(conn: &Connection) -> Result<AiConsistencyAuditReport, String> {
+fn build_ai_consistency_audit_report(
+    conn: &Connection,
+) -> Result<AiConsistencyAuditReport, String> {
     let mut checks_run = 0_i64;
     let mut checks_failed = 0_i64;
 
@@ -796,8 +798,8 @@ fn build_runtime_anomaly_report(conn: &Connection) -> Result<RuntimeAnomalyRepor
             |r| r.get::<_, i64>(0),
         )
         .unwrap_or(0);
-    let memory_watermark_exceeded = crate::services::platform_reliability::process_memory_bytes()
-        > 1_200_000_000_u64;
+    let memory_watermark_exceeded =
+        crate::services::platform_reliability::process_memory_bytes() > 1_200_000_000_u64;
 
     let mut anomaly_score = 0_i64;
     anomaly_score += failed_jobs_1h * 3;
@@ -977,7 +979,9 @@ pub fn get_audit_verification_summary(
 }
 
 #[tauri::command]
-pub fn run_ai_consistency_auditor(state: State<DbState>) -> Result<AiConsistencyAuditReport, String> {
+pub fn run_ai_consistency_auditor(
+    state: State<DbState>,
+) -> Result<AiConsistencyAuditReport, String> {
     let conn = state.db.lock().map_err(|e| e.to_string())?;
     build_ai_consistency_audit_report(&conn)
 }

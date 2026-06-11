@@ -1,8 +1,8 @@
 //! Single controlled paths for creating the **first** administrator.
 //! Permission checks must never call into this module.
 
-use rusqlite::{params, Connection, OptionalExtension};
 use rusqlite::types::Value;
+use rusqlite::{params, Connection, OptionalExtension};
 
 use super::ensure_user_roles::ensure_user_roles_table;
 
@@ -82,9 +82,7 @@ fn resolve_bootstrap_admin_user_id_from_users_table(
     };
 
     if cols.iter().any(|c| c == "role") {
-        let sql = format!(
-            "SELECT {id_col} FROM users WHERE lower(trim(role)) = 'admin' LIMIT 1"
-        );
+        let sql = format!("SELECT {id_col} FROM users WHERE lower(trim(role)) = 'admin' LIMIT 1");
         return conn
             .query_row(sql.as_str(), [], row_first_cell_as_string)
             .optional()
@@ -153,7 +151,10 @@ pub(crate) fn ensure_startup_admin_role_when_no_admins(conn: &Connection) -> Res
 
 /// First-run only: create **one** admin row for `user_id` when the system has **zero** admins
 /// and `user_id` has no `user_roles` row yet. Never runs from permission checks.
-pub(crate) fn bootstrap_first_admin_when_empty(conn: &Connection, user_id: &str) -> Result<(), String> {
+pub(crate) fn bootstrap_first_admin_when_empty(
+    conn: &Connection,
+    user_id: &str,
+) -> Result<(), String> {
     let user_id = user_id.trim();
     if user_id.is_empty() {
         return Err("Bootstrap refused: user id is empty.".to_string());
@@ -193,7 +194,8 @@ pub(crate) fn insert_recovery_admin_when_no_admins(
     recovery_user_id: &str,
 ) -> Result<(), String> {
     ensure_user_roles_table(conn).map_err(|e| format!("user_roles ensure after restore: {}", e))?;
-    let admins = count_admin_roles(conn).map_err(|e| format!("user_roles ensure after restore: {}", e))?;
+    let admins =
+        count_admin_roles(conn).map_err(|e| format!("user_roles ensure after restore: {}", e))?;
     if admins > 0 {
         return Ok(());
     }
@@ -224,10 +226,7 @@ mod tests {
         )
         .unwrap();
         let err = bootstrap_first_admin_when_empty(&conn, "b").unwrap_err();
-        assert!(
-            err.contains("already exists"),
-            "unexpected: {err}"
-        );
+        assert!(err.contains("already exists"), "unexpected: {err}");
     }
 
     #[test]
@@ -240,10 +239,7 @@ mod tests {
         )
         .unwrap();
         let err = bootstrap_first_admin_when_empty(&conn, "u").unwrap_err();
-        assert!(
-            err.contains("already has a role"),
-            "unexpected: {err}"
-        );
+        assert!(err.contains("already has a role"), "unexpected: {err}");
     }
 
     #[test]
@@ -267,7 +263,8 @@ mod tests {
         ensure_user_roles_table(&conn).unwrap();
         ensure_startup_admin_role_when_no_admins(&conn).unwrap();
         assert_eq!(count_admin_roles(&conn).unwrap(), 1);
-        let role = crate::security::resolve_role_strict(&conn, DEFAULT_DESKTOP_ADMIN_USER_ID).unwrap();
+        let role =
+            crate::security::resolve_role_strict(&conn, DEFAULT_DESKTOP_ADMIN_USER_ID).unwrap();
         assert_eq!(role, "admin");
     }
 

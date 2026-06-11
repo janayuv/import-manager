@@ -19,7 +19,10 @@ fn require_recovery_mode(recovery: &RecoveryModeState) -> Result<(), String> {
     if recovery.is_active() {
         Ok(())
     } else {
-        Err("Recovery actions are only available in recovery mode (start with --recovery).".to_string())
+        Err(
+            "Recovery actions are only available in recovery mode (start with --recovery)."
+                .to_string(),
+        )
     }
 }
 
@@ -114,18 +117,20 @@ pub fn recovery_set_admin_password(
 ) -> Result<(), IpcError> {
     require_recovery_mode(&recovery).map_err(|m| IpcError::new("recovery_denied", m))?;
     if let Err(violation) = enforce_password_policy(&new_password) {
-        return Err(
-            IpcError::new("password_policy", violation.to_string()).with_details("policy_violation"),
-        );
+        return Err(IpcError::new("password_policy", violation.to_string())
+            .with_details("policy_violation"));
     }
-    let conn = db.db.lock().map_err(|e| IpcError::new("internal", e.to_string()))?;
+    let conn = db
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
     let prev = active_admin_hash(&conn, "");
     let _ = conn.execute(
         "DELETE FROM auth_password_history WHERE lower(trim(user_id)) = lower(?1)",
         params![DEFAULT_ADMIN_USER_ID],
     );
-    let new_hash = hash_password_argon2id(&new_password)
-        .map_err(|e| IpcError::new("auth_internal", e))?;
+    let new_hash =
+        hash_password_argon2id(&new_password).map_err(|e| IpcError::new("auth_internal", e))?;
     persist_admin_hash(&conn, DEFAULT_ADMIN_USER_ID, &new_hash, Some(prev.as_str()))
         .map_err(|e| IpcError::new("internal", e))?;
     ensure_default_admin_username_if_absent(&conn).map_err(|e| IpcError::new("internal", e))?;

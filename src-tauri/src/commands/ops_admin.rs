@@ -61,9 +61,9 @@ pub fn rebuild_dashboard_snapshots(
         .lock()
         .map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
 
-    let cleared_cache_rows = conn
-        .execute("DELETE FROM dashboard_metrics_cache", [])
-        .map_err(|e| correlation::annotate_err(&cid, e.to_string()))? as u64;
+    let cleared_cache_rows =
+        conn.execute("DELETE FROM dashboard_metrics_cache", [])
+            .map_err(|e| correlation::annotate_err(&cid, e.to_string()))? as u64;
 
     let mut warnings: Vec<String> = Vec::new();
     let kpi_ok = match generate_dashboard_kpi_snapshot(&conn) {
@@ -117,10 +117,7 @@ pub fn rebuild_dashboard_snapshots(
     let finished_at = chrono::Utc::now().to_rfc3339();
     if let Err(e) = conn.execute(
         "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
-        params![
-            "dashboard_snapshot_last_rebuild_at",
-            finished_at.as_str()
-        ],
+        params!["dashboard_snapshot_last_rebuild_at", finished_at.as_str()],
     ) {
         log::warn!(
             target: "import_manager::dashboard",
