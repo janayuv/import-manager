@@ -27,4 +27,6 @@ jobs:
 
       - name: Run actionlint
         shell: pwsh
-        run: actionlint -color .github/workflows/
+        run: |
+          $files = (Get-ChildItem .github/workflows/*.yml).FullName
+          actionlint -color $files

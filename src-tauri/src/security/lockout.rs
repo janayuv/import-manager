@@ -5,8 +5,8 @@
 //! [`SecurityPolicy::lockout_duration_minutes`].
 
 use chrono::{DateTime, Duration, Utc};
-use rusqlite::{params, Connection};
 use rusqlite::OptionalExtension;
+use rusqlite::{params, Connection};
 use std::collections::HashMap;
 use std::sync::Mutex;
 
@@ -71,7 +71,11 @@ impl SecurityPolicy {
     }
 
     pub fn save(conn: &Connection, p: &SecurityPolicy) -> Result<(), String> {
-        upsert_setting(conn, SETTINGS_KEY_THRESHOLD, &p.lockout_threshold.to_string())?;
+        upsert_setting(
+            conn,
+            SETTINGS_KEY_THRESHOLD,
+            &p.lockout_threshold.to_string(),
+        )?;
         upsert_setting(
             conn,
             SETTINGS_KEY_WINDOW,
@@ -82,11 +86,7 @@ impl SecurityPolicy {
             SETTINGS_KEY_DURATION,
             &p.lockout_duration_minutes.to_string(),
         )?;
-        upsert_setting(
-            conn,
-            SETTINGS_KEY_IDLE,
-            &p.idle_timeout_minutes.to_string(),
-        )?;
+        upsert_setting(conn, SETTINGS_KEY_IDLE, &p.idle_timeout_minutes.to_string())?;
         Ok(())
     }
 }
@@ -300,10 +300,7 @@ impl LockoutState {
         let key = user_id.trim().to_lowercase();
         let now = Utc::now();
         hydrate_from_database(&self.inner, conn, &key, policy, now);
-        let mut guard = self
-            .inner
-            .lock()
-            .expect("lockout state mutex poisoned");
+        let mut guard = self.inner.lock().expect("lockout state mutex poisoned");
         if let Some(state) = guard.get_mut(&key) {
             if let Some(lock_until) = state.locked_until {
                 if lock_until > now {
@@ -339,10 +336,7 @@ impl LockoutState {
         hydrate_from_database(&self.inner, conn, &key, policy, now);
         let mut newly_locked = false;
         let snapshot = {
-            let mut guard = self
-                .inner
-                .lock()
-                .expect("lockout state mutex poisoned");
+            let mut guard = self.inner.lock().expect("lockout state mutex poisoned");
             let entry = guard
                 .entry(key.clone())
                 .or_insert_with(|| AttemptState::fresh(now));
@@ -364,8 +358,7 @@ impl LockoutState {
             }
             entry.failures = entry.failures.saturating_add(1);
             if entry.failures >= policy.lockout_threshold && entry.locked_until.is_none() {
-                entry.locked_until =
-                    Some(now + Duration::minutes(policy.lockout_duration_minutes));
+                entry.locked_until = Some(now + Duration::minutes(policy.lockout_duration_minutes));
                 newly_locked = true;
             }
             *entry
@@ -421,14 +414,16 @@ impl LockoutState {
         self.record_success(conn, user_id);
     }
 
-    pub fn status(&self, conn: &Connection, user_id: &str, policy: &SecurityPolicy) -> LockoutStatus {
+    pub fn status(
+        &self,
+        conn: &Connection,
+        user_id: &str,
+        policy: &SecurityPolicy,
+    ) -> LockoutStatus {
         let key = user_id.trim().to_lowercase();
         let now = Utc::now();
         hydrate_from_database(&self.inner, conn, &key, policy, now);
-        let mut guard = self
-            .inner
-            .lock()
-            .expect("lockout state mutex poisoned");
+        let mut guard = self.inner.lock().expect("lockout state mutex poisoned");
         let out = match guard.get_mut(&key) {
             None => LockoutStatus {
                 locked: false,

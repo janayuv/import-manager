@@ -25,18 +25,14 @@ const SAFE_METADATA_KEYS: &[&str] = &[
 
 fn snapshot_cache_meta(conn: &rusqlite::Connection) -> Result<serde_json::Value, String> {
     let cache_rows: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM dashboard_metrics_cache",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM dashboard_metrics_cache", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let kpi_snap: i64 = conn
-        .query_row(
-            "SELECT COUNT(*) FROM dashboard_kpi_snapshot",
-            [],
-            |r| r.get(0),
-        )
+        .query_row("SELECT COUNT(*) FROM dashboard_kpi_snapshot", [], |r| {
+            r.get(0)
+        })
         .unwrap_or(0);
     let exc_snap: i64 = conn
         .query_row(
@@ -313,9 +309,9 @@ fn export_diagnostics_bundle_sync(
         }),
     };
 
-    let db_state = app
-        .try_state::<DbState>()
-        .ok_or_else(|| correlation::annotate_err(correlation_id, "Application database not ready"))?;
+    let db_state = app.try_state::<DbState>().ok_or_else(|| {
+        correlation::annotate_err(correlation_id, "Application database not ready")
+    })?;
     let (schema_health, snapshot_meta, safe_meta, security_meta, backup_recovery) = {
         let conn = db_state
             .db
@@ -324,10 +320,10 @@ fn export_diagnostics_bundle_sync(
         ensure_command_permission(&conn, Some(caller_user_id), "audit.view")
             .map_err(|e| correlation::annotate_err(correlation_id, e))?;
         let schema_health = compute_schema_health(&conn);
-        let snapshot_meta = snapshot_cache_meta(&conn)
-            .map_err(|e| correlation::annotate_err(correlation_id, e))?;
-        let safe_meta = safe_app_metadata(&conn)
-            .map_err(|e| correlation::annotate_err(correlation_id, e))?;
+        let snapshot_meta =
+            snapshot_cache_meta(&conn).map_err(|e| correlation::annotate_err(correlation_id, e))?;
+        let safe_meta =
+            safe_app_metadata(&conn).map_err(|e| correlation::annotate_err(correlation_id, e))?;
         let security_meta = security_metadata_for_export(app, &conn, correlation_id)
             .map_err(|e| correlation::annotate_err(correlation_id, e))?;
         let backup_recovery = backup_recovery_summary(app, &conn)
@@ -478,13 +474,7 @@ pub async fn export_diagnostics_bundle(
     let client_v = client_reported_app_version.clone();
     let cid_inner = cid.clone();
     let result = tauri::async_runtime::spawn_blocking(move || {
-        export_diagnostics_bundle_sync(
-            &app_c,
-            uid.trim(),
-            &path,
-            &cid_inner,
-            client_v.as_deref(),
-        )
+        export_diagnostics_bundle_sync(&app_c, uid.trim(), &path, &cid_inner, client_v.as_deref())
     })
     .await
     .map_err(|e| correlation::annotate_err(&cid, format!("diagnostics task: {e}")))?;

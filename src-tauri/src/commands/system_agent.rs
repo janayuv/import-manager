@@ -244,12 +244,20 @@ fn enforce_grounding(trace_sha256: &str, narration: &str) -> bool {
 
 fn should_refresh_snapshot(snapshot_timestamp: &str, threshold_seconds: i64) -> bool {
     chrono::DateTime::parse_from_rfc3339(snapshot_timestamp)
-        .map(|ts| Utc::now().signed_duration_since(ts.with_timezone(&Utc)).num_seconds() > threshold_seconds)
+        .map(|ts| {
+            Utc::now()
+                .signed_duration_since(ts.with_timezone(&Utc))
+                .num_seconds()
+                > threshold_seconds
+        })
         .unwrap_or(false)
 }
 
 fn daily_counter_key() -> String {
-    format!("system_agent_llm_calls_day_{}", Utc::now().format("%Y-%m-%d"))
+    format!(
+        "system_agent_llm_calls_day_{}",
+        Utc::now().format("%Y-%m-%d")
+    )
 }
 
 fn get_daily_counter(conn: &Connection) -> i64 {
@@ -299,8 +307,8 @@ fn route_intent(last_message: &str) -> (&'static str, Option<&'static str>, &'st
 fn build_snapshot(conn: &Connection, extended: bool) -> Value {
     let snapshot_timestamp = Utc::now().to_rfc3339();
     let db_version = compute_db_user_version(conn);
-    let master_enabled = get_setting(conn, "workflow_automation_master_enabled")
-        .unwrap_or_else(|| "1".to_string());
+    let master_enabled =
+        get_setting(conn, "workflow_automation_master_enabled").unwrap_or_else(|| "1".to_string());
     let paused_until = get_setting(conn, "workflow_automation_paused_until").unwrap_or_default();
     let mut out = json!({
         "snapshot_timestamp": snapshot_timestamp,
@@ -524,7 +532,11 @@ pub fn set_system_agent_settings(
         set_setting(&conn, SETTING_MAX_LLM_CALLS_PER_DAY, &v.max(1).to_string())?;
     }
     if let Some(v) = input.max_llm_calls_per_session {
-        set_setting(&conn, SETTING_MAX_LLM_CALLS_PER_SESSION, &v.max(1).to_string())?;
+        set_setting(
+            &conn,
+            SETTING_MAX_LLM_CALLS_PER_SESSION,
+            &v.max(1).to_string(),
+        )?;
     }
     if let Some(k) = input.deepseek_api_key {
         let trimmed = k.trim();
@@ -540,7 +552,8 @@ async fn call_deepseek(
     settings: &SystemAgentSettings,
     messages: &[SystemAgentMessage],
 ) -> Result<String, String> {
-    let key = get_deepseek_api_key().ok_or_else(|| "DeepSeek API key is not configured.".to_string())?;
+    let key =
+        get_deepseek_api_key().ok_or_else(|| "DeepSeek API key is not configured.".to_string())?;
     let body = json!({
         "model": normalize_deepseek_model(&settings.model),
         "messages": messages.iter().map(|m| json!({"role": m.role, "content": m.content})).collect::<Vec<_>>(),
@@ -743,12 +756,16 @@ async fn system_agent_turn_with_conn(
         let mut decision = automation_policy::evaluate_policy(conn, &ctx);
         let mut policy_eval_count = 1i64;
         let force_stale_for_test = cfg!(test)
-            && normalize_bool(get_setting(conn, "system_agent_force_stale_for_test"), false);
+            && normalize_bool(
+                get_setting(conn, "system_agent_force_stale_for_test"),
+                false,
+            );
         if force_stale_for_test
             || should_refresh_snapshot(
-            snapshot["snapshot_timestamp"].as_str().unwrap_or_default(),
-            0,
-        ) {
+                snapshot["snapshot_timestamp"].as_str().unwrap_or_default(),
+                0,
+            )
+        {
             let _fresh = build_snapshot(conn, needs_extended_snapshot);
             decision = automation_policy::evaluate_policy(conn, &ctx);
             policy_eval_count = 2;
@@ -968,7 +985,11 @@ mod tests {
         let roots = g
             .events
             .iter()
-            .filter(|e| e.get("is_root_cause").and_then(Value::as_bool).unwrap_or(false))
+            .filter(|e| {
+                e.get("is_root_cause")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
             .count();
         assert_eq!(roots, 1);
         assert_eq!(
@@ -979,7 +1000,10 @@ mod tests {
 
     #[test]
     fn grounding_rejects_fake_fact() {
-        assert!(!enforce_grounding("abc123", "this includes FAKE_FACT detail"));
+        assert!(!enforce_grounding(
+            "abc123",
+            "this includes FAKE_FACT detail"
+        ));
         assert!(enforce_grounding("abc123", "all statements grounded"));
     }
 
@@ -1054,7 +1078,8 @@ mod tests {
                 content: "why did automation fail yesterday?".into(),
             }],
         };
-        let out = tauri::async_runtime::block_on(system_agent_turn_with_conn(&conn, &input)).unwrap();
+        let out =
+            tauri::async_runtime::block_on(system_agent_turn_with_conn(&conn, &input)).unwrap();
         assert_eq!(out.intent_route, "TRACE_ONLY_FAILURE");
         assert!(!out.llm_used);
         let g = out.explain_graph.unwrap();
@@ -1062,13 +1087,21 @@ mod tests {
         let roots = g
             .events
             .iter()
-            .filter(|e| e.get("is_root_cause").and_then(Value::as_bool).unwrap_or(false))
+            .filter(|e| {
+                e.get("is_root_cause")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
             .count();
         assert_eq!(roots, 1);
         let root = g
             .events
             .iter()
-            .find(|e| e.get("is_root_cause").and_then(Value::as_bool).unwrap_or(false))
+            .find(|e| {
+                e.get("is_root_cause")
+                    .and_then(Value::as_bool)
+                    .unwrap_or(false)
+            })
             .unwrap();
         assert_eq!(
             root.get("cause_code").and_then(Value::as_str),
