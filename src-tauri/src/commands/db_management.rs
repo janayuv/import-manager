@@ -1861,7 +1861,6 @@ pub struct BackupRequest {
 
 #[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct RestoreRequest {
     pub backupPath: String,
     pub dry_run: bool,
