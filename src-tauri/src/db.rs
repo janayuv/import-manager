@@ -439,6 +439,23 @@ impl DbState {
     }
 }
 
+/// Apply WAL, busy-timeout, temp-store, and FK-enforcement PRAGMAs to a connection.
+/// Call this on every new `Connection::open` — both startup and post-restore replacement.
+pub fn configure_sqlite_runtime(conn: &Connection) {
+    for (pragma, value) in [
+        ("journal_mode", "WAL"),
+        ("synchronous", "NORMAL"),
+        ("busy_timeout", "5000"),
+        ("temp_store", "MEMORY"),
+        ("foreign_keys", "ON"),
+    ] {
+        if let Err(e) = conn.execute(&format!("PRAGMA {}={}", pragma, value), []) {
+            log::warn!("[DB] Failed to set PRAGMA {}={}: {}", pragma, value, e);
+        }
+    }
+    log::info!("[DB] Runtime PRAGMAs applied (WAL + foreign_keys).");
+}
+
 /// Ensures `audit_logs` has a `"tableName"` column (IPC alias); backfills from `table_name`. Idempotent.
 pub fn ensure_audit_logs_table_name_column(conn: &Connection) -> Result<(), rusqlite::Error> {
     let mut stmt = conn.prepare("PRAGMA table_info(audit_logs)")?;

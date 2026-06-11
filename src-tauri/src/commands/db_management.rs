@@ -4127,6 +4127,9 @@ pub async fn restore_database(
             *main_guard = Connection::open(&current_db_path)
                 .map_err(|e| format!("Failed to reopen main database after restore: {}", e))?;
 
+            // Re-apply WAL + FK PRAGMAs — the replaced connection starts with SQLite defaults.
+            crate::db::configure_sqlite_runtime(&*main_guard);
+
             let admin_recovery_result = ensure_at_least_one_admin_after_restore(&main_guard);
             let final_admin_count = crate::security::count_admin_roles(&main_guard).unwrap_or(0);
             let admin_recovery_for_log = match &admin_recovery_result {
