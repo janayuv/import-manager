@@ -429,6 +429,16 @@ pub struct DbState {
     pub db: Mutex<Connection>,
 }
 
+impl DbState {
+    /// Acquires the DB lock, returning a descriptive error if the mutex is poisoned.
+    /// Use `state.db()?` in command handlers instead of `state.db.lock().unwrap()`.
+    pub fn db(&self) -> Result<std::sync::MutexGuard<'_, Connection>, String> {
+        self.db
+            .lock()
+            .map_err(|_| "database lock poisoned; please restart the application".to_string())
+    }
+}
+
 /// Ensures `audit_logs` has a `"tableName"` column (IPC alias); backfills from `table_name`. Idempotent.
 pub fn ensure_audit_logs_table_name_column(conn: &Connection) -> Result<(), rusqlite::Error> {
     let mut stmt = conn.prepare("PRAGMA table_info(audit_logs)")?;

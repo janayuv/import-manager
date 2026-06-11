@@ -11,7 +11,7 @@ pub fn get_suppliers(
     search_text: Option<String>,
 ) -> Result<Vec<Supplier>, String> {
     let started = Instant::now();
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let base_query = "SELECT
             id,
             supplier_name,
@@ -131,7 +131,7 @@ pub fn get_suppliers_count(
     state: State<DbState>,
     search_text: Option<String>,
 ) -> Result<i64, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let base_query = "SELECT COUNT(*) FROM suppliers WHERE deleted_at IS NULL";
 
     let trimmed_search = search_text
@@ -160,7 +160,7 @@ pub fn get_suppliers_count(
 
 #[tauri::command]
 pub fn get_deleted_suppliers(state: State<DbState>) -> Result<Vec<Supplier>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare(
             "SELECT
@@ -215,7 +215,7 @@ pub fn get_deleted_suppliers(state: State<DbState>) -> Result<Vec<Supplier>, Str
 
 #[tauri::command]
 pub fn add_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     conn.execute(
         "INSERT INTO suppliers (id, supplier_name, short_name, country, email, phone, beneficiary_name, bank_name, branch, bank_address, account_no, iban, swift_code, is_active) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14)",
         params![
@@ -270,7 +270,7 @@ pub fn generate_supplier_id(state: State<DbState>) -> Result<String, String> {
 
 #[tauri::command]
 pub fn update_supplier(state: State<DbState>, supplier: Supplier) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     conn.execute(
         "UPDATE suppliers SET supplier_name = ?2, short_name = ?3, country = ?4, email = ?5, phone = ?6, beneficiary_name = ?7, bank_name = ?8, branch = ?9, bank_address = ?10, account_no = ?11, iban = ?12, swift_code = ?13, is_active = ?14 WHERE id = ?1",
         params![
@@ -299,7 +299,7 @@ pub fn add_suppliers_bulk(
     suppliers: Vec<Supplier>,
 ) -> Result<usize, String> {
     let started = Instant::now();
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
     let mut count = 0usize;
     {
@@ -407,7 +407,7 @@ pub fn restore_supplier(state: State<DbState>, supplier_id: String) -> Result<()
 
 #[tauri::command]
 pub fn check_supplier_exists(state: State<DbState>, supplier_id: String) -> Result<bool, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let exists: bool = conn
         .query_row(
             "SELECT COUNT(*) FROM suppliers WHERE id = ?",

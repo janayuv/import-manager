@@ -66,7 +66,7 @@ pub fn get_options_from_table(
     table_name: &str,
     state: &State<DbState>,
 ) -> Result<Vec<SelectOption>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare(&format!("SELECT value, label FROM {table_name}"))
         .map_err(|e| e.to_string())?;
@@ -91,7 +91,7 @@ pub fn add_option_to_table(
     option: SelectOption,
     state: &State<DbState>,
 ) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     conn.execute(
         &format!("INSERT OR IGNORE INTO {table_name} (value, label) VALUES (?1, ?2)"),
         params![option.value, option.label],

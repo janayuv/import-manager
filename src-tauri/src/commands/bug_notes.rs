@@ -153,10 +153,7 @@ pub fn cleanup_orphan_bug_screenshots(
         if !path.is_dir() {
             continue;
         }
-        let name = path
-            .file_name()
-            .and_then(|s| s.to_str())
-            .unwrap_or("");
+        let name = path.file_name().and_then(|s| s.to_str()).unwrap_or("");
         if name.is_empty() || ids.contains(name) {
             continue;
         }
@@ -201,7 +198,11 @@ fn strip_data_url_base64(input: &str) -> &str {
 }
 
 fn ext_for_mime(mime: Option<&str>) -> &'static str {
-    match mime.map(str::trim).map(|s| s.to_ascii_lowercase()).as_deref() {
+    match mime
+        .map(str::trim)
+        .map(|s| s.to_ascii_lowercase())
+        .as_deref()
+    {
         Some("image/png") => "png",
         Some("image/jpeg") | Some("image/jpg") => "jpg",
         Some("image/webp") => "webp",
@@ -211,7 +212,10 @@ fn ext_for_mime(mime: Option<&str>) -> &'static str {
 }
 
 #[tauri::command]
-pub fn create_bug_note(state: State<DbState>, payload: CreateBugNotePayload) -> Result<BugNote, String> {
+pub fn create_bug_note(
+    state: State<DbState>,
+    payload: CreateBugNotePayload,
+) -> Result<BugNote, String> {
     let conn = lock_conn(&state)?;
     let bug_id = payload
         .id
@@ -256,13 +260,17 @@ pub fn get_bug_notes(
     limit: Option<i64>,
 ) -> Result<Vec<BugNote>, String> {
     let conn = lock_conn(&state)?;
-    let lim = limit.unwrap_or(DEFAULT_BUG_NOTE_LIMIT).clamp(1, MAX_BUG_NOTE_ROWS);
+    let lim = limit
+        .unwrap_or(DEFAULT_BUG_NOTE_LIMIT)
+        .clamp(1, MAX_BUG_NOTE_ROWS);
 
     let mut out = Vec::new();
     if let Some(st) = status.filter(|s| !s.trim().is_empty()) {
         let st_trim = st.trim().to_uppercase();
         if st_trim != "OPEN" && st_trim != "SOLVED" {
-            return Err(format!("Invalid status filter: must be OPEN or SOLVED, got '{st_trim}'"));
+            return Err(format!(
+                "Invalid status filter: must be OPEN or SOLVED, got '{st_trim}'"
+            ));
         }
         let mut stmt = conn
             .prepare(
@@ -294,7 +302,10 @@ pub fn get_bug_notes(
 }
 
 #[tauri::command]
-pub fn update_bug_note(state: State<DbState>, payload: UpdateBugNotePayload) -> Result<BugNote, String> {
+pub fn update_bug_note(
+    state: State<DbState>,
+    payload: UpdateBugNotePayload,
+) -> Result<BugNote, String> {
     let conn = lock_conn(&state)?;
     let id = payload.id.trim().to_string();
     if id.is_empty() {
@@ -320,11 +331,7 @@ pub fn update_bug_note(state: State<DbState>, payload: UpdateBugNotePayload) -> 
         note.title = tt.to_string();
     }
     if let Some(d) = payload.description {
-        note.description = if d.trim().is_empty() {
-            None
-        } else {
-            Some(d)
-        };
+        note.description = if d.trim().is_empty() { None } else { Some(d) };
     }
     if let Some(s) = payload.status {
         note.status = validate_status_input(Some(&s))?;
@@ -355,7 +362,11 @@ pub fn update_bug_note(state: State<DbState>, payload: UpdateBugNotePayload) -> 
 }
 
 #[tauri::command]
-pub fn delete_bug_note(app: tauri::AppHandle, state: State<DbState>, id: String) -> Result<(), String> {
+pub fn delete_bug_note(
+    app: tauri::AppHandle,
+    state: State<DbState>,
+    id: String,
+) -> Result<(), String> {
     let conn = lock_conn(&state)?;
     let n = conn
         .execute("DELETE FROM bug_notes WHERE id = ?1", params![id])
@@ -369,7 +380,10 @@ pub fn delete_bug_note(app: tauri::AppHandle, state: State<DbState>, id: String)
 }
 
 #[tauri::command]
-pub fn save_bug_screenshot(app: tauri::AppHandle, payload: SaveBugScreenshotPayload) -> Result<String, String> {
+pub fn save_bug_screenshot(
+    app: tauri::AppHandle,
+    payload: SaveBugScreenshotPayload,
+) -> Result<String, String> {
     let bid = payload.bug_id.trim();
     if bid.is_empty() {
         return Err("bug_id is required.".to_string());

@@ -91,8 +91,11 @@ const V72_RBAC_TABLES: &[&str] = &["auth_failed_attempts", "auth_password_histor
 const V73_SECURITY_TABLES: &[&str] = &["auth_lockout_state", "security_policy_versions"];
 
 /// V74 backup validation columns on `backups`; verified in [verify_schema_integrity].
-const V74_BACKUPS_VALIDATION_COLS: &[&str] =
-    &["validation_status", "validation_checked_at", "validation_message"];
+const V74_BACKUPS_VALIDATION_COLS: &[&str] = &[
+    "validation_status",
+    "validation_checked_at",
+    "validation_message",
+];
 
 /// V75 restore simulation columns on `backups`; verified in [verify_schema_integrity].
 const V75_BACKUPS_RESTORE_SIM_COLS: &[&str] = &[
@@ -1054,15 +1057,26 @@ mod tests {
             .prepare("SELECT user_id, role FROM user_roles ORDER BY user_id")
             .map_err(|e| e.to_string())?;
         let rows: Vec<(String, String)> = stmt
-            .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?)))
+            .query_map([], |row| {
+                Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+            })
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
         let by_id: std::collections::HashMap<String, String> = rows.into_iter().collect();
-        assert_eq!(by_id.get("legacy-admin").map(|s| s.as_str()), Some("administrator"));
+        assert_eq!(
+            by_id.get("legacy-admin").map(|s| s.as_str()),
+            Some("administrator")
+        );
         assert_eq!(by_id.get("legacy-mgr").map(|s| s.as_str()), Some("manager"));
-        assert_eq!(by_id.get("legacy-user").map(|s| s.as_str()), Some("operator"));
-        assert_eq!(by_id.get("legacy-viewer").map(|s| s.as_str()), Some("viewer"));
+        assert_eq!(
+            by_id.get("legacy-user").map(|s| s.as_str()),
+            Some("operator")
+        );
+        assert_eq!(
+            by_id.get("legacy-viewer").map(|s| s.as_str()),
+            Some("viewer")
+        );
         Ok(())
     }
 }

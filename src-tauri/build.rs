@@ -34,14 +34,19 @@ fn main() {
     }
 
     // Copy SQLCipher and OpenSSL DLLs to output directory
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let target_dir = Path::new(&out_dir)
+    let out_dir = match env::var("OUT_DIR") {
+        Ok(d) => d,
+        Err(_) => return,
+    };
+    let target_dir_buf = match Path::new(&out_dir)
         .parent()
-        .unwrap()
-        .parent()
-        .unwrap()
-        .parent()
-        .unwrap();
+        .and_then(|p| p.parent())
+        .and_then(|p| p.parent())
+    {
+        Some(d) => d.to_path_buf(),
+        None => return,
+    };
+    let target_dir = target_dir_buf.as_path();
 
     // List of required DLLs for SQLCipher
     let required_dlls = [

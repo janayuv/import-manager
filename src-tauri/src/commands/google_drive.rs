@@ -1,6 +1,6 @@
 //! Google Drive backup integration (OAuth2 + Drive API v3).
-//! Build with env vars: `IMPORT_MANAGER_GOOGLE_CLIENT_ID` and `IMPORT_MANAGER_GOOGLE_CLIENT_SECRET`
-//! (OAuth "Desktop" client from Google Cloud Console). Add redirect URI: `http://127.0.0.1:8765/`
+//! Configure OAuth credentials at runtime via Settings → Google Drive (stored in app_metadata table).
+//! Create a "Desktop app" OAuth client in Google Cloud Console; add redirect URI `http://127.0.0.1:8765/`.
 
 use chrono::Duration as ChronoDuration;
 use chrono::Utc;
@@ -113,7 +113,10 @@ fn clear_gdrive_metadata_tokens(conn: &Connection) {
 }
 
 /// Record last resolved folder id for debugging. Resolution always uses Drive API search by folder name first.
-fn persist_last_resolved_backup_folder_id(conn: &Connection, folder_id: &str) -> Result<(), String> {
+fn persist_last_resolved_backup_folder_id(
+    conn: &Connection,
+    folder_id: &str,
+) -> Result<(), String> {
     conn.execute(
         "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
         params![META_GDRIVE_BACKUP_FOLDER_ID, folder_id.trim()],
@@ -152,30 +155,16 @@ fn read_gdrive_refresh_from_path_file() -> Option<String> {
 
 /// Read effective client ID using the recorded DB path (for use outside of command handlers).
 fn get_effective_client_id_from_path() -> Option<String> {
-    if let Some(p) = GDRIVE_TOKEN_DB_PATH.get() {
-        if let Ok(c) = Connection::open(p) {
-            if let Some(v) = read_gdrive_metadata_str(&c, META_GDRIVE_CLIENT_ID) {
-                if !v.is_empty() {
-                    return Some(v);
-                }
-            }
-        }
-    }
-    build_client_id().filter(|s| !s.is_empty()).map(|s| s.to_string())
+    let p = GDRIVE_TOKEN_DB_PATH.get()?;
+    let c = Connection::open(p).ok()?;
+    read_gdrive_metadata_str(&c, META_GDRIVE_CLIENT_ID).filter(|s| !s.is_empty())
 }
 
 /// Read effective client secret using the recorded DB path (for use outside of command handlers).
 fn get_effective_client_secret_from_path() -> Option<String> {
-    if let Some(p) = GDRIVE_TOKEN_DB_PATH.get() {
-        if let Ok(c) = Connection::open(p) {
-            if let Some(v) = read_gdrive_metadata_str(&c, META_GDRIVE_CLIENT_SECRET) {
-                if !v.is_empty() {
-                    return Some(v);
-                }
-            }
-        }
-    }
-    build_client_secret().filter(|s| !s.is_empty()).map(|s| s.to_string())
+    let p = GDRIVE_TOKEN_DB_PATH.get()?;
+    let c = Connection::open(p).ok()?;
+    read_gdrive_metadata_str(&c, META_GDRIVE_CLIENT_SECRET).filter(|s| !s.is_empty())
 }
 
 /// Resolve refresh token: keyring first, then [app_metadata], then on-disk path fallback.
@@ -235,32 +224,14 @@ pub struct GoogleDriveStatus {
     pub email: Option<String>,
 }
 
-fn build_client_id() -> Option<&'static str> {
-    option_env!("IMPORT_MANAGER_GOOGLE_CLIENT_ID")
-}
-
-fn build_client_secret() -> Option<&'static str> {
-    option_env!("IMPORT_MANAGER_GOOGLE_CLIENT_SECRET")
-}
-
-/// Effective client ID: runtime DB value first, then build-time env var.
+/// Effective client ID: runtime DB value only. Configure via Settings → Google Drive.
 fn get_effective_client_id(conn: &Connection) -> Option<String> {
-    if let Some(v) = read_gdrive_metadata_str(conn, META_GDRIVE_CLIENT_ID) {
-        if !v.is_empty() {
-            return Some(v);
-        }
-    }
-    build_client_id().filter(|s| !s.is_empty()).map(|s| s.to_string())
+    read_gdrive_metadata_str(conn, META_GDRIVE_CLIENT_ID).filter(|s| !s.is_empty())
 }
 
-/// Effective client secret: runtime DB value first, then build-time env var.
+/// Effective client secret: runtime DB value only. Configure via Settings → Google Drive.
 fn get_effective_client_secret(conn: &Connection) -> Option<String> {
-    if let Some(v) = read_gdrive_metadata_str(conn, META_GDRIVE_CLIENT_SECRET) {
-        if !v.is_empty() {
-            return Some(v);
-        }
-    }
-    build_client_secret().filter(|s| !s.is_empty()).map(|s| s.to_string())
+    read_gdrive_metadata_str(conn, META_GDRIVE_CLIENT_SECRET).filter(|s| !s.is_empty())
 }
 
 /// Returns true if a client ID is available (runtime DB or build-time env var).
@@ -494,7 +465,12 @@ pub async fn google_drive_connect(
         crate::commands::oauth_callback::capture_oauth_code(&auth_url)
     })
     .await
-    .map_err(|_| IpcError::new("google_drive_oauth", user_message("oauth", "Sign-in task panicked")))?
+    .map_err(|_| {
+        IpcError::new(
+            "google_drive_oauth",
+            user_message("oauth", "Sign-in task panicked"),
+        )
+    })?
     .map_err(|m| IpcError::new("google_drive_oauth", m))?;
 
     log::info!(target: "google_drive", "event=oauth_code_received");
@@ -528,9 +504,7 @@ pub async fn google_drive_connect(
         target: "import_manager::gdrive",
         "Google Drive connected successfully"
     );
-    if let Err(e) =
-        resolve_import_manager_backup_folder_id(Some(&db_state.db)).await
-    {
+    if let Err(e) = resolve_import_manager_backup_folder_id(Some(&db_state.db)).await {
         log::warn!(
             target: "google_drive",
             "Backup folder discovery after connect failed: {}",
@@ -1316,11 +1290,9 @@ async fn upload_from_init(
         }
         body_buf.extend_from_slice(&buf[..n]);
         uploaded += n as u64;
-        let pct = if file_len > 0 {
-            ((uploaded.min(file_len) * 100) / file_len) as u32
-        } else {
-            100
-        };
+        let pct = ((uploaded.min(file_len) * 100)
+            .checked_div(file_len)
+            .unwrap_or(100)) as u32;
         emit_progress(
             window,
             &DriveTransferProgress {
@@ -1406,13 +1378,10 @@ pub async fn download_file_by_id(
         file.write_all(&chunk)
             .map_err(|e| user_message("download", e.to_string()))?;
         written += chunk.len() as u64;
-        let pct = if total > 0 {
-            ((written.min(total) * 100) / total) as u32
-        } else if written > 0 {
-            50
-        } else {
-            0
-        };
+        let pct = (written.min(total) * 100)
+            .checked_div(total)
+            .map(|v| v as u32)
+            .unwrap_or(if written > 0 { 50 } else { 0 });
         emit_progress(
             window,
             &DriveTransferProgress {
@@ -1490,7 +1459,10 @@ pub async fn get_google_oauth_credentials(
 
     let runtime_id = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_ID);
     let runtime_secret = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_SECRET);
-    let runtime_override = runtime_id.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+    let runtime_override = runtime_id
+        .as_deref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let configured = get_effective_client_id(&db).is_some();
 
     Ok(GoogleOAuthCredentialsInfo {

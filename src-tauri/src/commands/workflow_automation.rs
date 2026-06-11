@@ -514,7 +514,7 @@ pub fn auto_assign_exception_cases(conn: &Connection) -> Result<i32, String> {
             (u.clone(), n)
         })
         .collect();
-    loads.sort_by(|a, b| a.1.cmp(&b.1));
+    loads.sort_by_key(|a| a.1);
 
     let mut n = 0i32;
     let now = now_local();
@@ -558,7 +558,7 @@ pub fn auto_assign_exception_cases(conn: &Connection) -> Result<i32, String> {
         if let Some(slot) = loads.iter_mut().find(|(u, _)| u == &uid) {
             slot.1 += 1;
         }
-        loads.sort_by(|a, b| a.1.cmp(&b.1));
+        loads.sort_by_key(|a| a.1);
         n += 1;
     }
     Ok(n)

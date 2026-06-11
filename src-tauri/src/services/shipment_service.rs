@@ -7,8 +7,7 @@ use std::time::Instant;
 use uuid::Uuid;
 
 const DEFAULT_SHIPMENT_STATUS: &str = "docs-rcvd";
-const STARTUP_INVALID_DATE_SIGNATURE_KEY: &str =
-    "shipment.invalid_date_rows.startup_signature.v1";
+const STARTUP_INVALID_DATE_SIGNATURE_KEY: &str = "shipment.invalid_date_rows.startup_signature.v1";
 const STARTUP_INVALID_DATE_LAST_COUNT_KEY: &str =
     "shipment.invalid_date_rows.startup_last_count.v1";
 
