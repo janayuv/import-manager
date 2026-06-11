@@ -105,6 +105,25 @@ impl From<serde_json::Error> for IpcError {
     }
 }
 
+impl From<std::io::Error> for IpcError {
+    fn from(e: std::io::Error) -> Self {
+        Self {
+            code: "io".to_string(),
+            category: "internal".to_string(),
+            message: e.to_string(),
+            details: None,
+            correlation_id: None,
+            retryable: Some(false),
+        }
+    }
+}
+
+impl From<&str> for IpcError {
+    fn from(message: &str) -> Self {
+        Self::new("internal", message)
+    }
+}
+
 fn categorize_code(code: &str) -> &'static str {
     if code.starts_with("auth") {
         "auth"

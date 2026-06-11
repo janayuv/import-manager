@@ -41,23 +41,7 @@ const BACKGROUND_FAST_INTERVAL_SECS: u64 = 60;
 const BACKGROUND_HEAVY_INTERVAL_SECS: u64 = 15 * 60;
 
 fn configure_sqlite_runtime(conn: &Connection) {
-    if let Err(e) = conn.execute("PRAGMA journal_mode=WAL", []) {
-        log::warn!("[DB] Failed to enable WAL mode: {}", e);
-    }
-    if let Err(e) = conn.execute("PRAGMA synchronous=NORMAL", []) {
-        log::warn!("[DB] Failed to set synchronous=NORMAL: {}", e);
-    }
-    if let Err(e) = conn.execute("PRAGMA busy_timeout=5000", []) {
-        log::warn!("[DB] Failed to set busy_timeout: {}", e);
-    }
-    if let Err(e) = conn.execute("PRAGMA temp_store=MEMORY", []) {
-        log::warn!("[DB] Failed to set temp_store=MEMORY: {}", e);
-    }
-    // Enforce FK constraints declared in schema — rusqlite does not enable this by default.
-    if let Err(e) = conn.execute("PRAGMA foreign_keys = ON", []) {
-        log::warn!("[DB] Failed to enable foreign_keys: {}", e);
-    }
-    log::info!("[DB] WAL mode + foreign_keys enabled.");
+    crate::db::configure_sqlite_runtime(conn);
 }
 use tauri::Manager;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
