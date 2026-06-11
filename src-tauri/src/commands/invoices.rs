@@ -349,7 +349,7 @@ pub fn bulk_finalize_invoices(
         cid,
         input.invoice_ids.len(),
     );
-    let mut db = state.db.lock().unwrap();
+    let mut db = state.db()?;
     bulk_finalize_invoices_db(&mut db, input).map_err(|e| correlation::annotate_err(&cid, e))
 }
 
@@ -409,7 +409,7 @@ pub(crate) fn execute_add_invoice(
 
 #[tauri::command]
 pub fn add_invoice(payload: NewInvoicePayload, state: State<DbState>) -> Result<String, String> {
-    let mut db = state.db.lock().unwrap();
+    let mut db = state.db()?;
     let tx = db.transaction().map_err(|e| e.to_string())?;
 
     match execute_add_invoice(&tx, &payload) {
@@ -468,7 +468,7 @@ pub fn add_invoices_bulk(
         cid,
         payloads.len(),
     );
-    let mut db = state.db.lock().unwrap();
+    let mut db = state.db()?;
     let tx = db
         .transaction()
         .map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
@@ -569,7 +569,7 @@ pub fn update_invoice(
     payload: NewInvoicePayload,
     state: State<DbState>,
 ) -> Result<(), String> {
-    let mut db = state.db.lock().unwrap();
+    let mut db = state.db()?;
     let tx = db.transaction().map_err(|e| e.to_string())?;
 
     match execute_update_invoice(&tx, &id, &payload) {
@@ -635,6 +635,6 @@ pub(crate) fn delete_invoice_db(db: &Connection, id: &str) -> Result<(), String>
 
 #[tauri::command]
 pub fn delete_invoice(id: String, state: State<DbState>) -> Result<(), String> {
-    let db = state.db.lock().unwrap();
+    let db = state.db()?;
     delete_invoice_db(&db, &id)
 }

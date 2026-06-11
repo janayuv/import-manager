@@ -1859,6 +1859,7 @@ pub struct BackupRequest {
     pub notes: Option<String>,
 }
 
+#[allow(dead_code)]
 #[derive(Debug, Serialize, Deserialize)]
 #[allow(dead_code)]
 pub struct RestoreRequest {

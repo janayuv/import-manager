@@ -53,7 +53,11 @@ fn configure_sqlite_runtime(conn: &Connection) {
     if let Err(e) = conn.execute("PRAGMA temp_store=MEMORY", []) {
         log::warn!("[DB] Failed to set temp_store=MEMORY: {}", e);
     }
-    log::info!("[DB] WAL mode enabled.");
+    // Enforce FK constraints declared in schema — rusqlite does not enable this by default.
+    if let Err(e) = conn.execute("PRAGMA foreign_keys = ON", []) {
+        log::warn!("[DB] Failed to enable foreign_keys: {}", e);
+    }
+    log::info!("[DB] WAL mode + foreign_keys enabled.");
 }
 use tauri::Manager;
 use tauri_plugin_log::{RotationStrategy, Target, TargetKind};
