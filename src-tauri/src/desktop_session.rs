@@ -11,14 +11,15 @@ use crate::db::DbState;
 use crate::ipc_error::IpcError;
 use crate::recovery_mode::RecoveryModeState;
 use crate::security::credentials::{
-    active_admin_hash, admin_credentials_configured,
-    enforce_password_policy, hash_password_argon2id, login_username_for_authentication,
-    normalize_desktop_username, persist_admin_hash, persist_admin_username,
-    verify_password,
+    active_admin_hash, admin_credentials_configured, enforce_password_policy,
+    hash_password_argon2id, login_username_for_authentication, normalize_desktop_username,
+    persist_admin_hash, persist_admin_username, verify_password,
 };
 use crate::security::lockout::{LockoutState, SecurityPolicy};
 use crate::security::{resolve_role_strict, Permission, Role};
-use crate::services::user_activity_audit::{log_activity, log_activity_with_severity, AuditSeverity};
+use crate::services::user_activity_audit::{
+    log_activity, log_activity_with_severity, AuditSeverity,
+};
 use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
@@ -171,7 +172,11 @@ impl DesktopSessionState {
     }
 
     /// Caller must match session and resolve to the canonical [`Role::Administrator`].
-    pub(crate) fn assert_admin_caller(&self, db: &DbState, caller_user_id: &str) -> Result<(), String> {
+    pub(crate) fn assert_admin_caller(
+        &self,
+        db: &DbState,
+        caller_user_id: &str,
+    ) -> Result<(), String> {
         self.assert_caller_user(caller_user_id)?;
         let conn = db.db.lock().map_err(|e| e.to_string())?;
         let role = resolve_role_strict(&conn, caller_user_id.trim())?;
@@ -302,8 +307,7 @@ pub fn complete_desktop_admin_setup(
     let tx = conn
         .transaction()
         .map_err(|e| IpcError::new("internal", e.to_string()))?;
-    persist_admin_username(&tx, input.username.trim())
-        .map_err(|e| IpcError::new("internal", e))?;
+    persist_admin_username(&tx, input.username.trim()).map_err(|e| IpcError::new("internal", e))?;
     persist_admin_hash(&tx, DEFAULT_ADMIN_USER_ID, &new_hash, None)
         .map_err(|e| IpcError::new("internal", e))?;
     tx.commit()
@@ -448,7 +452,7 @@ pub fn authenticate_desktop(
         audit_fail("invalid_username", "failure");
         record_failure_with_reason("invalid_username");
         return Err(
-            IpcError::new("auth_failed", "Invalid username or password").with_correlation_id(&cid),
+            IpcError::new("auth_failed", "Invalid username or password").with_correlation_id(&cid)
         );
     }
 
@@ -469,7 +473,7 @@ pub fn authenticate_desktop(
         audit_fail("invalid_password", "failure");
         record_failure_with_reason("invalid_password");
         return Err(
-            IpcError::new("auth_failed", "Invalid username or password").with_correlation_id(&cid),
+            IpcError::new("auth_failed", "Invalid username or password").with_correlation_id(&cid)
         );
     }
 
@@ -648,9 +652,7 @@ pub fn terminate_desktop_session_for_admin(
         if let Some(ref sid) = target_session_id {
             let t = sid.trim();
             if !t.is_empty() && t != inner.session_id {
-                return Err(
-                    "Session id does not match the active desktop session.".to_string(),
-                );
+                return Err("Session id does not match the active desktop session.".to_string());
             }
         }
         let out = (

@@ -1244,7 +1244,11 @@ pub fn add_expense_invoice_with_expenses(
 // --- NEW: Add individual expense to existing invoice
 #[tauri::command]
 #[allow(dead_code)] // This is called from the frontend
-pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>, session: State<'_, DesktopSessionState>) -> Result<Expense, String> {
+pub fn add_expense(
+    payload: ExpensePayload,
+    state: State<'_, DbState>,
+    session: State<'_, DesktopSessionState>,
+) -> Result<Expense, String> {
     let created_by = require_session_user_id(&session)?;
     let conn = state.db()?;
 
@@ -1968,9 +1972,6 @@ mod command_session_tests {
         assert!(require_session_user_id(&session).is_err());
 
         session.inject_test_session("cmd-layer-user");
-        assert_eq!(
-            require_session_user_id(&session).unwrap(),
-            "cmd-layer-user"
-        );
+        assert_eq!(require_session_user_id(&session).unwrap(), "cmd-layer-user");
     }
 }
