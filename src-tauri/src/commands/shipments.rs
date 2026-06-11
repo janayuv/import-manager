@@ -1,5 +1,7 @@
 use crate::commands::dashboard_cache;
 use crate::connection_manager::ConnectionManager;
+use crate::correlation;
+use crate::ipc_error::IpcError;
 use crate::services::platform_reliability::save_index_recommendations;
 use crate::services::shipment_service::{
     add_shipment_with_validation, analyze_shipment_query_plans, apply_shipment_date_normalization,
@@ -15,8 +17,6 @@ use crate::services::shipment_service::{
     ShipmentQueryPlanFinding, ShipmentStatusTotal, ShipmentTimezoneValidationReport,
     TimezoneConsistencyReport,
 };
-use crate::correlation;
-use crate::ipc_error::IpcError;
 use crate::DbState;
 use crate::Shipment;
 use chrono::{NaiveDate, Utc};
@@ -352,7 +352,11 @@ pub fn delete_shipment(state: State<DbState>, id: String) -> Result<(), String> 
         "[HARD_DELETE] Begin transaction"
     );
     let tx = conn.transaction().map_err(|e| e.to_string())?;
-    crate::commands::reference_scan::delete_fk_dependent_children(&tx, "shipments", std::slice::from_ref(&id))?;
+    crate::commands::reference_scan::delete_fk_dependent_children(
+        &tx,
+        "shipments",
+        std::slice::from_ref(&id),
+    )?;
     let exec_started = std::time::Instant::now();
     tx.execute("DELETE FROM shipments WHERE id = ?1", params![id.as_str()])
         .map_err(|e| e.to_string())?;

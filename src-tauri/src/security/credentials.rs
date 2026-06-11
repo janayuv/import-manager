@@ -42,18 +42,14 @@ pub enum PasswordPolicyError {
 impl std::fmt::Display for PasswordPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            PasswordPolicyError::TooShort => {
-                "Password must be at least 6 characters long."
-            }
+            PasswordPolicyError::TooShort => "Password must be at least 6 characters long.",
             PasswordPolicyError::MissingUppercase => {
                 "Password must contain at least one uppercase letter."
             }
             PasswordPolicyError::MissingLowercase => {
                 "Password must contain at least one lowercase letter."
             }
-            PasswordPolicyError::MissingDigit => {
-                "Password must contain at least one digit."
-            }
+            PasswordPolicyError::MissingDigit => "Password must contain at least one digit.",
             PasswordPolicyError::MissingSymbol => {
                 "Password must contain at least one symbol (e.g. !@#$%)."
             }
@@ -198,8 +194,7 @@ pub fn verify_password(password: &str, stored_hash: &str) -> Result<bool, String
         return Err("password verification: empty hash".to_string());
     }
     if trimmed.starts_with("$argon2") {
-        let parsed =
-            PasswordHash::new(trimmed).map_err(|e| format!("argon2 parse failed: {e}"))?;
+        let parsed = PasswordHash::new(trimmed).map_err(|e| format!("argon2 parse failed: {e}"))?;
         return Ok(Argon2::default()
             .verify_password(password.as_bytes(), &parsed)
             .is_ok());
@@ -481,11 +476,9 @@ mod tests {
             .unwrap();
         assert_eq!(stored, "$argon2id$new");
         let n: i64 = conn
-            .query_row(
-                "SELECT COUNT(*) FROM auth_password_history",
-                [],
-                |row| row.get(0),
-            )
+            .query_row("SELECT COUNT(*) FROM auth_password_history", [], |row| {
+                row.get(0)
+            })
             .unwrap();
         assert_eq!(n, 1);
     }

@@ -1917,7 +1917,8 @@ mod tests {
             ],
         };
 
-        let result = ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
+        let result =
+            ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
 
         assert!(!result.invoice_id.is_empty());
         assert_eq!(result.total_amount_paise, 150000); // 1000 + 500 = 1500 rupees
@@ -1989,10 +1990,13 @@ mod tests {
         };
 
         // First call
-        let result1 = ExpenseService::create_or_update_invoice(&mut conn, payload.clone(), "test-user-001").unwrap();
+        let result1 =
+            ExpenseService::create_or_update_invoice(&mut conn, payload.clone(), "test-user-001")
+                .unwrap();
 
         // Second call with same idempotency key
-        let result2 = ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
+        let result2 =
+            ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
 
         // Should return same invoice
         assert_eq!(result1.invoice_id, result2.invoice_id);
@@ -2057,7 +2061,8 @@ mod tests {
             }],
         };
 
-        let invoice1 = ExpenseService::create_or_update_invoice(&mut conn, payload1, "test-user-001").unwrap();
+        let invoice1 =
+            ExpenseService::create_or_update_invoice(&mut conn, payload1, "test-user-001").unwrap();
 
         // Second invoice with same expense type
         let payload2 = ExpenseInvoicePayload {
@@ -2078,7 +2083,8 @@ mod tests {
             }],
         };
 
-        let _invoice2 = ExpenseService::create_or_update_invoice(&mut conn, payload2, "test-user-001").unwrap();
+        let _invoice2 =
+            ExpenseService::create_or_update_invoice(&mut conn, payload2, "test-user-001").unwrap();
 
         // Now test combine duplicates on the first invoice
         // This should work even though there's only one line (no duplicates to combine)
@@ -2126,7 +2132,8 @@ mod tests {
             }],
         };
 
-        let created = ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
+        let created =
+            ExpenseService::create_or_update_invoice(&mut conn, payload, "test-user-001").unwrap();
         let retrieved = ExpenseService::get_invoice(&conn, &created.invoice_id).unwrap();
 
         assert_eq!(created.invoice_id, retrieved.invoice_id);
@@ -2158,7 +2165,8 @@ mod tests {
         };
 
         let _invoice =
-            ExpenseService::create_or_update_invoice(&mut conn, payload.clone(), "test-user-001").unwrap();
+            ExpenseService::create_or_update_invoice(&mut conn, payload.clone(), "test-user-001")
+                .unwrap();
 
         // Try to update with wrong version
         let mut wrong_payload = payload;

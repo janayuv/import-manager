@@ -15,8 +15,7 @@ use crate::ipc_error::IpcError;
 use crate::security::credentials::{
     enforce_password_policy, hash_password_argon2id, new_password_reuses_history,
     persist_admin_hash, read_password_history_depth, verify_password, write_password_history_depth,
-    PasswordPolicyError, PASSWORD_HISTORY_DEPTH_MAX, PASSWORD_HISTORY_DEPTH_MIN,
-    PASSWORD_MIN_LEN,
+    PasswordPolicyError, PASSWORD_HISTORY_DEPTH_MAX, PASSWORD_HISTORY_DEPTH_MIN, PASSWORD_MIN_LEN,
 };
 use crate::security::lockout::{LockoutStatus, SecurityPolicy};
 use crate::security::{Permission, Role};
@@ -134,11 +133,10 @@ pub fn update_security_settings(
         policy.idle_timeout_minutes = v;
     }
     if let Some(d) = input.password_history_depth {
-        new_depth = (d as i64)
-            .clamp(
-                PASSWORD_HISTORY_DEPTH_MIN as i64,
-                PASSWORD_HISTORY_DEPTH_MAX as i64,
-            ) as usize;
+        new_depth = (d as i64).clamp(
+            PASSWORD_HISTORY_DEPTH_MIN as i64,
+            PASSWORD_HISTORY_DEPTH_MAX as i64,
+        ) as usize;
     }
     let policy_changed = policy != before;
     let depth_changed = new_depth != before_depth;
@@ -156,12 +154,7 @@ pub fn update_security_settings(
     if depth_changed {
         write_password_history_depth(&conn, new_depth)?;
     }
-    let version = bump_policy_version_record(
-        &conn,
-        caller_user_id.trim(),
-        &policy,
-        new_depth,
-    )?;
+    let version = bump_policy_version_record(&conn, caller_user_id.trim(), &policy, new_depth)?;
     let detail = serde_json::json!({
         "lockoutThreshold": policy.lockout_threshold,
         "lockoutWindowMinutes": policy.lockout_window_minutes,
@@ -253,7 +246,10 @@ pub fn change_admin_password(
             .with_details(policy_code(&violation)));
     }
 
-    let conn = db.db.lock().map_err(|e| IpcError::new("internal", e.to_string()))?;
+    let conn = db
+        .db
+        .lock()
+        .map_err(|e| IpcError::new("internal", e.to_string()))?;
     let active_hash = crate::security::credentials::active_admin_hash(&conn, "");
     if active_hash.is_empty() {
         return Err(IpcError::new(
@@ -315,8 +311,8 @@ pub fn change_admin_password(
         Err(e) => return Err(IpcError::new("internal", e)),
         Ok(false) => {}
     }
-    let new_hash = hash_password_argon2id(&new_password)
-        .map_err(|e| IpcError::new("auth_internal", e))?;
+    let new_hash =
+        hash_password_argon2id(&new_password).map_err(|e| IpcError::new("auth_internal", e))?;
     persist_admin_hash(&conn, caller_user_id.trim(), &new_hash, Some(&active_hash))
         .map_err(|e| IpcError::new("internal", e))?;
     let detail = serde_json::json!({
@@ -484,11 +480,10 @@ pub fn get_security_dashboard_metrics(
     let conn = db.db.lock().map_err(|e| e.to_string())?;
     let policy = SecurityPolicy::load(&conn);
 
-    let (active_session_count, session_started_rfc3339) =
-        match session.read_session() {
-            Some(s) => (1u32, Some(s.session_started_rfc3339)),
-            None => (0u32, None),
-        };
+    let (active_session_count, session_started_rfc3339) = match session.read_session() {
+        Some(s) => (1u32, Some(s.session_started_rfc3339)),
+        None => (0u32, None),
+    };
 
     let failed_login_attempts_last_24h: i64 = conn
         .query_row(
@@ -533,9 +528,8 @@ pub fn get_security_dashboard_metrics(
         .lockout()
         .status(&conn, DEFAULT_ADMIN_USER_ID, &policy);
     if lock_st.locked {
-        warnings.push(
-            "Administrator account is locked due to failed sign-in attempts.".to_string(),
-        );
+        warnings
+            .push("Administrator account is locked due to failed sign-in attempts.".to_string());
     }
     if failed_login_attempts_last_24h >= policy.lockout_threshold as i64 * 2 {
         warnings.push(format!(
@@ -613,10 +607,7 @@ pub fn get_active_desktop_sessions(
     db: State<'_, DbState>,
 ) -> Result<Vec<DesktopSessionInfo>, String> {
     session.require_permission(&db, caller_user_id.trim(), PERM_SECURITY_SESSION_READ)?;
-    Ok(session
-        .read_session()
-        .into_iter()
-        .collect::<Vec<_>>())
+    Ok(session.read_session().into_iter().collect::<Vec<_>>())
 }
 
 #[tauri::command]
@@ -688,10 +679,8 @@ pub fn get_security_trend_series(
     let out: Vec<SecurityTrendDay> = days_order
         .into_iter()
         .map(|day| {
-            let (failed_logins, lockouts, password_changes) = counts
-                .get(&day)
-                .copied()
-                .unwrap_or((0, 0, 0));
+            let (failed_logins, lockouts, password_changes) =
+                counts.get(&day).copied().unwrap_or((0, 0, 0));
             SecurityTrendDay {
                 day,
                 failed_logins,
@@ -722,9 +711,7 @@ fn policy_is_weaker(new: &SecurityPolicy, old: &SecurityPolicy) -> bool {
 
 fn detect_policy_weakening(conn: &rusqlite::Connection) -> Option<String> {
     let mut stmt = conn
-        .prepare(
-            "SELECT policy_json FROM security_policy_versions ORDER BY version DESC LIMIT 2",
-        )
+        .prepare("SELECT policy_json FROM security_policy_versions ORDER BY version DESC LIMIT 2")
         .ok()?;
     let rows: Vec<String> = stmt
         .query_map([], |row| row.get(0))

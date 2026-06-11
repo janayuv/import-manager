@@ -476,7 +476,8 @@ pub fn add_boe_calculation(payload: SavedBoe, state: State<DbState>) -> Result<S
         payload.id,
     );
     let started = Instant::now();
-    validate_saved_boe_payload(&payload).map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
+    validate_saved_boe_payload(&payload)
+        .map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
     {
         let conn = lock_conn(&state)?;
         let shipment_exists: i64 = conn
@@ -605,7 +606,8 @@ pub fn update_boe_calculation(payload: SavedBoe, state: State<DbState>) -> Resul
         payload.id,
     );
     let started = Instant::now();
-    validate_saved_boe_payload(&payload).map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
+    validate_saved_boe_payload(&payload)
+        .map_err(|e| correlation::annotate_err(&cid, e.to_string()))?;
 
     // Serialize the nested structs into JSON strings
     let form_values_json = serde_json::to_string(&payload.form_values)

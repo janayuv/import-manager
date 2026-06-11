@@ -100,8 +100,8 @@ pub fn get_recycle_bin_deleted_count(
         .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
     let mut total: i64 = 0;
     for t in tables {
-        let columns =
-            table_column_names(&db, &t).map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
+        let columns = table_column_names(&db, &t)
+            .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
         let Some(d_col) = columns
             .iter()
             .find(|c| c.eq_ignore_ascii_case("deleted_at"))
@@ -787,11 +787,10 @@ pub async fn get_deleted_records(
     if let Some(ref t) = tableName {
         if !t.is_empty() {
             crate::safety::guard_safe_table_name(t)?;
-            let allowed: HashSet<String> =
-                get_soft_delete_tables_internal(&db)
-                    .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
-                    .into_iter()
-                    .collect();
+            let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)
+                .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
+                .into_iter()
+                .collect();
             if !allowed.contains(t) {
                 return Err(IpcError::new(
                     "validation",
@@ -1035,13 +1034,9 @@ fn validate_restore_parents(
                 let Some(ref pval) = val else {
                     continue;
                 };
-                if let Some(reason) = parent_reachable_reason(
-                    conn,
-                    &fk.parent_table,
-                    &fk.parent_to,
-                    pval,
-                )
-                .map_err(|m| IpcError::new("restore_validation_failed", m))?
+                if let Some(reason) =
+                    parent_reachable_reason(conn, &fk.parent_table, &fk.parent_to, pval)
+                        .map_err(|m| IpcError::new("restore_validation_failed", m))?
                 {
                     if reason == "invalid" {
                         return Err(IpcError::new(
