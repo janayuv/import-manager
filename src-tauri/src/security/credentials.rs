@@ -25,7 +25,7 @@ pub const PASSWORD_HISTORY_DEPTH_MIN: usize = 1;
 pub const PASSWORD_HISTORY_DEPTH_MAX: usize = 24;
 
 /// Minimum password length enforced by [`enforce_password_policy`].
-pub const PASSWORD_MIN_LEN: usize = 6;
+pub const PASSWORD_MIN_LEN: usize = 8;
 
 /// Password policy violations returned by [`enforce_password_policy`]. Surfaced
 /// to the UI verbatim so users know which rule failed.
@@ -42,7 +42,7 @@ pub enum PasswordPolicyError {
 impl std::fmt::Display for PasswordPolicyError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let msg = match self {
-            PasswordPolicyError::TooShort => "Password must be at least 6 characters long.",
+            PasswordPolicyError::TooShort => "Password must be at least 8 characters long.",
             PasswordPolicyError::MissingUppercase => {
                 "Password must contain at least one uppercase letter."
             }
