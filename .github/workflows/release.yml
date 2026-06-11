@@ -17,6 +17,7 @@ jobs:
       HUSKY: '0'
       CI: true
       LIBSQLITE3_SYS_BUNDLED: '1'
+      HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -90,7 +91,7 @@ jobs:
           includeUpdaterJson: true
 
       - name: Sign installer (Windows Authenticode)
-        if: ${{ secrets.SIGNING_CERTIFICATE != '' }}
+        if: ${{ env.HAS_SIGNING_CERT == 'true' }}
         shell: pwsh
         env:
           SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
