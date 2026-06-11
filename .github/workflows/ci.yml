@@ -64,10 +64,10 @@ jobs:
         uses: Swatinem/rust-cache@v2
         with:
           workspaces: src-tauri
-      - name: Install cargo-deny
+      - name: Install cargo-deny and cargo-audit
         uses: taiki-e/install-action@v2
         with:
-          tool: cargo-deny
+          tool: cargo-deny,cargo-audit
       - name: Check Rust code
         run: |
           cd src-tauri
@@ -84,6 +84,10 @@ jobs:
         run: |
           cd src-tauri
           cargo deny check --config deny.toml
+      - name: Run cargo audit
+        run: |
+          cd src-tauri
+          cargo audit
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw
@@ -225,11 +229,6 @@ jobs:
       - backend-check
       - unit-tests
       - e2e-tests
-    env:
-      # SQLCipher for Windows
-      SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
-      SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
-      LIBSQLITE3_SYS_BUNDLED: '0'
     steps:
       - uses: actions/checkout@v4
       - name: Enable long paths
