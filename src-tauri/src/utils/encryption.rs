@@ -112,3 +112,115 @@ pub fn is_encrypted_backup_artifact_path(path: &Path) -> bool {
     }
     h == *MAGIC_V2 || h == *MAGIC_V1
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rusqlite::Connection;
+    use tempfile::TempDir;
+
+    fn make_seed_db(path: &std::path::Path) {
+        let conn = Connection::open(path).expect("open seed db");
+        conn.execute_batch(
+            "CREATE TABLE items (id INTEGER PRIMARY KEY, name TEXT NOT NULL, value REAL NOT NULL);
+             INSERT INTO items (name, value) VALUES ('alpha', 1.5);
+             INSERT INTO items (name, value) VALUES ('beta', 2.75);
+             INSERT INTO items (name, value) VALUES ('gamma', 3.0);",
+        )
+        .expect("seed");
+    }
+
+    fn row_count(path: &std::path::Path) -> u32 {
+        let conn = Connection::open(path).expect("open db");
+        conn.query_row("SELECT COUNT(*) FROM items", [], |r| r.get::<_, u32>(0))
+            .expect("count")
+    }
+
+    fn value_sum(path: &std::path::Path) -> f64 {
+        let conn = Connection::open(path).expect("open db");
+        conn.query_row("SELECT SUM(value) FROM items", [], |r| r.get::<_, f64>(0))
+            .expect("sum")
+    }
+
+    /// Encrypt → delete original → decrypt → verify row counts and data integrity (M11).
+    #[test]
+    fn backup_restore_roundtrip_imbk2() {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("original.db");
+        let enc_path = dir.path().join("backup.enc");
+        let restored_path = dir.path().join("restored.db");
+
+        make_seed_db(&db_path);
+        assert_eq!(row_count(&db_path), 3);
+
+        let pw = "ci-drill-password";
+        encrypt_file(&db_path, &enc_path, pw).expect("encrypt");
+        assert!(enc_path.exists());
+        assert!(
+            enc_path.metadata().unwrap().len() > db_path.metadata().unwrap().len(),
+            "encrypted file must be larger than plaintext"
+        );
+
+        std::fs::remove_file(&db_path).expect("remove original");
+        assert!(!db_path.exists());
+
+        decrypt_file(&enc_path, &restored_path, pw).expect("decrypt");
+        assert!(restored_path.exists());
+        assert_eq!(row_count(&restored_path), 3, "row count after restore");
+        let sum = value_sum(&restored_path);
+        assert!((sum - 7.25_f64).abs() < 1e-9, "checksum mismatch: {sum}");
+    }
+
+    /// Wrong password must return Err; no valid file created.
+    #[test]
+    fn wrong_password_rejected() {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("original.db");
+        let enc_path = dir.path().join("backup.enc");
+        let bad_path = dir.path().join("bad.db");
+
+        make_seed_db(&db_path);
+        encrypt_file(&db_path, &enc_path, "correct").expect("encrypt");
+        let result = decrypt_file(&enc_path, &bad_path, "wrong");
+        assert!(result.is_err(), "wrong password must fail");
+    }
+
+    /// IMBK1 legacy format must still decrypt successfully.
+    #[test]
+    fn imbk1_legacy_decrypt_compat() {
+        let dir = TempDir::new().expect("tempdir");
+        let db_path = dir.path().join("seed.db");
+        let enc_path = dir.path().join("legacy.enc");
+        let restored_path = dir.path().join("legacy_restored.db");
+
+        make_seed_db(&db_path);
+        let plain = std::fs::read(&db_path).expect("read db");
+        let pw = "legacy-compat-test";
+
+        // Hand-craft IMBK1 payload with 100k iterations to test read-compat path.
+        use aes_gcm::aead::{AeadCore, KeyInit, OsRng};
+        use aes_gcm::{Aes256Gcm, Key};
+        use hmac::Hmac;
+        use pbkdf2::pbkdf2;
+        use rand::RngCore;
+        use sha2::Sha256;
+        type H = Hmac<Sha256>;
+        let mut salt = [0u8; SALT_LEN];
+        rand::thread_rng().fill_bytes(&mut salt);
+        let mut key_bytes = [0u8; 32];
+        pbkdf2::<H>(pw.as_bytes(), &salt, PBKDF2_ITERS_V1, &mut key_bytes).unwrap();
+        let k = Key::<Aes256Gcm>::from_slice(&key_bytes);
+        let cipher = Aes256Gcm::new(k);
+        let nonce = Aes256Gcm::generate_nonce(&mut OsRng);
+        let ct = cipher.encrypt(&nonce, plain.as_ref()).unwrap();
+        let mut out = Vec::new();
+        out.extend_from_slice(MAGIC_V1);
+        out.extend_from_slice(&salt);
+        out.extend_from_slice(nonce.as_slice());
+        out.extend_from_slice(&ct);
+        std::fs::write(&enc_path, out).expect("write legacy enc");
+
+        decrypt_file(&enc_path, &restored_path, pw).expect("IMBK1 decrypt");
+        assert_eq!(row_count(&restored_path), 3, "IMBK1 restore row count");
+    }
+}
