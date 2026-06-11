@@ -84,8 +84,6 @@ Write-Host ""
 $env:HUSKY = "0"
 $env:CI = "true"
 $env:LIBSQLITE3_SYS_BUNDLED = "1"
-$env:SQLCIPHER_LIB_DIR = "C:\vcpkg\installed\x64-windows\lib"
-$env:SQLCIPHER_INCLUDE_DIR = "C:\vcpkg\installed\x64-windows\include"
 
 Write-Host "Environment variables set"
 
@@ -158,6 +156,20 @@ if ($targets -eq "all") {
 }
 
 # ── Security gate ────────────────────────────────────────────────────
+# ── Production env gate ──────────────────────────────────────────────
+Write-Host ""
+Write-Host "==> Env: VITE_ADMIN_PASSWORD_HASH must be set for production build"
+$adminHash = $env:VITE_ADMIN_PASSWORD_HASH
+if ([string]::IsNullOrWhiteSpace($adminHash)) {
+  Write-Error "VITE_ADMIN_PASSWORD_HASH is not set. Production builds require an explicit bcrypt hash. Set this env variable before running a release build."
+  exit 1
+}
+if ($adminHash.Length -lt 60) {
+  Write-Error "VITE_ADMIN_PASSWORD_HASH looks invalid (too short). Expected a 60-char bcrypt hash."
+  exit 1
+}
+Write-Host "VITE_ADMIN_PASSWORD_HASH set and valid length."
+
 Write-Host ""
 Write-Host "==> Security: gitleaks scan"
 node scripts/gitleaks-scan.mjs

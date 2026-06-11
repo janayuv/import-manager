@@ -61,7 +61,7 @@ import-manager/
 ├── .env.example                # Environment variable template
 ├── vite.config.ts              # Vite config with manual chunking
 ├── playwright.config.ts        # E2E config (port 1422)
-└── package.json                # version 0.4.10, os: ["win32"]
+└── package.json                # version 1.0.5, os: ["win32"]
 ```
 
 ## How to Run, Build, and Test
@@ -186,7 +186,7 @@ pub fn get_suppliers(
 ### Database Migrations
 - Files live in `src-tauri/migrations/` — numbered `V{n}__{description}.sql`
 - Refinery runs them on startup automatically
-- 79 migrations as of v0.4.10
+- 80 migrations as of v1.0.5
 
 Production readiness roadmap: `docs/PRODUCTION_GRADE_PLAN.md`
 
