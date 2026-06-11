@@ -398,8 +398,7 @@ const SupplierPage = () => {
         'Exported',
         `Suppliers Excel downloaded successfully (${allSuppliers.length} records).`
       );
-    } catch (err) {
-      console.error('Failed to export suppliers:', err);
+    } catch {
       notifications.error(
         'Export Failed',
         'Could not export suppliers. Try again.'

@@ -423,7 +423,6 @@ const BoePage = () => {
         notifications.success('Export Complete', 'BOEs exported successfully!');
       }
     } catch (error) {
-      console.error('Failed to export BOEs:', error);
       notifications.boe.error('export', String(error));
     }
   }, [boes, notifications]);

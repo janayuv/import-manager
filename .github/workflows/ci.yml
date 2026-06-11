@@ -88,6 +88,16 @@ jobs:
         run: |
           cd src-tauri
           cargo audit
+      - name: Enforce no lock().unwrap() in commands (C1 regression gate)
+        run: |
+          # Prevent reintroduction of mutex-poisoning lock().unwrap() pattern.
+          # All DB lock acquisition must go through DbState::db() which returns Result.
+          $matches = Select-String -Path "src-tauri\src\commands\*.rs" -Pattern "lock\(\)\.unwrap\(\)" -Recurse -ErrorAction SilentlyContinue
+          if ($matches) {
+            Write-Error "lock().unwrap() found in commands/ — use state.db()? instead:`n$($matches | ForEach-Object { $_.ToString() })"
+            exit 1
+          }
+          Write-Host "✅ No lock().unwrap() regressions in commands/"
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw
@@ -129,6 +139,13 @@ jobs:
         run: |
           cd src-tauri
           cargo test
+      - name: Run Rust coverage (llvm-cov)
+        if: matrix.node-version == '22.x'
+        run: |
+          rustup component add llvm-tools-preview
+          cargo install cargo-llvm-cov --locked
+          cd src-tauri
+          cargo llvm-cov --lcov --output-path ../coverage/lcov-rust.info
       - name: Upload coverage reports
         if: hashFiles('coverage/lcov.info') != '' && matrix.node-version == '22.x'
         uses: codecov/codecov-action@v4

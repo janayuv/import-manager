@@ -1,6 +1,7 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+import { formatDateDDMMYYYY as formatDate } from '@/lib/date-format';
 import type {
   BoeDetails,
   BoeItemInput,
@@ -10,11 +11,6 @@ import type {
 
 function formatINR(n: number): string {
   return new Intl.NumberFormat('en-IN', { maximumFractionDigits: 1 }).format(n);
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 }
 
 function getLastY(doc: jsPDF): number {

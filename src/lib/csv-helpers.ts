@@ -444,7 +444,6 @@ export const exportItemsToCsv = (
 
     return Papa.unparse(exportableData);
   } catch (error) {
-    console.error('CSV export error:', error);
     throw new Error(
       `Failed to export CSV: ${error instanceof Error ? error.message : 'Unknown error'}`
     );

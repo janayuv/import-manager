@@ -136,7 +136,10 @@ export function BoeDataTable<TData, TValue>({
       )}
 
       <div className="im-table-scroll">
-        <table className="im-table">
+        <table
+          className="im-table"
+          aria-rowcount={table.getFilteredRowModel().rows.length}
+        >
           <thead>
             {table.getHeaderGroups().map(hg => (
               <tr key={hg.id}>
@@ -156,6 +159,15 @@ export function BoeDataTable<TData, TValue>({
                         .join(' ')}
                       onClick={header.column.getToggleSortingHandler()}
                       style={{ width: header.getSize() }}
+                      aria-sort={
+                        header.column.getIsSorted() === 'asc'
+                          ? 'ascending'
+                          : header.column.getIsSorted() === 'desc'
+                            ? 'descending'
+                            : header.column.getCanSort()
+                              ? 'none'
+                              : undefined
+                      }
                     >
                       {header.isPlaceholder ? null : (
                         <div className="im-th-inner">
@@ -211,6 +223,13 @@ export function BoeDataTable<TData, TValue>({
                     .filter(Boolean)
                     .join(' ')}
                   data-state={row.getIsSelected() ? 'selected' : undefined}
+                  aria-selected={row.getIsSelected()}
+                  aria-rowindex={
+                    table.getState().pagination.pageIndex *
+                      table.getState().pagination.pageSize +
+                    i +
+                    1
+                  }
                 >
                   {row.getVisibleCells().map(cell => {
                     const meta = cell.column.columnDef.meta as

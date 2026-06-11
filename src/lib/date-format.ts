@@ -48,3 +48,15 @@ export const formatDateForInput = (
   const parsed = tryParse(dateString);
   return parsed ? formatDate(parsed, INPUT_FORMAT) : '';
 };
+
+// Formats as DD/MM/YYYY — used in PDF exports
+export const formatDateDDMMYYYY = (iso: string): string => {
+  const parsed = tryParse(iso);
+  return parsed ? formatDate(parsed, 'dd/MM/yyyy') : '—';
+};
+
+// Formats as DD-MMM-YYYY (e.g. 15-Jun-2024) — used in Excel exports
+export const formatDateDDMMMYYYY = (iso: string): string => {
+  const parsed = tryParse(iso);
+  return parsed ? formatDate(parsed, 'dd-MMM-yyyy') : '—';
+};

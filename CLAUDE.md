@@ -49,7 +49,7 @@ import-manager/
 │   │   ├── main.rs             # Tauri app builder, IPC handler registration
 │   │   ├── commands/           # 45 Tauri command modules (one per domain)
 │   │   ├── db/                 # Database structs and queries
-│   │   ├── migrations/         # 79 SQL refinery migrations
+│   │   ├── migrations/         # 80+ SQL refinery migrations
 │   │   └── utils/              # Encryption, backup, keyring utilities
 │   ├── Cargo.toml
 │   ├── build.rs                # Copies SQLCipher DLLs on non-CI builds
@@ -250,7 +250,7 @@ Run unit tests with `npm run test:unit`, E2E with `npm run test:e2e`.
 
 ## Page Design System (Industrial Console Theme)
 
-Reference implementation: Supplier page ✅ (Shipment pending re-do)
+Reference implementation: Supplier page ✅, Shipment page ✅
 Files: src/components/supplier/table-industrial.tsx
        src/components/supplier/table-industrial.css
 

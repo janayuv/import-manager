@@ -5,7 +5,6 @@ import { RefreshCw, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { AppBar, PageHeader } from '@/components/shared/im';
 import {
   confirm as confirmDestructive,
   isTauriEnvironment,
@@ -430,22 +429,25 @@ function RecycleBinContent() {
   const items = response?.items ?? [];
 
   return (
-    <div className="im-page">
-      <AppBar crumbs={['Import Manager', 'Recycle Bin']} />
-      <PageHeader
-        title="Recycle Bin"
-        subtitle="View and restore soft-deleted records, or permanently remove them."
-        actions={
+    <div className="im-table-shell">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>RECYCLE BIN</h1>
+          {response && (
+            <span className="im-record-badge">{response.total}</span>
+          )}
+        </div>
+        <div className="im-page-header__actions">
           <button
             type="button"
-            className="im-btn im-btn--sm"
+            className="im-hdr-btn"
             onClick={() => setRefreshToken(x => x + 1)}
           >
             <RefreshCw style={{ width: 13, height: 13, marginRight: 6 }} />
             Refresh
           </button>
-        }
-      />
+        </div>
+      </div>
       <div className="im-dashboard-body flex flex-col gap-4">
         <div className="im-section">
           <div className="im-section__header">
