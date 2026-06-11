@@ -171,3 +171,7 @@ pnpm-lock.yaml
 .prettierrc*
 .editorconfig
 .gitattributes
+
+# Scripts with version-skew sensitive formatting (prettier-plugin-tailwindcss)
+.lintstagedrc.mjs
+scripts/gitleaks-scan.mjs

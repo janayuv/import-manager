@@ -27,4 +27,4 @@ jobs:
 
       - name: Run actionlint
         shell: pwsh
-        run: actionlint -color .github/workflows/
+        run: actionlint -color .github/workflows
