@@ -100,8 +100,8 @@ pub fn get_recycle_bin_deleted_count(
         .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
     let mut total: i64 = 0;
     for t in tables {
-        let columns =
-            table_column_names(&db, &t).map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
+        let columns = table_column_names(&db, &t)
+            .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?;
         let Some(d_col) = columns
             .iter()
             .find(|c| c.eq_ignore_ascii_case("deleted_at"))
@@ -552,8 +552,7 @@ fn get_deleted_paged_single_table(
     let n_like = or_parts.len();
     let search_where = format!("{} IS NOT NULL AND ({})", d_q, or_parts.join(" OR "));
 
-    let total: i64 = if like_pat.is_some() {
-        let p = like_pat.as_ref().unwrap();
+    let total: i64 = if let Some(p) = &like_pat {
         use rusqlite::types::Value;
         let vals: Vec<Value> = (0..n_like).map(|_| Value::Text(p.clone())).collect();
         let q = format!(
@@ -587,8 +586,7 @@ fn get_deleted_paged_single_table(
             table
         );
     }
-    let items: Vec<DeletedRecordItem> = if like_pat.is_some() {
-        let p = like_pat.as_ref().unwrap();
+    let items: Vec<DeletedRecordItem> = if let Some(p) = &like_pat {
         use rusqlite::types::Value;
         let mut vals: Vec<Value> = (0..n_like).map(|_| Value::Text(p.clone())).collect();
         vals.push(Value::Integer(page_size as i64));
@@ -789,11 +787,10 @@ pub async fn get_deleted_records(
     if let Some(ref t) = tableName {
         if !t.is_empty() {
             crate::safety::guard_safe_table_name(t)?;
-            let allowed: HashSet<String> =
-                get_soft_delete_tables_internal(&db)
-                    .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
-                    .into_iter()
-                    .collect();
+            let allowed: HashSet<String> = get_soft_delete_tables_internal(&db)
+                .map_err(|m| IpcError::new("recycle_bin_query_failed", m))?
+                .into_iter()
+                .collect();
             if !allowed.contains(t) {
                 return Err(IpcError::new(
                     "validation",
@@ -1037,13 +1034,9 @@ fn validate_restore_parents(
                 let Some(ref pval) = val else {
                     continue;
                 };
-                if let Some(reason) = parent_reachable_reason(
-                    conn,
-                    &fk.parent_table,
-                    &fk.parent_to,
-                    pval,
-                )
-                .map_err(|m| IpcError::new("restore_validation_failed", m))?
+                if let Some(reason) =
+                    parent_reachable_reason(conn, &fk.parent_table, &fk.parent_to, pval)
+                        .map_err(|m| IpcError::new("restore_validation_failed", m))?
                 {
                     if reason == "invalid" {
                         return Err(IpcError::new(

@@ -6,12 +6,12 @@
 
 mod commands;
 mod connection_manager;
-mod db;
-mod ipc_error;
 mod correlation;
+mod db;
 mod desktop_session;
 mod encryption;
 mod expense;
+mod ipc_error;
 mod migrations;
 mod playwright_db;
 mod recovery_mode;

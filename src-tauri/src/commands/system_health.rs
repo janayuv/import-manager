@@ -192,9 +192,7 @@ pub fn get_system_health_metrics(
     if schema_health.state != "ok" {
         health_summary.warnings.push(format!(
             "Schema health: {} (applied v{} / expected v{})",
-            schema_health.state,
-            schema_health.applied_version,
-            schema_health.expected_version
+            schema_health.state, schema_health.applied_version, schema_health.expected_version
         ));
         health_summary.overall = "warning".to_string();
     }

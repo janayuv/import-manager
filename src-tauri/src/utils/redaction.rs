@@ -22,4 +22,3 @@ pub fn redact_path(path: &Path) -> String {
 pub fn redact_path_str(path: &str) -> String {
     redact_path(Path::new(path))
 }
-

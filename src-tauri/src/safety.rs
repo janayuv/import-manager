@@ -39,11 +39,7 @@ pub fn guard_non_empty_ids(ids: &[String], message: &str) -> Result<(), IpcError
 }
 
 pub fn guard_safe_table_name(table: &str) -> Result<(), IpcError> {
-    if table.is_empty()
-        || !table
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
+    if table.is_empty() || !table.chars().all(|c| c.is_ascii_alphanumeric() || c == '_') {
         return Err(IpcError::new("validation", "Invalid table name"));
     }
     Ok(())

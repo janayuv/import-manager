@@ -14,9 +14,7 @@ pub(crate) use bootstrap::{
     insert_recovery_admin_when_no_admins,
 };
 
-pub use permissions::{
-    permissions_for, role_has, role_permissions_snapshot, Permission, Role,
-};
+pub use permissions::{permissions_for, role_has, role_permissions_snapshot, Permission, Role};
 
 /// Centralized command-level RBAC guard for user-invoked IPC commands.
 ///

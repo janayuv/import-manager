@@ -113,7 +113,10 @@ fn clear_gdrive_metadata_tokens(conn: &Connection) {
 }
 
 /// Record last resolved folder id for debugging. Resolution always uses Drive API search by folder name first.
-fn persist_last_resolved_backup_folder_id(conn: &Connection, folder_id: &str) -> Result<(), String> {
+fn persist_last_resolved_backup_folder_id(
+    conn: &Connection,
+    folder_id: &str,
+) -> Result<(), String> {
     conn.execute(
         "INSERT OR REPLACE INTO app_metadata (key, value) VALUES (?1, ?2)",
         params![META_GDRIVE_BACKUP_FOLDER_ID, folder_id.trim()],
@@ -462,7 +465,12 @@ pub async fn google_drive_connect(
         crate::commands::oauth_callback::capture_oauth_code(&auth_url)
     })
     .await
-    .map_err(|_| IpcError::new("google_drive_oauth", user_message("oauth", "Sign-in task panicked")))?
+    .map_err(|_| {
+        IpcError::new(
+            "google_drive_oauth",
+            user_message("oauth", "Sign-in task panicked"),
+        )
+    })?
     .map_err(|m| IpcError::new("google_drive_oauth", m))?;
 
     log::info!(target: "google_drive", "event=oauth_code_received");
@@ -496,9 +504,7 @@ pub async fn google_drive_connect(
         target: "import_manager::gdrive",
         "Google Drive connected successfully"
     );
-    if let Err(e) =
-        resolve_import_manager_backup_folder_id(Some(&db_state.db)).await
-    {
+    if let Err(e) = resolve_import_manager_backup_folder_id(Some(&db_state.db)).await {
         log::warn!(
             target: "google_drive",
             "Backup folder discovery after connect failed: {}",
@@ -1284,11 +1290,9 @@ async fn upload_from_init(
         }
         body_buf.extend_from_slice(&buf[..n]);
         uploaded += n as u64;
-        let pct = if file_len > 0 {
-            ((uploaded.min(file_len) * 100) / file_len) as u32
-        } else {
-            100
-        };
+        let pct = ((uploaded.min(file_len) * 100)
+            .checked_div(file_len)
+            .unwrap_or(100)) as u32;
         emit_progress(
             window,
             &DriveTransferProgress {
@@ -1374,13 +1378,10 @@ pub async fn download_file_by_id(
         file.write_all(&chunk)
             .map_err(|e| user_message("download", e.to_string()))?;
         written += chunk.len() as u64;
-        let pct = if total > 0 {
-            ((written.min(total) * 100) / total) as u32
-        } else if written > 0 {
-            50
-        } else {
-            0
-        };
+        let pct = (written.min(total) * 100)
+            .checked_div(total)
+            .map(|v| v as u32)
+            .unwrap_or(if written > 0 { 50 } else { 0 });
         emit_progress(
             window,
             &DriveTransferProgress {
@@ -1458,7 +1459,10 @@ pub async fn get_google_oauth_credentials(
 
     let runtime_id = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_ID);
     let runtime_secret = read_gdrive_metadata_str(&db, META_GDRIVE_CLIENT_SECRET);
-    let runtime_override = runtime_id.as_deref().map(|s| !s.is_empty()).unwrap_or(false);
+    let runtime_override = runtime_id
+        .as_deref()
+        .map(|s| !s.is_empty())
+        .unwrap_or(false);
     let configured = get_effective_client_id(&db).is_some();
 
     Ok(GoogleOAuthCredentialsInfo {
