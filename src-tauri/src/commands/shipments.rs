@@ -344,7 +344,7 @@ pub fn delete_shipment(state: State<DbState>, id: String) -> Result<(), String> 
         &id,
         "n/a",
     );
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     crate::commands::reference_scan::log_hard_delete_fk_cascade_impact(&conn, "shipments")
         .map_err(|e| e.to_string())?;
     log::info!(
@@ -381,7 +381,7 @@ pub fn update_shipment_status_on_invoice_add(
     state: State<DbState>,
     shipment_id: String,
 ) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Only update if current status is not "delivered"
     conn.execute(
@@ -400,7 +400,7 @@ pub fn update_shipment_status_on_boe_add(
     state: State<DbState>,
     shipment_id: String,
 ) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Only update if current status is not "delivered"
     conn.execute(
@@ -416,7 +416,7 @@ pub fn update_shipment_status_on_boe_add(
 
 #[tauri::command]
 pub fn check_and_update_ready_for_delivery(state: State<DbState>) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Get current date
     let today = chrono::Utc::now().date_naive();
@@ -448,7 +448,7 @@ pub fn check_and_update_ready_for_delivery(state: State<DbState>) -> Result<(), 
 
 #[tauri::command]
 pub fn migrate_shipment_statuses(state: State<DbState>) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Update legacy status values to new standardized values
     conn.execute(
@@ -699,7 +699,7 @@ pub fn add_shipments_bulk(
         shipments.len(),
         file_name,
     );
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     add_shipments_bulk_inner(
         &mut conn,
         shipments,
@@ -755,7 +755,7 @@ pub fn log_shipment_import_result(
     error_rows: usize,
     status: String,
 ) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     insert_shipment_import_log(
         &conn,
         file_name,
@@ -859,7 +859,7 @@ fn fetch_unfinalized_shipments(conn: &Connection) -> Result<Vec<Shipment>, Strin
 
 #[tauri::command]
 pub fn freeze_shipment(state: State<DbState>, id: String) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     conn.execute(
         "UPDATE shipments SET is_frozen = 1 WHERE id = ?1",
         params![id],
@@ -877,7 +877,7 @@ pub fn update_shipment_status(
     id: String,
     status: String,
 ) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     conn.execute(
         "UPDATE shipments SET status = ?1 WHERE id = ?2",
         params![status, id],
@@ -895,7 +895,7 @@ pub fn validate_shipment_import(
     state: State<DbState>,
 ) -> Result<Vec<String>, String> {
     let mut errors = Vec::new();
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     let mut supplier_ids = HashSet::new();
     let mut supplier_stmt = conn

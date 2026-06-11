@@ -15,7 +15,7 @@ use uuid::Uuid;
 #[allow(dead_code)]
 #[tauri::command]
 pub fn get_service_providers(state: State<DbState>) -> Result<Vec<ServiceProvider>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare("SELECT id, name, gstin, state, contact_person, contact_email, contact_phone FROM service_providers ORDER BY name")
         .map_err(|e| e.to_string())?;
@@ -44,7 +44,7 @@ pub fn add_service_provider(
     name: String,
     state: State<DbState>,
 ) -> Result<ServiceProvider, String> {
-    let db = state.db.lock().unwrap();
+    let db = state.db()?;
     let new_service_provider = ServiceProvider {
         id: Uuid::new_v4().to_string(),
         name,
@@ -68,7 +68,7 @@ pub fn add_service_provider(
 #[allow(dead_code)]
 #[tauri::command]
 pub fn get_expense_types(state: State<DbState>) -> Result<Vec<ExpenseType>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare("SELECT id, name, COALESCE(default_cgst_rate_bp, default_cgst_rate * 100) as default_cgst_rate, COALESCE(default_sgst_rate_bp, default_sgst_rate * 100) as default_sgst_rate, COALESCE(default_igst_rate_bp, default_igst_rate * 100) as default_igst_rate, is_active FROM expense_types ORDER BY name")
         .map_err(|e| e.to_string())?;
@@ -93,7 +93,7 @@ pub fn get_expense_types(state: State<DbState>) -> Result<Vec<ExpenseType>, Stri
 #[allow(dead_code)]
 #[tauri::command]
 pub fn debug_expense_types(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Check if expense_types table exists
     let table_exists: i32 = conn
@@ -160,7 +160,7 @@ pub fn debug_expense_types(state: State<DbState>) -> Result<String, String> {
 #[allow(dead_code)]
 #[tauri::command]
 pub fn fix_expense_types(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Define the correct rates for common expense types
     let expense_type_fixes = vec![
@@ -248,7 +248,7 @@ pub fn fix_expense_types(state: State<DbState>) -> Result<String, String> {
 #[allow(dead_code)]
 #[tauri::command]
 pub fn debug_expense_data(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     let mut result = String::new();
 
@@ -307,7 +307,7 @@ pub fn debug_expense_data(state: State<DbState>) -> Result<String, String> {
 #[allow(dead_code)]
 #[tauri::command]
 pub fn clear_expense_data(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Clear existing expense types and service providers
     conn.execute("DELETE FROM expense_types", [])
@@ -325,7 +325,7 @@ pub fn clear_expense_data(state: State<DbState>) -> Result<String, String> {
 #[allow(dead_code)]
 #[tauri::command]
 pub fn cleanup_orphaned_expenses(state: State<DbState>) -> Result<String, String> {
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     let mut result = String::new();
 
     // Count before cleanup
@@ -461,7 +461,7 @@ pub fn cleanup_orphaned_expenses(state: State<DbState>) -> Result<String, String
 #[allow(dead_code)]
 #[tauri::command]
 pub fn fix_existing_expenses(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Determine schema: legacy (amount, decimal percent) vs new (amount_paise, basis points)
     let has_amount_paise: i32 = conn
@@ -570,7 +570,7 @@ pub fn fix_existing_expenses(state: State<DbState>) -> Result<String, String> {
 #[allow(dead_code)]
 #[tauri::command]
 pub fn fix_lcl_charges_rate(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     let mut result = String::new();
 
@@ -641,7 +641,7 @@ pub fn fix_lcl_charges_rate(state: State<DbState>) -> Result<String, String> {
 #[allow(dead_code)]
 #[tauri::command]
 pub fn add_expense_type(name: String, state: State<DbState>) -> Result<ExpenseType, String> {
-    let db = state.db.lock().unwrap();
+    let db = state.db()?;
     let new_expense_type = ExpenseType {
         id: Uuid::new_v4().to_string(),
         name: name.clone(),
@@ -669,7 +669,7 @@ pub fn add_expense_type_with_rates(
     igst_rate: i32,
     state: State<DbState>,
 ) -> Result<ExpenseType, String> {
-    let db = state.db.lock().unwrap();
+    let db = state.db()?;
     let new_expense_type = ExpenseType {
         id: Uuid::new_v4().to_string(),
         name: name.clone(),
@@ -696,7 +696,7 @@ pub fn get_expense_invoices_for_shipment(
     shipment_id: String,
     state: State<DbState>,
 ) -> Result<Vec<ExpenseInvoice>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare("SELECT id, shipment_id, service_provider_id, invoice_no, invoice_date, total_amount, total_cgst_amount, total_sgst_amount, total_igst_amount, remarks, created_by, created_at, updated_at FROM expense_invoices WHERE shipment_id = ?1 ORDER BY invoice_date")
         .map_err(|e| e.to_string())?;
@@ -733,7 +733,7 @@ pub fn check_expense_invoice_exists(
     invoice_no: String,
     state: State<DbState>,
 ) -> Result<bool, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare("SELECT COUNT(*) FROM expense_invoices WHERE service_provider_id = ?1 AND invoice_no = ?2")
         .map_err(|e| e.to_string())?;
@@ -752,7 +752,7 @@ pub fn get_expenses_for_invoice(
     expense_invoice_id: String,
     state: State<DbState>,
 ) -> Result<Vec<Expense>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare("SELECT id, expense_invoice_id, expense_type_id, amount, cgst_rate, sgst_rate, igst_rate, tds_rate, cgst_amount, sgst_amount, igst_amount, tds_amount, total_amount, remarks, created_by, created_at, updated_at FROM expenses WHERE expense_invoice_id = ?1 ORDER BY created_at")
         .map_err(|e| e.to_string())?;
@@ -792,7 +792,7 @@ pub fn get_expenses_for_shipment(
     shipment_id: String,
     state: State<DbState>,
 ) -> Result<Vec<ExpenseWithInvoice>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare("SELECT e.id, e.expense_invoice_id, e.expense_type_id, e.amount, e.cgst_rate, e.sgst_rate, e.igst_rate, e.tds_rate, e.cgst_amount, e.sgst_amount, e.igst_amount, e.tds_amount, e.total_amount, e.remarks, e.created_by, e.created_at, e.updated_at, ei.service_provider_id, ei.invoice_no, ei.invoice_date FROM expenses e JOIN expense_invoices ei ON e.expense_invoice_id = ei.id WHERE ei.shipment_id = ?1 ORDER BY ei.invoice_date, e.created_at")
         .map_err(|e| e.to_string())?;
@@ -854,7 +854,7 @@ pub fn attach_invoice_to_expense(
     std::fs::copy(&src_path, &dest_path).map_err(|e| e.to_string())?;
 
     // 3. Create database record
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let new_id = generate_id(Some("ATT".to_string()));
     let now = chrono::Utc::now().to_rfc3339();
 
@@ -1118,7 +1118,7 @@ pub fn add_expense_invoice_with_expenses(
     session: State<'_, DesktopSessionState>,
 ) -> Result<ExpenseInvoice, String> {
     let created_by = require_session_user_id(&session)?;
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
 
     // First, check if an expense invoice with the same service provider and invoice number already exists
     let existing_invoice_id = {
@@ -1246,7 +1246,7 @@ pub fn add_expense_invoice_with_expenses(
 #[allow(dead_code)] // This is called from the frontend
 pub fn add_expense(payload: ExpensePayload, state: State<'_, DbState>, session: State<'_, DesktopSessionState>) -> Result<Expense, String> {
     let created_by = require_session_user_id(&session)?;
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     let new_id = generate_id(Some("EXP".to_string()));
 
@@ -1329,7 +1329,7 @@ pub fn update_expense(
     payload: ExpensePayload,
     state: State<'_, DbState>,
 ) -> Result<Expense, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // First, get the expense_invoice_id before updating
     let mut stmt = conn
@@ -1395,7 +1395,7 @@ pub fn update_expense(
 #[tauri::command]
 #[allow(dead_code)] // This is called from the frontend
 pub fn delete_expense(id: String, state: State<DbState>) -> Result<(), String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // First, get the expense_invoice_id before deleting
     let mut stmt = conn
@@ -1435,7 +1435,7 @@ pub fn add_expenses_bulk(
     payload: BulkExpensePayload,
     state: State<DbState>,
 ) -> Result<String, String> {
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // Group expenses by unique service provider + invoice number combinations
@@ -1614,7 +1614,7 @@ pub fn add_expenses_bulk(
 
 #[tauri::command]
 pub fn delete_expense_invoice(invoice_id: String, state: State<DbState>) -> Result<(), String> {
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     let tx = conn.transaction().map_err(|e| e.to_string())?;
 
     // First, delete all expense attachments for expenses in this invoice
@@ -1658,7 +1658,7 @@ pub fn delete_expense_invoice(invoice_id: String, state: State<DbState>) -> Resu
 
 #[tauri::command]
 pub fn debug_expense_data_counts(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     let mut result = String::new();
 
@@ -1714,7 +1714,7 @@ pub fn debug_expense_data_counts(state: State<DbState>) -> Result<String, String
 
 #[tauri::command]
 pub fn create_test_expense_data(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut result = String::new();
 
     // Check if test data already exists
@@ -1888,7 +1888,7 @@ pub fn create_test_expense_data(state: State<DbState>) -> Result<String, String>
 
 #[tauri::command]
 pub fn cleanup_orphaned_expense_invoices(state: State<DbState>) -> Result<String, String> {
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
 
     // First, find orphaned expense invoices (those with no associated expenses)
     let orphaned_invoices: Vec<(String, String, String)> = {
@@ -1944,7 +1944,7 @@ pub fn cleanup_orphaned_expense_invoices(state: State<DbState>) -> Result<String
 /// Distinct shipment IDs that have at least one expense line (for shipment list exception filters).
 #[tauri::command]
 pub fn get_shipment_ids_with_expense_lines(state: State<DbState>) -> Result<Vec<String>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     let mut stmt = conn
         .prepare(
             "SELECT DISTINCT shipment_id FROM expenses

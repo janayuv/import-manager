@@ -315,7 +315,7 @@ pub fn generate_detailed_expense_report(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<ExpenseReportResponse, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::generate_expense_report(&conn, &filters).map_err(|e| e.to_string())
 }
 
@@ -325,7 +325,7 @@ pub fn generate_expense_summary_by_type(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByType>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::generate_summary_by_type(&conn, &filters).map_err(|e| e.to_string())
 }
 
@@ -335,7 +335,7 @@ pub fn generate_expense_summary_by_provider(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByProvider>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::generate_summary_by_provider(&conn, &filters).map_err(|e| e.to_string())
 }
 
@@ -345,7 +345,7 @@ pub fn generate_expense_summary_by_shipment(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByShipment>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::generate_summary_by_shipment(&conn, &filters).map_err(|e| e.to_string())
 }
 
@@ -355,7 +355,7 @@ pub fn generate_expense_summary_by_month(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<Vec<ExpenseSummaryByMonth>, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::generate_summary_by_month(&conn, &filters).map_err(|e| e.to_string())
 }
 
@@ -365,7 +365,7 @@ pub fn debug_expense_report_filters(
     filters: ExpenseReportFilters,
     state: State<DbState>,
 ) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     // Test the detailed report generation
     match ExpenseService::generate_expense_report(&conn, &filters) {
@@ -388,7 +388,7 @@ pub fn debug_expense_report_filters(
 /// Debug command to check dates in the database
 #[tauri::command]
 pub fn debug_expense_dates(state: State<DbState>) -> Result<String, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
 
     let query = "
         SELECT DISTINCT ei.invoice_date, COUNT(*) as count

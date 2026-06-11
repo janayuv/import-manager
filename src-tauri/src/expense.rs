@@ -1691,7 +1691,7 @@ pub async fn create_expense_invoice(
     session: State<'_, crate::desktop_session::DesktopSessionState>,
 ) -> Result<ExpenseInvoiceResponse, String> {
     let created_by = crate::desktop_session::require_session_user_id(&session)?;
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     ExpenseService::create_or_update_invoice(&mut conn, payload, &created_by)
         .map_err(|e| e.to_string())
 }
@@ -1701,7 +1701,7 @@ pub async fn preview_expense_invoice(
     payload: ExpenseInvoicePayload,
     state: State<'_, DbState>,
 ) -> Result<ExpenseInvoicePreview, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::preview_invoice(&conn, &payload).map_err(|e| e.to_string())
 }
 
@@ -1711,7 +1711,7 @@ pub async fn combine_expense_duplicates(
     request: CombineDuplicatesRequest,
     state: State<'_, DbState>,
 ) -> Result<ExpenseInvoiceResponse, String> {
-    let mut conn = state.db.lock().unwrap();
+    let mut conn = state.db()?;
     let separator = request.separator.as_deref().unwrap_or("; ");
     ExpenseService::combine_duplicates(&mut conn, &invoice_id, separator).map_err(|e| e.to_string())
 }
@@ -1721,7 +1721,7 @@ pub async fn get_expense_invoice(
     invoice_id: String,
     state: State<'_, DbState>,
 ) -> Result<ExpenseInvoiceResponse, String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.db()?;
     ExpenseService::get_invoice(&conn, &invoice_id).map_err(|e| e.to_string())
 }
 
