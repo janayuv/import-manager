@@ -552,8 +552,7 @@ fn get_deleted_paged_single_table(
     let n_like = or_parts.len();
     let search_where = format!("{} IS NOT NULL AND ({})", d_q, or_parts.join(" OR "));
 
-    let total: i64 = if like_pat.is_some() {
-        let p = like_pat.as_ref().unwrap();
+    let total: i64 = if let Some(p) = &like_pat {
         use rusqlite::types::Value;
         let vals: Vec<Value> = (0..n_like).map(|_| Value::Text(p.clone())).collect();
         let q = format!(

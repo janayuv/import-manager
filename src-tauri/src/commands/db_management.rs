@@ -1855,6 +1855,7 @@ pub struct BackupRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+#[allow(dead_code)]
 pub struct RestoreRequest {
     pub backupPath: String,
     pub dry_run: bool,
@@ -3067,7 +3068,7 @@ pub async fn hard_delete_record(
     {
         let db = db_state.db.lock().map_err(|e| e.to_string())?;
         ensure_command_permission(&db, userId.as_deref(), PERM_DATA_DELETE)?;
-        super::reference_scan::ensure_can_hard_delete(&db, &tableName, &[record_id.clone()])?;
+        super::reference_scan::ensure_can_hard_delete(&db, &tableName, std::slice::from_ref(&record_id))?;
     }
 
     let mut db = db_state.db.lock().map_err(|e| e.to_string())?;
@@ -3085,7 +3086,7 @@ pub async fn hard_delete_record(
     let tx = db
         .transaction()
         .map_err(|e| format!("Failed to begin hard delete transaction: {}", e))?;
-    super::reference_scan::delete_fk_dependent_children(&tx, &tableName, &[record_id.clone()])?;
+    super::reference_scan::delete_fk_dependent_children(&tx, &tableName, std::slice::from_ref(&record_id))?;
 
     // Perform hard delete
     let query = format!("DELETE FROM {} WHERE id = ?", tableName);
