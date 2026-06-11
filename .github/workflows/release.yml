@@ -16,11 +16,8 @@ jobs:
     env:
       HUSKY: '0'
       CI: true
-      SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE || '' }}
-      # Match CI build job so Tauri + SQLCipher link on Windows runners
-      SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
-      SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
       LIBSQLITE3_SYS_BUNDLED: '1'
+      HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -79,9 +76,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
-          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ''
-          SQLCIPHER_LIB_DIR: C:\vcpkg\installed\x64-windows\lib
-          SQLCIPHER_INCLUDE_DIR: C:\vcpkg\installed\x64-windows\include
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD || '' }}
           LIBSQLITE3_SYS_BUNDLED: '1'
         with:
           tagName: ${{ github.ref_name }}
@@ -94,6 +89,31 @@ jobs:
           releaseDraft: false
           prerelease: false
           includeUpdaterJson: true
+
+      - name: Sign installer (Windows Authenticode)
+        if: ${{ env.HAS_SIGNING_CERT == 'true' }}
+        shell: pwsh
+        env:
+          SIGNING_CERTIFICATE: ${{ secrets.SIGNING_CERTIFICATE }}
+          SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.SIGNING_CERTIFICATE_PASSWORD }}
+        run: |
+          # Import PFX from base64-encoded secret
+          $pfxPath = Join-Path $env:RUNNER_TEMP "import-manager-sign.pfx"
+          [System.IO.File]::WriteAllBytes($pfxPath, [System.Convert]::FromBase64String($env:SIGNING_CERTIFICATE))
+          # Locate signtool
+          $signtool = & "${env:ProgramFiles(x86)}\Windows Kits\10\bin\10.0.22621.0\x64\signtool.exe" 2>$null
+          if (-not $signtool) {
+            $signtool = (Get-ChildItem "C:\Program Files (x86)\Windows Kits" -Recurse -Filter "signtool.exe" -ErrorAction SilentlyContinue | Select-Object -First 1).FullName
+          }
+          if (-not $signtool) { $signtool = "signtool.exe" }
+          # Sign all MSI and NSIS installers produced by the build
+          Get-ChildItem src-tauri/target/release/bundle -Recurse -Include "*.msi","*.exe" -ErrorAction SilentlyContinue | ForEach-Object {
+            Write-Host "Signing: $($_.FullName)"
+            & $signtool sign /f $pfxPath /p $env:SIGNING_CERTIFICATE_PASSWORD /tr http://timestamp.digicert.com /td sha256 /fd sha256 $_.FullName
+            if ($LASTEXITCODE -ne 0) { throw "signtool failed for $($_.FullName)" }
+          }
+          Remove-Item $pfxPath -Force
+          Write-Host "✅ Authenticode signing complete"
 
       - name: Show release duration
         if: always() && steps.record_release_start.outcome == 'success'
