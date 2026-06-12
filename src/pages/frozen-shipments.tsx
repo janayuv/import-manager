@@ -3,7 +3,6 @@ import { toast } from 'sonner';
 
 import { useEffect, useState } from 'react';
 
-import { AppBar, PageHeader } from '@/components/shared/im';
 import { ipcErrorMessage } from '@/lib/ipc-error';
 import type { Shipment } from '@/types/shipment';
 
@@ -55,78 +54,80 @@ const FrozenShipmentsPage = () => {
   };
 
   return (
-    <div className="im-page">
-      <AppBar crumbs={['Import Manager', 'Frozen Shipments']} />
-      <PageHeader
-        title="Frozen Shipments"
-        subtitle="Manage locked shipments and resolve processing issues"
-        count={shipments.length}
-      />
-      <div className="im-dashboard-body">
-        <div className="im-section">
-          <div className="im-section__body" style={{ padding: 0 }}>
-            {loading ? (
-              <div
-                style={{
-                  padding: 24,
-                  color: 'var(--color-im-muted)',
-                  fontSize: 13,
-                }}
-              >
-                Loading...
-              </div>
-            ) : (
-              <div className="im-table-scroll">
-                <table className="im-table">
-                  <thead>
-                    <tr>
-                      <th className="im-th">Invoice #</th>
-                      <th className="im-th">Status</th>
-                      <th className="im-th">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shipments.length ? (
-                      shipments.map((s, idx) => (
-                        <tr
-                          key={s.id}
-                          className={`im-tr${idx % 2 === 1 ? 'is-alt' : ''}`}
-                        >
-                          <td className="im-td">{s.invoiceNumber}</td>
-                          <td className="im-td">
-                            {shipmentStatusPill(s.status ?? '')}
-                          </td>
-                          <td className="im-td">
-                            <button
-                              type="button"
-                              className="im-btn im-btn--sm"
-                              onClick={() => handleUnfreeze(s.id)}
-                            >
-                              Unfreeze
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    ) : (
-                      <tr className="im-tr">
-                        <td
-                          className="im-td"
-                          colSpan={3}
-                          style={{
-                            textAlign: 'center',
-                            color: 'var(--color-im-muted)',
-                          }}
-                        >
-                          No frozen shipments
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
+    <div className="im-table-shell">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>FROZEN SHIPMENTS</h1>
+          {!loading && (
+            <span className="im-record-badge">{shipments.length}</span>
+          )}
         </div>
+      </div>
+
+      <div className="im-table-scroll">
+        <table className="im-table" aria-rowcount={shipments.length}>
+          <thead>
+            <tr>
+              <th className="im-th">INVOICE #</th>
+              <th className="im-th">STATUS</th>
+              <th className="im-th">ACTIONS</th>
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td
+                  colSpan={3}
+                  className="im-td-empty"
+                  style={{ color: '#56544E', fontFamily: 'monospace' }}
+                >
+                  Loading…
+                </td>
+              </tr>
+            ) : shipments.length ? (
+              shipments.map((s, idx) => (
+                <tr
+                  key={s.id}
+                  className={['im-tr', idx % 2 !== 0 ? 'is-alt' : '']
+                    .filter(Boolean)
+                    .join(' ')}
+                  aria-rowindex={idx + 1}
+                >
+                  <td className="im-td">{s.invoiceNumber}</td>
+                  <td className="im-td">
+                    {shipmentStatusPill(s.status ?? '')}
+                  </td>
+                  <td className="im-td">
+                    <button
+                      type="button"
+                      className="im-hdr-btn"
+                      onClick={() => handleUnfreeze(s.id)}
+                    >
+                      Unfreeze
+                    </button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr className="im-tr">
+                <td
+                  className="im-td"
+                  colSpan={3}
+                  style={{
+                    textAlign: 'center',
+                    color: 'var(--color-im-muted)',
+                  }}
+                >
+                  No frozen shipments
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      <div className="im-status-bar">
+        <span>Total: {shipments.length}</span>
       </div>
     </div>
   );

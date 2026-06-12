@@ -12,7 +12,6 @@ import ExpenseList from '@/components/expenses/expense-list';
 import { ExpenseMultilineForm } from '@/components/expenses/expense-multiline-form';
 import ExpenseReports from '@/components/expenses/expense-reports';
 import ShipmentSelector from '@/components/expenses/shipment-selector';
-import { AppBar, PageHeader } from '@/components/shared/im';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type {
@@ -137,57 +136,29 @@ const ExpensesPage = () => {
       moduleName="Expenses"
       showDetails={process.env.NODE_ENV === 'development'}
     >
-      <div className="im-page">
-        <AppBar crumbs={['Import Manager', 'Expenses']} />
-        <PageHeader
-          title="Manage Expenses"
-          subtitle="Track and manage expenses for your shipments"
-          actions={
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                flexWrap: 'wrap',
-              }}
+      <div className="im-table-shell">
+        <div className="im-page-header">
+          <div className="im-page-header__title">
+            <h1>EXPENSES</h1>
+          </div>
+          <div className="im-page-header__actions">
+            <button
+              type="button"
+              className="im-hdr-btn"
+              onClick={handleRefresh}
             >
-              <button
-                type="button"
-                className="im-btn im-btn--sm im-btn--primary"
-                onClick={handleRefresh}
-              >
-                Refresh Data
-              </button>
-              {selectedShipment && (
-                <div className="text-right">
-                  <span
-                    className="im-badge is-neutral"
-                    style={{ fontSize: 13 }}
-                  >
-                    Shipment:{' '}
-                    {formatText(
-                      selectedShipment.invoiceNumber,
-                      settings.textFormat
-                    )}
-                  </span>
-                  <p
-                    style={{
-                      color: 'var(--color-im-muted)',
-                      marginTop: 4,
-                      fontSize: 12,
-                    }}
-                  >
-                    BL/AWB:{' '}
-                    {formatText(
-                      selectedShipment.blAwbNumber,
-                      settings.textFormat
-                    )}
-                  </p>
-                </div>
-              )}
-            </div>
-          }
-        />
+              Refresh Data
+            </button>
+            {selectedShipment && (
+              <span className="im-record-badge">
+                {formatText(
+                  selectedShipment.invoiceNumber,
+                  settings.textFormat
+                )}
+              </span>
+            )}
+          </div>
+        </div>
         <div
           style={{
             display: 'flex',

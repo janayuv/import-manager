@@ -1,6 +1,6 @@
 # Import Manager — Premium Production Grade Application Plan
 
-> **Version:** 0.4.10 · **Date:** 2026-05-30 · **Scope:** Windows-only Tauri 2 desktop app · **Operator model:** Single trusted owner, two PCs (home + office), shared SQLite database
+> **Version:** 1.0.5 · **Date:** 2026-06-11 · **Scope:** Windows-only Tauri 2 desktop app · **Operator model:** Single trusted owner, two PCs (home + office), shared SQLite database
 
 ---
 

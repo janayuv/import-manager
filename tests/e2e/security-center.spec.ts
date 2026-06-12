@@ -57,6 +57,6 @@ test('roles & permissions UI renders the canonical matrix headings', async ({
   await expect(
     page.getByRole('heading', { name: /Roles & permissions/i })
   ).toBeVisible();
-  await expect(page.getByText('Permission matrix')).toBeVisible();
+  await expect(page.getByText('Permission matrix').first()).toBeVisible();
   await expect(page.locator('text=administrator').first()).toBeVisible();
 });

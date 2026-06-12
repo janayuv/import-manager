@@ -32,7 +32,7 @@ test.describe('Shipments Page Responsive Tests', () => {
         await page.goto('/shipment');
         await page.waitForLoadState('load');
         await expect(
-          page.getByRole('heading', { level: 1, name: /shipment management/i })
+          page.getByRole('heading', { level: 1, name: /Shipments/i })
         ).toBeVisible({ timeout: 20000 });
         await page.getByRole('button', { name: 'Table', exact: true }).click();
         await page.waitForSelector('table', { timeout: 20000 });
@@ -41,7 +41,7 @@ test.describe('Shipments Page Responsive Tests', () => {
       test('shipments page loads correctly', async ({ page }) => {
         await expect(page.locator('body')).toBeVisible();
         await expect(
-          page.getByRole('heading', { level: 1, name: /shipment management/i })
+          page.getByRole('heading', { level: 1, name: /Shipments/i })
         ).toBeVisible();
       });
 

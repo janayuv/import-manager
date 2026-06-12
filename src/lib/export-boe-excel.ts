@@ -1,4 +1,6 @@
 import * as ExcelJS from 'exceljs';
+
+import { formatDateDDMMMYYYY } from '@/lib/date-format';
 import type { SavedBoe } from '@/types/boe-entry';
 
 const AMBER_FILL: ExcelJS.Fill = {
@@ -6,28 +8,6 @@ const AMBER_FILL: ExcelJS.Fill = {
   pattern: 'solid',
   fgColor: { argb: 'FFFFC000' },
 };
-
-function formatDateDDMMMYYYY(iso: string): string {
-  const d = new Date(iso);
-  const months = [
-    'Jan',
-    'Feb',
-    'Mar',
-    'Apr',
-    'May',
-    'Jun',
-    'Jul',
-    'Aug',
-    'Sep',
-    'Oct',
-    'Nov',
-    'Dec',
-  ];
-  const dd = String(d.getDate()).padStart(2, '0');
-  const mmm = months[d.getMonth()];
-  const yyyy = d.getFullYear();
-  return `${dd}-${mmm}-${yyyy}`;
-}
 
 function buildFilename(invoiceNumber: string): string {
   const d = new Date();

@@ -149,8 +149,7 @@ export function InvoiceViewDialog({
         await writeTextFile(filePath, csv);
         toast.success('Items exported successfully!');
       }
-    } catch (error) {
-      console.error('Failed to export items:', error);
+    } catch {
       toast.error('Failed to export items.');
     }
   };

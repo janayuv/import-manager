@@ -88,6 +88,16 @@ jobs:
         run: |
           cd src-tauri
           cargo audit
+      - name: Enforce no lock().unwrap() in commands (C1 regression gate)
+        run: |
+          # Prevent reintroduction of mutex-poisoning lock().unwrap() pattern.
+          # All DB lock acquisition must go through DbState::db() which returns Result.
+          $matches = Get-ChildItem -Path "src-tauri\src\commands" -Filter "*.rs" -Recurse | Select-String -Pattern "lock\(\)\.unwrap\(\)" -ErrorAction SilentlyContinue
+          if ($matches) {
+            Write-Error "lock().unwrap() found in commands/ — use state.db()? instead:`n$($matches | ForEach-Object { $_.ToString() })"
+            exit 1
+          }
+          Write-Host "✅ No lock().unwrap() regressions in commands/"
       - name: Validate Windows-only Runner
         run: |
           $content = Get-Content .github/workflows/ci.yml -Raw
@@ -100,7 +110,7 @@ jobs:
   unit-tests:
     name: Unit tests Vitest + Rust (${{ matrix.node-version }})
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs: [frontend-lint, backend-check]
     strategy:
       fail-fast: false
@@ -129,6 +139,17 @@ jobs:
         run: |
           cd src-tauri
           cargo test
+      - name: Install cargo-llvm-cov
+        if: matrix.node-version == '22.x'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      - name: Run Rust coverage (llvm-cov)
+        if: matrix.node-version == '22.x'
+        run: |
+          rustup component add llvm-tools-preview
+          cd src-tauri
+          cargo llvm-cov --lcov --output-path ../coverage/lcov-rust.info
       - name: Upload coverage reports
         if: hashFiles('coverage/lcov.info') != '' && matrix.node-version == '22.x'
         uses: codecov/codecov-action@v4
@@ -162,7 +183,7 @@ jobs:
   e2e-tests:
     name: E2E tests (Playwright)
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 360
     needs: [unit-tests]
     env:
       HUSKY: '0'

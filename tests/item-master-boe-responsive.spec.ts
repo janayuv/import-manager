@@ -21,7 +21,7 @@ function pageReadyLocator(
     case 'item-master':
       return page.getByRole('heading', { name: 'Item Master' });
     case 'boe':
-      return page.getByRole('heading', { name: 'Bill of Entry Details' });
+      return page.getByRole('heading', { name: /Bill of Entry/ });
     case 'boe-entry':
       return page.getByText(/BOE Entry & Calculation|Editing BOE/);
     case 'boe-summary':

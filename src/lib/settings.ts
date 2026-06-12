@@ -48,6 +48,7 @@ export interface ModuleSettings {
 }
 
 export interface AppSettings {
+  schemaVersion: number;
   numberFormat: NumberFormatSettings;
   dateFormat: DateFormatSettings;
   textFormat: TextFormatSettings;
@@ -910,8 +911,14 @@ const defaultModuleFields: Record<
   },
 };
 
+// Settings storage key and schema version
+const SETTINGS_STORAGE_KEY = 'import-manager-settings';
+// Bump this whenever AppSettings shape changes — triggers automatic reset on load
+export const SETTINGS_SCHEMA_VERSION = 1;
+
 // Default settings
 export const defaultSettings: AppSettings = {
+  schemaVersion: SETTINGS_SCHEMA_VERSION,
   numberFormat: {
     decimalPlaces: 2,
     useThousandsSeparator: true,
@@ -1010,9 +1017,6 @@ function deepMerge<T extends Record<string, unknown>>(
   return result;
 }
 
-// Settings storage key
-const SETTINGS_STORAGE_KEY = 'import-manager-settings';
-
 // Load settings from localStorage
 export function loadSettings(): AppSettings {
   try {
@@ -1021,103 +1025,9 @@ export function loadSettings(): AppSettings {
     if (stored) {
       const parsed = JSON.parse(stored);
 
-      // Check if the stored settings have the old supplier fields structure
-      const hasOldSupplierFields =
-        parsed.modules?.supplier?.fields &&
-        (parsed.modules.supplier.fields.name ||
-          parsed.modules.supplier.fields.gstin ||
-          parsed.modules.supplier.fields.state);
-
-      if (hasOldSupplierFields) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY);
-        return defaultSettings;
-      }
-
-      // Check if supplier module is missing new fields (including actions)
-      const supplierFields = parsed.modules?.supplier?.fields;
-      const hasOldSupplierStructure =
-        supplierFields &&
-        (!supplierFields.actions ||
-          !supplierFields.id ||
-          !supplierFields.supplierName ||
-          !supplierFields.shortName ||
-          !supplierFields.country);
-
-      if (hasOldSupplierStructure) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY);
-        return defaultSettings;
-      }
-
-      // Check if shipment module is missing new fields
-      const shipmentFields = parsed.modules?.shipment?.fields;
-      const hasOldShipmentFields =
-        shipmentFields &&
-        (!shipmentFields.blAwbDate ||
-          !shipmentFields.shipmentMode ||
-          !shipmentFields.shipmentType ||
-          !shipmentFields.containerNumber ||
-          !shipmentFields.grossWeightKg ||
-          !shipmentFields.dateOfDelivery);
-
-      if (hasOldShipmentFields) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY);
-        return defaultSettings;
-      }
-
-      // Check if invoice module is missing new fields
-      const invoiceFields = parsed.modules?.invoice?.fields;
-      const hasOldInvoiceFields =
-        invoiceFields &&
-        (!invoiceFields.invoiceId ||
-          !invoiceFields.supplierName ||
-          !invoiceFields.partNumber ||
-          !invoiceFields.itemDescription ||
-          !invoiceFields.hsnCode ||
-          !invoiceFields.currency ||
-          !invoiceFields.unit ||
-          !invoiceFields.quantity ||
-          !invoiceFields.unitPrice ||
-          !invoiceFields.lineTotal ||
-          !invoiceFields.bcd ||
-          !invoiceFields.igst ||
-          !invoiceFields.invoiceTotal);
-
-      if (hasOldInvoiceFields) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY);
-        return defaultSettings;
-      }
-
-      // Check if BOE module is missing new fields
-      const boeFields = parsed.modules?.boe?.fields;
-      const hasOldBoeFields =
-        boeFields &&
-        (!boeFields.id || !boeFields.refId || !boeFields.transactionId);
-
-      if (hasOldBoeFields) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY);
-        return defaultSettings;
-      }
-
-      // Check if expenses module is missing new fields
-      const expensesFields = parsed.modules?.expenses?.fields;
-      const hasOldExpensesFields =
-        expensesFields &&
-        (!expensesFields.id ||
-          !expensesFields.shipmentId ||
-          !expensesFields.createdBy ||
-          !expensesFields.createdAt ||
-          !expensesFields.updatedAt);
-
-      if (hasOldExpensesFields) {
-        localStorage.removeItem(SETTINGS_STORAGE_KEY);
-        return defaultSettings;
-      }
-
-      // Check if item master module is missing new fields
-      const itemMasterFields = parsed.modules?.itemMaster?.fields;
-      const hasOldItemMasterFields = itemMasterFields && !itemMasterFields.id;
-
-      if (hasOldItemMasterFields) {
+      // Version check: any missing or mismatched schemaVersion resets to defaults.
+      // Increment SETTINGS_SCHEMA_VERSION when AppSettings shape changes.
+      if (parsed.schemaVersion !== SETTINGS_SCHEMA_VERSION) {
         localStorage.removeItem(SETTINGS_STORAGE_KEY);
         return defaultSettings;
       }

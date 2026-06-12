@@ -861,7 +861,6 @@ const ShipmentPage = () => {
         notifications.shipment.exported(_dataToExport.length);
       }
     } catch (error) {
-      console.error('Failed to export shipments:', error);
       notifications.shipment.error('export', String(error));
     }
   };

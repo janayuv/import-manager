@@ -38,24 +38,29 @@ import {
   AccountPasswordPage,
   AccountUpdatePage,
 } from '@/pages/account';
-import BOEPage from '@/pages/boe';
-import BOEEntrypage from '@/pages/boe-entry';
-import BoeSummaryPage from '@/pages/boe-summary';
-import SavedBoePage from '@/pages/saved-boe';
-import ExpenseDataManagerPage from '@/pages/expense-data-manager';
-import ExpenseReportsPage from '@/pages/expense-reports';
-import ExpensesPage from '@/pages/expenses';
-import FrozenShipmentsPage from '@/pages/frozen-shipments';
-import InvoiceWizardPage from '@/pages/invoice-wizard';
-import ItemMasterPage from '@/pages/item';
-import ReportsPage from '@/pages/reports';
-import SettingsPage from '@/pages/settings';
-import SupplierPage from '@/pages/supplier';
-import RecycleBin from '@/pages/RecycleBin';
-import LogsPage from '@/pages/Logs';
-import AdminActivityLogPage from '@/pages/admin/activity-log';
-import AdminUserActivityPage from '@/pages/admin/user-activity';
-import OperationsCenterPage from '@/pages/admin/operations-center';
+
+const BOEPage = lazy(() => import('@/pages/boe'));
+const BOEEntrypage = lazy(() => import('@/pages/boe-entry'));
+const BoeSummaryPage = lazy(() => import('@/pages/boe-summary'));
+const SavedBoePage = lazy(() => import('@/pages/saved-boe'));
+const ExpenseDataManagerPage = lazy(
+  () => import('@/pages/expense-data-manager')
+);
+const ExpenseReportsPage = lazy(() => import('@/pages/expense-reports'));
+const ExpensesPage = lazy(() => import('@/pages/expenses'));
+const FrozenShipmentsPage = lazy(() => import('@/pages/frozen-shipments'));
+const InvoiceWizardPage = lazy(() => import('@/pages/invoice-wizard'));
+const ItemMasterPage = lazy(() => import('@/pages/item'));
+const ReportsPage = lazy(() => import('@/pages/reports'));
+const SettingsPage = lazy(() => import('@/pages/settings'));
+const SupplierPage = lazy(() => import('@/pages/supplier'));
+const RecycleBin = lazy(() => import('@/pages/RecycleBin'));
+const LogsPage = lazy(() => import('@/pages/Logs'));
+const AdminActivityLogPage = lazy(() => import('@/pages/admin/activity-log'));
+const AdminUserActivityPage = lazy(() => import('@/pages/admin/user-activity'));
+const OperationsCenterPage = lazy(
+  () => import('@/pages/admin/operations-center')
+);
 
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
 const ShipmentPage = lazy(() => import('@/pages/shipment'));

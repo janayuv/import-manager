@@ -41,7 +41,7 @@ import { WorkflowHealthPanel } from '@/components/dashboard/WorkflowHealthPanel'
 import { WorkflowAlertSignalsPanel } from '@/components/dashboard/WorkflowAlertSignalsPanel';
 import { WorkflowObservabilityAdminCard } from '@/components/dashboard/WorkflowObservabilityAdminCard';
 import { getExceptionNavigationTarget } from '@/lib/exception-navigation';
-import { AppBar, KpiTile, PageHeader } from '@/components/shared/im';
+import { KpiTile } from '@/components/shared/im';
 import { formatDateForDisplay } from '@/lib/date-format';
 import { ipcErrorMessage } from '@/lib/ipc-error';
 import { useUser, useHasPermission } from '@/lib/user-context';
@@ -801,42 +801,47 @@ const DashboardPage = () => {
   const fyYears = [2023, 2024, 2025, 2026, 2027];
 
   return (
-    <div data-testid="dashboard-page" className="im-page">
-      <AppBar crumbs={['Import Manager', 'Dashboard']} />
-      <PageHeader
-        title="DASHBOARD"
-        subtitle={`Operational overview${freshness ? ` · ${freshness}` : ''}`}
-        actions={
-          <>
-            <div className="im-select-wrap" style={{ width: 220 }}>
-              <select
-                className="im-select"
-                value={moduleFilter}
-                onChange={e => setModuleFilter(e.target.value as ModuleFilter)}
-              >
-                <option value="all">Include all modules</option>
-                <option value="shipment-invoice">Shipment &amp; Invoice</option>
-                <option value="items">Items</option>
-                <option value="expenses">Expenses</option>
-              </select>
-            </div>
-            <button
-              type="button"
-              className="im-btn im-btn--sm"
-              onClick={handleExportCsv}
+    <div data-testid="dashboard-page" className="im-table-shell">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>DASHBOARD</h1>
+          {freshness && (
+            <span
+              style={{
+                fontSize: 11,
+                color: 'var(--color-im-muted)',
+                fontFamily: 'monospace',
+              }}
             >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              className="im-btn im-btn--sm"
-              onClick={handleRefresh}
+              {freshness}
+            </span>
+          )}
+        </div>
+        <div className="im-page-header__actions">
+          <div className="im-select-wrap" style={{ width: 220 }}>
+            <select
+              className="im-select"
+              value={moduleFilter}
+              onChange={e => setModuleFilter(e.target.value as ModuleFilter)}
             >
-              ↺ Refresh
-            </button>
-          </>
-        }
-      />
+              <option value="all">Include all modules</option>
+              <option value="shipment-invoice">Shipment &amp; Invoice</option>
+              <option value="items">Items</option>
+              <option value="expenses">Expenses</option>
+            </select>
+          </div>
+          <button
+            type="button"
+            className="im-hdr-btn"
+            onClick={handleExportCsv}
+          >
+            Export CSV
+          </button>
+          <button type="button" className="im-hdr-btn" onClick={handleRefresh}>
+            ↺ Refresh
+          </button>
+        </div>
+      </div>
 
       <div
         className="im-dashboard-body"

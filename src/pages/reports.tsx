@@ -6,7 +6,6 @@ import { useMemo, useState } from 'react';
 import { useUnifiedNotifications } from '@/hooks/useUnifiedNotifications';
 
 import { DataTable } from '@/components/shared/data-table';
-import { AppBar, PageHeader } from '@/components/shared/im';
 import { useReport } from '@/hooks/useReport';
 
 export default function ReportsPage() {
@@ -192,30 +191,20 @@ export default function ReportsPage() {
   );
 
   return (
-    <div className="im-page">
-      <AppBar crumbs={['Import Manager', 'Report']} />
-      <PageHeader
-        title="Consolidated Report"
-        subtitle="Comprehensive analytics and reporting across all modules"
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button
-              type="button"
-              className="im-btn im-btn--primary"
-              onClick={exportCsv}
-            >
-              Export CSV
-            </button>
-            <button
-              type="button"
-              className="im-btn im-btn--primary"
-              onClick={exportPdf}
-            >
-              Export PDF
-            </button>
-          </div>
-        }
-      />
+    <div className="im-table-shell">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>CONSOLIDATED REPORT</h1>
+        </div>
+        <div className="im-page-header__actions">
+          <button type="button" className="im-hdr-btn" onClick={exportCsv}>
+            Export CSV
+          </button>
+          <button type="button" className="im-btn-primary" onClick={exportPdf}>
+            Export PDF
+          </button>
+        </div>
+      </div>
 
       <div className="im-dashboard-body flex flex-col gap-6">
         {/* Filters */}

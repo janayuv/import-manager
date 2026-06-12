@@ -15,13 +15,7 @@ interface GoogleOAuthCredentialsInfo {
 }
 
 import { ModuleSettings } from '@/components/module-settings';
-import {
-  AppBar,
-  PageHeader,
-  SettingsSection,
-  SettingRow,
-  ImToggle,
-} from '@/components/shared/im';
+import { SettingsSection, SettingRow, ImToggle } from '@/components/shared/im';
 import {
   type AppSettings,
   clearSettings,
@@ -193,28 +187,23 @@ export default function SettingsPage() {
   ];
 
   return (
-    <div className="im-page">
-      <AppBar crumbs={['Import Manager', 'Settings']} />
-      <PageHeader
-        title="Settings"
-        subtitle="Configure application preferences and module settings"
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button className="im-btn" onClick={handleReset}>
-              Reset
-            </button>
-            <button
-              className="im-btn im-btn--danger"
-              onClick={handleClearSettings}
-            >
-              Clear All Settings
-            </button>
-            <button className="im-btn im-btn--primary" onClick={handleSave}>
-              Save Settings
-            </button>
-          </div>
-        }
-      />
+    <div className="im-table-shell">
+      <div className="im-page-header">
+        <div className="im-page-header__title">
+          <h1>SETTINGS</h1>
+        </div>
+        <div className="im-page-header__actions">
+          <button className="im-hdr-btn" onClick={handleReset}>
+            Reset
+          </button>
+          <button className="im-hdr-btn" onClick={handleClearSettings}>
+            Clear All
+          </button>
+          <button className="im-btn-primary" onClick={handleSave}>
+            Save Settings
+          </button>
+        </div>
+      </div>
 
       <div
         className="im-settings-body"

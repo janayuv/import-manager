@@ -526,7 +526,7 @@ function printReport(params: {
     );
 
     if (!printWindow) {
-      console.error('❌ Failed to open print window - popup blocked?');
+      toast.error('Print failed: popup blocked. Allow popups and try again.');
       try {
         const iframe = document.createElement('iframe');
         iframe.style.position = 'fixed';
@@ -550,15 +550,13 @@ function printReport(params: {
             }, 1000);
           }, 500);
         } else {
-          console.error('❌ Failed to access iframe document');
-          alert(
-            'Print failed: Popup blocked and iframe method unavailable. Please allow popups for this site.'
+          toast.error(
+            'Print failed: iframe method unavailable. Allow popups and try again.'
           );
         }
       } catch (error) {
-        console.error('💥 Error in iframe print method:', error);
-        alert(
-          'Print failed: Popup blocked and alternative method failed. Please allow popups for this site.'
+        toast.error(
+          `Print failed: ${error instanceof Error ? error.message : 'Unknown error'}`
         );
       }
       return;
@@ -568,11 +566,9 @@ function printReport(params: {
     printWindow.document.write(html);
     printWindow.document.close();
   } catch (error) {
-    console.error('💥 Error in printReport function:', error);
-    console.error('Error details:', {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
+    toast.error(
+      `Print error: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 

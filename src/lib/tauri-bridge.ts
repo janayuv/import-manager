@@ -29,7 +29,6 @@ function detectTauriAtLoad(): boolean {
   if (w.isTauri) return true;
   if (w.__TAURI__ !== undefined) return true;
   if (w.__TAURI_INTERNALS__ !== undefined) return true;
-  if (import.meta.env.VITE_PLAYWRIGHT === '1') return true;
   return false;
 }
 

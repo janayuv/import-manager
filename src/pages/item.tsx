@@ -282,7 +282,6 @@ export function ItemMasterPage() {
         notifications.item.exported(itemsToExport.length);
       }
     } catch (error) {
-      console.error('Failed to export items:', error);
       notifications.item.error('export', String(error));
     }
   };

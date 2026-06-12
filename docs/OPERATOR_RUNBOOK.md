@@ -4,10 +4,33 @@ Short procedures for support and on-call. This app stores data in a local SQLite
 
 ## Current release
 
-- **Application version:** **v0.4.10** (shown in **Help → About**, **Admin → System health**, diagnostics `manifest.json` as `appVersion`, and startup logs).
-- **Schema version:** Shown on **Admin → System health** (applied vs expected from embedded migrations — 79 migrations as of v0.4.10).
+- **Application version:** **v1.0.5** (shown in **Help → About**, **Admin → System health**, diagnostics `manifest.json` as `appVersion`, and startup logs).
+- **Schema version:** Shown on **Admin → System health** (applied vs expected from embedded migrations — 80+ migrations as of v1.0.5).
 - **Support bundle:** **Help → Export diagnostics…** — see [Diagnostics export](#diagnostics-export-support-bundle) below.
 - **Admin navigation:** Use the sidebar **Administration** group (activity, user audit, health, tools) and **Automation & operations** (automation center, rules, operations center).
+
+---
+
+## Data encryption at rest (required)
+
+> **Security requirement:** The SQLite database (`import-manager.db`) is stored in plaintext. All business records — suppliers, invoices, duty calculations, financials — are readable by anyone with file access to `%APPDATA%\com.jana.importmanager\`.
+
+**You must enable BitLocker (or equivalent full-disk encryption) on every PC that runs Import Manager.**
+
+### Enabling BitLocker (Windows 10/11 Pro)
+
+1. Open **Start → Settings → System → Storage → Advanced storage settings → Disk & volumes**.
+2. Select the system drive (C:) → **Properties → Turn on BitLocker**.
+3. Save the recovery key to a USB drive or Microsoft account — store it separately from the PC.
+4. Allow encryption to complete before leaving the PC unattended.
+
+Windows Home users: use **Device Encryption** (Settings → Privacy & Security → Device Encryption) or upgrade to Pro.
+
+### Why this is required
+
+Import Manager backup files are AES-256-GCM encrypted. However, the live database on disk is not encrypted by the application itself. BitLocker ensures that a lost or stolen device does not expose business data.
+
+Backup encryption (AES-256-GCM, IMBK2 format, 600 000 PBKDF2 iterations) protects data that leaves the machine via Google Drive or USB transfer. BitLocker protects data that stays on the machine.
 
 ---
 

@@ -369,7 +369,6 @@ const ExpenseReports: React.FC<ExpenseReportsProps> = ({ shipmentId }) => {
         `Report exported successfully as ${format.toUpperCase()}`
       );
     } catch (error) {
-      console.error('Export error:', error);
       notifications.error(
         'Export Error',
         `Failed to export report: ${error instanceof Error ? error.message : 'Unknown error'}`
