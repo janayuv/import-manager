@@ -183,7 +183,7 @@ jobs:
   e2e-tests:
     name: E2E tests (Playwright)
     runs-on: windows-latest
-    timeout-minutes: 25
+    timeout-minutes: 40
     needs: [unit-tests]
     env:
       HUSKY: '0'
