@@ -41,7 +41,7 @@ import { WorkflowHealthPanel } from '@/components/dashboard/WorkflowHealthPanel'
 import { WorkflowAlertSignalsPanel } from '@/components/dashboard/WorkflowAlertSignalsPanel';
 import { WorkflowObservabilityAdminCard } from '@/components/dashboard/WorkflowObservabilityAdminCard';
 import { getExceptionNavigationTarget } from '@/lib/exception-navigation';
-import { KpiTile } from '@/components/shared/im';
+import { AppBar, KpiTile, PageHeader } from '@/components/shared/im';
 import { formatDateForDisplay } from '@/lib/date-format';
 import { ipcErrorMessage } from '@/lib/ipc-error';
 import { useUser, useHasPermission } from '@/lib/user-context';
