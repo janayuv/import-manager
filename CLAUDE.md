@@ -324,14 +324,13 @@ BOE: FILED = blue · ASSESSED = amber · CLEARED = green · ON HOLD = red
 - Invoice ✅
 - Item Master ✅
 - BOE list ✅
-
-### Pages remaining
-- Dashboard
-- Expenses (shell/tokens)
-- Reports
-- Settings
-- Frozen shipments
-- Recycle bin
+- Dashboard ✅ (AppBar, PageHeader, KpiTile, ExceptionOperationsPanel, im-kpi-grid)
+- Expenses ✅ (AppBar, PageHeader, im-tabs, im-dashboard-body)
+- Expense Reports ✅ (AppBar, PageHeader, im-dashboard-body)
+- Reports ✅ (AppBar, PageHeader, im-dashboard-body)
+- Settings ✅ (AppBar, PageHeader, SettingsSection, SettingRow, ImToggle)
+- Frozen Shipments ✅ (AppBar, PageHeader, im-table)
+- Recycle Bin ✅ (AppBar, PageHeader, im-section, im-table)
 
 ---
 

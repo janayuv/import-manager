@@ -10,7 +10,7 @@ import {
   confirm as confirmDestructive,
   isTauriEnvironment,
 } from '@/lib/tauri-bridge';
-import { logInfo, logWarn } from '@/lib/logger';
+import { logError, logInfo, logWarn } from '@/lib/logger';
 import { parseIpcError } from '@/lib/ipc-error';
 import { useCurrentUserId } from '@/lib/user-context';
 
@@ -180,7 +180,7 @@ function RecycleBinContent() {
       const t = await invoke<string[]>('get_soft_delete_tables', { userId });
       setTables(Array.isArray(t) ? t : []);
     } catch (e) {
-      console.error(e);
+      logError(String(e), 'recycle-bin');
       setTables([]);
     }
   }, [userId]);
@@ -210,9 +210,9 @@ function RecycleBinContent() {
           userId,
         });
       } catch (countErr) {
-        console.warn(
-          '[RecycleBin] get_recycle_bin_deleted_count failed:',
-          countErr
+        logWarn(
+          `get_recycle_bin_deleted_count failed: ${String(countErr)}`,
+          'recycle-bin'
         );
       }
 
@@ -222,16 +222,16 @@ function RecycleBinContent() {
       });
 
       if (sidebarCount != null && r?.total !== sidebarCount) {
-        console.warn(
-          '[RecycleBin] MISMATCH: sidebar count vs get_deleted_records total',
-          { sidebarCount, listTotal: r?.total, args }
+        logWarn(
+          `MISMATCH: sidebar count (${String(sidebarCount)}) vs get_deleted_records total (${String(r?.total)})`,
+          'recycle-bin'
         );
       }
       setResponse(r);
 
       setSelected(new Set());
     } catch (e) {
-      console.error(e);
+      logError(String(e), 'recycle-bin');
       toast.error(`Failed to load recycle bin: ${e}`);
     } finally {
       setLoading(false);
@@ -375,7 +375,7 @@ function RecycleBinContent() {
             : typeof e === 'string'
               ? e
               : String(e));
-        console.error(e);
+        logError(raw, 'restore');
         toast.error(`Restore failed: ${raw}`);
         return;
       }
@@ -412,7 +412,7 @@ function RecycleBinContent() {
       setSelected(new Set());
     } catch (e) {
       const raw = String(e);
-      console.error(e);
+      logError(raw, 'recycle-bin');
       if (
         raw.includes('DEPENDENCY') ||
         raw.toLowerCase().includes('referenced')

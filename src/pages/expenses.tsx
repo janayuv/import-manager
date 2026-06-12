@@ -13,6 +13,7 @@ import { ExpenseMultilineForm } from '@/components/expenses/expense-multiline-fo
 import ExpenseReports from '@/components/expenses/expense-reports';
 import ShipmentSelector from '@/components/expenses/shipment-selector';
 import { AppBar, PageHeader } from '@/components/shared/im';
+import { logError } from '@/lib/logger';
 import { formatText } from '@/lib/settings';
 import { useSettings } from '@/lib/use-settings';
 import type {
@@ -123,7 +124,7 @@ const ExpensesPage = () => {
         'Expense data refreshed successfully'
       );
     } catch (error) {
-      console.error('Failed to refresh expense data:', error);
+      logError(`Failed to refresh expense data: ${String(error)}`, 'expenses');
       notifications.expense.error('refresh data', String(error));
     }
   }, [notifications]);
@@ -211,14 +212,18 @@ const ExpensesPage = () => {
               <div className="im-tabs">
                 <button
                   type="button"
-                  className={`im-tab${activeTab === 'manage' ? 'is-active' : ''}`}
+                  className={
+                    activeTab === 'manage' ? 'im-tab is-active' : 'im-tab'
+                  }
                   onClick={() => setActiveTab('manage')}
                 >
                   Manage Expenses
                 </button>
                 <button
                   type="button"
-                  className={`im-tab${activeTab === 'import' ? 'is-active' : ''}`}
+                  className={
+                    activeTab === 'import' ? 'im-tab is-active' : 'im-tab'
+                  }
                   onClick={() => setActiveTab('import')}
                 >
                   Import Expenses
