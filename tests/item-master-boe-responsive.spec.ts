@@ -53,7 +53,7 @@ test.describe('Item Master and BOE pages responsive tests', () => {
             timeout: 15000,
           });
 
-          const sidebar = page.locator('[data-slot="sidebar"]');
+          const sidebar = page.locator('aside');
           await expect(sidebar.first()).toBeVisible({ timeout: 15000 });
 
           const tableHeaders = page.locator('table th');

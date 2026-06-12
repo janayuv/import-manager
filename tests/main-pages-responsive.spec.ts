@@ -34,7 +34,7 @@ test.describe('Main pages responsive snapshots', () => {
           });
 
           // Sidebar exists in DOM
-          const sidebar = page.locator('[data-slot="sidebar"]');
+          const sidebar = page.locator('aside');
           await expect(sidebar.first()).toBeVisible({ timeout: 10000 });
 
           // No obvious cut-offs in header title
