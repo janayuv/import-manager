@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './playwright-helpers';
 
 test.describe('Shipments Page Responsive Tests', () => {
   const screenSizes = [
@@ -18,30 +19,23 @@ test.describe('Shipments Page Responsive Tests', () => {
   for (const screenSize of screenSizes) {
     test.describe(`Screen Size: ${screenSize.name}`, () => {
       test.beforeEach(async ({ page }) => {
-        await page.addInitScript(() => {
-          try {
-            localStorage.setItem('isAuthenticated', 'true');
-          } catch {
-            /* ignore */
-          }
-        });
         await page.setViewportSize({
           width: screenSize.width,
           height: screenSize.height,
         });
+        await loginAsAdmin(page);
         await page.goto('/shipment');
         await page.waitForLoadState('load');
         await expect(
-          page.getByRole('heading', { level: 1, name: /shipment management/i })
+          page.getByRole('heading', { level: 1, name: /^shipments/i })
         ).toBeVisible({ timeout: 20000 });
-        await page.getByRole('button', { name: 'Table', exact: true }).click();
         await page.waitForSelector('table', { timeout: 20000 });
       });
 
       test('shipments page loads correctly', async ({ page }) => {
         await expect(page.locator('body')).toBeVisible();
         await expect(
-          page.getByRole('heading', { level: 1, name: /shipment management/i })
+          page.getByRole('heading', { level: 1, name: /^shipments/i })
         ).toBeVisible();
       });
 

@@ -5,7 +5,7 @@ const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 /** Main scrollable region inside `AppLayout`. */
 function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
+  return page.getByRole('main');
 }
 
 /** Card panel from the shared `Card` primitive (`data-slot="card"`). */
@@ -19,9 +19,9 @@ async function login(page: Page) {
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
   await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(appContent(page).getByText('Operational overview')).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 /**
@@ -42,9 +42,9 @@ async function loginWithFreshSettings(page: Page) {
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
   await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(appContent(page).getByText('Operational overview')).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 async function gotoSettings(page: Page) {
@@ -88,16 +88,6 @@ async function setThemeModeFromHeader(
 test.describe.configure({ mode: 'serial' });
 
 test.describe('Settings page — formatting persistence', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      try {
-        localStorage.setItem('isAuthenticated', 'true');
-      } catch {
-        /* ignore */
-      }
-    });
-  });
-
   test('number and date formatting persist after save and full reload', async ({
     page,
   }) => {
@@ -282,16 +272,6 @@ test.describe('Settings page — formatting persistence', () => {
 });
 
 test.describe('Settings page — theme (header)', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      try {
-        localStorage.setItem('isAuthenticated', 'true');
-      } catch {
-        /* ignore */
-      }
-    });
-  });
-
   test('dark mode chosen from header persists across reload', async ({
     page,
   }) => {

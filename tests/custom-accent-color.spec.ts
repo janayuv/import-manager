@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { loginAsAdmin } from './playwright-helpers';
 
 async function readRootAccent(page: Page): Promise<string> {
   return page.evaluate(() =>
@@ -27,14 +28,7 @@ async function openCustomColorDialog(page: Page) {
 
 test.describe('Custom Accent Color Feature', () => {
   test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      try {
-        localStorage.setItem('isAuthenticated', 'true');
-      } catch {
-        /* ignore */
-      }
-    });
-    await page.goto('/');
+    await loginAsAdmin(page);
   });
 
   test('should open custom color picker dialog', async ({ page }) => {

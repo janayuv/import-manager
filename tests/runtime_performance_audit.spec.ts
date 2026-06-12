@@ -65,7 +65,7 @@ function buildMixedShipmentCsv(rowCount: number): {
 }
 
 function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
+  return page.getByRole('main');
 }
 
 async function login(page: Page) {
@@ -77,9 +77,9 @@ async function login(page: Page) {
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
   await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(appContent(page).getByText('Operational overview')).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 async function getShipmentCount(page: Page): Promise<number> {
@@ -102,7 +102,7 @@ async function navigateToShipments(page: Page) {
     .getByRole('link', { name: 'Shipment', exact: true })
     .click();
   await expect(
-    appContent(page).getByText('Shipment Management', { exact: true })
+    appContent(page).getByRole('heading', { level: 1, name: /^shipments/i })
   ).toBeVisible({ timeout: 20_000 });
 }
 

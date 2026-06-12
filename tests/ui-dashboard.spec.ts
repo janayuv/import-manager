@@ -4,7 +4,7 @@ const defaultUser = process.env.E2E_USERNAME ?? 'Jana';
 const defaultPassword = process.env.E2E_PASSWORD ?? 'inzi@123$%';
 
 function appContent(page: Page) {
-  return page.locator('main.flex-1.overflow-y-auto');
+  return page.getByRole('main');
 }
 
 async function login(page: Page) {
@@ -13,9 +13,9 @@ async function login(page: Page) {
   await page.locator('#password').fill(defaultPassword);
   await page.getByRole('button', { name: 'Login' }).click();
   await expect(page).toHaveURL('/');
-  await expect(
-    appContent(page).getByText('Operational overview across modules')
-  ).toBeVisible({ timeout: 30_000 });
+  await expect(appContent(page).getByText('Operational overview')).toBeVisible({
+    timeout: 30_000,
+  });
 }
 
 /** Attach listeners before navigation so early errors are captured. */
@@ -33,16 +33,6 @@ function attachConsoleErrorCollector(page: Page): string[] {
 }
 
 test.describe('Dashboard smoke', () => {
-  test.beforeEach(async ({ page }) => {
-    await page.addInitScript(() => {
-      try {
-        localStorage.setItem('isAuthenticated', 'true');
-      } catch {
-        /* ignore */
-      }
-    });
-  });
-
   test('main KPI cards and primary sections are visible after load', async ({
     page,
   }) => {
@@ -52,9 +42,7 @@ test.describe('Dashboard smoke', () => {
     await expect(main.getByRole('heading', { name: 'Dashboard' })).toBeVisible({
       message: 'Dashboard title should render once invoke data has loaded',
     });
-    await expect(
-      main.getByText('Operational overview across modules')
-    ).toBeVisible();
+    await expect(main.getByText('Operational overview')).toBeVisible();
 
     await expect(
       main.getByText('Total Shipments', { exact: true })

@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { loginAsAdmin } from './playwright-helpers';
 
 const sizes = [
   { width: 1366, height: 768, name: '1366x768' },
@@ -23,13 +24,7 @@ test.describe('Main pages responsive snapshots', () => {
             width: size.width,
             height: size.height,
           });
-          await page.addInitScript(() => {
-            try {
-              localStorage.setItem('isAuthenticated', 'true');
-            } catch (error) {
-              console.warn('Failed to set localStorage:', error);
-            }
-          });
+          await loginAsAdmin(page);
           await page.goto(p.path);
           await page.waitForLoadState('networkidle');
 
