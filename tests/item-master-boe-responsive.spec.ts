@@ -49,7 +49,7 @@ test.describe('Item Master and BOE pages responsive tests', () => {
             timeout: 30000,
           });
 
-          await expect(page.locator('header')).toBeVisible({
+          await expect(page.locator('header').first()).toBeVisible({
             timeout: 15000,
           });
 

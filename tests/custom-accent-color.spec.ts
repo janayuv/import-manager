@@ -11,7 +11,7 @@ async function readRootAccent(page: Page): Promise<string> {
 
 /** Opens the custom accent dialog (Vite dev only; see SiteHeader __E2E_openCustomAccent). */
 async function openCustomColorDialog(page: Page) {
-  await expect(page.locator('header')).toBeVisible();
+  await expect(page.locator('header').first()).toBeVisible();
   await page.evaluate(() => {
     const w = window as Window & { __E2E_openCustomAccent?: () => void };
     if (!w.__E2E_openCustomAccent) {

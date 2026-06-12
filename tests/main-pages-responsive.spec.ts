@@ -29,7 +29,9 @@ test.describe('Main pages responsive snapshots', () => {
           await page.waitForLoadState('networkidle');
 
           // Header visible
-          await expect(page.locator('header')).toBeVisible({ timeout: 10000 });
+          await expect(page.locator('header').first()).toBeVisible({
+            timeout: 10000,
+          });
 
           // Sidebar exists in DOM
           const sidebar = page.locator('[data-slot="sidebar"]');
