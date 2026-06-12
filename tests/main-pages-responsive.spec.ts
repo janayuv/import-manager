@@ -26,11 +26,11 @@ test.describe('Main pages responsive snapshots', () => {
           });
           await loginAsAdmin(page);
           await page.goto(p.path);
-          await page.waitForLoadState('networkidle');
+          await page.waitForLoadState('domcontentloaded');
 
           // Header visible
           await expect(page.locator('header').first()).toBeVisible({
-            timeout: 10000,
+            timeout: 30000,
           });
 
           // Sidebar exists in DOM

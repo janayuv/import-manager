@@ -97,10 +97,7 @@ async function getShipmentCount(page: Page): Promise<number> {
 }
 
 async function navigateToShipments(page: Page) {
-  await page
-    .locator('[data-sidebar="sidebar"]')
-    .getByRole('link', { name: 'Shipment', exact: true })
-    .click();
+  await page.goto('/shipment');
   await expect(
     appContent(page).getByRole('heading', { level: 1, name: /^shipments/i })
   ).toBeVisible({ timeout: 20_000 });

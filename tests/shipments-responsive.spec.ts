@@ -8,13 +8,7 @@ test.describe('Shipments Page Responsive Tests', () => {
     { width: 2560, height: 1440, name: '2560x1440' },
   ];
 
-  const importantColumns = [
-    'Supplier',
-    'Invoice No',
-    'Date',
-    'BL/AWB No',
-    'Status',
-  ];
+  const importantColumns = ['Supplier', 'Invoice / BL', 'Status'];
 
   for (const screenSize of screenSizes) {
     test.describe(`Screen Size: ${screenSize.name}`, () => {
