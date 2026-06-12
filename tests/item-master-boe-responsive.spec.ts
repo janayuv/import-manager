@@ -24,7 +24,9 @@ function pageReadyLocator(
     case 'boe':
       return page.getByRole('heading', { name: 'Bill of Entry Details' });
     case 'boe-entry':
-      return page.getByText(/BOE Entry & Calculation|Editing BOE/);
+      return page.getByText(
+        /BOE Entry & Calculation|BOE ENTRY & CALCULATION|Editing BOE/i
+      );
     case 'boe-summary':
       return page.getByText('BOE Reconciliation Report');
     default:
