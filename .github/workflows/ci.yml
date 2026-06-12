@@ -110,7 +110,7 @@ jobs:
   unit-tests:
     name: Unit tests Vitest + Rust (${{ matrix.node-version }})
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 25
     needs: [frontend-lint, backend-check]
     strategy:
       fail-fast: false
@@ -139,11 +139,15 @@ jobs:
         run: |
           cd src-tauri
           cargo test
+      - name: Install cargo-llvm-cov
+        if: matrix.node-version == '22.x'
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
       - name: Run Rust coverage (llvm-cov)
         if: matrix.node-version == '22.x'
         run: |
           rustup component add llvm-tools-preview
-          cargo install cargo-llvm-cov --locked
           cd src-tauri
           cargo llvm-cov --lcov --output-path ../coverage/lcov-rust.info
       - name: Upload coverage reports
