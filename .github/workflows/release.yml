@@ -19,7 +19,7 @@ jobs:
       LIBSQLITE3_SYS_BUNDLED: '1'
       HAS_SIGNING_CERT: ${{ secrets.SIGNING_CERTIFICATE != '' }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Validate version tag
         if: github.ref_type == 'tag'
